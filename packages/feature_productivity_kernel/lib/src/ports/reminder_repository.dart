@@ -1,32 +1,55 @@
 import 'dart:async';
 
+import '../models/recurrence.dart';
 import '../models/reminder_item.dart';
 import '../models/reminder_list.dart';
 
 /// 提醒数据端口。
 ///
-/// `watch*` 返回 [Stream]：任何写操作（upsert/toggle…）后，订阅方应收到新快照，
-/// UI 层用 Riverpod StreamProvider 消费，禁止手动 reload 循环。
+/// 编辑语义（Phase 2 拍板）：
+/// - 全字段编辑 = UI 层 `copyWith` + [upsertItem] 全量回写（端口不设字段级 setter）
+/// - `toggle*` 留在仓库层：防读-改-写丢更新，且 [toggleCompleted] 须承载重复规则滚动
+/// - 删除为语义动作（级联删除子任务/列表条目）
+///
+/// `watch*` 返回 [Stream]：任何写操作后订阅方收到新快照，UI 用
+/// Riverpod StreamProvider 消费，禁止手动 reload 循环。
 abstract interface class ReminderRepository {
   /// 全部列表（智能 + 我的）；首帧后随写操作推送新值。
   Stream<List<ReminderList>> watchLists();
 
   /// 条目查询；[listId] 为空 = 全部。
-  /// 智能列表 id（`smart.` 前缀）按各自语义过滤：
-  /// - `smart.today`：未完成且 [ReminderItem.dueAt] 在今天内
-  /// - `smart.scheduled`：未完成且带 [ReminderItem.dueAt]（计划 = 有日期）
+  ///
+  /// 返回该列表**全部层级**（顶层 + 子任务），由 UI 纯函数分组渲染；
+  /// 排序契约统一 `sortOrder asc, id asc`。
+  /// 智能列表 id（`smart.` 前缀）按语义过滤（子任务同样生效）：
+  /// - `smart.today`：未完成且 dueAt 在今天内
+  /// - `smart.scheduled`：未完成且带 dueAt
   /// - `smart.all`：未完成全部
-  /// - `smart.flagged`：未完成且 [ReminderItem.isFlagged]
+  /// - `smart.flagged`：未完成且 isFlagged
   Stream<List<ReminderItem>> watchItems({String? listId});
 
-  /// 新增或更新单条提醒（含完成态、旗标、优先级等全部字段回写）。
+  /// 新增或更新单条提醒（全字段回写；id 用 [newReminderId] 工厂生成）。
   Future<void> upsertItem(ReminderItem item);
 
   /// 切换完成态。
+  ///
+  /// 带重复规则的条目在完成时**滚动**：dueAt = nextOccurrence、
+  /// isCompleted 回 false（对齐 Apple 提醒事项「完成即生成下一次」）。
   Future<void> toggleCompleted(String itemId);
 
+  /// 切换旗标态。
+  Future<void> toggleFlagged(String itemId);
+
+  /// 删除单条提醒（级联删除其全部子任务）。
+  Future<void> deleteItem(String itemId);
+
   /// 新增或更新列表（我的列表）。
+  ///
+  /// id 用 [newListId] 工厂生成；禁止 `smart.` 前缀（智能列表非用户数据）。
   Future<void> upsertList(ReminderList list);
+
+  /// 删除列表（级联删除其全部条目）。
+  Future<void> deleteList(String listId);
 }
 
 /// 内存实现：壳层与 UI 冒烟 + 仓库契约测试的参考实现。
@@ -127,6 +150,9 @@ final class InMemoryReminderRepository implements ReminderRepository {
 
   @override
   Future<void> upsertItem(ReminderItem item) async {
+    if (item.id.startsWith('smart.')) {
+      throw ArgumentError('smart. 前缀保留给智能列表派生，禁止作为条目 id');
+    }
     final i = _items.indexWhere((e) => e.id == item.id);
     if (i >= 0) {
       _items[i] = item;
@@ -142,13 +168,52 @@ final class InMemoryReminderRepository implements ReminderRepository {
     final i = _items.indexWhere((e) => e.id == itemId);
     if (i < 0) return;
     final cur = _items[i];
-    _items[i] = cur.copyWith(isCompleted: !cur.isCompleted);
+    final rule = cur.recurrenceRule;
+    if (rule != null && !cur.isCompleted && cur.dueAt != null) {
+      // 完成带重复规则的条目：滚动下一次 dueAt，完成态回 false
+      final next = rule.nextOccurrence(cur.dueAt!, _now);
+      _items[i] = cur.copyWith(dueAt: next, isCompleted: false);
+    } else {
+      _items[i] = cur.copyWith(isCompleted: !cur.isCompleted);
+    }
+    _recount();
+    _notify();
+  }
+
+  @override
+  Future<void> toggleFlagged(String itemId) async {
+    final i = _items.indexWhere((e) => e.id == itemId);
+    if (i < 0) return;
+    final cur = _items[i];
+    _items[i] = cur.copyWith(isFlagged: !cur.isFlagged);
+    _notify();
+  }
+
+  @override
+  Future<void> deleteItem(String itemId) async {
+    // 级联删除全部后代（子任务可能多层）
+    final removed = <String>{itemId};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final e in _items) {
+        if (e.parentId != null && removed.contains(e.parentId) &&
+            !removed.contains(e.id)) {
+          removed.add(e.id);
+          changed = true;
+        }
+      }
+    }
+    _items.removeWhere((e) => removed.contains(e.id));
     _recount();
     _notify();
   }
 
   @override
   Future<void> upsertList(ReminderList list) async {
+    if (list.id.startsWith('smart.')) {
+      throw ArgumentError('smart. 前缀保留给智能列表，禁止用户数据占用');
+    }
     final i = _lists.indexWhere((e) => e.id == list.id);
     if (i >= 0) {
       _lists[i] = list;
@@ -156,6 +221,16 @@ final class InMemoryReminderRepository implements ReminderRepository {
       _lists.add(list);
     }
     _recount();
+    _notify();
+  }
+
+  @override
+  Future<void> deleteList(String listId) async {
+    if (listId.startsWith('smart.')) {
+      throw ArgumentError('智能列表不可删除');
+    }
+    _lists.removeWhere((e) => e.id == listId);
+    _items.removeWhere((e) => e.listId == listId);
     _notify();
   }
 
@@ -190,7 +265,17 @@ final class InMemoryReminderRepository implements ReminderRepository {
   }
 
   List<ReminderItem> _snapshotItems(String? listId) =>
-      List<ReminderItem>.unmodifiable(_filter(listId, _now));
+      List<ReminderItem>.unmodifiable(_sorted(_filter(listId, _now)));
+
+  /// 排序契约（两实现一致）：`sortOrder asc, id asc`。
+  List<ReminderItem> _sorted(Iterable<ReminderItem> items) {
+    final list = items.toList(growable: false)
+      ..sort((a, b) {
+        final byOrder = a.sortOrder.compareTo(b.sortOrder);
+        return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
+      });
+    return list;
+  }
 
   Iterable<ReminderItem> _filter(String? listId, DateTime now) {
     if (listId == null) return _items;
