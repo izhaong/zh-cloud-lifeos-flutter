@@ -8,11 +8,12 @@ LifeOS **生活台**私有 Flutter 仓（Melos + Dart pub workspace）。
 
 ```text
 apps/
-  life_launcher/          # 生活台壳（Tab + 更多）
+  life_launcher/          # 生活台壳（Tab + 更多；GoRouter 唯一装配在 lib/router/）
 packages/
   app_core/               # 会话 / dio / 设计令牌
   life_link/              # 跨应用深链契约
-  feature_productivity_kernel/  # 提醒实体与本地端口
+  feature_productivity_kernel/  # 提醒实体、仓库端口、WindowSizeClass 断点纯函数
+  feature_productivity_drift/   # ReminderRepository 的 Drift 持久化实现
   feature_task/           # 提醒事项 UI（开源侧）
 ```
 
@@ -35,6 +36,7 @@ cd apps/life_launcher && flutter run -d macos   # 或 chrome / 真机
 ```bash
 dart run melos analyze
 dart run melos test
+dart run melos gen    # build_runner（feature_productivity_drift 的 drift 表生成）
 ```
 
 ## 钉版说明（相对 pub 绝对最新）
@@ -46,9 +48,29 @@ dart run melos test
 | `cached_network_image` | ^3.4.1 | 4.x→material_ui 需 Dart 3.13 |
 | `sqlite3` | ≥3.4 <3.6 | 3.7→hooks→meta^1.19；Flutter 钉 meta 1.18 |
 | `hooks`（override） | 2.0.0 | 同上 |
+| `drift_dev` | ^2.35.1 | 2.35.2 约束在 Dart 3.12.2 不可解析（实测降 2.35.1 通过） |
 | `freezed` / `riverpod_generator` | 暂未引入 | freezed 4 需 Dart ≥3.13，与 generator 注解链冲突 |
 
 **升级 Flutter 到 Dart ≥3.13 后**可去掉 `dependency_overrides`，并加回 freezed 4 + riverpod_generator 4 + google_fonts 9 等。
+
+## 布局断点（任务 App · 已钉死）
+
+`WindowSizeClass.fromWidth`（`feature_productivity_kernel`，纯函数，单一取值点）：
+
+| 档 | 宽度（dp） | 布局 |
+|----|-----------|------|
+| compact | <600 | iPhone 栈导航单栏；全屏详情走 shell 外顶层路由（无双底栏） |
+| medium | 600–1199 | iPad 分栏二栏（侧栏 \| 列表） |
+| expanded | ≥1200 | 可开第三列「详细信息」（iPad 12.9"/13" 横屏、macOS 默认窗） |
+
+纯宽度判定，无平台分支；断点只换外壳，不产生业务逻辑分叉。
+
+## 数据装配（Riverpod 契约）
+
+- `reminderRepositoryProvider` 在 `feature_task` 定义（未注入即抛 UnimplementedError）
+- 组合根 `apps/life_launcher/lib/main.dart` 先开 Drift 库再 `overrideWithValue` 注入
+- 测试内 override `InMemoryReminderRepository` 即可独立跑 feature_task 全套 widget 测试
+- `melos gen` 跑 build_runner（当前仅 `feature_productivity_drift` 需要）
 
 ## Git
 

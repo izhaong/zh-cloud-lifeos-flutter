@@ -25,18 +25,23 @@ flutter test   # 在各 package / app 目录，或 melos test
 ```
 
 - Dart SDK 随本机 Flutter（当前 3.12.2）；依赖钉版说明见 `README.md`
-- Drift / freezed / riverpod_generator：升级 Dart ≥3.13 后再系统性启用 codegen
+- Drift codegen（drift_dev 2.35.1 + build_runner）已在 Dart 3.12.2 实测可用：`packages/feature_productivity_drift` 内 `dart run build_runner build`
+- freezed 4 / riverpod_generator 4：仍待 Dart ≥3.13 后启用
 
 ## Architecture
 
 ```text
 life_launcher → feature_*_cloud（后续）/ feature_task + app_core
-feature_task  → feature_productivity_kernel
+life_launcher → feature_productivity_drift（组合根注入仓库实现）
+feature_task  → feature_productivity_kernel（契约 Provider 在 feature_task 定义，组合根 override）
 app_core      → life_link
 跨 App        → LifeLink 深链（禁止 feature 互 import UI）
 ```
 
 - `AuthPort` / `SyncPort`：接口 + Noop；真实实现只在 `*_cloud`
+- 数据仓库：`ReminderRepository` 端口在 kernel；`InMemory`（kernel 内参考实现）与 `Drift`（`feature_productivity_drift`）双实现，组合根单点切换
+- 导航：全仓**唯一** `GoRouter`（`apps/life_launcher/lib/router/life_router.dart`）；任务全屏页走 shell 外顶层路由（无双底栏）
+- 断点：`WindowSizeClass.fromWidth`（kernel 纯函数）三档——compact <600dp 栈导航 / medium 600–1199 二栏 / expanded ≥1200 可开第三列；叶子内容 widget 禁读断点
 - 任务 UX：Apple 提醒事项 iPhone / iPad / macOS 对等（见父仓 reminders 线框）
 
 ## Project Structure
