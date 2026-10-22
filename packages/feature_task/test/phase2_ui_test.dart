@@ -56,7 +56,7 @@ void main() {
     await tester.tap(find.text('新提醒'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), '买菜');
+    await tester.enterText(find.widgetWithText(TextField, '新提醒事项'), '买菜');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
 
@@ -67,7 +67,7 @@ void main() {
     // 空标题：不落库
     await tester.tap(find.text('新提醒'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), '   ');
+    await tester.enterText(find.widgetWithText(TextField, '新提醒事项'), '   ');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     expect(repo.upsertCount, 1); // 未增加

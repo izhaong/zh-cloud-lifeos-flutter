@@ -24,3 +24,37 @@ final itemsForListProvider =
     StreamProvider.family<List<ReminderItem>, String?>((ref, listId) {
   return ref.watch(reminderRepositoryProvider).watchItems(listId: listId);
 });
+
+/// 全局搜索词（macOS 工具栏搜索 / ⌘F 聚焦；空串 = 不过滤）。
+///
+/// Riverpod 3 无 StateProvider，用最小 Notifier 承载可变搜索态。
+final searchQueryProvider =
+    NotifierProvider<SearchQueryNotifier, String>(SearchQueryNotifier.new);
+
+class SearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void set(String value) => state = value;
+}
+
+/// 过滤后的条目流：在仓库语义过滤之上叠加本地文本匹配
+/// （标题 / 备注 / 标签，大小写不敏感）。
+final filteredItemsForListProvider =
+    StreamProvider.family<List<ReminderItem>, String?>((ref, listId) {
+  final query = ref.watch(searchQueryProvider).trim().toLowerCase();
+  if (query.isEmpty) {
+    return ref.watch(reminderRepositoryProvider).watchItems(listId: listId);
+  }
+  return ref
+      .watch(reminderRepositoryProvider)
+      .watchItems(listId: listId)
+      .map((items) => List<ReminderItem>.unmodifiable(
+            items
+                .where((e) =>
+                    e.title.toLowerCase().contains(query) ||
+                    (e.notes ?? '').toLowerCase().contains(query) ||
+                    e.tags.any((t) => t.toLowerCase().contains(query)))
+                .toList(growable: false),
+          ));
+});

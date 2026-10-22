@@ -429,13 +429,12 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     final title = _draftController.text.trim();
     if (title.isEmpty) return; // 空标题不落库
     final repo = ref.read(reminderRepositoryProvider);
-    final parentId = widget.list.id.startsWith('smart.') ? null : null;
+    // TODO(reminders-parity): 智能视图内的新建提醒应引导选择目标列表（P1）
     await repo.upsertItem(
       ReminderItem(
         id: newReminderId(),
         listId: _isSmartView ? 'list.personal' : widget.list.id,
         title: title,
-        parentId: parentId,
       ),
     );
     _draftController.clear();
@@ -449,14 +448,40 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   @override
   Widget build(BuildContext context) {
-    final itemsAsync = ref.watch(itemsForListProvider(widget.list.id));
+    final itemsAsync =
+        ref.watch(filteredItemsForListProvider(widget.list.id));
     final repo = ref.watch(reminderRepositoryProvider);
+    final query = ref.watch(searchQueryProvider);
+    final isPane = WindowSizeClass.fromWidth(
+      MediaQuery.of(context).size.width,
+    ).isPaneLayout;
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(widget.list.title),
         actions: [
+          if (isPane)
+            SizedBox(
+              width: 220,
+              child: TextField(
+                key: const ValueKey('toolbar_search'),
+                onChanged: (v) =>
+                    ref.read(searchQueryProvider.notifier).set(v),
+                decoration: InputDecoration(
+                  hintText: '搜索提醒事项…',
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF2F2F7),
+                ),
+              ),
+            ),
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.more_horiz),
@@ -467,6 +492,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (items) {
+          if (query.trim().isNotEmpty && items.isEmpty) {
+            return const Center(child: Text('无匹配结果'));
+          }
           // 顶层与子任务分组（watchItems 返回全层级；孤儿/环按顶层兜底）
           final itemsById = {
             for (final e in items) e.id: e,
