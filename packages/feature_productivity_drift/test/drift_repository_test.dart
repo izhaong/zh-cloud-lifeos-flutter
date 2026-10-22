@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -46,7 +47,7 @@ void main() {
     );
   });
 
-  test('toggleCompleted 后计数变化 + 全字段回写', () async {
+  test('toggleCompleted 后计数变化 + 全字段回写（含 tags JSON）', () async {
     await repo.upsertList(
       const ReminderList(id: 'list.work', title: '工作'),
     );
@@ -61,6 +62,7 @@ void main() {
         notes: '备注',
         isFlagged: true,
         priority: 9,
+        tags: ['工作', '设计'],
       ),
     );
 
@@ -84,6 +86,7 @@ void main() {
     expect(item.isFlagged, isTrue);
     expect(item.priority, 9);
     expect(item.isCompleted, isTrue);
+    expect(item.tags, ['工作', '设计']);
   });
 
   test('smart.flagged 语义过滤与写后广播', () async {
@@ -114,5 +117,162 @@ void main() {
     final repo2 = DriftReminderRepository(db);
     final lists = await repo2.watchLists().first;
     expect(lists.map((e) => e.id), contains('list.keep'));
+  });
+
+  test('toggleCompleted 对带重复规则条目滚动下一次 dueAt（与 InMemory 一致）',
+      () async {
+    repo.nowForTest = DateTime(2026, 10, 22, 12);
+    await repo.upsertList(
+      const ReminderList(id: 'list.personal', title: '个人'),
+    );
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'r1',
+        listId: 'list.personal',
+        title: '每日打卡',
+        dueAt: DateTime(2026, 10, 20, 8), // 已过期
+        recurrence: 'daily',
+      ),
+    );
+    await repo.toggleCompleted('r1');
+
+    final items = await repo.watchItems(listId: 'list.personal').first;
+    final item = items.singleWhere((e) => e.id == 'r1');
+    expect(item.isCompleted, isFalse);
+    expect(item.dueAt, DateTime(2026, 10, 23, 8));
+  });
+
+  test('deleteItem 级联删除子任务（多层）', () async {
+    await repo.upsertList(
+      const ReminderList(id: 'list.work', title: '工作'),
+    );
+    await repo.upsertItem(
+      const ReminderItem(id: 'p', listId: 'list.work', title: '父'),
+    );
+    await repo.upsertItem(
+      const ReminderItem(
+        id: 'c1',
+        listId: 'list.work',
+        title: '子1',
+        parentId: 'p',
+      ),
+    );
+    await repo.upsertItem(
+      const ReminderItem(
+        id: 'c2',
+        listId: 'list.work',
+        title: '孙',
+        parentId: 'c1',
+      ),
+    );
+    await repo.upsertItem(
+      const ReminderItem(id: 'other', listId: 'list.work', title: '无关'),
+    );
+
+    await repo.deleteItem('p');
+    final items = await repo.watchItems(listId: 'list.work').first;
+    expect(items.map((e) => e.id), ['other']);
+  });
+
+  test('deleteList 级联删除列表条目', () async {
+    await repo.upsertList(
+      const ReminderList(id: 'list.work', title: '工作'),
+    );
+    await repo.upsertItem(
+      const ReminderItem(id: 'a', listId: 'list.work', title: 'A'),
+    );
+    await repo.deleteList('list.work');
+    final items = await repo.watchItems(listId: 'list.work').first;
+    expect(items, isEmpty);
+  });
+
+  test('排序契约：sortOrder asc, id asc（与 InMemory 一致）', () async {
+    await repo.upsertList(
+      const ReminderList(id: 'list.work', title: '工作'),
+    );
+    // 故意乱序写入
+    await repo.upsertItem(
+      const ReminderItem(
+          id: 'b', listId: 'list.work', title: 'B', sortOrder: 2),
+    );
+    await repo.upsertItem(
+      const ReminderItem(
+          id: 'a', listId: 'list.work', title: 'A', sortOrder: 1),
+    );
+    await repo.upsertItem(
+      const ReminderItem(
+          id: 'c', listId: 'list.work', title: 'C', sortOrder: 1),
+    );
+
+    final items = await repo.watchItems(listId: 'list.work').first;
+    expect(items.map((e) => e.id), ['a', 'c', 'b']);
+  });
+
+  test('toggleFlagged 切换旗标', () async {
+    await repo.upsertList(
+      const ReminderList(id: 'list.work', title: '工作'),
+    );
+    await repo.upsertItem(
+      const ReminderItem(id: 'f1', listId: 'list.work', title: '旗标'),
+    );
+    await repo.toggleFlagged('f1');
+    var flagged = await repo.watchItems(listId: 'smart.flagged').first;
+    expect(flagged.map((e) => e.id), ['f1']);
+
+    await repo.toggleFlagged('f1');
+    flagged = await repo.watchItems(listId: 'smart.flagged').first;
+    expect(flagged, isEmpty);
+  });
+
+  test('upsertList 拒绝 smart. 前缀 id', () async {
+    expect(
+      () => repo.upsertList(
+        const ReminderList(id: 'smart.hack', title: '黑客'),
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test('V1→V2 迁移：旧数据保留、新列默认值正确', () async {
+    // 步骤1：裸 sqlite3 建 V1 旧结构（真实表名，无 V2 新列）+ 旧数据
+    final raw = sqlite3.sqlite3.openInMemory();
+    raw.execute('''
+      CREATE TABLE reminder_items (
+        id TEXT NOT NULL PRIMARY KEY,
+        list_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        notes TEXT NULL,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        is_flagged INTEGER NOT NULL DEFAULT 0,
+        due_at INTEGER NULL,
+        priority INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+    raw.execute('''
+      CREATE TABLE reminder_lists (
+        id TEXT NOT NULL PRIMARY KEY,
+        title TEXT NOT NULL,
+        color_argb INTEGER NOT NULL DEFAULT 4280327039,
+        is_smart INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+    raw.execute(
+      'INSERT INTO reminder_items (id, list_id, title, is_completed, '
+      'is_flagged, priority) '
+      "VALUES ('legacy1', 'list.old', '旧条目', 0, 1, 5)",
+    );
+    raw.execute('PRAGMA user_version = 1');
+
+    // 步骤2：drift 打开 → beforeOpen 检测 1→2 → onUpgrade 补列
+    final db2 = LifeProductivityDb(NativeDatabase.opened(raw));
+    final rows = await db2.select(db2.reminderItems).get();
+    expect(rows.map((e) => e.id), contains('legacy1'));
+    final legacy = rows.singleWhere((e) => e.id == 'legacy1');
+    expect(legacy.tags, '[]'); // V2 新列默认值
+    expect(legacy.recurrence, isNull);
+    expect(legacy.parentId, isNull);
+    expect(legacy.sortOrder, 0);
+    expect(legacy.title, '旧条目'); // 旧数据未丢
+    await db2.close();
   });
 }

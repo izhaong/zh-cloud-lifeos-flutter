@@ -54,8 +54,26 @@ class $ReminderListsTable extends ReminderLists
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, title, colorArgb, isSmart];
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    colorArgb,
+    isSmart,
+    sortOrder,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -93,6 +111,12 @@ class $ReminderListsTable extends ReminderLists
         isSmart.isAcceptableOrUnknown(data['is_smart']!, _isSmartMeta),
       );
     }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
     return context;
   }
 
@@ -118,6 +142,10 @@ class $ReminderListsTable extends ReminderLists
         DriftSqlType.bool,
         data['${effectivePrefix}is_smart'],
       )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
     );
   }
 
@@ -132,11 +160,13 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
   final String title;
   final int colorArgb;
   final bool isSmart;
+  final int sortOrder;
   const ReminderList({
     required this.id,
     required this.title,
     required this.colorArgb,
     required this.isSmart,
+    required this.sortOrder,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -145,6 +175,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     map['title'] = Variable<String>(title);
     map['color_argb'] = Variable<int>(colorArgb);
     map['is_smart'] = Variable<bool>(isSmart);
+    map['sort_order'] = Variable<int>(sortOrder);
     return map;
   }
 
@@ -154,6 +185,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       title: Value(title),
       colorArgb: Value(colorArgb),
       isSmart: Value(isSmart),
+      sortOrder: Value(sortOrder),
     );
   }
 
@@ -167,6 +199,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       title: serializer.fromJson<String>(json['title']),
       colorArgb: serializer.fromJson<int>(json['colorArgb']),
       isSmart: serializer.fromJson<bool>(json['isSmart']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
   }
   @override
@@ -177,6 +210,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       'title': serializer.toJson<String>(title),
       'colorArgb': serializer.toJson<int>(colorArgb),
       'isSmart': serializer.toJson<bool>(isSmart),
+      'sortOrder': serializer.toJson<int>(sortOrder),
     };
   }
 
@@ -185,11 +219,13 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     String? title,
     int? colorArgb,
     bool? isSmart,
+    int? sortOrder,
   }) => ReminderList(
     id: id ?? this.id,
     title: title ?? this.title,
     colorArgb: colorArgb ?? this.colorArgb,
     isSmart: isSmart ?? this.isSmart,
+    sortOrder: sortOrder ?? this.sortOrder,
   );
   ReminderList copyWithCompanion(ReminderListsCompanion data) {
     return ReminderList(
@@ -197,6 +233,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       title: data.title.present ? data.title.value : this.title,
       colorArgb: data.colorArgb.present ? data.colorArgb.value : this.colorArgb,
       isSmart: data.isSmart.present ? data.isSmart.value : this.isSmart,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
   }
 
@@ -206,13 +243,14 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('colorArgb: $colorArgb, ')
-          ..write('isSmart: $isSmart')
+          ..write('isSmart: $isSmart, ')
+          ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, title, colorArgb, isSmart);
+  int get hashCode => Object.hash(id, title, colorArgb, isSmart, sortOrder);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -220,7 +258,8 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
           other.id == this.id &&
           other.title == this.title &&
           other.colorArgb == this.colorArgb &&
-          other.isSmart == this.isSmart);
+          other.isSmart == this.isSmart &&
+          other.sortOrder == this.sortOrder);
 }
 
 class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
@@ -228,12 +267,14 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
   final Value<String> title;
   final Value<int> colorArgb;
   final Value<bool> isSmart;
+  final Value<int> sortOrder;
   final Value<int> rowid;
   const ReminderListsCompanion({
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.colorArgb = const Value.absent(),
     this.isSmart = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ReminderListsCompanion.insert({
@@ -241,6 +282,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     required String title,
     this.colorArgb = const Value.absent(),
     this.isSmart = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title);
@@ -249,6 +291,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     Expression<String>? title,
     Expression<int>? colorArgb,
     Expression<bool>? isSmart,
+    Expression<int>? sortOrder,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -256,6 +299,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
       if (title != null) 'title': title,
       if (colorArgb != null) 'color_argb': colorArgb,
       if (isSmart != null) 'is_smart': isSmart,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -265,6 +309,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     Value<String>? title,
     Value<int>? colorArgb,
     Value<bool>? isSmart,
+    Value<int>? sortOrder,
     Value<int>? rowid,
   }) {
     return ReminderListsCompanion(
@@ -272,6 +317,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
       title: title ?? this.title,
       colorArgb: colorArgb ?? this.colorArgb,
       isSmart: isSmart ?? this.isSmart,
+      sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -291,6 +337,9 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     if (isSmart.present) {
       map['is_smart'] = Variable<bool>(isSmart.value);
     }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -304,6 +353,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
           ..write('title: $title, ')
           ..write('colorArgb: $colorArgb, ')
           ..write('isSmart: $isSmart, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -403,6 +453,50 @@ class $ReminderItemsTable extends ReminderItems
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
+  @override
+  late final GeneratedColumn<String> tags = GeneratedColumn<String>(
+    'tags',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _recurrenceMeta = const VerificationMeta(
+    'recurrence',
+  );
+  @override
+  late final GeneratedColumn<String> recurrence = GeneratedColumn<String>(
+    'recurrence',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _parentIdMeta = const VerificationMeta(
+    'parentId',
+  );
+  @override
+  late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
+    'parent_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -413,6 +507,10 @@ class $ReminderItemsTable extends ReminderItems
     isFlagged,
     dueAt,
     priority,
+    tags,
+    recurrence,
+    parentId,
+    sortOrder,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -480,6 +578,30 @@ class $ReminderItemsTable extends ReminderItems
         priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
       );
     }
+    if (data.containsKey('tags')) {
+      context.handle(
+        _tagsMeta,
+        tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta),
+      );
+    }
+    if (data.containsKey('recurrence')) {
+      context.handle(
+        _recurrenceMeta,
+        recurrence.isAcceptableOrUnknown(data['recurrence']!, _recurrenceMeta),
+      );
+    }
+    if (data.containsKey('parent_id')) {
+      context.handle(
+        _parentIdMeta,
+        parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
     return context;
   }
 
@@ -521,6 +643,22 @@ class $ReminderItemsTable extends ReminderItems
         DriftSqlType.int,
         data['${effectivePrefix}priority'],
       )!,
+      tags: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tags'],
+      )!,
+      recurrence: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recurrence'],
+      ),
+      parentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_id'],
+      ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
     );
   }
 
@@ -539,6 +677,18 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
   final bool isFlagged;
   final DateTime? dueAt;
   final int priority;
+
+  /// 标签（JSON 数组文本，如 '["工作","设计"]'；空数组存 '[]'）。
+  final String tags;
+
+  /// 重复规则 id（见 kernel Recurrence；null = 不重复）。
+  final String? recurrence;
+
+  /// 子任务的父提醒 id；null = 顶层。
+  final String? parentId;
+
+  /// 同层排序键。
+  final int sortOrder;
   const ReminderItem({
     required this.id,
     required this.listId,
@@ -548,6 +698,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     required this.isFlagged,
     this.dueAt,
     required this.priority,
+    required this.tags,
+    this.recurrence,
+    this.parentId,
+    required this.sortOrder,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -564,6 +718,14 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       map['due_at'] = Variable<DateTime>(dueAt);
     }
     map['priority'] = Variable<int>(priority);
+    map['tags'] = Variable<String>(tags);
+    if (!nullToAbsent || recurrence != null) {
+      map['recurrence'] = Variable<String>(recurrence);
+    }
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<String>(parentId);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
     return map;
   }
 
@@ -581,6 +743,14 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           ? const Value.absent()
           : Value(dueAt),
       priority: Value(priority),
+      tags: Value(tags),
+      recurrence: recurrence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrence),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
+      sortOrder: Value(sortOrder),
     );
   }
 
@@ -598,6 +768,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       isFlagged: serializer.fromJson<bool>(json['isFlagged']),
       dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
       priority: serializer.fromJson<int>(json['priority']),
+      tags: serializer.fromJson<String>(json['tags']),
+      recurrence: serializer.fromJson<String?>(json['recurrence']),
+      parentId: serializer.fromJson<String?>(json['parentId']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
     );
   }
   @override
@@ -612,6 +786,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       'isFlagged': serializer.toJson<bool>(isFlagged),
       'dueAt': serializer.toJson<DateTime?>(dueAt),
       'priority': serializer.toJson<int>(priority),
+      'tags': serializer.toJson<String>(tags),
+      'recurrence': serializer.toJson<String?>(recurrence),
+      'parentId': serializer.toJson<String?>(parentId),
+      'sortOrder': serializer.toJson<int>(sortOrder),
     };
   }
 
@@ -624,6 +802,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     bool? isFlagged,
     Value<DateTime?> dueAt = const Value.absent(),
     int? priority,
+    String? tags,
+    Value<String?> recurrence = const Value.absent(),
+    Value<String?> parentId = const Value.absent(),
+    int? sortOrder,
   }) => ReminderItem(
     id: id ?? this.id,
     listId: listId ?? this.listId,
@@ -633,6 +815,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     isFlagged: isFlagged ?? this.isFlagged,
     dueAt: dueAt.present ? dueAt.value : this.dueAt,
     priority: priority ?? this.priority,
+    tags: tags ?? this.tags,
+    recurrence: recurrence.present ? recurrence.value : this.recurrence,
+    parentId: parentId.present ? parentId.value : this.parentId,
+    sortOrder: sortOrder ?? this.sortOrder,
   );
   ReminderItem copyWithCompanion(ReminderItemsCompanion data) {
     return ReminderItem(
@@ -646,6 +832,12 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       isFlagged: data.isFlagged.present ? data.isFlagged.value : this.isFlagged,
       dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
       priority: data.priority.present ? data.priority.value : this.priority,
+      tags: data.tags.present ? data.tags.value : this.tags,
+      recurrence: data.recurrence.present
+          ? data.recurrence.value
+          : this.recurrence,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
   }
 
@@ -659,7 +851,11 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           ..write('isCompleted: $isCompleted, ')
           ..write('isFlagged: $isFlagged, ')
           ..write('dueAt: $dueAt, ')
-          ..write('priority: $priority')
+          ..write('priority: $priority, ')
+          ..write('tags: $tags, ')
+          ..write('recurrence: $recurrence, ')
+          ..write('parentId: $parentId, ')
+          ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
   }
@@ -674,6 +870,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     isFlagged,
     dueAt,
     priority,
+    tags,
+    recurrence,
+    parentId,
+    sortOrder,
   );
   @override
   bool operator ==(Object other) =>
@@ -686,7 +886,11 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           other.isCompleted == this.isCompleted &&
           other.isFlagged == this.isFlagged &&
           other.dueAt == this.dueAt &&
-          other.priority == this.priority);
+          other.priority == this.priority &&
+          other.tags == this.tags &&
+          other.recurrence == this.recurrence &&
+          other.parentId == this.parentId &&
+          other.sortOrder == this.sortOrder);
 }
 
 class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
@@ -698,6 +902,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
   final Value<bool> isFlagged;
   final Value<DateTime?> dueAt;
   final Value<int> priority;
+  final Value<String> tags;
+  final Value<String?> recurrence;
+  final Value<String?> parentId;
+  final Value<int> sortOrder;
   final Value<int> rowid;
   const ReminderItemsCompanion({
     this.id = const Value.absent(),
@@ -708,6 +916,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     this.isFlagged = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.priority = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.recurrence = const Value.absent(),
+    this.parentId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ReminderItemsCompanion.insert({
@@ -719,6 +931,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     this.isFlagged = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.priority = const Value.absent(),
+    this.tags = const Value.absent(),
+    this.recurrence = const Value.absent(),
+    this.parentId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        listId = Value(listId),
@@ -732,6 +948,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     Expression<bool>? isFlagged,
     Expression<DateTime>? dueAt,
     Expression<int>? priority,
+    Expression<String>? tags,
+    Expression<String>? recurrence,
+    Expression<String>? parentId,
+    Expression<int>? sortOrder,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -743,6 +963,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
       if (isFlagged != null) 'is_flagged': isFlagged,
       if (dueAt != null) 'due_at': dueAt,
       if (priority != null) 'priority': priority,
+      if (tags != null) 'tags': tags,
+      if (recurrence != null) 'recurrence': recurrence,
+      if (parentId != null) 'parent_id': parentId,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -756,6 +980,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     Value<bool>? isFlagged,
     Value<DateTime?>? dueAt,
     Value<int>? priority,
+    Value<String>? tags,
+    Value<String?>? recurrence,
+    Value<String?>? parentId,
+    Value<int>? sortOrder,
     Value<int>? rowid,
   }) {
     return ReminderItemsCompanion(
@@ -767,6 +995,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
       isFlagged: isFlagged ?? this.isFlagged,
       dueAt: dueAt ?? this.dueAt,
       priority: priority ?? this.priority,
+      tags: tags ?? this.tags,
+      recurrence: recurrence ?? this.recurrence,
+      parentId: parentId ?? this.parentId,
+      sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -798,6 +1030,18 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     if (priority.present) {
       map['priority'] = Variable<int>(priority.value);
     }
+    if (tags.present) {
+      map['tags'] = Variable<String>(tags.value);
+    }
+    if (recurrence.present) {
+      map['recurrence'] = Variable<String>(recurrence.value);
+    }
+    if (parentId.present) {
+      map['parent_id'] = Variable<String>(parentId.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -815,6 +1059,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
           ..write('isFlagged: $isFlagged, ')
           ..write('dueAt: $dueAt, ')
           ..write('priority: $priority, ')
+          ..write('tags: $tags, ')
+          ..write('recurrence: $recurrence, ')
+          ..write('parentId: $parentId, ')
+          ..write('sortOrder: $sortOrder, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -842,6 +1090,7 @@ typedef $$ReminderListsTableCreateCompanionBuilder =
       required String title,
       Value<int> colorArgb,
       Value<bool> isSmart,
+      Value<int> sortOrder,
       Value<int> rowid,
     });
 typedef $$ReminderListsTableUpdateCompanionBuilder =
@@ -850,6 +1099,7 @@ typedef $$ReminderListsTableUpdateCompanionBuilder =
       Value<String> title,
       Value<int> colorArgb,
       Value<bool> isSmart,
+      Value<int> sortOrder,
       Value<int> rowid,
     });
 
@@ -879,6 +1129,11 @@ class $$ReminderListsTableFilterComposer
 
   ColumnFilters<bool> get isSmart => $composableBuilder(
     column: $table.isSmart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -911,6 +1166,11 @@ class $$ReminderListsTableOrderingComposer
     column: $table.isSmart,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReminderListsTableAnnotationComposer
@@ -933,6 +1193,9 @@ class $$ReminderListsTableAnnotationComposer
 
   GeneratedColumn<bool> get isSmart =>
       $composableBuilder(column: $table.isSmart, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 }
 
 class $$ReminderListsTableTableManager
@@ -976,12 +1239,14 @@ class $$ReminderListsTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<int> colorArgb = const Value.absent(),
                 Value<bool> isSmart = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderListsCompanion(
                 id: id,
                 title: title,
                 colorArgb: colorArgb,
                 isSmart: isSmart,
+                sortOrder: sortOrder,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -990,12 +1255,14 @@ class $$ReminderListsTableTableManager
                 required String title,
                 Value<int> colorArgb = const Value.absent(),
                 Value<bool> isSmart = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderListsCompanion.insert(
                 id: id,
                 title: title,
                 colorArgb: colorArgb,
                 isSmart: isSmart,
+                sortOrder: sortOrder,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -1042,6 +1309,10 @@ typedef $$ReminderItemsTableCreateCompanionBuilder =
       Value<bool> isFlagged,
       Value<DateTime?> dueAt,
       Value<int> priority,
+      Value<String> tags,
+      Value<String?> recurrence,
+      Value<String?> parentId,
+      Value<int> sortOrder,
       Value<int> rowid,
     });
 typedef $$ReminderItemsTableUpdateCompanionBuilder =
@@ -1054,6 +1325,10 @@ typedef $$ReminderItemsTableUpdateCompanionBuilder =
       Value<bool> isFlagged,
       Value<DateTime?> dueAt,
       Value<int> priority,
+      Value<String> tags,
+      Value<String?> recurrence,
+      Value<String?> parentId,
+      Value<int> sortOrder,
       Value<int> rowid,
     });
 
@@ -1103,6 +1378,26 @@ class $$ReminderItemsTableFilterComposer
 
   ColumnFilters<int> get priority => $composableBuilder(
     column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tags => $composableBuilder(
+    column: $table.tags,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recurrence => $composableBuilder(
+    column: $table.recurrence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentId => $composableBuilder(
+    column: $table.parentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1155,6 +1450,26 @@ class $$ReminderItemsTableOrderingComposer
     column: $table.priority,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get tags => $composableBuilder(
+    column: $table.tags,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recurrence => $composableBuilder(
+    column: $table.recurrence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentId => $composableBuilder(
+    column: $table.parentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReminderItemsTableAnnotationComposer
@@ -1191,6 +1506,20 @@ class $$ReminderItemsTableAnnotationComposer
 
   GeneratedColumn<int> get priority =>
       $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<String> get tags =>
+      $composableBuilder(column: $table.tags, builder: (column) => column);
+
+  GeneratedColumn<String> get recurrence => $composableBuilder(
+    column: $table.recurrence,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get parentId =>
+      $composableBuilder(column: $table.parentId, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 }
 
 class $$ReminderItemsTableTableManager
@@ -1238,6 +1567,10 @@ class $$ReminderItemsTableTableManager
                 Value<bool> isFlagged = const Value.absent(),
                 Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> priority = const Value.absent(),
+                Value<String> tags = const Value.absent(),
+                Value<String?> recurrence = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderItemsCompanion(
                 id: id,
@@ -1248,6 +1581,10 @@ class $$ReminderItemsTableTableManager
                 isFlagged: isFlagged,
                 dueAt: dueAt,
                 priority: priority,
+                tags: tags,
+                recurrence: recurrence,
+                parentId: parentId,
+                sortOrder: sortOrder,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1260,6 +1597,10 @@ class $$ReminderItemsTableTableManager
                 Value<bool> isFlagged = const Value.absent(),
                 Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> priority = const Value.absent(),
+                Value<String> tags = const Value.absent(),
+                Value<String?> recurrence = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderItemsCompanion.insert(
                 id: id,
@@ -1270,6 +1611,10 @@ class $$ReminderItemsTableTableManager
                 isFlagged: isFlagged,
                 dueAt: dueAt,
                 priority: priority,
+                tags: tags,
+                recurrence: recurrence,
+                parentId: parentId,
+                sortOrder: sortOrder,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -1,7 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
-import 'package:drift/drift.dart'
-    show OrderingTerm, OrderingMode, NullsOrder, Value;
+import 'package:drift/drift.dart' show OrderingTerm, Value;
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart'
     as kernel;
@@ -11,13 +11,19 @@ import 'db.dart';
 /// [kernel.ReminderRepository] 的 Drift 实现（离线持久化）。
 ///
 /// - `watch*` 基于 drift 响应式 watch 流，写操作自动推送新快照
-/// - 智能列表语义过滤与 InMemory 实现一致（今天/计划/全部/旗标）
-/// - 未完成计数由查询派生，回写列表快照 itemCount
+/// - 编辑语义（Phase 2 拍板）：全字段编辑 = copyWith + upsertItem 全量回写；
+///   toggle 留仓库层（防读改写丢更新 + 重复滚动）；删除为级联语义动作
+/// - 智能列表语义过滤与 InMemory 实现一致；排序契约 `sortOrder asc, id asc`
 /// - UI 不接触 drift 类型：本包只向端口吐 kernel 实体
 class DriftReminderRepository implements kernel.ReminderRepository {
   DriftReminderRepository(this._db);
 
   final LifeProductivityDb _db;
+
+  /// 测试注入「当前时间」（与 InMemory.nowForTest 对齐）。
+  DateTime? nowForTest;
+
+  DateTime get _now => nowForTest ?? DateTime.now();
 
   /// 智能列表元数据（不落表，watchLists 派生时合并）。
   static const List<kernel.ReminderList> smartLists = [
@@ -31,11 +37,9 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   Stream<List<kernel.ReminderList>> watchLists() {
     final lists$ = _db.select(_db.reminderLists).watch();
     final items$ = _db.select(_db.reminderItems).watch();
-    return _combineLatest2<
-        List<ReminderList>,
-        List<ReminderItem>,
+    return _combineLatest2<List<ReminderList>, List<ReminderItem>,
         List<kernel.ReminderList>>(lists$, items$, (listRows, itemRows) {
-      final now = _now();
+      final now = _now;
       return [
         for (final smart in smartLists)
           smart.copyWith(itemCount: _count(itemRows, smart.id, now)),
@@ -46,6 +50,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             colorArgb: row.colorArgb,
             isSmart: row.isSmart,
             itemCount: _count(itemRows, row.id, now),
+            sortOrder: row.sortOrder,
           ),
       ];
     });
@@ -53,14 +58,11 @@ class DriftReminderRepository implements kernel.ReminderRepository {
 
   @override
   Stream<List<kernel.ReminderItem>> watchItems({String? listId}) {
-    final now = _now();
+    final now = _now;
     final query = _db.select(_db.reminderItems)
+      // 排序契约（与 InMemory 一致）：sortOrder asc, id asc
       ..orderBy([
-        (t) => OrderingTerm(
-              expression: t.dueAt,
-              nulls: NullsOrder.first,
-              mode: OrderingMode.desc,
-            ),
+        (t) => OrderingTerm(expression: t.sortOrder),
         (t) => OrderingTerm(expression: t.id),
       ]);
     if (listId != null && !listId.startsWith('smart.')) {
@@ -78,31 +80,106 @@ class DriftReminderRepository implements kernel.ReminderRepository {
 
   @override
   Future<void> upsertItem(kernel.ReminderItem item) async {
-    await _db
-        .into(_db.reminderItems)
-        .insertOnConflictUpdate(_companionFrom(item));
+    if (item.id.startsWith('smart.')) {
+      throw ArgumentError('smart. 前缀保留给智能列表派生，禁止作为条目 id');
+    }
+    await _db.into(_db.reminderItems).insertOnConflictUpdate(
+          _companionFrom(item),
+        );
   }
 
   @override
   Future<void> toggleCompleted(String itemId) async {
-    final row = await (_db.select(_db.reminderItems)
-          ..where((t) => t.id.equals(itemId)))
-        .getSingleOrNull();
-    if (row == null) return;
-    await (_db.update(_db.reminderItems)
-          ..where((t) => t.id.equals(itemId)))
-        .write(ReminderItemsCompanion(isCompleted: Value(!row.isCompleted)));
+    await _db.transaction(() async {
+      final row = await (_db.select(_db.reminderItems)
+            ..where((t) => t.id.equals(itemId)))
+          .getSingleOrNull();
+      if (row == null) return;
+      final cur = _toModel(row);
+      final rule = cur.recurrenceRule;
+      if (rule != null && !cur.isCompleted && cur.dueAt != null) {
+        // 完成带重复规则的条目：滚动下一次 dueAt，完成态回 false
+        final next = rule.nextOccurrence(cur.dueAt!, _now);
+        await (_db.update(_db.reminderItems)
+              ..where((t) => t.id.equals(itemId)))
+            .write(ReminderItemsCompanion(
+          dueAt: Value(next),
+          isCompleted: const Value(false),
+        ));
+      } else {
+        await (_db.update(_db.reminderItems)
+              ..where((t) => t.id.equals(itemId)))
+            .write(
+                ReminderItemsCompanion(isCompleted: Value(!cur.isCompleted)));
+      }
+    });
+  }
+
+  @override
+  Future<void> toggleFlagged(String itemId) async {
+    await _db.transaction(() async {
+      final row = await (_db.select(_db.reminderItems)
+            ..where((t) => t.id.equals(itemId)))
+          .getSingleOrNull();
+      if (row == null) return;
+      await (_db.update(_db.reminderItems)
+            ..where((t) => t.id.equals(itemId)))
+          .write(
+              ReminderItemsCompanion(isFlagged: Value(!row.isFlagged)));
+    });
+  }
+
+  @override
+  Future<void> deleteItem(String itemId) async {
+    // 级联删除全部后代（子任务可能多层；SQLite 端已有 FK ON DELETE CASCADE，
+    // 但外键需 PRAGMA 开启，这里显式应用层级联保证内存/Drift 行为一致）
+    final removed = <String>{itemId};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      final rows = await _db.select(_db.reminderItems).get();
+      for (final r in rows) {
+        if (r.parentId != null &&
+            removed.contains(r.parentId) &&
+            !removed.contains(r.id)) {
+          removed.add(r.id);
+          changed = true;
+        }
+      }
+    }
+    await (_db.delete(_db.reminderItems)
+          ..where((t) => t.id.isIn(removed)))
+        .go();
   }
 
   @override
   Future<void> upsertList(kernel.ReminderList list) async {
+    if (list.id.startsWith('smart.')) {
+      throw ArgumentError('smart. 前缀保留给智能列表，禁止用户数据占用');
+    }
     await _db.into(_db.reminderLists).insertOnConflictUpdate(
           ReminderListsCompanion.insert(
             id: list.id,
             title: list.title,
             colorArgb: Value(list.colorArgb),
+            sortOrder: Value(list.sortOrder),
           ),
         );
+  }
+
+  @override
+  Future<void> deleteList(String listId) async {
+    if (listId.startsWith('smart.')) {
+      throw ArgumentError('智能列表不可删除');
+    }
+    await _db.transaction(() async {
+      await (_db.delete(_db.reminderItems)
+            ..where((t) => t.listId.equals(listId)))
+          .go();
+      await (_db.delete(_db.reminderLists)
+            ..where((t) => t.id.equals(listId)))
+          .go();
+    });
   }
 
   // ---- 内部 ----
@@ -140,8 +217,6 @@ class DriftReminderRepository implements kernel.ReminderRepository {
     return controller.stream;
   }
 
-  DateTime _now() => DateTime.now();
-
   int _count(List<ReminderItem> rows, String listId, DateTime now) {
     return rows
         .where((row) => !row.isCompleted && _matches(row, listId, now))
@@ -174,6 +249,10 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       isFlagged: row.isFlagged,
       dueAt: row.dueAt,
       priority: row.priority,
+      tags: _decodeTags(row.tags),
+      recurrence: row.recurrence,
+      parentId: row.parentId,
+      sortOrder: row.sortOrder,
     );
   }
 
@@ -187,6 +266,25 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       isFlagged: Value(item.isFlagged),
       dueAt: Value(item.dueAt),
       priority: Value(item.priority),
+      tags: Value(_encodeTags(item.tags)),
+      recurrence: Value(item.recurrence),
+      parentId: Value(item.parentId),
+      sortOrder: Value(item.sortOrder),
     );
+  }
+
+  static String _encodeTags(List<String> tags) => jsonEncode(tags);
+
+  static List<String> _decodeTags(String? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded.whereType<String>().toList(growable: false);
+      }
+    } catch (_) {
+      // 容错：损坏数据按空标签处理
+    }
+    return const [];
   }
 }
