@@ -53,6 +53,18 @@ dart run melos gen    # build_runner（feature_productivity_drift 的 drift 表�
 
 **升级 Flutter 到 Dart ≥3.13 后**可去掉 `dependency_overrides`，并加回 freezed 4 + riverpod_generator 4 + google_fonts 9 等。
 
+## 平台矩阵与多端降级
+
+| 平台 | 布局 | 说明 |
+|------|------|------|
+| iPhone（<600dp） | 列表首页 → 栈导航 → 全屏详情模态 | 嵌生活台时任务页走 shell 外顶层路由，无双底栏 |
+| iPad 竖屏 / 11" 横屏（600–1199dp） | 分栏二栏（侧栏 \| 列表） | 与系统 Reminders 一致 |
+| iPad 12.9"/13" 横屏、macOS（≥1200dp） | 三栏（侧栏 \| 列表 \| 详细信息） | ⌘N 新建提醒、⌘F 聚焦搜索 |
+| Android 手机 / Web 窄窗 | 走 iPhone 式栈导航 | 纯宽度判定，无需平台分支 |
+| Android 平板 / Web 宽窗 | 优先 iPad 分栏 | 无桌面菜单栏时用应用内工具栏代替 macOS 菜单 |
+
+降级不改变数据模型与智能列表语义：断点只换外壳布局（`WindowSizeClass`），业务逻辑零分叉。
+
 ## 布局断点（任务 App · 已钉死）
 
 `WindowSizeClass.fromWidth`（`feature_productivity_kernel`，纯函数，单一取值点）：
