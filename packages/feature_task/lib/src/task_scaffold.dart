@@ -1,9 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import 'providers.dart';
+import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
 import 'widgets/reminder_row.dart';
 import 'widgets/task_sidebar.dart';
@@ -21,7 +23,7 @@ class TaskScaffold extends ConsumerWidget {
     this.openListId,
     this.selectedItemId,
     this.onOpenList,
-    this.showSidebarChrome = false,
+    this.onSelectItem,
   });
 
   /// 紧凑端首页概览（列表首页）：智能列表卡片 + 我的列表。
@@ -33,8 +35,8 @@ class TaskScaffold extends ConsumerWidget {
   /// 点开列表的回调（紧凑端由壳层路由推栈）。
   final ValueChanged<String>? onOpenList;
 
-  /// 紧凑端首页嵌壳时是否显示 AppBar（全屏任务体验时为 false 由栈页自带）。
-  final bool showSidebarChrome;
+  /// 点开提醒条目的回调（紧凑端推详情模态）。
+  final ValueChanged<ReminderItem>? onSelectItem;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,17 +57,20 @@ class TaskScaffold extends ConsumerWidget {
               : _CompactListPane(
                   lists: lists,
                   openListId: openListId!,
+                  onSelectItem: onSelectItem,
                 ),
           WindowSizeClass.medium => _TwoPane(
               lists: lists,
               openListId: openListId,
               onOpenList: onOpenList,
+              onSelectItem: onSelectItem,
             ),
           WindowSizeClass.expanded => _ThreePane(
               lists: lists,
               openListId: openListId,
               selectedItemId: selectedItemId,
               onOpenList: onOpenList,
+              onSelectItem: onSelectItem,
             ),
         };
       },
@@ -73,8 +78,8 @@ class TaskScaffold extends ConsumerWidget {
   }
 }
 
-/// 紧凑单栏：iPhone 列表首页（智能列表卡片 + 我的列表）。
-class _CompactPane extends StatelessWidget {
+/// 紧凑单栏：iPhone 列表首页（智能列表卡片 + 我的列表 + 添加列表）。
+class _CompactPane extends ConsumerWidget {
   const _CompactPane({
     required this.lists,
     required this.onOpenList,
@@ -84,7 +89,7 @@ class _CompactPane extends StatelessWidget {
   final ValueChanged<String>? onOpenList;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final smart = lists.where((e) => e.isSmart).toList(growable: false);
     final mine = lists.where((e) => !e.isSmart).toList(growable: false);
 
@@ -137,6 +142,20 @@ class _CompactPane extends StatelessWidget {
                     onTap: () => onOpenList?.call(mine[i].id),
                   ),
                 ],
+                const Divider(height: 1, indent: 52),
+                // 「添加列表」入口（对齐线框：我的列表区底部）
+                ListTile(
+                  leading: const Icon(CupertinoIcons.add,
+                      color: Color(0xFF007AFF)),
+                  title: const Text('添加列表',
+                      style: TextStyle(color: Color(0xFF007AFF))),
+                  onTap: () => showNewListDialog(
+                    context,
+                    onCreate: (list) => ref
+                        .read(reminderRepositoryProvider)
+                        .upsertList(list),
+                  ),
+                ),
               ],
             ),
           ),
@@ -160,10 +179,15 @@ class _CompactPane extends StatelessWidget {
 
 /// 紧凑端全屏单列表（栈导航推入后）：带返回的列表内容页。
 class _CompactListPane extends StatelessWidget {
-  const _CompactListPane({required this.lists, required this.openListId});
+  const _CompactListPane({
+    required this.lists,
+    required this.openListId,
+    this.onSelectItem,
+  });
 
   final List<ReminderList> lists;
   final String openListId;
+  final ValueChanged<ReminderItem>? onSelectItem;
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +198,9 @@ class _CompactListPane extends StatelessWidget {
         body: Center(child: Text('列表不存在')),
       );
     }
-    return _WithBackButton(child: ListContentPane(list: list));
+    return _WithBackButton(
+      child: ListContentPane(list: list, onSelectItem: onSelectItem),
+    );
   }
 }
 
@@ -273,11 +299,13 @@ class _TwoPane extends StatelessWidget {
     required this.lists,
     required this.openListId,
     required this.onOpenList,
+    this.onSelectItem,
   });
 
   final List<ReminderList> lists;
   final String? openListId;
   final ValueChanged<String>? onOpenList;
+  final ValueChanged<ReminderItem>? onSelectItem;
 
   @override
   Widget build(BuildContext context) {
@@ -296,7 +324,7 @@ class _TwoPane extends StatelessWidget {
         Expanded(
           child: current == null
               ? const _EmptyOverview()
-              : ListContentPane(list: current),
+              : ListContentPane(list: current, onSelectItem: onSelectItem),
         ),
       ],
     );
@@ -304,22 +332,31 @@ class _TwoPane extends StatelessWidget {
 }
 
 /// 展开三栏：侧栏 | 列表内容 | 详细信息。
-class _ThreePane extends StatelessWidget {
+class _ThreePane extends ConsumerWidget {
   const _ThreePane({
     required this.lists,
     required this.openListId,
     required this.selectedItemId,
     required this.onOpenList,
+    this.onSelectItem,
   });
 
   final List<ReminderList> lists;
   final String? openListId;
   final String? selectedItemId;
   final ValueChanged<String>? onOpenList;
+  final ValueChanged<ReminderItem>? onSelectItem;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final current = lists.where((e) => e.id == openListId).firstOrNull;
+    final itemsAsync = ref.watch(itemsForListProvider(openListId));
+    final selected = itemsAsync.maybeWhen(
+      data: (items) =>
+          items.where((e) => e.id == selectedItemId).firstOrNull,
+      orElse: () => null,
+    );
+
     return Row(
       children: [
         SizedBox(
@@ -334,13 +371,17 @@ class _ThreePane extends StatelessWidget {
         Expanded(
           child: current == null
               ? const _EmptyOverview()
-              : ListContentPane(list: current),
+              : ListContentPane(list: current, onSelectItem: onSelectItem),
         ),
-        if (selectedItemId != null) ...[
+        if (selected != null) ...[
           const VerticalDivider(width: 1),
           SizedBox(
             width: 320,
-            child: ReminderDetailPane(itemId: selectedItemId!),
+            child: ReminderDetailPane(
+              item: selected,
+              onSaved: (updated) =>
+                  ref.read(reminderRepositoryProvider).upsertItem(updated),
+            ),
           ),
         ],
       ],
@@ -360,22 +401,61 @@ class _EmptyOverview extends StatelessWidget {
   }
 }
 
-/// 列表内容区（布局无关）：条目行 + 完成态即时回写。
-class ListContentPane extends ConsumerWidget {
+/// 列表内容区（布局无关）：条目行 + 完成态/旗标即时回写 + 新建提醒草稿行 +
+/// 底部工具条（iOS 提醒事项式「＋ 新提醒」；智能视图隐藏）。
+class ListContentPane extends ConsumerStatefulWidget {
   const ListContentPane({super.key, required this.list, this.onSelectItem});
 
   final ReminderList list;
   final ValueChanged<ReminderItem>? onSelectItem;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final itemsAsync = ref.watch(itemsForListProvider(list.id));
+  ConsumerState<ListContentPane> createState() => _ListContentPaneState();
+}
+
+class _ListContentPaneState extends ConsumerState<ListContentPane> {
+  final _draftController = TextEditingController();
+  bool _showDraft = false;
+
+  @override
+  void dispose() {
+    _draftController.dispose();
+    super.dispose();
+  }
+
+  bool get _isSmartView => widget.list.id.startsWith('smart.');
+
+  Future<void> _submitDraft() async {
+    final title = _draftController.text.trim();
+    if (title.isEmpty) return; // 空标题不落库
+    final repo = ref.read(reminderRepositoryProvider);
+    final parentId = widget.list.id.startsWith('smart.') ? null : null;
+    await repo.upsertItem(
+      ReminderItem(
+        id: newReminderId(),
+        listId: _isSmartView ? 'list.personal' : widget.list.id,
+        title: title,
+        parentId: parentId,
+      ),
+    );
+    _draftController.clear();
+    setState(() => _showDraft = false);
+  }
+
+  Future<void> _openNewItemDialog() async {
+    // TODO(reminders-parity): 智能视图内的新建提醒应引导选择目标列表（P1）
+    setState(() => _showDraft = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final itemsAsync = ref.watch(itemsForListProvider(widget.list.id));
     final repo = ref.watch(reminderRepositoryProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(list.title),
+        title: Text(widget.list.title),
         actions: [
           IconButton(
             onPressed: () {},
@@ -387,22 +467,132 @@ class ListContentPane extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (items) {
-          if (items.isEmpty) {
-            return const Center(child: Text('没有提醒'));
+          // 顶层与子任务分组（watchItems 返回全层级；孤儿/环按顶层兜底）
+          final itemsById = {
+            for (final e in items) e.id: e,
+          };
+          final topLevel = items.where((e) {
+            if (e.parentId == null) return true;
+            // 孤儿（父不在结果集）或自环 → 按顶层渲染
+            return !itemsById.containsKey(e.parentId) || e.parentId == e.id;
+          }).toList(growable: false);
+          final subtasksByParent = <String, List<ReminderItem>>{};
+          for (final e in items) {
+            if (e.parentId != null &&
+                itemsById.containsKey(e.parentId) &&
+                e.parentId != e.id) {
+              subtasksByParent.putIfAbsent(e.parentId!, () => []).add(e);
+            }
           }
-          return ListView.separated(
-            itemCount: items.length,
-            separatorBuilder: (_, _) => const Divider(height: 1, indent: 56),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return ReminderRow(
-                item: item,
-                onToggleCompleted: () => repo.toggleCompleted(item.id),
-                onTap: () => onSelectItem?.call(item),
-              );
-            },
+
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.separated(
+                  itemCount: topLevel.length + (_showDraft ? 1 : 0),
+                  separatorBuilder: (_, _) =>
+                      const Divider(height: 1, indent: 56),
+                  itemBuilder: (context, index) {
+                    if (_showDraft && index == topLevel.length) {
+                      return _DraftRow(
+                        controller: _draftController,
+                        onSubmit: _submitDraft,
+                        onCancel: () {
+                          _draftController.clear();
+                          setState(() => _showDraft = false);
+                        },
+                      );
+                    }
+                    final item = topLevel[index];
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ReminderRow(
+                          item: item,
+                          onToggleCompleted: () =>
+                              repo.toggleCompleted(item.id),
+                          onToggleFlagged: () =>
+                              repo.toggleFlagged(item.id),
+                          onTap: () => widget.onSelectItem?.call(item),
+                        ),
+                        for (final sub in subtasksByParent[item.id] ??
+                            const <ReminderItem>[])
+                          Padding(
+                            padding: const EdgeInsets.only(left: 40),
+                            child: ReminderRow(
+                              item: sub,
+                              dense: true,
+                              onToggleCompleted: () =>
+                                  repo.toggleCompleted(sub.id),
+                              onToggleFlagged: () =>
+                                  repo.toggleFlagged(sub.id),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
+      ),
+      // 底部工具条：iOS 提醒事项式「＋ 新提醒」（对齐线框；禁用 FAB）
+      bottomNavigationBar: BottomAppBar(
+        elevation: 0,
+        child: Row(
+          children: [
+            TextButton.icon(
+              onPressed: _openNewItemDialog,
+              icon: const Icon(Icons.add, color: Color(0xFF007AFF)),
+              label: const Text('新提醒',
+                  style: TextStyle(color: Color(0xFF007AFF))),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 新建提醒草稿行：提交才 upsertItem 落库；空标题丢弃。
+class _DraftRow extends StatelessWidget {
+  const _DraftRow({
+    required this.controller,
+    required this.onSubmit,
+    required this.onCancel,
+  });
+
+  final TextEditingController controller;
+  final VoidCallback onSubmit;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        children: [
+          const Icon(CupertinoIcons.circle, color: Color(0xFFC7C7CC)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              autofocus: true,
+              onSubmitted: (_) => onSubmit(),
+              decoration: const InputDecoration(
+                hintText: '新提醒事项',
+                border: InputBorder.none,
+                isDense: true,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.keyboard_return,
+                size: 20, color: Color(0xFF007AFF)),
+            onPressed: onSubmit,
+          ),
+        ],
       ),
     );
   }
