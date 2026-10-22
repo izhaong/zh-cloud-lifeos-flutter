@@ -1,5 +1,5 @@
 import 'package:app_core/app_core.dart';
-import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -7,12 +7,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'router/life_router.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  /// 组合根：单点工厂切换 InMemory / Drift（Phase 1 起 Drift 为默认，
-  /// 详见 packages/feature_productivity_drift；未注入前回退 InMemory 冒烟）。
-  final repository = createReminderRepository();
+  /// 组合根：单点工厂切换 InMemory / Drift。
+  /// P0 起默认 Drift（离线持久化）；测试与冒烟可切回 InMemory。
+  final repository = await openDefaultDriftRepository();
 
   runApp(
     ProviderScope(
@@ -22,12 +22,6 @@ void main() {
       child: const LifeLauncherApp(),
     ),
   );
-}
-
-/// 组合根仓库工厂：当前返回 InMemory；Drift 门禁通过后切换为
-/// `DriftReminderRepository(...)`（见 feature_productivity_drift 包）。
-ReminderRepository createReminderRepository() {
-  return InMemoryReminderRepository();
 }
 
 class LifeLauncherApp extends StatelessWidget {
