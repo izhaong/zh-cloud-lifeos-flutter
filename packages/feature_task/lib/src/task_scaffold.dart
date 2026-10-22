@@ -24,13 +24,13 @@ class TaskScaffold extends ConsumerWidget {
     this.showSidebarChrome = false,
   });
 
-  /// 宽屏当前打开的列表 id；空 = 显示首页概览（紧凑端的首页由壳层栈导航）。
+  /// 紧凑端首页概览（列表首页）：智能列表卡片 + 我的列表。
   final String? openListId;
 
   /// 三栏第三列选中的提醒 id；空 = 不显示详情栏。
   final String? selectedItemId;
 
-  /// 紧凑端点开列表的回调（路由跳转由外部壳层/路由决定）。
+  /// 点开列表的回调（紧凑端由壳层路由推栈）。
   final ValueChanged<String>? onOpenList;
 
   /// 紧凑端首页嵌壳时是否显示 AppBar（全屏任务体验时为 false 由栈页自带）。
@@ -47,11 +47,15 @@ class TaskScaffold extends ConsumerWidget {
       error: (e, _) => Center(child: Text('加载失败：$e')),
       data: (lists) {
         return switch (sizeClass) {
-          WindowSizeClass.compact => _CompactPane(
-              lists: lists,
-              openListId: openListId,
-              onOpenList: onOpenList,
-            ),
+          WindowSizeClass.compact => openListId == null
+              ? _CompactPane(
+                  lists: lists,
+                  onOpenList: onOpenList,
+                )
+              : _CompactListPane(
+                  lists: lists,
+                  openListId: openListId!,
+                ),
           WindowSizeClass.medium => _TwoPane(
               lists: lists,
               openListId: openListId,
@@ -73,12 +77,10 @@ class TaskScaffold extends ConsumerWidget {
 class _CompactPane extends StatelessWidget {
   const _CompactPane({
     required this.lists,
-    required this.openListId,
     required this.onOpenList,
   });
 
   final List<ReminderList> lists;
-  final String? openListId;
   final ValueChanged<String>? onOpenList;
 
   @override
@@ -151,6 +153,55 @@ class _CompactPane extends StatelessWidget {
       'smart.flagged' => 3,
       _ => 9,
     };
+  }
+}
+
+
+
+/// 紧凑端全屏单列表（栈导航推入后）：带返回的列表内容页。
+class _CompactListPane extends StatelessWidget {
+  const _CompactListPane({required this.lists, required this.openListId});
+
+  final List<ReminderList> lists;
+  final String openListId;
+
+  @override
+  Widget build(BuildContext context) {
+    final list = lists.where((e) => e.id == openListId).firstOrNull;
+    if (list == null) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFF2F2F7),
+        body: Center(child: Text('列表不存在')),
+      );
+    }
+    return _WithBackButton(child: ListContentPane(list: list));
+  }
+}
+
+/// 紧凑端列表页外层：推入返回按钮（对齐提醒事项「‹ 列表」）。
+class _WithBackButton extends StatelessWidget {
+  const _WithBackButton({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          Positioned.fill(child: child),
+          Positioned(
+            top: 8,
+            left: 8,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
