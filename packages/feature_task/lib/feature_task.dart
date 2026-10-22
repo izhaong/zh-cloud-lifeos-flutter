@@ -8,4 +8,5 @@ export 'src/task_scaffold.dart';
 export 'src/widgets/new_list_dialog.dart';
 export 'src/widgets/reminder_detail_pane.dart';
 export 'src/widgets/reminder_row.dart';
+export 'src/widgets/task_shortcuts.dart';
 export 'src/widgets/task_sidebar.dart';

@@ -8,6 +8,7 @@ import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
 import 'widgets/reminder_row.dart';
+import 'widgets/task_shortcuts.dart';
 import 'widgets/task_sidebar.dart';
 
 /// 任务区自适应脚手架：单一逻辑内容，按 [WindowSizeClass] 只换外壳布局。
@@ -48,7 +49,9 @@ class TaskScaffold extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('加载失败：$e')),
       data: (lists) {
-        return switch (sizeClass) {
+        // 快捷键层（⌘N 新建 / ⌘F 搜索）包裹三档外壳；触屏端无物理键不影响
+        return TaskShortcuts(
+          child: switch (sizeClass) {
           WindowSizeClass.compact => openListId == null
               ? _CompactPane(
                   lists: lists,
@@ -72,7 +75,8 @@ class TaskScaffold extends ConsumerWidget {
               onOpenList: onOpenList,
               onSelectItem: onSelectItem,
             ),
-        };
+          },
+        );
       },
     );
   }
@@ -415,10 +419,43 @@ class ListContentPane extends ConsumerStatefulWidget {
 
 class _ListContentPaneState extends ConsumerState<ListContentPane> {
   final _draftController = TextEditingController();
+  final _searchFocus = FocusNode();
   bool _showDraft = false;
+  TaskShortcutsController? _shortcuts;
+  int _lastNewTicket = 0;
+  int _lastSearchTicket = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // 延迟到首帧后取外层控制器（避免 build 期依赖）
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final controller = TaskShortcuts.of(context);
+      _shortcuts = controller;
+      _lastNewTicket = controller.newReminderTicket;
+      _lastSearchTicket = controller.focusSearchTicket;
+      controller.addListener(_onShortcut);
+    });
+  }
+
+  void _onShortcut() {
+    final controller = _shortcuts;
+    if (controller == null) return;
+    if (controller.newReminderTicket != _lastNewTicket) {
+      _lastNewTicket = controller.newReminderTicket;
+      _openNewItemDialog();
+    }
+    if (controller.focusSearchTicket != _lastSearchTicket) {
+      _lastSearchTicket = controller.focusSearchTicket;
+      _searchFocus.requestFocus();
+    }
+  }
 
   @override
   void dispose() {
+    _shortcuts?.removeListener(_onShortcut);
+    _searchFocus.dispose();
     _draftController.dispose();
     super.dispose();
   }
@@ -466,6 +503,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               width: 220,
               child: TextField(
                 key: const ValueKey('toolbar_search'),
+                focusNode: _searchFocus,
                 onChanged: (v) =>
                     ref.read(searchQueryProvider.notifier).set(v),
                 decoration: InputDecoration(
