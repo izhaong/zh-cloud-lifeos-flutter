@@ -1,15 +1,19 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import '../providers.dart';
+import 'reminder_row.dart';
 
 /// 「详细信息」编辑面板（Apple 提醒事项对齐：备注 / 日期与时间 / 重复 /
 /// 标记(旗标) / 标签 / 优先级 / 子任务）。
 ///
-/// 布局无关：紧凑端模态全屏页、宽屏第三栏共用；
-/// 每次提交 = copyWith + onSaved(item)（由上层调 upsertItem 全量回写）。
-class ReminderDetailPane extends StatefulWidget {
+/// 布局无关：紧凑端模态页、宽屏第三栏共用。
+/// 字段编辑 = copyWith + upsertItem 全量回写；
+/// 子任务直接读写仓库（parentId 挂本条目），随流自动刷新。
+class ReminderDetailPane extends ConsumerStatefulWidget {
   const ReminderDetailPane({
     super.key,
     required this.item,
@@ -22,16 +26,19 @@ class ReminderDetailPane extends StatefulWidget {
   final VoidCallback? onClose;
 
   @override
-  State<ReminderDetailPane> createState() => _ReminderDetailPaneState();
+  ConsumerState<ReminderDetailPane> createState() =>
+      _ReminderDetailPaneState();
 }
 
-class _ReminderDetailPaneState extends State<ReminderDetailPane> {
+class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   late final TextEditingController _title;
   late final TextEditingController _notes;
   late final TextEditingController _tags;
+  late final TextEditingController _subtask;
   late bool _isFlagged;
   late int _priority;
   late String? _recurrence;
+  bool _showSubtaskDraft = false;
 
   @override
   void initState() {
@@ -39,6 +46,7 @@ class _ReminderDetailPaneState extends State<ReminderDetailPane> {
     _title = TextEditingController(text: widget.item.title);
     _notes = TextEditingController(text: widget.item.notes ?? '');
     _tags = TextEditingController(text: widget.item.tags.join(', '));
+    _subtask = TextEditingController();
     _isFlagged = widget.item.isFlagged;
     _priority = widget.item.priority;
     _recurrence = widget.item.recurrence;
@@ -49,8 +57,11 @@ class _ReminderDetailPaneState extends State<ReminderDetailPane> {
     _title.dispose();
     _notes.dispose();
     _tags.dispose();
+    _subtask.dispose();
     super.dispose();
   }
+
+  ReminderRepository get _repo => ref.read(reminderRepositoryProvider);
 
   void _save() {
     final tagList = _tags.text
@@ -69,8 +80,35 @@ class _ReminderDetailPaneState extends State<ReminderDetailPane> {
     widget.onSaved(updated);
   }
 
+  Future<void> _submitSubtask() async {
+    final title = _subtask.text.trim();
+    if (title.isEmpty) return; // 空标题不落库
+    await _repo.upsertItem(
+      ReminderItem(
+        id: newReminderId(),
+        listId: widget.item.listId,
+        title: title,
+        parentId: widget.item.id,
+      ),
+    );
+    _subtask.clear();
+    setState(() => _showSubtaskDraft = false);
+  }
+
+  Future<void> _deleteSubtask(String id) => _repo.deleteItem(id);
+
   @override
   Widget build(BuildContext context) {
+    final subtasksAsync =
+        ref.watch(itemsForListProvider(widget.item.listId));
+    final subtasks = subtasksAsync.maybeWhen(
+      data: (items) =>
+          items.where((e) => e.parentId == widget.item.id).toList(
+                growable: false,
+              ),
+      orElse: () => const <ReminderItem>[],
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(
@@ -117,7 +155,7 @@ class _ReminderDetailPaneState extends State<ReminderDetailPane> {
           ),
           const SizedBox(height: 20),
 
-          // 日期与时间（展示；编辑入口 Phase 3 完整日历选择）
+          // 日期与时间（展示；编辑入口 Phase 4 完整日历选择）
           _Row(
             icon: CupertinoIcons.calendar,
             label: '日期与时间',
@@ -195,11 +233,67 @@ class _ReminderDetailPaneState extends State<ReminderDetailPane> {
           ),
           const SizedBox(height: 20),
 
-          // 子任务（Phase 2 只读计数展示；新建/勾选子任务随后续小步）
-          const _Row(
-            icon: CupertinoIcons.checkmark_circle,
-            label: '子任务',
-            trailing: Text('2 项 ›'),
+          // 子任务：真实列表（勾选/删除随流刷新）+ 新建草稿行
+          Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            elevation: 0,
+            child: Column(
+              children: [
+                for (final sub in subtasks)
+                  Dismissible(
+                    key: ValueKey('subtask_${sub.id}'),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      color: const Color(0xFFFF3B30),
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.only(right: 20),
+                      child: const Icon(CupertinoIcons.delete,
+                          color: Colors.white),
+                    ),
+                    onDismissed: (_) => _deleteSubtask(sub.id),
+                    child: ReminderRow(
+                      item: sub,
+                      dense: true,
+                      onToggleCompleted: () =>
+                          _repo.toggleCompleted(sub.id),
+                    ),
+                  ),
+                if (_showSubtaskDraft)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
+                    child: Row(
+                      children: [
+                        const Icon(CupertinoIcons.circle,
+                            size: 18, color: Color(0xFFC7C7CC)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _subtask,
+                            autofocus: true,
+                            onSubmitted: (_) => _submitSubtask(),
+                            decoration: const InputDecoration(
+                              hintText: '子任务',
+                              border: InputBorder.none,
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ListTile(
+                  dense: true,
+                  leading: const Icon(CupertinoIcons.add,
+                      size: 20, color: Color(0xFF007AFF)),
+                  title: Text(
+                    subtasks.isEmpty ? '添加子任务' : '添加子任务',
+                    style: const TextStyle(color: Color(0xFF007AFF)),
+                  ),
+                  onTap: () => setState(() => _showSubtaskDraft = true),
+                ),
+              ],
+            ),
           ),
         ],
       ),
