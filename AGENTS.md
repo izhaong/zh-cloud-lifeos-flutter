@@ -62,5 +62,6 @@ Flutter · Riverpod 3 · go_router · Drift · dio · equatable · slang · Melo
 
 - 登录可跳过；离线优先
 - 规则：父仓 `00-zh-cloud-core`；本仓 `.cursor/rules`（bootstrap 后）
+- **长目标与交叉验证**：父仓 `.cursor/plans/life-client/2026-10-22-lifeos-long-goal-prompt.md`。重大架构/导航/数据层方案须经 **`cursor-agent` × `claude` CLI** 只读交叉评审，合出推荐后**直接按推荐落地**，不要等人做 A/B；额度失败则本地降级评审（见该文 §H / F.10）
 - Subagent：优先 `flutter-dev` / 后续 `lifeos-flutter-dev`
 - 安全：不输出真实 token / 密钥

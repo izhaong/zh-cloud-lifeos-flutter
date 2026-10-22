@@ -18,6 +18,16 @@ final class ReminderList extends Equatable {
   final bool isSmart;
   final int itemCount;
 
+  ReminderList copyWith({String? title, int? colorArgb, int? itemCount}) {
+    return ReminderList(
+      id: id,
+      title: title ?? this.title,
+      colorArgb: colorArgb ?? this.colorArgb,
+      isSmart: isSmart,
+      itemCount: itemCount ?? this.itemCount,
+    );
+  }
+
   @override
   List<Object?> get props => [id, title, colorArgb, isSmart, itemCount];
 }

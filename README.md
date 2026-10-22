@@ -24,6 +24,8 @@ packages/
 ```bash
 export PATH="$HOME/development/flutter/bin:$PATH"
 cd zh-cloud-lifeos-flutter
+# 直连 pub.dev 若卡在大包（material_symbols_icons / riverpod / drift），可临时：
+# export PUB_HOSTED_URL=https://pub.flutter-io.cn FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
 dart pub get
 cd apps/life_launcher && flutter run -d macos   # 或 chrome / 真机
 ```
