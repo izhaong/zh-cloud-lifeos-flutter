@@ -1,0 +1,40 @@
+name: app_core
+description: LifeOS 私有壳共享内核（会话、dio、设计令牌、LifeLink 发起）。
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  life_link:
+    path: ../life_link
+
+  dio: ^5.11.1
+  flutter_secure_storage: ^11.2.0
+  shared_preferences: ^2.5.6
+  connectivity_plus: ^7.3.2
+  package_info_plus: ^10.2.2
+
+  collection: any
+  equatable: ^3.0.0
+  intl: any
+  logger: ^2.8.0
+  meta: any
+  result_dart: ^2.2.0
+  uuid: ^4.6.0
+  path: any
+  path_provider: ^2.1.6
+  url_launcher: ^6.3.3
+
+  flutter_riverpod: ^3.4.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mockito: ^5.4.0

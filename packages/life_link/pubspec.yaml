@@ -1,0 +1,21 @@
+name: life_link
+description: LifeOS 跨应用互调契约（深链 / 能力声明）；无 UI、无网络实现。
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  meta: any
+  collection: any
+  equatable: ^3.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
