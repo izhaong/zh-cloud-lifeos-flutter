@@ -34,6 +34,10 @@ final class ReminderItem extends Equatable {
     this.recurrence,
     this.parentId,
     this.sortOrder = 0,
+    this.remoteId,
+    this.completedAt,
+    this.sectionId,
+    this.deletedAt,
   });
 
   final String id;
@@ -45,6 +49,7 @@ final class ReminderItem extends Equatable {
   final DateTime? dueAt;
 
   /// 0 = none, 1 = low, 5 = medium, 9 = high（对齐提醒事项习惯）。
+  /// 与服务端 0/1/2/3 的映射见 [ReminderPriorityCodec]。
   final int priority;
 
   /// 标签（Phase 2 存字符串列表；标签管理 UI 后置）。
@@ -58,6 +63,18 @@ final class ReminderItem extends Equatable {
 
   /// 同层排序键（排序契约统一 `sortOrder asc, id asc`）。
   final int sortOrder;
+
+  /// 服务端实体 ID（Spec 028 临时 ID 映射的本地侧；null = 未同步/纯本地）。
+  final String? remoteId;
+
+  /// 完成时间（服务端 completedAt 对齐；null = 未完成）。
+  final DateTime? completedAt;
+
+  /// 列表内手动分区 id（A15；null = 未分区；跨列表移动时须清空，对齐 TC-API-118）。
+  final String? sectionId;
+
+  /// 进入「最近删除」的时间（A10/TC-API-110 本地侧；null = 未在回收窗）。
+  final DateTime? deletedAt;
 
   bool get isSubtask => parentId != null;
 
@@ -84,6 +101,10 @@ final class ReminderItem extends Equatable {
     Object? recurrence = const _Unset(),
     Object? parentId = const _Unset(),
     int? sortOrder,
+    Object? remoteId = const _Unset(),
+    Object? completedAt = const _Unset(),
+    Object? sectionId = const _Unset(),
+    Object? deletedAt = const _Unset(),
   }) {
     return ReminderItem(
       id: id,
@@ -118,6 +139,26 @@ final class ReminderItem extends Equatable {
               ? this.parentId
               : parentId as String?,
       sortOrder: sortOrder ?? this.sortOrder,
+      remoteId: remoteId is _Clear
+          ? null
+          : remoteId is _Unset
+              ? this.remoteId
+              : remoteId as String?,
+      completedAt: completedAt is _Clear
+          ? null
+          : completedAt is _Unset
+              ? this.completedAt
+              : completedAt as DateTime?,
+      sectionId: sectionId is _Clear
+          ? null
+          : sectionId is _Unset
+              ? this.sectionId
+              : sectionId as String?,
+      deletedAt: deletedAt is _Clear
+          ? null
+          : deletedAt is _Unset
+              ? this.deletedAt
+              : deletedAt as DateTime?,
     );
   }
 
@@ -135,5 +176,32 @@ final class ReminderItem extends Equatable {
         recurrence,
         parentId,
         sortOrder,
+        remoteId,
+        completedAt,
+        sectionId,
+        deletedAt,
       ];
+}
+
+/// FL ↔ 服务端优先级映射编解码（Issue #3 / TC-KR-110）。
+///
+/// FL 本地档位 0/1/5/9（none/low/medium/high，对齐 Apple UI 习惯）；
+/// 服务端 M1 冻结 0/1/2/3（`TodoTaskBaseVO.priority` @Min(0)@Max(3)）。
+/// 越界值一律兜底 0（无），避免脏数据在双端漂移。
+class ReminderPriorityCodec {
+  ReminderPriorityCodec._();
+
+  static int toServer(int fl) => switch (fl) {
+        1 => 1,
+        5 => 2,
+        9 => 3,
+        _ => 0,
+      };
+
+  static int fromServer(int server) => switch (server) {
+        1 => 1,
+        2 => 5,
+        3 => 9,
+        _ => 0,
+      };
 }

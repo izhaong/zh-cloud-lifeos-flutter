@@ -32,7 +32,8 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
-  testWidgets('底部工具条「新提醒」出现于三档宽度', (tester) async {
+  // TC-UI-201
+    testWidgets('底部工具条「新提醒」出现于三档宽度', (tester) async {
     for (final size in [
       const Size(375, 812),
       const Size(834, 1112),
@@ -44,7 +45,8 @@ void main() {
     }
   });
 
-  testWidgets('草稿行提交后恰好一次落库；空标题零写入', (tester) async {
+  // TC-UI-201
+    testWidgets('草稿行提交后恰好一次落库；空标题零写入', (tester) async {
     final repo = _CountingRepo(InMemoryReminderRepository());
     await _pump(
       tester,
@@ -73,7 +75,8 @@ void main() {
     expect(repo.upsertCount, 1); // 未增加
   });
 
-  testWidgets('旗标点击即时切换并从 smart.flagged 流出', (tester) async {
+  // TC-UI-106
+    testWidgets('旗标点击即时切换并从 smart.flagged 流出', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(
       tester,
@@ -93,7 +96,8 @@ void main() {
     expect(flagged, isEmpty);
   });
 
-  testWidgets('详情面板编辑备注/旗标/优先级/标签 → upsertItem 全量回写', (tester) async {
+  // TC-UI-113
+    testWidgets('详情面板编辑备注/旗标/优先级/标签 → upsertItem 全量回写', (tester) async {
     final repo = _CountingRepo(InMemoryReminderRepository());
     await _pump(
       tester,
@@ -124,7 +128,8 @@ void main() {
     expect(repo.lastItem?.id, '1');
   });
 
-  testWidgets('添加列表弹窗：提交后首页即时出现新列表', (tester) async {
+  // TC-UI-206
+    testWidgets('添加列表弹窗：提交后首页即时出现新列表', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(
       tester,
@@ -149,7 +154,8 @@ void main() {
     expect(lists.map((e) => e.title), contains('购物'));
   });
 
-  testWidgets('全仓无 FloatingActionButton（Reminders IA 门禁）', (tester) async {
+  // TC-UI-N1 负向门禁
+    testWidgets('全仓无 FloatingActionButton（Reminders IA 门禁）', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(375, 812), repo: repo);
     expect(find.byType(FloatingActionButton), findsNothing);
