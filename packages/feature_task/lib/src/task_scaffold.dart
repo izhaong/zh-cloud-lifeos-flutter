@@ -25,6 +25,7 @@ class TaskScaffold extends ConsumerWidget {
     this.selectedItemId,
     this.onOpenList,
     this.onSelectItem,
+    this.onBack,
   });
 
   /// 紧凑端首页概览（列表首页）：智能列表卡片 + 我的列表。
@@ -33,11 +34,14 @@ class TaskScaffold extends ConsumerWidget {
   /// 三栏第三列选中的提醒 id；空 = 不显示详情栏。
   final String? selectedItemId;
 
-  /// 点开列表的回调（紧凑端由壳层路由推栈）。
+  /// 点开列表的回调（紧凑端由壳层路由推栈，仍在生活台底栏内）。
   final ValueChanged<String>? onOpenList;
 
   /// 点开提醒条目的回调（紧凑端推详情模态）。
   final ValueChanged<ReminderItem>? onSelectItem;
+
+  /// 紧凑端列表页返回（壳层提供；保持壳应用栏常显）。
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -61,6 +65,7 @@ class TaskScaffold extends ConsumerWidget {
                   lists: lists,
                   openListId: openListId!,
                   onSelectItem: onSelectItem,
+                  onBack: onBack,
                 ),
           WindowSizeClass.medium => _TwoPane(
               lists: lists,
@@ -97,12 +102,40 @@ class _CompactPane extends ConsumerWidget {
     final smart = lists.where((e) => e.isSmart).toList(growable: false);
     final mine = lists.where((e) => !e.isSmart).toList(growable: false);
 
+    // iOS 提醒事项「列表」首页：大标题 + 搜索 + 智能卡片 + 我的列表。
+    // 嵌在生活台壳内时，壳应用栏常显；本页不再另起全屏路由。
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
-      appBar: AppBar(title: const Text('提醒事项')),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF2F2F7),
+        surfaceTintColor: Colors.transparent,
+        title: const Text('列表'),
+        actions: [
+          IconButton(
+            tooltip: '编辑',
+            onPressed: () {},
+            icon: const Icon(CupertinoIcons.ellipsis_circle),
+          ),
+        ],
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
+          TextField(
+            decoration: InputDecoration(
+              hintText: '搜索',
+              prefixIcon: const Icon(CupertinoIcons.search, size: 20),
+              filled: true,
+              fillColor: const Color(0xFFE5E5EA),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -142,14 +175,23 @@ class _CompactPane extends ConsumerWidget {
                       backgroundColor: Color(mine[i].colorArgb),
                     ),
                     title: Text(mine[i].title),
-                    trailing: Text('${mine[i].itemCount}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${mine[i].itemCount}',
+                          style: const TextStyle(color: Color(0xFF8E8E93)),
+                        ),
+                        const Icon(CupertinoIcons.chevron_forward,
+                            size: 16, color: Color(0xFFC7C7CC)),
+                      ],
+                    ),
                     onTap: () => onOpenList?.call(mine[i].id),
                   ),
                 ],
                 const Divider(height: 1, indent: 52),
-                // 「添加列表」入口（对齐线框：我的列表区底部）
                 ListTile(
-                  leading: const Icon(CupertinoIcons.add,
+                  leading: const Icon(CupertinoIcons.add_circled_solid,
                       color: Color(0xFF007AFF)),
                   title: const Text('添加列表',
                       style: TextStyle(color: Color(0xFF007AFF))),
@@ -181,17 +223,19 @@ class _CompactPane extends ConsumerWidget {
 
 
 
-/// 紧凑端全屏单列表（栈导航推入后）：带返回的列表内容页。
+/// 紧凑端单列表（壳内子路由）：「‹ 列表」返回 + 列表内容；生活台底栏仍由壳提供。
 class _CompactListPane extends StatelessWidget {
   const _CompactListPane({
     required this.lists,
     required this.openListId,
     this.onSelectItem,
+    this.onBack,
   });
 
   final List<ReminderList> lists;
   final String openListId;
   final ValueChanged<ReminderItem>? onSelectItem;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -202,35 +246,20 @@ class _CompactListPane extends StatelessWidget {
         body: Center(child: Text('列表不存在')),
       );
     }
-    return _WithBackButton(
-      child: ListContentPane(list: list, onSelectItem: onSelectItem),
-    );
-  }
-}
-
-/// 紧凑端列表页外层：推入返回按钮（对齐提醒事项「‹ 列表」）。
-class _WithBackButton extends StatelessWidget {
-  const _WithBackButton({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: Stack(
-        children: [
-          Positioned.fill(child: child),
-          Positioned(
-            top: 8,
-            left: 8,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new),
-              onPressed: () => Navigator.of(context).maybePop(),
+    return ListContentPane(
+      list: list,
+      onSelectItem: onSelectItem,
+      leading: onBack == null
+          ? null
+          : TextButton.icon(
+              onPressed: onBack,
+              icon: const Icon(CupertinoIcons.back, size: 18),
+              label: const Text('列表'),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF007AFF),
+                padding: const EdgeInsets.only(left: 4),
+              ),
             ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -407,11 +436,21 @@ class _EmptyOverview extends StatelessWidget {
 
 /// 列表内容区（布局无关）：条目行 + 完成态/旗标即时回写 + 新建提醒草稿行 +
 /// 底部工具条（iOS 提醒事项式「＋ 新提醒」；智能视图隐藏）。
+///
+/// [leading] 供紧凑端壳内子路由显示「‹ 列表」返回；medium/expanded 二栏/三栏不传即可。
 class ListContentPane extends ConsumerStatefulWidget {
-  const ListContentPane({super.key, required this.list, this.onSelectItem});
+  const ListContentPane({
+    super.key,
+    required this.list,
+    this.onSelectItem,
+    this.leading,
+  });
 
   final ReminderList list;
   final ValueChanged<ReminderItem>? onSelectItem;
+
+  /// 紧凑端 AppBar 左侧返回（如「‹ 列表」）；null 时用系统默认（或无 leading）。
+  final Widget? leading;
 
   @override
   ConsumerState<ListContentPane> createState() => _ListContentPaneState();
@@ -496,6 +535,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        automaticallyImplyLeading: widget.leading == null,
+        leading: widget.leading,
+        leadingWidth: widget.leading == null ? null : 96,
         title: Text(widget.list.title),
         actions: [
           if (isPane)

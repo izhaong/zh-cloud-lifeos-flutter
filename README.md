@@ -59,7 +59,7 @@ dart run melos run gen    # build_runner（feature_productivity_drift 的 drift 
 
 | 平台 | 布局 | 说明 |
 |------|------|------|
-| iPhone（<600dp） | 列表首页 → 栈导航 → 全屏详情模态 | 嵌生活台时任务页走 shell 外顶层路由，无双底栏 |
+| iPhone（<600dp） | 列表首页 → 壳内 `/list/:id` → 详情模态 | 竖屏底 Tab 常显；旧全屏盖底栏已废弃 |
 | iPad 竖屏 / 11" 横屏（600–1199dp） | 分栏二栏（侧栏 \| 列表） | 与系统 Reminders 一致 |
 | iPad 12.9"/13" 横屏、macOS（≥1200dp） | 三栏（侧栏 \| 列表 \| 详细信息） | ⌘N 新建提醒、⌘F 聚焦搜索 |
 | Android 手机 / Web 窄窗 | 走 iPhone 式栈导航 | 纯宽度判定，无需平台分支 |
@@ -73,9 +73,9 @@ dart run melos run gen    # build_runner（feature_productivity_drift 的 drift 
 
 | 档 | 宽度（dp） | 布局 |
 |----|-----------|------|
-| compact | <600 | iPhone 栈导航单栏；全屏详情走 shell 外顶层路由（无双底栏） |
-| medium | 600–1199 | iPad 分栏二栏（侧栏 \| 列表） |
-| expanded | ≥1200 | 可开第三列「详细信息」（iPad 12.9"/13" 横屏、macOS 默认窗） |
+| compact | <600 | iPhone 栈导航单栏；列表子路由嵌在 StatefulShell 内；竖屏底 Tab |
+| medium | 600–1199 | iPad 分栏二栏（侧栏 \| 列表）；壳为左侧应用栏（横屏/Pad 类） |
+| expanded | ≥1200 | 可开第三列「详细信息」（iPad 12.9"/13" 横屏、macOS 默认窗）；壳左轨 |
 
 纯宽度判定，无平台分支；断点只换外壳，不产生业务逻辑分叉。
 

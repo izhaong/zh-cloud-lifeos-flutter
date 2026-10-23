@@ -12,8 +12,8 @@ import '../shell_providers.dart';
 
 /// 全仓唯一 GoRouter：单一逻辑路由表；断点只换外壳布局，不换路由结构。
 ///
-/// - `/`：生活台壳（StatefulShellRoute.indexedStack，分支序=installedApps+更多）
-/// - `/tasks`、`/tasks/list/:listId`：紧凑端全屏提醒事项（shell 外顶层路由）
+/// - `/`：任务 Tab（列表首页）；子路由 `/list/:listId` 仍在壳内 → **壳应用栏常显**
+/// - 旧 `/tasks*` 重定向到壳内路径（兼容深链）
 ///
 /// 分支序与 [installedApps] 注册表一致（「更多」恒最末 = [LifeShell.moreBranchIndex]）。
 GoRouter buildLifeRouter(WidgetRef ref) {
@@ -23,9 +23,15 @@ GoRouter buildLifeRouter(WidgetRef ref) {
   return GoRouter(
     initialLocation: '/',
     redirect: (context, state) {
-      // 冷启动落在 '/'（任务分支 0）且任务被取消固定 → 跳首个固定分支；
-      // 全不固定 → /more（底栏高亮有落点，不悬空）。
-      if (state.matchedLocation == '/' && !pinned.any((e) => e.id == 'task')) {
+      final loc = state.matchedLocation;
+      // 兼容旧全屏路径 → 壳内
+      if (loc == '/tasks') return '/';
+      if (loc.startsWith('/tasks/list/')) {
+        final id = loc.substring('/tasks/list/'.length);
+        return '/list/$id';
+      }
+      // 冷启动落在 '/' 且任务未固定 → 跳首个固定分支或 /more
+      if (loc == '/' && !pinned.any((e) => e.id == 'task')) {
         return pinned.isEmpty ? '/more' : pinned.first.branchPath;
       }
       return null;
@@ -40,6 +46,14 @@ GoRouter buildLifeRouter(WidgetRef ref) {
             GoRoute(
               path: '/',
               builder: (context, state) => const TaskTabEntry(),
+              routes: [
+                GoRoute(
+                  path: 'list/:listId',
+                  builder: (context, state) => TaskTabEntry(
+                    listId: state.pathParameters['listId'],
+                  ),
+                ),
+              ],
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -64,36 +78,15 @@ GoRouter buildLifeRouter(WidgetRef ref) {
           ]),
         ],
       ),
-      GoRoute(
-        path: '/tasks',
-        builder: (context, state) => const TaskFullScreen(),
-      ),
-      GoRoute(
-        path: '/tasks/list/:listId',
-        builder: (context, state) =>
-            TaskFullScreen(listId: state.pathParameters['listId']),
-      ),
     ],
   );
 }
 
-/// 壳内「任务」Tab：宽屏直接呈现分栏任务区（不外跳）；
-/// 紧凑端显示入口概览，点列表全屏推入（无双底栏）。
+/// 壳内「任务」Tab：始终嵌在 [LifeShell] 内，应用栏常显（竖屏底栏 / 横屏或 Pad 左轨）。
+///
+/// 紧凑端列表首页 → 点列表 `push` 到 `/list/:id`（仍在壳内）；宽屏分栏不跳路由。
 class TaskTabEntry extends ConsumerWidget {
-  const TaskTabEntry({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return TaskScaffold(
-      openListId: null,
-      onOpenList: (listId) => context.go('/tasks/list/$listId'),
-    );
-  }
-}
-
-/// 全屏提醒事项体验（shell 外顶层路由）：紧凑端隐藏生活台底栏。
-class TaskFullScreen extends ConsumerWidget {
-  const TaskFullScreen({super.key, this.listId});
+  const TaskTabEntry({super.key, this.listId});
 
   final String? listId;
 
@@ -101,7 +94,16 @@ class TaskFullScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return TaskScaffold(
       openListId: listId,
-      onOpenList: (id) => context.go('/tasks/list/$id'),
+      onOpenList: (id) => context.push('/list/$id'),
+      onBack: listId == null
+          ? null
+          : () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/');
+              }
+            },
     );
   }
 }

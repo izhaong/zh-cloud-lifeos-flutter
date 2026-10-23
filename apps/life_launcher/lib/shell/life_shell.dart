@@ -1,3 +1,4 @@
+import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,7 +6,10 @@ import 'package:go_router/go_router.dart';
 import 'app_registry.dart';
 import '../shell_providers.dart';
 
-/// 生活台壳：飞书式底部 Tab，「更多」永远最右（§1.4）。
+/// 生活台壳：飞书式应用栏，「更多」永远最右/最下（§1.4）。
+///
+/// - **compact 竖屏**：底部 [NavigationBar]
+/// - **横屏或 medium/expanded（Pad 类）**：左侧 [NavigationRail]
 ///
 /// Tab 由 [installedApps] 注册表 + 用户偏好（[pinnedTabsServiceProvider]）
 /// 派生；偏好只隐藏 destination，不动 StatefulShellRoute 分支。
@@ -23,7 +27,7 @@ class LifeShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final service = ref.watch(pinnedTabsServiceProvider);
     final badges = ref.watch(shellBadgeCountsProvider);
-    // 响应编辑写即生效：偏好变更驱动底栏重建（AnimatedBuilder 监听 changes）
+    // 响应编辑写即生效：偏好变更驱动应用栏重建（AnimatedBuilder 监听 changes）
     return AnimatedBuilder(
       animation: service.changes,
       builder: (context, _) =>
@@ -44,17 +48,45 @@ class LifeShell extends ConsumerWidget {
       pinned,
     );
 
+    final sizeClass =
+        WindowSizeClass.fromWidth(MediaQuery.sizeOf(context).width);
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    // 横屏或 Pad 类宽屏 → 左轨；compact 竖屏 → 底栏
+    final useLeftRail = isLandscape || sizeClass.isPaneLayout;
+
+    void onSelect(int visibleIndex) {
+      final branch = visibleIndex == pinned.length
+          ? moreBranchIndex
+          : _branchIndexOf(pinned[visibleIndex]);
+      navigationShell.goBranch(branch, initialLocation: false);
+    }
+
+    if (useLeftRail) {
+      return Scaffold(
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: selectedVisible,
+              onDestinationSelected: onSelect,
+              labelType: NavigationRailLabelType.all,
+              destinations: [
+                for (final app in pinned) _railDestinationFor(app, badges),
+                _moreRailDestination(badges, pinned),
+              ],
+            ),
+            const VerticalDivider(thickness: 1, width: 1),
+            Expanded(child: navigationShell),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: selectedVisible,
-        onDestinationSelected: (visibleIndex) {
-          // 可见序末位 = 更多；其余按固定应用映射分支
-          final branch = visibleIndex == pinned.length
-              ? moreBranchIndex
-              : _branchIndexOf(pinned[visibleIndex]);
-          navigationShell.goBranch(branch, initialLocation: false);
-        },
+        onDestinationSelected: onSelect,
         destinations: [
           for (final app in pinned) _destinationFor(app, badges),
           _moreDestination(badges, pinned),
@@ -103,6 +135,33 @@ class LifeShell extends ConsumerWidget {
       icon: _badgeIcon(Icons.grid_view_outlined, overflow),
       selectedIcon: _badgeIcon(Icons.grid_view, overflow),
       label: '更多',
+    );
+  }
+
+  NavigationRailDestination _railDestinationFor(
+    AppEntry app,
+    Map<String, int> badges,
+  ) {
+    final count = badges[app.id] ?? 0;
+    return NavigationRailDestination(
+      icon: _badgeIcon(app.icon, count),
+      selectedIcon: _badgeIcon(app.selectedIcon, count),
+      label: Text(app.title),
+    );
+  }
+
+  NavigationRailDestination _moreRailDestination(
+    Map<String, int> badges,
+    List<AppEntry> pinned,
+  ) {
+    final pinnedIds = {for (final e in pinned) e.id};
+    final overflow = badges.entries
+        .where((e) => !pinnedIds.contains(e.key))
+        .fold<int>(0, (sum, e) => sum + e.value);
+    return NavigationRailDestination(
+      icon: _badgeIcon(Icons.grid_view_outlined, overflow),
+      selectedIcon: _badgeIcon(Icons.grid_view, overflow),
+      label: const Text('更多'),
     );
   }
 

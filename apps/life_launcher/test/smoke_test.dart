@@ -158,18 +158,31 @@ void main() {
   testWidgets('既有壳启动冒烟：任务 Tab + 智能列表', (tester) async {
     await _pump(tester);
 
-    expect(find.text('提醒事项'), findsOneWidget);
+    expect(find.text('列表'), findsOneWidget);
     expect(find.text('今天'), findsOneWidget);
     expect(find.text('更多'), findsWidgets);
   });
 
-  testWidgets('既有紧凑端点列表全屏推入：无双底栏', (tester) async {
+  testWidgets('紧凑竖屏点列表：壳内推入且底栏常显', (tester) async {
     await _pump(tester);
 
     await tester.tap(find.text('个人'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(NavigationBar), findsNothing);
+    // compact 竖屏：底 NavigationBar 常显（不再全屏盖掉）
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationRail), findsNothing);
+    expect(find.text('列表'), findsWidgets); // AppBar「‹ 列表」的 label
     expect(find.text('买牛奶'), findsOneWidget);
+  });
+
+  testWidgets('Pad 宽屏：左侧 NavigationRail，无底栏', (tester) async {
+    // iPad 横屏量级（medium），应走左轨
+    await _pump(tester, size: const Size(1024, 768));
+
+    expect(find.byType(NavigationRail), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.text('任务'), findsWidgets);
+    expect(find.text('更多'), findsWidgets);
   });
 }

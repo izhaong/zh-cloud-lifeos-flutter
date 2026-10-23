@@ -5,7 +5,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import 'task_scaffold.dart';
 
-/// 紧凑端单列表页（栈导航推入用）：带返回按钮的全屏列表内容。
+/// 紧凑端单列表页（壳内子路由）：列表内容；生活台底栏由壳提供。
 class TaskListPage extends ConsumerWidget {
   const TaskListPage({super.key, required this.list, this.onSelectItem});
 

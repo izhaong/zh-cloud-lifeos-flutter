@@ -16,7 +16,7 @@ LifeOS 个人生活开放平台 Flutter 客户端（私有 Melos 仓）。
 | 层 | 选型 |
 |----|------|
 | 状态 | Riverpod 3 / hooks_riverpod |
-| 路由 | go_router 18（全仓唯一 GoRouter；任务全屏走 shell 外顶层路由） |
+| 路由 | go_router 18（全仓唯一 GoRouter；任务 `/` + `/list/:id` 嵌在 StatefulShell，应用栏常显：竖屏底栏 / 横屏·Pad 左轨） |
 | 网络 | dio 5 |
 | 本地库 | Drift 2.35（feature_productivity_drift 实现端口；codegen 已实测 Dart 3.12.2 可用） |
 | 会话 | flutter_secure_storage 11 |

@@ -40,7 +40,7 @@ app_core      → life_link
 
 - `AuthPort` / `SyncPort`：接口 + Noop；真实实现只在 `*_cloud`
 - 数据仓库：`ReminderRepository` 端口在 kernel；`InMemory`（kernel 内参考实现）与 `Drift`（`feature_productivity_drift`）双实现，组合根单点切换
-- 导航：全仓**唯一** `GoRouter`（`apps/life_launcher/lib/router/life_router.dart`）；任务全屏页走 shell 外顶层路由（无双底栏）
+- 导航：全仓**唯一** `GoRouter`（`apps/life_launcher/lib/router/life_router.dart`）；任务列表子路由嵌在 StatefulShell 内（`/` + `/list/:id`），**壳应用栏常显**（compact 竖屏底 Tab；横屏或 medium/expanded 左轨）
 - 断点：`WindowSizeClass.fromWidth`（kernel 纯函数）三档——compact <600dp 栈导航 / medium 600–1199 二栏 / expanded ≥1200 可开第三列；叶子内容 widget 禁读断点
 - 任务 UX：Apple 提醒事项 iPhone / iPad / macOS 对等（见父仓 reminders 线框）
 
