@@ -107,12 +107,17 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             .write(ReminderItemsCompanion(
           dueAt: Value(next),
           isCompleted: const Value(false),
+          completedAt: const Value(null),
         ));
       } else {
+        // 完成时间联动（服务端 completedAt 对齐）：完成记当下，取消清空
         await (_db.update(_db.reminderItems)
               ..where((t) => t.id.equals(itemId)))
-            .write(
-                ReminderItemsCompanion(isCompleted: Value(!cur.isCompleted)));
+            .write(ReminderItemsCompanion(
+          isCompleted: Value(!cur.isCompleted),
+          completedAt:
+              Value(!cur.isCompleted ? _now : null),
+        ));
       }
     });
   }
