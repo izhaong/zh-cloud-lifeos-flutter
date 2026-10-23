@@ -21,7 +21,7 @@ export PATH="$HOME/development/flutter/bin:$PATH"
 dart pub get
 cd apps/life_launcher && flutter run -d macos
 dart analyze
-flutter test   # 在各 package / app 目录，或 melos test
+flutter test   # 在各 package / app 目录，或 dart run melos run test
 ```
 
 - Dart SDK 随本机 Flutter（当前 3.12.2）；依赖钉版说明见 `README.md`

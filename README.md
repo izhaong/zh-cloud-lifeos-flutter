@@ -31,13 +31,15 @@ dart pub get
 cd apps/life_launcher && flutter run -d macos   # 或 chrome / 真机
 ```
 
-全仓分析 / 测试（需已 `dart pub global activate melos`，或用 `dart run melos`）：
+全仓分析 / 测试（melos 8 脚本定义在根 `pubspec.yaml` 的 `melos:` 段）：
 
 ```bash
-dart run melos analyze
-dart run melos test
-dart run melos gen    # build_runner（feature_productivity_drift 的 drift 表生成）
+dart run melos run analyze
+dart run melos run test
+dart run melos run gen    # build_runner（feature_productivity_drift 的 drift 表生成）
 ```
+
+> 注意：melos 8.9 不再读取 `melos.yaml` 的 scripts，且 `melos analyze`/`bootstrap` 是内置命令；自定义脚本必须走 `melos run <名字>`。
 
 ## 钉版说明（相对 pub 绝对最新）
 
