@@ -46,7 +46,7 @@ app_core      → life_link
 
 ## Project Structure
 
-见 `README.md` 结构树；`docs/contracts/` 放 LifeLink 等对外契约。
+见 `README.md` 结构树；`docs/contracts/life-link.md` 为 LifeLink **权威契约**（能力 ID / OAuth scope 命名空间已冻）；`docs/ci-plan.md` 为 CI 预留计划。
 
 ## Tech Stack
 

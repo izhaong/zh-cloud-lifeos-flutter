@@ -92,4 +92,6 @@ dart run melos gen    # build_runner（feature_productivity_drift 的 drift 表�
 ## 文档
 
 - 跨仓设计：`zh-cloud/.cursor/plans/life-client/2026-10-22-c-end-life-flutter-modular-design.md`
+- LifeLink 契约（权威）：`docs/contracts/life-link.md`（能力 ID + OAuth scope 命名空间）
+- CI 预留计划：`docs/ci-plan.md`
 - 本仓总览：`spec.md`
