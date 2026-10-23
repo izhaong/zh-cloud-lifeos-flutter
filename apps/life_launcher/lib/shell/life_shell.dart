@@ -1,48 +1,114 @@
 import 'package:flutter/material.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// 生活台壳：飞书式底部 Tab（任务/日历/习惯/更多），「更多」永远最右。
+import 'app_registry.dart';
+import '../shell_providers.dart';
+
+/// 生活台壳：飞书式底部 Tab，「更多」永远最右（§1.4）。
 ///
-/// 由 StatefulShellRoute.indexedStack 驱动分支导航，切换保留各 Tab 状态。
-class LifeShell extends StatelessWidget {
+/// Tab 由 [installedApps] 注册表 + 用户偏好（[pinnedTabsServiceProvider]）
+/// 派生；偏好只隐藏 destination，不动 StatefulShellRoute 分支。
+/// 「更多」分支索引恒为 [moreBranchIndex]（router 分支序固定）。
+/// 打开未固定应用或当前分支不可见时，高亮回退「更多」（飞书同款）。
+class LifeShell extends ConsumerWidget {
   const LifeShell({super.key, required this.navigationShell});
+
+  /// 「更多」在 StatefulShellRoute 分支里的索引（分支序与 installedApps 一致 +1）。
+  static const int moreBranchIndex = 3;
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final service = ref.watch(pinnedTabsServiceProvider);
+    final badges = ref.watch(shellBadgeCountsProvider);
+    // 响应编辑写即生效：偏好变更驱动底栏重建（AnimatedBuilder 监听 changes）
+    return AnimatedBuilder(
+      animation: service.changes,
+      builder: (context, _) =>
+          _buildShell(context, service.read(), badges),
+    );
+  }
+
+  Widget _buildShell(
+    BuildContext context,
+    List<String> pinnedIds,
+    Map<String, int> badges,
+  ) {
+    final pinned = pinnedIds.map(appById).toList(growable: false);
+
+    final currentBranch = navigationShell.currentIndex;
+    final selectedVisible = _selectedVisibleIndex(
+      currentBranch,
+      pinned,
+    );
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: (i) => navigationShell.goBranch(
-          i,
-          initialLocation: i == navigationShell.currentIndex,
-        ),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.check_circle_outline),
-            selectedIcon: Icon(Icons.check_circle),
-            label: '任务',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_today_outlined),
-            selectedIcon: Icon(Icons.calendar_today),
-            label: '日历',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.spa_outlined),
-            selectedIcon: Icon(Icons.spa),
-            label: '习惯',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view),
-            label: '更多',
-          ),
+        selectedIndex: selectedVisible,
+        onDestinationSelected: (visibleIndex) {
+          // 可见序末位 = 更多；其余按固定应用映射分支
+          final branch = visibleIndex == pinned.length
+              ? moreBranchIndex
+              : _branchIndexOf(pinned[visibleIndex]);
+          navigationShell.goBranch(branch, initialLocation: false);
+        },
+        destinations: [
+          for (final app in pinned) _destinationFor(app, badges),
+          _moreDestination(badges, pinned),
         ],
       ),
     );
+  }
+
+  /// 当前高亮（可见序）：当前分支被取消固定 → 回退「更多」（= pinned.length）。
+  static int _selectedVisibleIndex(
+    int currentBranch,
+    List<AppEntry> pinned,
+  ) {
+    for (var i = 0; i < pinned.length; i++) {
+      if (_branchIndexOf(pinned[i]) == currentBranch) return i;
+    }
+    return pinned.length; // 更多
+  }
+
+  /// 分支索引 = 注册表序（router 分支顺序与 installedApps 一致）。
+  static int _branchIndexOf(AppEntry app) =>
+      installedApps.indexWhere((e) => e.id == app.id);
+
+  NavigationDestination _destinationFor(
+    AppEntry app,
+    Map<String, int> badges,
+  ) {
+    final count = badges[app.id] ?? 0;
+    return NavigationDestination(
+      icon: _badgeIcon(app.icon, count),
+      selectedIcon: _badgeIcon(app.selectedIcon, count),
+      label: app.title,
+    );
+  }
+
+  NavigationDestination _moreDestination(
+    Map<String, int> badges,
+    List<AppEntry> pinned,
+  ) {
+    // 「更多」汇总未固定在 Tab 可见位的应用未读（§1.4 聚合规则）
+    final pinnedIds = {for (final e in pinned) e.id};
+    final overflow = badges.entries
+        .where((e) => !pinnedIds.contains(e.key))
+        .fold<int>(0, (sum, e) => sum + e.value);
+    return NavigationDestination(
+      icon: _badgeIcon(Icons.grid_view_outlined, overflow),
+      selectedIcon: _badgeIcon(Icons.grid_view, overflow),
+      label: '更多',
+    );
+  }
+
+  /// 徽标图标：Material Badge 包 Icon（Tab 与更多行复用同一渲染）。
+  static Widget _badgeIcon(IconData icon, int count) {
+    if (count <= 0) return Icon(icon);
+    return Badge.count(count: count, child: Icon(icon));
   }
 }

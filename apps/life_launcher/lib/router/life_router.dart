@@ -4,18 +4,32 @@ import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../shell/app_registry.dart';
 import '../shell/life_shell.dart';
 import '../shell/more_page.dart';
 import '../shell/placeholder_page.dart';
+import '../shell_providers.dart';
 
 /// 全仓唯一 GoRouter：单一逻辑路由表；断点只换外壳布局，不换路由结构。
 ///
-/// - `/`：生活台壳（StatefulShellRoute.indexedStack，底部 Tab≤4 + 更多最右）
-/// - `/tasks`：紧凑端全屏提醒事项（shell 外顶层路由 → 无双底栏）
-/// - `/tasks/list/:listId`：全屏单列表（紧凑栈导航）
-GoRouter buildLifeRouter() {
+/// - `/`：生活台壳（StatefulShellRoute.indexedStack，分支序=installedApps+更多）
+/// - `/tasks`、`/tasks/list/:listId`：紧凑端全屏提醒事项（shell 外顶层路由）
+///
+/// 分支序与 [installedApps] 注册表一致（「更多」恒最末 = [LifeShell.moreBranchIndex]）。
+GoRouter buildLifeRouter(WidgetRef ref) {
+  final pinned =
+      ref.read(pinnedTabsServiceProvider).read().map(appById).toList();
+
   return GoRouter(
     initialLocation: '/',
+    redirect: (context, state) {
+      // 冷启动落在 '/'（任务分支 0）且任务被取消固定 → 跳首个固定分支；
+      // 全不固定 → /more（底栏高亮有落点，不悬空）。
+      if (state.matchedLocation == '/' && !pinned.any((e) => e.id == 'task')) {
+        return pinned.isEmpty ? '/more' : pinned.first.branchPath;
+      }
+      return null;
+    },
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -31,15 +45,15 @@ GoRouter buildLifeRouter() {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/calendar',
-              builder: (context, state) =>
-                  const PlaceholderPage(title: '日历', subtitle: 'feature_calendar 待拆入'),
+              builder: (context, state) => const PlaceholderPage(
+                  title: '日历', subtitle: '占位 · feature_calendar 待拆入'),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/habits',
-              builder: (context, state) =>
-                  const PlaceholderPage(title: '习惯', subtitle: 'feature_habit 待拆入'),
+              builder: (context, state) => const PlaceholderPage(
+                  title: '习惯', subtitle: '占位 · feature_habit 待拆入'),
             ),
           ]),
           StatefulShellBranch(routes: [
