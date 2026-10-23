@@ -479,7 +479,7 @@ class _TwoPane extends ConsumerWidget {
 }
 
 /// 展开三栏：侧栏 | 列表内容 | 详细信息（客户端 inspector）。
-class _ThreePane extends ConsumerWidget {
+class _ThreePane extends ConsumerStatefulWidget {
   const _ThreePane({
     required this.lists,
     required this.openListId,
@@ -495,12 +495,32 @@ class _ThreePane extends ConsumerWidget {
   final ValueChanged<ReminderItem>? onSelectItem;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ThreePane> createState() => _ThreePaneState();
+}
+
+class _ThreePaneState extends ConsumerState<_ThreePane> {
+  String? _selectedId;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedId = widget.selectedItemId;
+  }
+
+  void _handleSelect(ReminderItem item) {
+    setState(() => _selectedId = item.id);
+    widget.onSelectItem?.call(item);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final openListId = widget.openListId;
+    final lists = widget.lists;
     final current = lists.where((e) => e.id == openListId).firstOrNull;
     final itemsAsync = ref.watch(itemsForListProvider(openListId));
     final selected = itemsAsync.maybeWhen(
       data: (items) =>
-          items.where((e) => e.id == selectedItemId).firstOrNull,
+          items.where((e) => e.id == _selectedId).firstOrNull,
       orElse: () => null,
     );
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
@@ -513,7 +533,7 @@ class _ThreePane extends ConsumerWidget {
             child: TaskSidebar(
               lists: lists,
               selectedListId: openListId,
-              onSelect: (l) => onOpenList?.call(l.id),
+              onSelect: (l) => widget.onOpenList?.call(l.id),
               onAddList: () => showNewListDialog(
                 context,
                 onCreate: (list) =>
@@ -535,7 +555,7 @@ class _ThreePane extends ConsumerWidget {
                 )
               : ListContentPane(
                   list: current,
-                  onSelectItem: onSelectItem,
+                  onSelectItem: _handleSelect,
                   leading: sidebarVisible
                       ? null
                       : IconButton(
@@ -552,10 +572,14 @@ class _ThreePane extends ConsumerWidget {
           const VerticalDivider(width: 1),
           SizedBox(
             width: 320,
-            child: ReminderDetailPane(
+            child: KeyedSubtree(
+              key: ValueKey('inspector_${selected.id}'),
+              child: ReminderDetailPane(
               item: selected,
-              onSaved: (updated) =>
-                  ref.read(reminderRepositoryProvider).upsertItem(updated),
+                  onSaved: (updated) =>
+                      ref.read(reminderRepositoryProvider)
+                          .upsertItem(updated),
+              ),
             ),
           ),
         ],

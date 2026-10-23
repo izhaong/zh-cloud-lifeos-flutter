@@ -31,10 +31,10 @@ class ReminderDetailPane extends ConsumerStatefulWidget {
 }
 
 class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
-  late final TextEditingController _title;
-  late final TextEditingController _notes;
-  late final TextEditingController _tags;
-  late final TextEditingController _subtask;
+  late final TextEditingController _title = TextEditingController();
+  late final TextEditingController _notes = TextEditingController();
+  late final TextEditingController _tags = TextEditingController();
+  late final TextEditingController _subtask = TextEditingController();
   late bool _isFlagged;
   late int _priority;
   late String? _recurrence;
@@ -43,13 +43,28 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   @override
   void initState() {
     super.initState();
-    _title = TextEditingController(text: widget.item.title);
-    _notes = TextEditingController(text: widget.item.notes ?? '');
-    _tags = TextEditingController(text: widget.item.tags.join(', '));
-    _subtask = TextEditingController();
+    _bindControllers();
+  }
+
+  /// 换条目（同面板复用）时重置全部本地编辑态；
+  /// 未提交的草稿编辑丢弃（对齐 Apple inspector 切行即显示新条目语义）。
+  @override
+  void didUpdateWidget(covariant ReminderDetailPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.id != widget.item.id) {
+      _bindControllers();
+    }
+  }
+
+  void _bindControllers() {
+    _title.text = widget.item.title;
+    _notes.text = widget.item.notes ?? '';
+    _tags.text = widget.item.tags.join(', ');
+    _subtask.clear();
     _isFlagged = widget.item.isFlagged;
     _priority = widget.item.priority;
     _recurrence = widget.item.recurrence;
+    _showSubtaskDraft = false;
   }
 
   @override
