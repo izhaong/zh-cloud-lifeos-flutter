@@ -76,10 +76,51 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('详细信息'), findsOneWidget);
 
-    // 点另一行「写 LifeOS 基建」→ 就地切换（不叠加、不重开）
+    // 点另一行「写 LifeOS 基建」→ 就地切换：inspector 唯一且标题区换为新条目
     await tester.tap(find.text('写 LifeOS 基建'));
     await tester.pumpAndSettle();
     expect(find.text('详细信息'), findsOneWidget); // 仍是唯一 inspector
+    // inspector 标题输入框已重置为新条目标题（didUpdateWidget + Key 双保险）
+    // 定位：详情面板标题卡片内的第一个 TextField（hint=标题）
+    final titleField = tester.widget<TextField>(
+      find.widgetWithText(TextField, '写 LifeOS 基建'),
+    );
+    expect(
+      titleField.controller?.text ?? '',
+      '写 LifeOS 基建',
+      reason: '切行后 inspector 必须显示新条目标题（防错题覆盖）',
+    );
+  });
+
+  // 审查修复回归：切行后保存不覆盖错条目
+  testWidgets('TC-UI-307b 切行后保存写的是新条目', (tester) async {
+    final repo = InMemoryReminderRepository();
+    await _pump(
+      tester,
+      size: const Size(1366, 1024),
+      repo: repo,
+      child: const TaskScaffold(openListId: 'list.personal'),
+    );
+
+    await tester.tap(find.text('买牛奶'));
+    await tester.pumpAndSettle();
+    // 切到第二条
+    await tester.tap(find.text('写 LifeOS 基建'));
+    await tester.pumpAndSettle();
+
+    // 直接保存（不改任何字段）→ upsertItem 收到的仍是「写 LifeOS 基建」本体
+    await tester.tap(find.text('完成').first);
+    await tester.pumpAndSettle();
+
+    final items = await repo.watchItems(listId: 'list.personal').first;
+    final saved = items.firstWhere(
+      (e) => e.id == '2',
+      orElse: () => throw StateError('条目 2 丢失'),
+    );
+    expect(saved.title, '写 LifeOS 基建');
+    // 「买牛奶」未被误改
+    final milk = items.firstWhere((e) => e.id == '1');
+    expect(milk.title, '买牛奶');
   });
 
   // TC-UI-N3：负向门禁——无第二套底部导航、宽屏无未实现文案

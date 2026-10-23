@@ -572,10 +572,14 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
           const VerticalDivider(width: 1),
           SizedBox(
             width: 320,
-            child: ReminderDetailPane(
+            child: KeyedSubtree(
+              key: ValueKey('inspector_${selected.id}'),
+              child: ReminderDetailPane(
               item: selected,
-              onSaved: (updated) =>
-                  ref.read(reminderRepositoryProvider).upsertItem(updated),
+                  onSaved: (updated) =>
+                      ref.read(reminderRepositoryProvider)
+                          .upsertItem(updated),
+              ),
             ),
           ),
         ],
