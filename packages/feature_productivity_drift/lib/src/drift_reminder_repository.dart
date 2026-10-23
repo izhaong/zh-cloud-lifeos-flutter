@@ -264,6 +264,10 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       recurrence: row.recurrence,
       parentId: row.parentId,
       sortOrder: row.sortOrder,
+      remoteId: row.remoteId,
+      completedAt: row.completedAt,
+      sectionId: row.sectionId,
+      deletedAt: row.deletedAt,
     );
   }
 
@@ -281,6 +285,10 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       recurrence: Value(item.recurrence),
       parentId: Value(item.parentId),
       sortOrder: Value(item.sortOrder),
+      remoteId: Value(item.remoteId),
+      completedAt: Value(item.completedAt),
+      sectionId: Value(item.sectionId),
+      deletedAt: Value(item.deletedAt),
     );
   }
 
