@@ -210,6 +210,8 @@ class _SidebarTile extends StatelessWidget {
       'smart.scheduled' => CupertinoIcons.calendar,
       'smart.all' => CupertinoIcons.tray_full,
       'smart.flagged' => CupertinoIcons.flag_fill,
+      'smart.urgent' => CupertinoIcons.exclamationmark_triangle_fill,
+      'smart.completed' => CupertinoIcons.checkmark_alt_circle,
       _ => CupertinoIcons.list_bullet,
     };
   }

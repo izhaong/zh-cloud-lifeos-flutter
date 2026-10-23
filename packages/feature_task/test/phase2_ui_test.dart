@@ -111,7 +111,13 @@ void main() {
       find.widgetWithText(TextField, '').first,
       '对齐 Reminders 交互',
     );
-    await tester.tap(find.text('完成'));
+    // 避开「完成」智能卡文本：点详情面板 AppBar 上的 TextButton
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.widgetWithText(TextButton, '完成'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(repo.upsertCount, 1);

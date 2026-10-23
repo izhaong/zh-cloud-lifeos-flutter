@@ -31,6 +31,8 @@ class DriftReminderRepository implements kernel.ReminderRepository {
     kernel.ReminderList(id: 'smart.scheduled', title: '计划', isSmart: true),
     kernel.ReminderList(id: 'smart.all', title: '全部', isSmart: true),
     kernel.ReminderList(id: 'smart.flagged', title: '已旗标', isSmart: true),
+    kernel.ReminderList(id: 'smart.urgent', title: '紧急', isSmart: true),
+    kernel.ReminderList(id: 'smart.completed', title: '完成', isSmart: true),
   ];
 
   @override
@@ -218,6 +220,9 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   }
 
   int _count(List<ReminderItem> rows, String listId, DateTime now) {
+    if (listId == 'smart.completed') {
+      return rows.where((row) => _matches(row, listId, now)).length;
+    }
     return rows
         .where((row) => !row.isCompleted && _matches(row, listId, now))
         .length;
@@ -230,6 +235,12 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       'smart.scheduled' => !row.isCompleted && row.dueAt != null,
       'smart.all' => !row.isCompleted,
       'smart.flagged' => !row.isCompleted && row.isFlagged,
+      'smart.urgent' => !row.isCompleted &&
+          (row.priority >= 9 ||
+              (row.dueAt != null &&
+                  !row.dueAt!.isAfter(now) &&
+                  _isSameLocalDay(row.dueAt, now))),
+      'smart.completed' => row.isCompleted,
       _ => row.listId == listId,
     };
   }

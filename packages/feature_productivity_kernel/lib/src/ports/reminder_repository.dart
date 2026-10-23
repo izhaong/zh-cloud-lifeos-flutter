@@ -26,6 +26,8 @@ abstract interface class ReminderRepository {
   /// - `smart.scheduled`：未完成且带 dueAt
   /// - `smart.all`：未完成全部
   /// - `smart.flagged`：未完成且 isFlagged
+  /// - `smart.urgent`：未完成且（当日过期 或 priority>=9）
+  /// - `smart.completed`：已完成全部（模型 D2 预留入口）
   Stream<List<ReminderItem>> watchItems({String? listId});
 
   /// 新增或更新单条提醒（全字段回写；id 用 [newReminderId] 工厂生成）。
@@ -54,33 +56,20 @@ abstract interface class ReminderRepository {
 
 /// 内存实现：壳层与 UI 冒烟 + 仓库契约测试的参考实现。
 final class InMemoryReminderRepository implements ReminderRepository {
+  /// 智能列表元数据（恒在；不随种子开关）。
+  static const List<ReminderList> smartListMeta = [
+    ReminderList(id: 'smart.today', title: '今天', isSmart: true),
+    ReminderList(id: 'smart.scheduled', title: '计划', isSmart: true),
+    ReminderList(id: 'smart.all', title: '全部', isSmart: true),
+    ReminderList(id: 'smart.flagged', title: '已旗标', isSmart: true),
+    ReminderList(id: 'smart.urgent', title: '紧急', isSmart: true),
+    ReminderList(id: 'smart.completed', title: '完成', isSmart: true),
+  ];
   InMemoryReminderRepository({bool seedSampleData = true}) {
+    // 智能列表元数据恒在（不依赖种子开关；与 Drift smartLists 派生一致）
+    _lists.addAll(smartListMeta);
     if (!seedSampleData) return;
     _lists.addAll(const [
-      ReminderList(
-        id: 'smart.today',
-        title: '今天',
-        isSmart: true,
-        itemCount: 2,
-      ),
-      ReminderList(
-        id: 'smart.scheduled',
-        title: '计划',
-        isSmart: true,
-        itemCount: 1,
-      ),
-      ReminderList(
-        id: 'smart.all',
-        title: '全部',
-        isSmart: true,
-        itemCount: 3,
-      ),
-      ReminderList(
-        id: 'smart.flagged',
-        title: '已旗标',
-        isSmart: true,
-        itemCount: 1,
-      ),
       ReminderList(
         id: 'list.personal',
         title: '个人',
@@ -241,7 +230,9 @@ final class InMemoryReminderRepository implements ReminderRepository {
     final now = _now;
     for (var i = 0; i < _lists.length; i++) {
       final list = _lists[i];
-      final count = _filter(list.id, now).where((e) => !e.isCompleted).length;
+      final count = list.id == 'smart.completed'
+          ? _filter(list.id, now).length
+          : _filter(list.id, now).where((e) => !e.isCompleted).length;
       _lists[i] = list.copyWith(itemCount: count);
     }
   }
@@ -286,6 +277,13 @@ final class InMemoryReminderRepository implements ReminderRepository {
           _items.where((e) => !e.isCompleted && e.dueAt != null),
       'smart.all' => _items.where((e) => !e.isCompleted),
       'smart.flagged' => _items.where((e) => !e.isCompleted && e.isFlagged),
+      'smart.urgent' => _items.where((e) =>
+          !e.isCompleted &&
+          (e.priority >= 9 ||
+              (e.dueAt != null &&
+                  !e.dueAt!.isAfter(now) &&
+                  _isSameLocalDay(e.dueAt, now)))),
+      'smart.completed' => _items.where((e) => e.isCompleted),
       _ => _items.where((e) => e.listId == listId),
     };
   }

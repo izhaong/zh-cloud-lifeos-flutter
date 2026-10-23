@@ -238,6 +238,8 @@ class _CompactPane extends ConsumerWidget {
       'smart.scheduled' => 1,
       'smart.all' => 2,
       'smart.flagged' => 3,
+      'smart.urgent' => 4,
+      'smart.completed' => 5,
       _ => 9,
     };
   }
@@ -403,6 +405,8 @@ class _SmartCard extends StatelessWidget {
       'smart.scheduled' => Icons.calendar_today_outlined,
       'smart.all' => Icons.inbox_outlined,
       'smart.flagged' => Icons.flag_outlined,
+      'smart.urgent' => Icons.warning_amber_outlined,
+      'smart.completed' => Icons.check_circle_outline,
       _ => Icons.list,
     };
   }
@@ -617,6 +621,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   TaskShortcutsController? _shortcuts;
   int _lastNewTicket = 0;
   int _lastSearchTicket = 0;
+  final _collapsedSections = <String>{};
 
   @override
   void initState() {
@@ -655,6 +660,72 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   bool get _isSmartView => widget.list.id.startsWith('smart.');
 
+  /// 分区（线框「分区一 ∨」）：带 dueAt 顶层条目按日桶，其余进「无日期」。
+  /// 保序：沿用 items 自带排序（sortOrder asc, id asc）。
+  Map<String, List<ReminderItem>> _buildSections(
+    List<ReminderItem> topLevel,
+  ) {
+    final now = DateTime.now();
+    final sections = <String, List<ReminderItem>>{};
+    for (final item in topLevel) {
+      final key = item.dueAt == null
+          ? '无日期'
+          : _sectionLabel(item.dueAt!, now);
+      sections.putIfAbsent(key, () => []).add(item);
+    }
+    return sections;
+  }
+
+  static String _sectionLabel(DateTime due, DateTime now) {
+    final isToday = due.year == now.year &&
+        due.month == now.month &&
+        due.day == now.day;
+    if (isToday) return '今天';
+    if (due.isBefore(now)) return '已过期';
+    final isTomorrow = due.year == now.year &&
+        due.month == now.month &&
+        due.day == now.day + 1;
+    if (isTomorrow) return '明天';
+    return '${due.month}月${due.day}日';
+  }
+
+  void _toggleSection(String key) {
+    setState(() {
+      if (!_collapsedSections.remove(key)) {
+        _collapsedSections.add(key);
+      }
+    });
+  }
+
+  Widget _buildItemRow(
+    ReminderItem item, {
+    Map<String, List<ReminderItem>> subtasksByParent = const {},
+  }) {
+    final repo = ref.read(reminderRepositoryProvider);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ReminderRow(
+          item: item,
+          onToggleCompleted: () => repo.toggleCompleted(item.id),
+          onToggleFlagged: () => repo.toggleFlagged(item.id),
+          onTap: () => widget.onSelectItem?.call(item),
+        ),
+        for (final sub in subtasksByParent[item.id] ??
+            const <ReminderItem>[])
+          Padding(
+            padding: const EdgeInsets.only(left: 40),
+            child: ReminderRow(
+              item: sub,
+              dense: true,
+              onToggleCompleted: () => repo.toggleCompleted(sub.id),
+              onToggleFlagged: () => repo.toggleFlagged(sub.id),
+            ),
+          ),
+      ],
+    );
+  }
+
   Future<void> _submitDraft() async {
     final title = _draftController.text.trim();
     if (title.isEmpty) return; // 空标题不落库
@@ -680,7 +751,6 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   Widget build(BuildContext context) {
     final itemsAsync =
         ref.watch(filteredItemsForListProvider(widget.list.id));
-    final repo = ref.watch(reminderRepositoryProvider);
     final query = ref.watch(searchQueryProvider);
     final isPane = WindowSizeClass.fromWidth(
       MediaQuery.of(context).size.width,
@@ -747,53 +817,55 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
             }
           }
 
+          // 线框主列表头：「N 项完成」只读计数（清除与完成卡同批后做）
+          final doneCount =
+              items.where((e) => e.isCompleted).length;
+
+          // 分区（线框客户端「分区一 ∨」）：带 dueAt 的顶层条目按日桶折叠；
+          // 无日期条目单独一区。折叠为内存态（P1 不持久化）。
+          final sections = _buildSections(topLevel);
+          final rows = <Widget>[
+            for (final entry in sections.entries) ...[
+              _SectionHeader(
+                title: entry.key,
+                collapsed: _collapsedSections.contains(entry.key),
+                onToggle: () => _toggleSection(entry.key),
+              ),
+              if (!_collapsedSections.contains(entry.key))
+                for (final item in entry.value)
+                  _buildItemRow(
+                    item,
+                    subtasksByParent: subtasksByParent,
+                  ),
+            ],
+            if (_showDraft)
+              _DraftRow(
+                controller: _draftController,
+                onSubmit: _submitDraft,
+                onCancel: () {
+                  _draftController.clear();
+                  setState(() => _showDraft = false);
+                },
+              ),
+          ];
+
           return Column(
             children: [
-              Expanded(
-                child: ListView.separated(
-                  itemCount: topLevel.length + (_showDraft ? 1 : 0),
-                  separatorBuilder: (_, _) =>
-                      const Divider(height: 1, indent: 56),
-                  itemBuilder: (context, index) {
-                    if (_showDraft && index == topLevel.length) {
-                      return _DraftRow(
-                        controller: _draftController,
-                        onSubmit: _submitDraft,
-                        onCancel: () {
-                          _draftController.clear();
-                          setState(() => _showDraft = false);
-                        },
-                      );
-                    }
-                    final item = topLevel[index];
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ReminderRow(
-                          item: item,
-                          onToggleCompleted: () =>
-                              repo.toggleCompleted(item.id),
-                          onToggleFlagged: () =>
-                              repo.toggleFlagged(item.id),
-                          onTap: () => widget.onSelectItem?.call(item),
-                        ),
-                        for (final sub in subtasksByParent[item.id] ??
-                            const <ReminderItem>[])
-                          Padding(
-                            padding: const EdgeInsets.only(left: 40),
-                            child: ReminderRow(
-                              item: sub,
-                              dense: true,
-                              onToggleCompleted: () =>
-                                  repo.toggleCompleted(sub.id),
-                              onToggleFlagged: () =>
-                                  repo.toggleFlagged(sub.id),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '$doneCount 项完成',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF8E8E93),
+                    ),
+                  ),
                 ),
+              ),
+              Expanded(
+                child: ListView(children: rows),
               ),
             ],
           );
@@ -855,6 +927,50 @@ class _DraftRow extends StatelessWidget {
             onPressed: onSubmit,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 分区头（线框客户端「分区一 ∨」）：标题 + 条数 + 折叠箭头。
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    required this.collapsed,
+    required this.onToggle,
+  });
+
+  final String title;
+  final bool collapsed;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: ValueKey('section_$title'),
+      onTap: onToggle,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+        child: Row(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF8E8E93),
+              ),
+            ),
+            const Spacer(),
+            Icon(
+              collapsed
+                  ? CupertinoIcons.chevron_down
+                  : CupertinoIcons.chevron_up,
+              size: 14,
+              color: const Color(0xFF8E8E93),
+            ),
+          ],
+        ),
       ),
     );
   }
