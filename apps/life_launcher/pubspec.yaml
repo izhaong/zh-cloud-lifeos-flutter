@@ -19,6 +19,8 @@ dependencies:
     path: ../../packages/life_link
   feature_productivity_kernel:
     path: ../../packages/feature_productivity_kernel
+  feature_productivity_drift:
+    path: ../../packages/feature_productivity_drift
   feature_task:
     path: ../../packages/feature_task
 
