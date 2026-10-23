@@ -48,8 +48,10 @@ void main() {
     expect(find.text('我的列表'), findsOneWidget);
   });
 
-  // TC-UI-306：客户端 ⚙设置 → 弹层内容与图1 表单对齐（账号/通知/外观）
-  testWidgets('TC-UI-306 设置弹层：三行表单出现且可关闭', (tester) async {
+  // TC-UI-306：客户端 ⚙设置 → 弹层出现（**三行规划占位**，非图1 全字段；
+  // 图1 的默认列表/全天/标记/建议/还原表单属 TC-UI-120，M1 服务端核对后实现）
+  testWidgets('TC-UI-306 设置弹层：三行规划占位出现且可关闭（非图1 全字段）',
+      (tester) async {
     final repo = InMemoryReminderRepository();
     // 宽屏走 _ThreePane：侧栏有设置入口
     await _pump(
@@ -62,7 +64,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('sidebar_settings')));
     await tester.pumpAndSettle();
 
-    // 弹层出现：标题「设置」+ 三行
+    // 弹层出现：标题「设置」+ 三行规划占位（账号同步占位/通知 P1/外观跟随系统）
     expect(find.text('设置'), findsWidgets);
     expect(find.text('账号与同步'), findsOneWidget);
     expect(find.text('通知与提醒'), findsOneWidget);
