@@ -38,6 +38,19 @@ class SearchQueryNotifier extends Notifier<String> {
   void set(String value) => state = value;
 }
 
+/// Pad/客户端提醒侧栏显隐（线框：隐藏后主区铺满，可再显示）。
+final sidebarVisibleProvider =
+    NotifierProvider<SidebarVisibleNotifier, bool>(SidebarVisibleNotifier.new);
+
+class SidebarVisibleNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void set(bool value) => state = value;
+
+  void toggle() => state = !state;
+}
+
 /// 过滤后的条目流：在仓库语义过滤之上叠加本地文本匹配
 /// （标题 / 备注 / 标签，大小写不敏感）。
 final filteredItemsForListProvider =

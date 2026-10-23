@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -84,20 +85,76 @@ GoRouter buildLifeRouter(WidgetRef ref) {
 
 /// 壳内「任务」Tab：始终嵌在 [LifeShell] 内，应用栏常显（竖屏底栏 / 横屏或 Pad 左轨）。
 ///
-/// 紧凑端列表首页 → 点列表 `push` 到 `/list/:id`（仍在壳内）；宽屏分栏不跳路由。
-class TaskTabEntry extends ConsumerWidget {
+/// 紧凑端列表首页 → 点列表 `push` 到 `/list/:id`（仍在壳内）；
+/// 点行 → 详情模态（壳底栏仍在）；宽屏分栏就地切换 + inspector。
+class TaskTabEntry extends ConsumerStatefulWidget {
   const TaskTabEntry({super.key, this.listId});
 
   final String? listId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TaskTabEntry> createState() => _TaskTabEntryState();
+}
+
+class _TaskTabEntryState extends ConsumerState<TaskTabEntry> {
+  String? _selectedItemId;
+
+  Future<void> _openDetail(ReminderItem item) async {
+    final sizeClass =
+        WindowSizeClass.fromWidth(MediaQuery.sizeOf(context).width);
+    if (sizeClass.isPaneLayout) {
+      setState(() => _selectedItemId = item.id);
+      return;
+    }
+    // 紧凑端：模态详细信息（不盖掉壳应用栏）
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.92,
+          minChildSize: 0.5,
+          maxChildSize: 0.98,
+          builder: (_, scrollController) {
+            return ReminderDetailPane(
+              item: item,
+              onSaved: (updated) {
+                ref.read(reminderRepositoryProvider).upsertItem(updated);
+              },
+              onClose: () => Navigator.of(sheetContext).pop(),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sizeClass =
+        WindowSizeClass.fromWidth(MediaQuery.sizeOf(context).width);
+    // 宽屏：默认落到「今天」，避免空「选择一个列表」（线框 Pad/客户端起点）
+    final openListId = widget.listId ??
+        (sizeClass.isPaneLayout ? 'smart.today' : null);
+
     return TaskScaffold(
-      openListId: listId,
-      onOpenList: (id) => context.push('/list/$id'),
-      onBack: listId == null
+      openListId: openListId,
+      selectedItemId: _selectedItemId,
+      onOpenList: (id) {
+        setState(() => _selectedItemId = null);
+        if (sizeClass.isPaneLayout) {
+          context.go('/list/$id');
+        } else {
+          context.push('/list/$id');
+        }
+      },
+      onSelectItem: _openDetail,
+      onBack: widget.listId == null
           ? null
           : () {
+              setState(() => _selectedItemId = null);
               if (context.canPop()) {
                 context.pop();
               } else {

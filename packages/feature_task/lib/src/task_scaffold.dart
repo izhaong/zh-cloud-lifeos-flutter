@@ -8,6 +8,7 @@ import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
 import 'widgets/reminder_row.dart';
+import 'widgets/task_settings_sheet.dart';
 import 'widgets/task_shortcuts.dart';
 import 'widgets/task_sidebar.dart';
 
@@ -60,6 +61,7 @@ class TaskScaffold extends ConsumerWidget {
               ? _CompactPane(
                   lists: lists,
                   onOpenList: onOpenList,
+                  onSelectItem: onSelectItem,
                 )
               : _CompactListPane(
                   lists: lists,
@@ -88,19 +90,24 @@ class TaskScaffold extends ConsumerWidget {
 }
 
 /// 紧凑单栏：iPhone 列表首页（智能列表卡片 + 我的列表 + 添加列表）。
+/// 搜索有词时切换为「全部」过滤结果（线框：首页 → 搜索结果 / 空态）。
 class _CompactPane extends ConsumerWidget {
   const _CompactPane({
     required this.lists,
     required this.onOpenList,
+    this.onSelectItem,
   });
 
   final List<ReminderList> lists;
   final ValueChanged<String>? onOpenList;
+  final ValueChanged<ReminderItem>? onSelectItem;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final smart = lists.where((e) => e.isSmart).toList(growable: false);
     final mine = lists.where((e) => !e.isSmart).toList(growable: false);
+    final query = ref.watch(searchQueryProvider).trim();
+    final searching = query.isNotEmpty;
 
     // iOS 提醒事项「列表」首页：大标题 + 搜索 + 智能卡片 + 我的列表。
     // 嵌在生活台壳内时，壳应用栏常显；本页不再另起全屏路由。
@@ -112,8 +119,13 @@ class _CompactPane extends ConsumerWidget {
         title: const Text('列表'),
         actions: [
           IconButton(
-            tooltip: '编辑',
-            onPressed: () {},
+            key: const ValueKey('home_edit_placeholder'),
+            tooltip: '编辑（规划）',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('编辑列表 · 规划占位')),
+              );
+            },
             icon: const Icon(CupertinoIcons.ellipsis_circle),
           ),
         ],
@@ -122,6 +134,8 @@ class _CompactPane extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
           TextField(
+            key: const ValueKey('home_search'),
+            onChanged: (v) => ref.read(searchQueryProvider.notifier).set(v),
             decoration: InputDecoration(
               hintText: '搜索',
               prefixIcon: const Icon(CupertinoIcons.search, size: 20),
@@ -136,75 +150,83 @@ class _CompactPane extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.55,
-            children: [
-              for (final list in smart
-                ..sort((a, b) => _smartOrder(a.id).compareTo(_smartOrder(b.id))))
-                _SmartCard(list: list, onTap: () => onOpenList?.call(list.id)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            '我的列表',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: const Color(0xFF8E8E93),
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            margin: EdgeInsets.zero,
-            elevation: 0,
-            color: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
+          if (searching)
+            _HomeSearchResults(
+              query: query,
+              onSelectItem: onSelectItem,
+            )
+          else ...[
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.55,
               children: [
-                for (var i = 0; i < mine.length; i++) ...[
-                  if (i > 0) const Divider(height: 1, indent: 52),
-                  ListTile(
-                    leading: CircleAvatar(
-                      radius: 10,
-                      backgroundColor: Color(mine[i].colorArgb),
-                    ),
-                    title: Text(mine[i].title),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${mine[i].itemCount}',
-                          style: const TextStyle(color: Color(0xFF8E8E93)),
-                        ),
-                        const Icon(CupertinoIcons.chevron_forward,
-                            size: 16, color: Color(0xFFC7C7CC)),
-                      ],
-                    ),
-                    onTap: () => onOpenList?.call(mine[i].id),
-                  ),
-                ],
-                const Divider(height: 1, indent: 52),
-                ListTile(
-                  leading: const Icon(CupertinoIcons.add_circled_solid,
-                      color: Color(0xFF007AFF)),
-                  title: const Text('添加列表',
-                      style: TextStyle(color: Color(0xFF007AFF))),
-                  onTap: () => showNewListDialog(
-                    context,
-                    onCreate: (list) => ref
-                        .read(reminderRepositoryProvider)
-                        .upsertList(list),
-                  ),
-                ),
+                for (final list in smart
+                  ..sort(
+                      (a, b) => _smartOrder(a.id).compareTo(_smartOrder(b.id))))
+                  _SmartCard(list: list, onTap: () => onOpenList?.call(list.id)),
               ],
             ),
-          ),
+            const SizedBox(height: 20),
+            Text(
+              '我的列表',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: const Color(0xFF8E8E93),
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              margin: EdgeInsets.zero,
+              elevation: 0,
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < mine.length; i++) ...[
+                    if (i > 0) const Divider(height: 1, indent: 52),
+                    ListTile(
+                      leading: CircleAvatar(
+                        radius: 10,
+                        backgroundColor: Color(mine[i].colorArgb),
+                      ),
+                      title: Text(mine[i].title),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${mine[i].itemCount}',
+                            style: const TextStyle(color: Color(0xFF8E8E93)),
+                          ),
+                          const Icon(CupertinoIcons.chevron_forward,
+                              size: 16, color: Color(0xFFC7C7CC)),
+                        ],
+                      ),
+                      onTap: () => onOpenList?.call(mine[i].id),
+                    ),
+                  ],
+                  const Divider(height: 1, indent: 52),
+                  ListTile(
+                    leading: const Icon(CupertinoIcons.add_circled_solid,
+                        color: Color(0xFF007AFF)),
+                    title: const Text('添加列表',
+                        style: TextStyle(color: Color(0xFF007AFF))),
+                    onTap: () => showNewListDialog(
+                      context,
+                      onCreate: (list) => ref
+                          .read(reminderRepositoryProvider)
+                          .upsertList(list),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -218,6 +240,66 @@ class _CompactPane extends ConsumerWidget {
       'smart.flagged' => 3,
       _ => 9,
     };
+  }
+}
+
+/// 首页搜索结果：复用「全部」过滤；空态文案对齐线框。
+class _HomeSearchResults extends ConsumerWidget {
+  const _HomeSearchResults({
+    required this.query,
+    this.onSelectItem,
+  });
+
+  final String query;
+  final ValueChanged<ReminderItem>? onSelectItem;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final itemsAsync = ref.watch(filteredItemsForListProvider('smart.all'));
+    final repo = ref.watch(reminderRepositoryProvider);
+    return itemsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Text('加载失败：$e'),
+      data: (items) {
+        if (items.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 48),
+            child: Center(
+              child: Text(
+                '无结果',
+                key: ValueKey('search_empty'),
+                style: TextStyle(color: Color(0xFF8E8E93)),
+              ),
+            ),
+          );
+        }
+        return Card(
+          margin: EdgeInsets.zero,
+          elevation: 0,
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const Divider(height: 1, indent: 56),
+                ReminderRow(
+                  item: items[i],
+                  onToggleCompleted: () =>
+                      repo.toggleCompleted(items[i].id),
+                  onToggleFlagged: () => repo.toggleFlagged(items[i].id),
+                  onTap: () => onSelectItem?.call(items[i]),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -326,8 +408,8 @@ class _SmartCard extends StatelessWidget {
   }
 }
 
-/// 中等二栏：侧栏 | 列表内容。
-class _TwoPane extends StatelessWidget {
+/// 中等二栏：侧栏 | 列表内容（线框 Pad；侧栏可隐藏铺满主区）。
+class _TwoPane extends ConsumerWidget {
   const _TwoPane({
     required this.lists,
     required this.openListId,
@@ -341,30 +423,58 @@ class _TwoPane extends StatelessWidget {
   final ValueChanged<ReminderItem>? onSelectItem;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final current = lists.where((e) => e.id == openListId).firstOrNull;
+    final sidebarVisible = ref.watch(sidebarVisibleProvider);
     return Row(
       children: [
-        SizedBox(
-          width: 280,
-          child: TaskSidebar(
-            lists: lists,
-            selectedListId: openListId,
-            onSelect: (l) => onOpenList?.call(l.id),
+        if (sidebarVisible) ...[
+          SizedBox(
+            width: 280,
+            child: TaskSidebar(
+              lists: lists,
+              selectedListId: openListId,
+              onSelect: (l) => onOpenList?.call(l.id),
+              onAddList: () => showNewListDialog(
+                context,
+                onCreate: (list) =>
+                    ref.read(reminderRepositoryProvider).upsertList(list),
+              ),
+              onToggleSidebar: () =>
+                  ref.read(sidebarVisibleProvider.notifier).toggle(),
+              onOpenSettings: () => showTaskSettingsSheet(context),
+            ),
           ),
-        ),
-        const VerticalDivider(width: 1),
+          const VerticalDivider(width: 1),
+        ],
         Expanded(
           child: current == null
-              ? const _EmptyOverview()
-              : ListContentPane(list: current, onSelectItem: onSelectItem),
+              ? _EmptyOverview(
+                  showSidebarButton: !sidebarVisible,
+                  onShowSidebar: () =>
+                      ref.read(sidebarVisibleProvider.notifier).set(true),
+                )
+              : ListContentPane(
+                  list: current,
+                  onSelectItem: onSelectItem,
+                  leading: sidebarVisible
+                      ? null
+                      : IconButton(
+                          key: const ValueKey('show_sidebar'),
+                          tooltip: '显示侧栏',
+                          onPressed: () => ref
+                              .read(sidebarVisibleProvider.notifier)
+                              .set(true),
+                          icon: const Icon(Icons.view_sidebar_outlined),
+                        ),
+                ),
         ),
       ],
     );
   }
 }
 
-/// 展开三栏：侧栏 | 列表内容 | 详细信息。
+/// 展开三栏：侧栏 | 列表内容 | 详细信息（客户端 inspector）。
 class _ThreePane extends ConsumerWidget {
   const _ThreePane({
     required this.lists,
@@ -389,22 +499,50 @@ class _ThreePane extends ConsumerWidget {
           items.where((e) => e.id == selectedItemId).firstOrNull,
       orElse: () => null,
     );
+    final sidebarVisible = ref.watch(sidebarVisibleProvider);
 
     return Row(
       children: [
-        SizedBox(
-          width: 240,
-          child: TaskSidebar(
-            lists: lists,
-            selectedListId: openListId,
-            onSelect: (l) => onOpenList?.call(l.id),
+        if (sidebarVisible) ...[
+          SizedBox(
+            width: 240,
+            child: TaskSidebar(
+              lists: lists,
+              selectedListId: openListId,
+              onSelect: (l) => onOpenList?.call(l.id),
+              onAddList: () => showNewListDialog(
+                context,
+                onCreate: (list) =>
+                    ref.read(reminderRepositoryProvider).upsertList(list),
+              ),
+              onToggleSidebar: () =>
+                  ref.read(sidebarVisibleProvider.notifier).toggle(),
+              onOpenSettings: () => showTaskSettingsSheet(context),
+            ),
           ),
-        ),
-        const VerticalDivider(width: 1),
+          const VerticalDivider(width: 1),
+        ],
         Expanded(
           child: current == null
-              ? const _EmptyOverview()
-              : ListContentPane(list: current, onSelectItem: onSelectItem),
+              ? _EmptyOverview(
+                  showSidebarButton: !sidebarVisible,
+                  onShowSidebar: () =>
+                      ref.read(sidebarVisibleProvider.notifier).set(true),
+                )
+              : ListContentPane(
+                  list: current,
+                  onSelectItem: onSelectItem,
+                  leading: sidebarVisible
+                      ? null
+                      : IconButton(
+                          key: const ValueKey('show_sidebar'),
+                          tooltip: '显示侧栏',
+                          onPressed: () => ref
+                              .read(sidebarVisibleProvider.notifier)
+                              .set(true),
+                          icon: const Icon(Icons.view_sidebar_outlined),
+                        ),
+                ),
         ),
         if (selected != null) ...[
           const VerticalDivider(width: 1),
@@ -423,13 +561,29 @@ class _ThreePane extends ConsumerWidget {
 }
 
 class _EmptyOverview extends StatelessWidget {
-  const _EmptyOverview();
+  const _EmptyOverview({
+    this.showSidebarButton = false,
+    this.onShowSidebar,
+  });
+
+  final bool showSidebarButton;
+  final VoidCallback? onShowSidebar;
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(child: Text('选择一个列表')),
+      appBar: showSidebarButton
+          ? AppBar(
+              leading: IconButton(
+                key: const ValueKey('show_sidebar'),
+                tooltip: '显示侧栏',
+                onPressed: onShowSidebar,
+                icon: const Icon(Icons.view_sidebar_outlined),
+              ),
+            )
+          : null,
+      body: const Center(child: Text('选择一个列表')),
     );
   }
 }

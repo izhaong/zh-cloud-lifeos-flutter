@@ -130,7 +130,11 @@ void main() {
     await tester.tap(find.text('添加列表'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), '购物');
+    // 弹窗输入框（避开首页搜索框；弹窗 hint 是「列表名称」）
+    await tester.enterText(
+      find.widgetWithText(TextField, '列表名称'),
+      '购物',
+    );
     await tester.tap(find.text('完成').last);
     await tester.pumpAndSettle();
 

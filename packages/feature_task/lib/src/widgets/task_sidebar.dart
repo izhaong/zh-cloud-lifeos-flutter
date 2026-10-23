@@ -3,20 +3,28 @@ import 'package:flutter/material.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
-/// iPad/macOS 左侧栏：智能列表 + 我的列表（Apple 提醒事项侧栏样式）。
+/// iPad/macOS 左侧栏：智能列表 + 我的列表 + 底部操作区
+/// （添加列表 / 隐藏侧栏 / 设置；对齐线框 Pad端与客户端画板）。
 ///
-/// 布局无关的纯内容组件；选中态由外部路由/状态驱动。
+/// 布局无关的纯内容组件；选中态由外部路由/状态驱动；
+/// 底部动作由宿主注入回调（设置面板等 UI 态不放路由）。
 class TaskSidebar extends StatelessWidget {
   const TaskSidebar({
     super.key,
     required this.lists,
     required this.selectedListId,
     required this.onSelect,
+    this.onAddList,
+    this.onToggleSidebar,
+    this.onOpenSettings,
   });
 
   final List<ReminderList> lists;
   final String? selectedListId;
   final ValueChanged<ReminderList> onSelect;
+  final VoidCallback? onAddList;
+  final VoidCallback? onToggleSidebar;
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -25,28 +33,107 @@ class TaskSidebar extends StatelessWidget {
 
     return Material(
       color: const Color(0xFFF2F2F7),
-      child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
         children: [
-          if (smart.isNotEmpty) ...[
-            const _SectionLabel('智能列表'),
-            for (final list in smart)
-              _SidebarTile(
-                list: list,
-                selected: list.id == selectedListId,
-                onTap: () => onSelect(list),
-              ),
-          ],
-          if (mine.isNotEmpty) ...[
-            const _SectionLabel('我的列表'),
-            for (final list in mine)
-              _SidebarTile(
-                list: list,
-                selected: list.id == selectedListId,
-                onTap: () => onSelect(list),
-              ),
-          ],
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              children: [
+                if (smart.isNotEmpty) ...[
+                  const _SectionLabel('智能列表'),
+                  for (final list in smart)
+                    _SidebarTile(
+                      list: list,
+                      selected: list.id == selectedListId,
+                      onTap: () => onSelect(list),
+                    ),
+                ],
+                if (mine.isNotEmpty) ...[
+                  const _SectionLabel('我的列表'),
+                  for (final list in mine)
+                    _SidebarTile(
+                      list: list,
+                      selected: list.id == selectedListId,
+                      onTap: () => onSelect(list),
+                    ),
+                ],
+              ],
+            ),
+          ),
+          // 底部操作区（线框：添加列表 / 隐藏侧栏 / 设置）
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                if (onAddList != null)
+                  Expanded(
+                    child: _SidebarAction(
+                      key: const ValueKey('sidebar_add_list'),
+                      icon: CupertinoIcons.add,
+                      label: '添加列表',
+                      onTap: onAddList!,
+                    ),
+                  ),
+                if (onToggleSidebar != null)
+                  Expanded(
+                    child: _SidebarAction(
+                      key: const ValueKey('sidebar_toggle'),
+                      icon: CupertinoIcons.sidebar_left,
+                      label: '隐藏侧栏',
+                      onTap: onToggleSidebar!,
+                    ),
+                  ),
+                if (onOpenSettings != null)
+                  Expanded(
+                    child: _SidebarAction(
+                      key: const ValueKey('sidebar_settings'),
+                      icon: CupertinoIcons.gear,
+                      label: '设置',
+                      onTap: onOpenSettings!,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _SidebarAction extends StatelessWidget {
+  const _SidebarAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: const Color(0xFF007AFF)),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF007AFF),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
