@@ -35,7 +35,8 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
-  testWidgets('紧凑单栏：智能列表卡片 + 我的列表 + 计数', (tester) async {
+  // TC-UI-204/205
+    testWidgets('紧凑单栏：智能列表卡片 + 我的列表 + 计数', (tester) async {
     await _pump(tester, size: const Size(375, 812));
 
     expect(find.text('今天'), findsOneWidget);
@@ -47,7 +48,8 @@ void main() {
     expect(find.text('工作'), findsOneWidget);
   });
 
-  testWidgets('紧凑单栏：点开列表 → 走 onOpenList 回调（壳层路由）', (tester) async {
+  // TC-UI-204
+    testWidgets('紧凑单栏：点开列表 → 走 onOpenList 回调（壳层路由）', (tester) async {
     final opened = <String>[];
     await _pump(
       tester,
@@ -60,7 +62,8 @@ void main() {
     expect(opened, contains('list.personal'));
   });
 
-  testWidgets('中等二栏：侧栏 + 当前列表内容', (tester) async {
+  // TC-UI-302/303
+    testWidgets('中等二栏：侧栏 + 当前列表内容', (tester) async {
     await _pump(
       tester,
       size: const Size(834, 1112),
@@ -73,7 +76,8 @@ void main() {
     expect(find.text('买牛奶'), findsOneWidget);
   });
 
-  testWidgets('展开三栏：详情选中时出现第三列', (tester) async {
+  // TC-UI-307
+    testWidgets('展开三栏：详情选中时出现第三列', (tester) async {
     await _pump(
       tester,
       size: const Size(1366, 1024),
@@ -86,7 +90,8 @@ void main() {
     expect(find.text('详细信息'), findsOneWidget);
   });
 
-  testWidgets('展开三栏：未选详情时无第三列', (tester) async {
+  // TC-UI-307
+    testWidgets('展开三栏：未选详情时无第三列', (tester) async {
     await _pump(
       tester,
       size: const Size(1366, 1024),
@@ -96,7 +101,8 @@ void main() {
     expect(find.text('详细信息'), findsNothing);
   });
 
-  testWidgets('完成圆圈点击后行内容自动更新（无手动 reload）', (tester) async {
+  // TC-UI-209
+    testWidgets('完成圆圈点击后行内容自动更新（无手动 reload）', (tester) async {
     await _pump(
       tester,
       size: const Size(834, 1112),

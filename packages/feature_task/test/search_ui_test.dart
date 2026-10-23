@@ -32,7 +32,8 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
-  testWidgets('宽屏工具栏搜索框出现；紧凑端不出现', (tester) async {
+  // TC-UI-202
+    testWidgets('宽屏工具栏搜索框出现；紧凑端不出现', (tester) async {
     final repo = InMemoryReminderRepository();
 
     // 紧凑端：无搜索框
@@ -44,7 +45,8 @@ void main() {
     expect(find.byKey(const ValueKey('toolbar_search')), findsOneWidget);
   });
 
-  testWidgets('搜索按标题过滤（大小写不敏感）', (tester) async {
+  // TC-UI-202
+    testWidgets('搜索按标题过滤（大小写不敏感）', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(1366, 1024), repo: repo);
 
@@ -59,7 +61,8 @@ void main() {
     expect(find.text('写 LifeOS 基建'), findsNothing);
   });
 
-  testWidgets('搜索匹配备注与标签', (tester) async {
+  // TC-UI-202
+    testWidgets('搜索匹配备注与标签', (tester) async {
     final repo = InMemoryReminderRepository();
     await repo.upsertItem(
       const ReminderItem(
@@ -97,7 +100,8 @@ void main() {
     expect(find.text('无关条目'), findsOneWidget);
   });
 
-  testWidgets('无匹配显示「无匹配结果」', (tester) async {
+  // TC-UI-203
+    testWidgets('无匹配显示「无匹配结果」', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(1366, 1024), repo: repo);
 

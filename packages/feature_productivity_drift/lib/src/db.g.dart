@@ -497,6 +497,50 @@ class $ReminderItemsTable extends ReminderItems
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _remoteIdMeta = const VerificationMeta(
+    'remoteId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteId = GeneratedColumn<String>(
+    'remote_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sectionIdMeta = const VerificationMeta(
+    'sectionId',
+  );
+  @override
+  late final GeneratedColumn<String> sectionId = GeneratedColumn<String>(
+    'section_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -511,6 +555,10 @@ class $ReminderItemsTable extends ReminderItems
     recurrence,
     parentId,
     sortOrder,
+    remoteId,
+    completedAt,
+    sectionId,
+    deletedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -602,6 +650,33 @@ class $ReminderItemsTable extends ReminderItems
         sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
       );
     }
+    if (data.containsKey('remote_id')) {
+      context.handle(
+        _remoteIdMeta,
+        remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta),
+      );
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('section_id')) {
+      context.handle(
+        _sectionIdMeta,
+        sectionId.isAcceptableOrUnknown(data['section_id']!, _sectionIdMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
     return context;
   }
 
@@ -659,6 +734,22 @@ class $ReminderItemsTable extends ReminderItems
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
       )!,
+      remoteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_id'],
+      ),
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
+      sectionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}section_id'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
     );
   }
 
@@ -689,6 +780,18 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
 
   /// 同层排序键。
   final int sortOrder;
+
+  /// 服务端实体 ID（Spec 028；null = 纯本地未同步）。V3（Issue #3）。
+  final String? remoteId;
+
+  /// 完成时间（服务端 completedAt 对齐）。V3（Issue #3）。
+  final DateTime? completedAt;
+
+  /// 列表内手动分区 id（A15；跨列表移动时清空）。V3（Issue #3）。
+  final String? sectionId;
+
+  /// 进入最近删除的时间（A10 本地回收窗；null = 未删）。V3（Issue #3）。
+  final DateTime? deletedAt;
   const ReminderItem({
     required this.id,
     required this.listId,
@@ -702,6 +805,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     this.recurrence,
     this.parentId,
     required this.sortOrder,
+    this.remoteId,
+    this.completedAt,
+    this.sectionId,
+    this.deletedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -726,6 +833,18 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       map['parent_id'] = Variable<String>(parentId);
     }
     map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || remoteId != null) {
+      map['remote_id'] = Variable<String>(remoteId);
+    }
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    if (!nullToAbsent || sectionId != null) {
+      map['section_id'] = Variable<String>(sectionId);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
     return map;
   }
 
@@ -751,6 +870,18 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           ? const Value.absent()
           : Value(parentId),
       sortOrder: Value(sortOrder),
+      remoteId: remoteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteId),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      sectionId: sectionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sectionId),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
     );
   }
 
@@ -772,6 +903,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       recurrence: serializer.fromJson<String?>(json['recurrence']),
       parentId: serializer.fromJson<String?>(json['parentId']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      remoteId: serializer.fromJson<String?>(json['remoteId']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+      sectionId: serializer.fromJson<String?>(json['sectionId']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
     );
   }
   @override
@@ -790,6 +925,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       'recurrence': serializer.toJson<String?>(recurrence),
       'parentId': serializer.toJson<String?>(parentId),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'remoteId': serializer.toJson<String?>(remoteId),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+      'sectionId': serializer.toJson<String?>(sectionId),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
     };
   }
 
@@ -806,6 +945,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     Value<String?> recurrence = const Value.absent(),
     Value<String?> parentId = const Value.absent(),
     int? sortOrder,
+    Value<String?> remoteId = const Value.absent(),
+    Value<DateTime?> completedAt = const Value.absent(),
+    Value<String?> sectionId = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
   }) => ReminderItem(
     id: id ?? this.id,
     listId: listId ?? this.listId,
@@ -819,6 +962,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     recurrence: recurrence.present ? recurrence.value : this.recurrence,
     parentId: parentId.present ? parentId.value : this.parentId,
     sortOrder: sortOrder ?? this.sortOrder,
+    remoteId: remoteId.present ? remoteId.value : this.remoteId,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    sectionId: sectionId.present ? sectionId.value : this.sectionId,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
   ReminderItem copyWithCompanion(ReminderItemsCompanion data) {
     return ReminderItem(
@@ -838,6 +985,12 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           : this.recurrence,
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      sectionId: data.sectionId.present ? data.sectionId.value : this.sectionId,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
     );
   }
 
@@ -855,7 +1008,11 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           ..write('tags: $tags, ')
           ..write('recurrence: $recurrence, ')
           ..write('parentId: $parentId, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('remoteId: $remoteId, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('sectionId: $sectionId, ')
+          ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
   }
@@ -874,6 +1031,10 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     recurrence,
     parentId,
     sortOrder,
+    remoteId,
+    completedAt,
+    sectionId,
+    deletedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -890,7 +1051,11 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           other.tags == this.tags &&
           other.recurrence == this.recurrence &&
           other.parentId == this.parentId &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.remoteId == this.remoteId &&
+          other.completedAt == this.completedAt &&
+          other.sectionId == this.sectionId &&
+          other.deletedAt == this.deletedAt);
 }
 
 class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
@@ -906,6 +1071,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
   final Value<String?> recurrence;
   final Value<String?> parentId;
   final Value<int> sortOrder;
+  final Value<String?> remoteId;
+  final Value<DateTime?> completedAt;
+  final Value<String?> sectionId;
+  final Value<DateTime?> deletedAt;
   final Value<int> rowid;
   const ReminderItemsCompanion({
     this.id = const Value.absent(),
@@ -920,6 +1089,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     this.recurrence = const Value.absent(),
     this.parentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.remoteId = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.sectionId = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ReminderItemsCompanion.insert({
@@ -935,6 +1108,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     this.recurrence = const Value.absent(),
     this.parentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.remoteId = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.sectionId = const Value.absent(),
+    this.deletedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        listId = Value(listId),
@@ -952,6 +1129,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     Expression<String>? recurrence,
     Expression<String>? parentId,
     Expression<int>? sortOrder,
+    Expression<String>? remoteId,
+    Expression<DateTime>? completedAt,
+    Expression<String>? sectionId,
+    Expression<DateTime>? deletedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -967,6 +1148,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
       if (recurrence != null) 'recurrence': recurrence,
       if (parentId != null) 'parent_id': parentId,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (remoteId != null) 'remote_id': remoteId,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (sectionId != null) 'section_id': sectionId,
+      if (deletedAt != null) 'deleted_at': deletedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -984,6 +1169,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     Value<String?>? recurrence,
     Value<String?>? parentId,
     Value<int>? sortOrder,
+    Value<String?>? remoteId,
+    Value<DateTime?>? completedAt,
+    Value<String?>? sectionId,
+    Value<DateTime?>? deletedAt,
     Value<int>? rowid,
   }) {
     return ReminderItemsCompanion(
@@ -999,6 +1188,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
       recurrence: recurrence ?? this.recurrence,
       parentId: parentId ?? this.parentId,
       sortOrder: sortOrder ?? this.sortOrder,
+      remoteId: remoteId ?? this.remoteId,
+      completedAt: completedAt ?? this.completedAt,
+      sectionId: sectionId ?? this.sectionId,
+      deletedAt: deletedAt ?? this.deletedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1042,6 +1235,18 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (remoteId.present) {
+      map['remote_id'] = Variable<String>(remoteId.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (sectionId.present) {
+      map['section_id'] = Variable<String>(sectionId.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1063,6 +1268,10 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
           ..write('recurrence: $recurrence, ')
           ..write('parentId: $parentId, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('remoteId: $remoteId, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('sectionId: $sectionId, ')
+          ..write('deletedAt: $deletedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1313,6 +1522,10 @@ typedef $$ReminderItemsTableCreateCompanionBuilder =
       Value<String?> recurrence,
       Value<String?> parentId,
       Value<int> sortOrder,
+      Value<String?> remoteId,
+      Value<DateTime?> completedAt,
+      Value<String?> sectionId,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 typedef $$ReminderItemsTableUpdateCompanionBuilder =
@@ -1329,6 +1542,10 @@ typedef $$ReminderItemsTableUpdateCompanionBuilder =
       Value<String?> recurrence,
       Value<String?> parentId,
       Value<int> sortOrder,
+      Value<String?> remoteId,
+      Value<DateTime?> completedAt,
+      Value<String?> sectionId,
+      Value<DateTime?> deletedAt,
       Value<int> rowid,
     });
 
@@ -1398,6 +1615,26 @@ class $$ReminderItemsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sectionId => $composableBuilder(
+    column: $table.sectionId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1470,6 +1707,26 @@ class $$ReminderItemsTableOrderingComposer
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sectionId => $composableBuilder(
+    column: $table.sectionId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReminderItemsTableAnnotationComposer
@@ -1520,6 +1777,20 @@ class $$ReminderItemsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteId =>
+      $composableBuilder(column: $table.remoteId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sectionId =>
+      $composableBuilder(column: $table.sectionId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
 }
 
 class $$ReminderItemsTableTableManager
@@ -1571,6 +1842,10 @@ class $$ReminderItemsTableTableManager
                 Value<String?> recurrence = const Value.absent(),
                 Value<String?> parentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<String?> sectionId = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderItemsCompanion(
                 id: id,
@@ -1585,6 +1860,10 @@ class $$ReminderItemsTableTableManager
                 recurrence: recurrence,
                 parentId: parentId,
                 sortOrder: sortOrder,
+                remoteId: remoteId,
+                completedAt: completedAt,
+                sectionId: sectionId,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1601,6 +1880,10 @@ class $$ReminderItemsTableTableManager
                 Value<String?> recurrence = const Value.absent(),
                 Value<String?> parentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<String?> sectionId = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderItemsCompanion.insert(
                 id: id,
@@ -1615,6 +1898,10 @@ class $$ReminderItemsTableTableManager
                 recurrence: recurrence,
                 parentId: parentId,
                 sortOrder: sortOrder,
+                remoteId: remoteId,
+                completedAt: completedAt,
+                sectionId: sectionId,
+                deletedAt: deletedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -275,4 +275,88 @@ void main() {
     expect(legacy.title, '旧条目'); // 旧数据未丢
     await db2.close();
   });
+
+  test('V2→V3 迁移（Issue #3）：旧数据保留、契约四列默认 NULL', () async {
+    // V2 结构 = V1 + tags/recurrence/parent_id/sort_order + lists.sort_order
+    final raw = sqlite3.sqlite3.openInMemory();
+    raw.execute('''
+      CREATE TABLE reminder_items (
+        id TEXT NOT NULL PRIMARY KEY,
+        list_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        notes TEXT NULL,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        is_flagged INTEGER NOT NULL DEFAULT 0,
+        due_at INTEGER NULL,
+        priority INTEGER NOT NULL DEFAULT 0,
+        tags TEXT NOT NULL DEFAULT '[]',
+        recurrence TEXT NULL,
+        parent_id TEXT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+    raw.execute('''
+      CREATE TABLE reminder_lists (
+        id TEXT NOT NULL PRIMARY KEY,
+        title TEXT NOT NULL,
+        color_argb INTEGER NOT NULL DEFAULT 4280327039,
+        is_smart INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+    raw.execute(
+      'INSERT INTO reminder_items (id, list_id, title, tags) '
+      "VALUES ('v2row', 'list.x', 'V2 条目', '[\"工作\"]')",
+    );
+    raw.execute('PRAGMA user_version = 2');
+
+    final db3 = LifeProductivityDb(NativeDatabase.opened(raw));
+    final rows = await db3.select(db3.reminderItems).get();
+    final v2row = rows.singleWhere((e) => e.id == 'v2row');
+    expect(v2row.title, 'V2 条目'); // 旧数据未丢
+    expect(v2row.tags, '["工作"]');
+    expect(v2row.remoteId, isNull); // V3 契约四列默认
+    expect(v2row.completedAt, isNull);
+    expect(v2row.sectionId, isNull);
+    expect(v2row.deletedAt, isNull);
+    await db3.close();
+  });
+
+  test('契约字段（remoteId/completedAt/sectionId/deletedAt）经仓库往返',
+      () async {
+    await repo.upsertList(
+      const ReminderList(id: 'list.personal', title: '个人'),
+    );
+    // 仓内约定：本地墙钟 DateTime（drift 存绝对时刻、往返稳定）；
+    // UTC 换算归 M4 同步边界（映射表文档裁定，TC-KR-101）。
+    final completed = DateTime(2026, 10, 24, 1, 0);
+    await repo.upsertItem(
+      const ReminderItem(id: 'c1', listId: 'list.personal', title: '契约条目')
+          .copyWith(
+        remoteId: 'srv-77',
+        completedAt: completed,
+        sectionId: 'sec-1',
+      ),
+    );
+
+    final item =
+        (await repo.watchItems(listId: 'list.personal').first).single;
+    expect(item.remoteId, 'srv-77');
+    expect(item.completedAt, completed);
+    expect(item.sectionId, 'sec-1');
+    expect(item.deletedAt, isNull);
+
+    // 更新：清分区（移动列表语义 TC-API-118）+ 落回收窗（TC-API-110）
+    final now = DateTime(2026, 10, 24, 2, 30);
+    await repo.upsertItem(
+      item.copyWith(
+        sectionId: ReminderItem.clear,
+        deletedAt: now,
+      ),
+    );
+    final updated =
+        (await repo.watchItems(listId: 'list.personal').first).single;
+    expect(updated.sectionId, isNull);
+    expect(updated.deletedAt, now);
+  });
 }

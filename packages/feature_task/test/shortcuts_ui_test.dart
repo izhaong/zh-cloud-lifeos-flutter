@@ -12,7 +12,8 @@ void main() {
   // 已知限制。此处覆盖：controller 广播链路、空实现兜底、广播驱动 UI、
   // 激活器键位静态核对。真机/桌面手动验收 ⌘N/⌘F。
 
-  testWidgets('TaskShortcuts controller 广播票据自增', (tester) async {
+  // TC-UI-301
+    testWidgets('TaskShortcuts controller 广播票据自增', (tester) async {
     late TaskShortcutsController controller;
     await tester.pumpWidget(
       TaskShortcuts(
@@ -33,7 +34,8 @@ void main() {
     expect(controller.focusSearchTicket, beforeF + 1);
   });
 
-  testWidgets('未包 TaskShortcuts 时 of() 返回空实现不抛错', (tester) async {
+  // TC-UI-301
+    testWidgets('未包 TaskShortcuts 时 of() 返回空实现不抛错', (tester) async {
     late TaskShortcutsController controller;
     await tester.pumpWidget(
       Builder(
@@ -50,7 +52,8 @@ void main() {
     expect(controller.focusSearchTicket, 1);
   });
 
-  testWidgets('快捷键广播驱动 ListContentPane 打开草稿行', (tester) async {
+  // TC-UI-301
+    testWidgets('快捷键广播驱动 ListContentPane 打开草稿行', (tester) async {
     final repo = InMemoryReminderRepository();
     final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views
         .first;

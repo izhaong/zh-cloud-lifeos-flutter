@@ -37,6 +37,18 @@ class ReminderItems extends Table {
   /// 同层排序键。
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
+  /// 服务端实体 ID（Spec 028；null = 纯本地未同步）。V3（Issue #3）。
+  TextColumn get remoteId => text().nullable()();
+
+  /// 完成时间（服务端 completedAt 对齐）。V3（Issue #3）。
+  DateTimeColumn get completedAt => dateTime().nullable()();
+
+  /// 列表内手动分区 id（A15；跨列表移动时清空）。V3（Issue #3）。
+  TextColumn get sectionId => text().nullable()();
+
+  /// 进入最近删除的时间（A10 本地回收窗；null = 未删）。V3（Issue #3）。
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 
@@ -51,7 +63,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -78,6 +90,17 @@ class LifeProductivityDb extends _$LifeProductivityDb {
                 Index('idx_items_list_sort', 'CREATE INDEX '
                     'idx_items_list_sort ON reminder_items (list_id, '
                     'sort_order)'),
+            );
+          }
+          if (from <= 2 && to >= 3) {
+            // V3（Issue #3 / M2）：服务端契约对齐四列
+            await m.addColumn(reminderItems, reminderItems.remoteId);
+            await m.addColumn(reminderItems, reminderItems.completedAt);
+            await m.addColumn(reminderItems, reminderItems.sectionId);
+            await m.addColumn(reminderItems, reminderItems.deletedAt);
+            await m.createIndex(
+              Index('idx_items_remote', 'CREATE INDEX idx_items_remote '
+                  'ON reminder_items (remote_id)'),
             );
           }
         },

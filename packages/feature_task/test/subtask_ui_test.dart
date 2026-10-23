@@ -35,7 +35,8 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
-  testWidgets('详情面板：添加子任务 → 列表行呈现缩进子任务', (tester) async {
+  // TC-UI-114
+    testWidgets('详情面板：添加子任务 → 列表行呈现缩进子任务', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(1366, 1024), repo: repo);
 
@@ -57,7 +58,8 @@ void main() {
     expect(sub.isSubtask, isTrue);
   });
 
-  testWidgets('详情面板：勾选子任务即时完成', (tester) async {
+  // TC-UI-114
+    testWidgets('详情面板：勾选子任务即时完成', (tester) async {
     final repo = InMemoryReminderRepository();
     // 预置一条子任务
     await repo.upsertItem(
@@ -83,7 +85,8 @@ void main() {
     expect(sub.isCompleted, isTrue);
   });
 
-  testWidgets('详情面板：滑删子任务级联不伤父条目', (tester) async {
+  // TC-UI-114
+    testWidgets('详情面板：滑删子任务级联不伤父条目', (tester) async {
     final repo = InMemoryReminderRepository();
     await repo.upsertItem(
       const ReminderItem(

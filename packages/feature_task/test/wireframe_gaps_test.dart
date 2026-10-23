@@ -32,7 +32,8 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
-  testWidgets('首页出现「紧急/完成」智能卡且计数正确', (tester) async {
+  // TC-UI-302
+    testWidgets('首页出现「紧急/完成」智能卡且计数正确', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: true);
     await _pump(
       tester,
@@ -45,7 +46,8 @@ void main() {
     expect(find.text('完成'), findsOneWidget);
   });
 
-  testWidgets('负向门禁：无「分配事项/iCloud/Outlook/建议列表」文案',
+  // TC-UI-N2 负向门禁
+    testWidgets('负向门禁：无「分配事项/iCloud/Outlook/建议列表」文案',
       (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(375, 812), repo: repo);
@@ -56,7 +58,8 @@ void main() {
     expect(find.textContaining('建议列表'), findsNothing);
   });
 
-  testWidgets('分区折叠：按 dueAt 日桶分组，点分区头折叠/展开', (tester) async {
+  // TC-UI-309（分区部分）
+    testWidgets('分区折叠：按 dueAt 日桶分组，点分区头折叠/展开', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(
       const ReminderList(id: 'list.work', title: '工作'),
@@ -105,7 +108,8 @@ void main() {
     expect(find.text('今天的事'), findsOneWidget);
   });
 
-  testWidgets('「N 项完成」只读计数与列表已完成数一致', (tester) async {
+  // TC-UI-308（计数部分）
+    testWidgets('「N 项完成」只读计数与列表已完成数一致', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(
       const ReminderList(id: 'list.work', title: '工作'),
@@ -140,7 +144,8 @@ void main() {
     expect(find.text('2 项完成'), findsOneWidget);
   });
 
-  testWidgets('完成智能卡点进：已完成条目可见', (tester) async {
+  // TC-UI-302
+    testWidgets('完成智能卡点进：已完成条目可见', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(
       const ReminderList(id: 'list.work', title: '工作'),
