@@ -50,13 +50,16 @@ void main() {
     expect(sw.elapsed.inSeconds, lessThan(10),
         reason: '千级渲染 ${sw.elapsed}——超基线需排查 N+1 或全量重建');
 
-    // 搜索响应在线（过滤管线不因数据量崩溃）
+    // 搜索响应计时（cursor PR#18：硬断言存在 + <2s 在线）
     final queryField = find.byKey(const ValueKey('toolbar_search'));
-    if (queryField.evaluate().isNotEmpty) {
-      await tester.enterText(queryField, '条目 999');
-      await tester.pumpAndSettle();
-      // findsWidgets：命中行 + 搜索框 EditableText 自身含同文本
-      expect(find.text('条目 999'), findsWidgets);
-    }
+    expect(queryField, findsOneWidget, reason: '宽屏必有工具栏搜索框');
+    final swSearch = Stopwatch()..start();
+    await tester.enterText(queryField, '条目 999');
+    await tester.pumpAndSettle();
+    swSearch.stop();
+    expect(swSearch.elapsed.inSeconds, lessThan(2),
+        reason: '千级数据下搜索响应 ${swSearch.elapsed}——超 2s 需排查全量重建');
+    // findsWidgets：命中行 + 搜索框 EditableText 自身含同文本
+    expect(find.text('条目 999'), findsWidgets);
   });
 }

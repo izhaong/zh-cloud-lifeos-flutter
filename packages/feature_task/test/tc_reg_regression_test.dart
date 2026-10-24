@@ -15,9 +15,19 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
-  Widget host(ReminderRepository repo) => ProviderScope(
+  Widget host(
+    ReminderRepository repo, {
+    String? selectedItemId,
+    String openListId = 'smart.today',
+  }) =>
+      ProviderScope(
         overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: TaskScaffold(openListId: 'smart.today')),
+        child: MaterialApp(
+          home: TaskScaffold(
+            openListId: openListId,
+            selectedItemId: selectedItemId,
+          ),
+        ),
       );
 
   testWidgets('TC-REG-102 四宽度断点各归正确档位', (tester) async {
@@ -44,7 +54,7 @@ void main() {
     expect(find.byKey(const ValueKey('sidebar_toggle')), findsOneWidget,
         reason: '1199 仍二栏');
 
-    // 1200 = expanded（三栏可开）
+    // 1200 = expanded（三栏可开）——与 medium 的区分锁：选中条目时出 inspector
     view.physicalSize = const Size(1200, 900);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('sidebar_toggle')), findsOneWidget,
@@ -54,6 +64,29 @@ void main() {
       find.byKey(const ValueKey('sidebar_toggle')).evaluate().length,
       lessThanOrEqualTo(1),
     );
+  });
+
+  testWidgets('TC-REG-102 medium≠expanded：1200 选条目出 inspector，1199 不出',
+      (tester) async {
+    final repo = InMemoryReminderRepository(seedSampleData: true);
+    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+
+    // 1199（medium）：选中也不出第三列
+    view.physicalSize = const Size(1199, 1000);
+    view.devicePixelRatio = 1.0;
+    await tester.pumpWidget(host(repo, openListId: 'list.personal'));
+    await tester.pumpAndSettle();
+    expect(find.text('详细信息'), findsNothing,
+        reason: 'medium 档无第三列（selectedItemId 需经 TaskScaffold 自持选中）');
+
+    // 1200（expanded）：_ThreePane 自持选中 → 点行出 inspector
+    view.physicalSize = const Size(1200, 1000);
+    await tester.pumpWidget(host(repo, openListId: 'list.personal'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('买牛奶'));
+    await tester.pumpAndSettle();
+    expect(find.text('详细信息'), findsOneWidget,
+        reason: 'expanded 档选中行必须出现第三列（medium/expanded 区分锁）');
   });
 
   testWidgets('TC-REG-108 生命周期：重 pump 后数据不丢、Stream 重订阅不断流',
@@ -85,7 +118,8 @@ void main() {
     expect(find.text('生命周期条目'), findsOneWidget,
         reason: '重建后 Stream 重订阅，数据不丢');
 
-    // 「热后台回前台」：数据变更仍能驱动 UI（断流检测）
+    // 热恢复近似（widget 级）：数据变更仍能驱动重建后的 UI（断流检测）——
+    // 真实 AppLifecycleState 后台/前台与杀进程恢复属手动清单（设备项）
     await repo.upsertItem(
       ReminderItem(
         id: 'after',
