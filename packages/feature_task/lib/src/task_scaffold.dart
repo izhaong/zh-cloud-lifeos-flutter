@@ -687,11 +687,41 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// 最近删除视图（smart.trash）：恢复语义、无新建入口（TC-UI-109）。
   bool get _isTrashView => widget.list.id == 'smart.trash';
 
-  /// 分区（线框「分区一 ∨」）：带 dueAt 顶层条目按日桶，其余进「无日期」。
-  /// 保序：沿用 items 自带排序（sortOrder asc, id asc）。
+  /// 分区（线框「分区一 ∨」）：**手动分区优先**（列表带 sections 元数据时按
+  /// sectionId 挂靠 + 未分区兜底；TC-KR-118 互斥契约——一列表一种分组模式）；
+  /// 无分区元数据回退 dueAt 日桶，无日期单独一区。
+  /// 保序：手动分区按元数据 sortOrder asc, id asc；日桶沿用 items 排序。
   Map<String, List<ReminderItem>> _buildSections(
     List<ReminderItem> topLevel,
   ) {
+    final manual = widget.list.sections;
+    if (manual.isNotEmpty) {
+      final byId = {
+        for (final s in manual) s.id: s,
+      };
+      final sections = <String, List<ReminderItem>>{};
+      // 元数据序建桶（空分区也显示头，Apple 同款）
+      for (final s in manual) {
+        sections.putIfAbsent(s.title, () => []);
+      }
+      for (final item in topLevel) {
+        final sec = item.sectionId == null
+            ? null
+            : byId[item.sectionId];
+        final key = sec?.title ?? '未分区';
+        sections.putIfAbsent(key, () => []).add(item);
+      }
+      // 未分区（含孤儿 sectionId）恒排最后
+      final ordered = <String, List<ReminderItem>>{};
+      for (final s in manual) {
+        ordered[s.title] = sections[s.title] ?? [];
+      }
+      if (sections.containsKey('未分区')) {
+        ordered['未分区'] = sections['未分区']!;
+      }
+      return ordered;
+    }
+
     final now = DateTime.now();
     final sections = <String, List<ReminderItem>>{};
     for (final item in topLevel) {

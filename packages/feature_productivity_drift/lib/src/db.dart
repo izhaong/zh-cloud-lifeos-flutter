@@ -10,6 +10,11 @@ class ReminderLists extends Table {
   BoolColumn get isSmart => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
+  /// 手动分区元数据 JSON（[{id,title,sortOrder}]；TC-KR-118）。
+  /// nullable：V3→V4 增列时旧行为 NULL，读取侧兜底空分区。
+  TextColumn get sectionsJson =>
+      text().nullable().withDefault(const Constant('[]'))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -102,6 +107,10 @@ class LifeProductivityDb extends _$LifeProductivityDb {
               Index('idx_items_remote', 'CREATE INDEX idx_items_remote '
                   'ON reminder_items (remote_id)'),
             );
+          }
+          if (from <= 3 && to >= 4) {
+            // V4（Issue #2 / M2）：手动分区元数据（TC-KR-118）
+            await m.addColumn(reminderLists, reminderLists.sectionsJson);
           }
         },
       );

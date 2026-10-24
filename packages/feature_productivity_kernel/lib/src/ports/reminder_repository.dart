@@ -3,6 +3,7 @@ import 'dart:async';
 import '../models/recurrence.dart';
 import '../models/reminder_item.dart';
 import '../models/reminder_list.dart';
+import '../models/reminder_section.dart';
 
 /// 提醒数据端口。
 ///
@@ -63,6 +64,24 @@ abstract interface class ReminderRepository {
 
   /// 删除列表（级联删除其全部条目）。
   Future<void> deleteList(String listId);
+
+  /// 新增/更新手动分区元数据（TC-KR-118）。
+  Future<void> upsertSection({
+    required String listId,
+    required ReminderSection section,
+  });
+
+  /// 分区保序重排（[sectionIds] 为目标全序；normalize 滤未知 id）。
+  Future<void> reorderSection({
+    required String listId,
+    required List<String> sectionIds,
+  });
+
+  /// 删除分区（级联：挂靠条目 sectionId 清空，兜底「未分区」）。
+  Future<void> deleteSection({
+    required String listId,
+    required String sectionId,
+  });
 }
 
 /// 内存实现：壳层与 UI 冒烟 + 仓库契约测试的参考实现。
@@ -125,6 +144,7 @@ final class InMemoryReminderRepository implements ReminderRepository {
 
   final _lists = <ReminderList>[];
   final _items = <ReminderItem>[];
+  final _sectionsByList = <String, List<ReminderSection>>{};
   final _listWatchers = <_ListsWatcher>[];
   final _itemWatchers = <_ItemsWatcher>[];
   DateTime? _nowForTest;
@@ -387,6 +407,83 @@ final class InMemoryReminderRepository implements ReminderRepository {
     _lists.removeWhere((l) => l.id == listId);
     _recount();
     _notify();
+  }
+
+  @override
+  Future<void> upsertSection({
+    required String listId,
+    required ReminderSection section,
+  }) async {
+    final sections =
+        _sectionsByList.putIfAbsent(listId, () => []);
+    final i = sections.indexWhere((e) => e.id == section.id);
+    if (i >= 0) {
+      sections[i] = section;
+    } else {
+      sections.add(section);
+    }
+    _syncSectionsToList(listId);
+    _notify();
+  }
+
+  @override
+  Future<void> reorderSection({
+    required String listId,
+    required List<String> sectionIds,
+  }) async {
+    final sections = _sectionsByList[listId];
+    if (sections == null) return;
+    // 保序重排：滤未知 id；已知分区缺列保底追加在尾
+    final byId = {
+      for (final s in sections) s.id: s,
+    };
+    final ordered = <ReminderSection>[];
+    final seen = <String>{};
+    for (final id in sectionIds) {
+      final s = byId[id];
+      if (s == null || seen.contains(id)) continue;
+      seen.add(id);
+      ordered.add(s.copyWith(sortOrder: ordered.length));
+    }
+    for (final s in sections) {
+      if (!seen.contains(s.id)) {
+        ordered.add(s.copyWith(sortOrder: ordered.length));
+      }
+    }
+    _sectionsByList[listId] = ordered;
+    _syncSectionsToList(listId);
+    _notify();
+  }
+
+  @override
+  Future<void> deleteSection({
+    required String listId,
+    required String sectionId,
+  }) async {
+    _sectionsByList[listId]?.removeWhere((e) => e.id == sectionId);
+    // 级联：挂靠条目兜底「未分区」
+    for (var i = 0; i < _items.length; i++) {
+      final it = _items[i];
+      if (it.listId == listId &&
+          it.sectionId == sectionId &&
+          it.sectionId != null) {
+        _items[i] = it.copyWith(sectionId: ReminderItem.clear);
+      }
+    }
+    _syncSectionsToList(listId);
+    _recount();
+    _notify();
+  }
+
+  /// 分区元数据同步到列表快照（排序契约 sortOrder asc, id asc）。
+  void _syncSectionsToList(String listId) {
+    final i = _lists.indexWhere((e) => e.id == listId);
+    if (i < 0) return;
+    final sections = [...?_sectionsByList[listId]]..sort((a, b) {
+        final byOrder = a.sortOrder.compareTo(b.sortOrder);
+        return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
+      });
+    _lists[i] = _lists[i].copyWith(sections: sections);
   }
 
   // ---- 内部 ----

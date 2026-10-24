@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
+import 'reminder_section.dart';
+
 /// 提醒事项「我的列表」或智能列表元数据（D6 最低字段齐备）。
 @immutable
 final class ReminderList extends Equatable {
@@ -11,6 +13,7 @@ final class ReminderList extends Equatable {
     this.isSmart = false,
     this.itemCount = 0,
     this.sortOrder = 0,
+    this.sections = const [],
   });
 
   final String id;
@@ -24,11 +27,15 @@ final class ReminderList extends Equatable {
   /// 「我的列表」排序键（智能列表固定顺序，不参与）。
   final int sortOrder;
 
+  /// 手动分区元数据（我的列表；TC-KR-118）。
+  final List<ReminderSection> sections;
+
   ReminderList copyWith({
     String? title,
     int? colorArgb,
     int? itemCount,
     int? sortOrder,
+    List<ReminderSection>? sections,
   }) {
     return ReminderList(
       id: id,
@@ -37,10 +44,11 @@ final class ReminderList extends Equatable {
       isSmart: isSmart,
       itemCount: itemCount ?? this.itemCount,
       sortOrder: sortOrder ?? this.sortOrder,
+      sections: sections ?? this.sections,
     );
   }
 
   @override
   List<Object?> get props =>
-      [id, title, colorArgb, isSmart, itemCount, sortOrder];
+      [id, title, colorArgb, isSmart, itemCount, sortOrder, sections];
 }
