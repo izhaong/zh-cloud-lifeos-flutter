@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:app_core/app_core.dart';
@@ -6,13 +8,14 @@ import 'package:app_core/app_core.dart';
 ///
 /// - keychain/keystore 落地（不入 SharedPreferences）
 /// - 登出清 token **不清本地业务数据**（TC-SYNC-103 验收）
+/// - 编码 = JSON（管道分隔在 token/name 含 `|` 时会截断——cursor PR#17 阻断1）
 abstract interface class SessionStore {
   Future<MemberSession?> read();
   Future<void> write(MemberSession session);
   Future<void> clear();
 }
 
-/// flutter_secure_storage 实现。
+/// flutter_secure_storage 实现（JSON 编码，任意字符安全）。
 final class SecureSessionStore implements SessionStore {
   SecureSessionStore({FlutterSecureStorage? storage})
       : _storage = storage ?? const FlutterSecureStorage();
@@ -25,27 +28,38 @@ final class SecureSessionStore implements SessionStore {
   Future<MemberSession?> read() async {
     final raw = await _storage.read(key: _keySession);
     if (raw == null || raw.isEmpty) return null;
-    // 简单编码 userId|tenantId|token|name（token 不含分隔符；name 可空）
-    final parts = raw.split('|');
-    if (parts.length < 3) return null;
-    return MemberSession(
-      userId: parts[0],
-      tenantId: parts[1],
-      accessToken: parts[2],
-      displayName: parts.length > 3 && parts[3].isNotEmpty ? parts[3] : null,
-    );
+    try {
+      final map = jsonDecode(raw);
+      if (map is! Map<String, dynamic>) return null;
+      final userId = map['userId'];
+      final tenantId = map['tenantId'];
+      final accessToken = map['accessToken'];
+      if (userId is! String || tenantId is! String || accessToken is! String) {
+        return null;
+      }
+      return MemberSession(
+        userId: userId,
+        tenantId: tenantId,
+        accessToken: accessToken,
+        displayName: map['displayName'] is String
+            ? map['displayName'] as String
+            : null,
+      );
+    } catch (_) {
+      return null; // 损坏数据按未登录处理（离线优先，不炸）
+    }
   }
 
   @override
   Future<void> write(MemberSession session) async {
     await _storage.write(
       key: _keySession,
-      value: [
-        session.userId,
-        session.tenantId,
-        session.accessToken,
-        session.displayName ?? '',
-      ].join('|'),
+      value: jsonEncode({
+        'userId': session.userId,
+        'tenantId': session.tenantId,
+        'accessToken': session.accessToken,
+        'displayName': session.displayName,
+      }),
     );
   }
 

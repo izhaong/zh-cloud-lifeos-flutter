@@ -9,6 +9,7 @@ class SyncChange extends Equatable {
     this.payload = const {},
     this.clientMutationId,
     this.clientUpdatedAt,
+    this.baseRevision,
   });
 
   /// `task` / `list` / `task_section` / `tag`。
@@ -28,6 +29,9 @@ class SyncChange extends Equatable {
   /// 客户端最后更新时间（冲突「新者胜」比较基准；epoch 毫秒）。
   final int? clientUpdatedAt;
 
+  /// 重推时携带的服务端基线版本（baseRevision 通道；首次推 null）。
+  final int? baseRevision;
+
   Map<String, dynamic> toJson() => {
         'entityType': entityType,
         'entityId': entityId,
@@ -35,11 +39,13 @@ class SyncChange extends Equatable {
         'payload': payload,
         if (clientMutationId != null) 'clientMutationId': clientMutationId,
         if (clientUpdatedAt != null) 'clientUpdatedAt': clientUpdatedAt,
+        if (baseRevision != null) 'baseRevision': baseRevision,
       };
 
   @override
   List<Object?> get props =>
-      [entityType, entityId, operation, payload, clientMutationId, clientUpdatedAt];
+      [entityType, entityId, operation, payload, clientMutationId,
+       clientUpdatedAt, baseRevision];
 }
 
 /// push 响应（服务端逐 change 回执：serverId 回填/revision/冲突）。

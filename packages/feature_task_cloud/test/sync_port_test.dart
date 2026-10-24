@@ -79,14 +79,15 @@ void main() {
       ),
     ]);
 
-    // 第一次 ack 含冲突，但重推后无残留冲突
-    expect(acks.first.conflict, isNotNull);
     // 发出了两批（原推+重推）
     expect(adapter.sentBodies.length, 2);
-    // 重推载荷：entityId 已换 serverId（映射回填）
+    // 重推载荷：entityId 已换 serverId（映射回填）+ baseRevision=serverRevision
     final retry = jsonDecode(adapter.sentBodies[1]) as Map<String, dynamic>;
     final retryChange = (retry['changes'] as List).single as Map<String, dynamic>;
     expect(retryChange['entityId'], 'srv-9');
+    expect(retryChange['baseRevision'], 5, reason: '重推必须带服务端基线版本');
+    // 重推成功后 acks 回写：最终回执无残留冲突（cursor PR#17 阻断2）
+    expect(acks.first.conflict, isNull, reason: '首轮冲突回执须被重推结果替换');
   });
 
   test('TC-SYNC-113 客户端较旧：接受服务端值不重推', () async {
@@ -128,6 +129,75 @@ void main() {
     ]);
     expect(acks, isEmpty);
     expect(adapter.sentBodies, isEmpty);
+  });
+
+  test('TC-SYNC-113 连续冲突：≤maxConflictRetries 后停止（防死循环）', () async {
+    // 服务端永远回冲突
+    for (var i = 0; i < 6; i++) {
+      adapter.enqueue({
+        'code': 0,
+        'data': [
+          {
+            'entityId': 'uuid-local-1',
+            'serverId': 'srv-9',
+            'revision': 5,
+            'conflict': {
+              'serverRevision': 5,
+              'serverValue': {'updateTime': 1}, // 恒旧 → 客户端恒较新 → 恒重推
+            },
+          },
+        ],
+      });
+    }
+    final sync = RestSyncPort(dio: dio, store: store);
+    await store.write(const MemberSession(
+      userId: '1', tenantId: '1', accessToken: 'tok',
+    ));
+
+    await sync.pushChanges([
+      const SyncChange(
+        entityType: 'task',
+        entityId: 'uuid-local-1',
+        operation: 'upsert',
+        clientUpdatedAt: 1729700000000,
+      ),
+    ]);
+
+    expect(adapter.sentBodies.length, 1 + RestSyncPort.maxConflictRetries,
+        reason: '原推 + 至多 3 次重推');
+  });
+
+  test('TC-SYNC-113 num 类型 serverUpdateTime 正确解析', () async {
+    // 服务端 JSON 数字是 num（非 int）——时间解析不得落 0 误判
+    adapter.enqueue({
+      'code': 0,
+      'data': [
+        {
+          'entityId': 'e1',
+          'serverId': 's1',
+          'revision': 1,
+          'conflict': {
+            'serverRevision': 1,
+            'serverValue': {'updateTime': 9999999999999},
+          },
+        },
+      ],
+    });
+    final sync = RestSyncPort(dio: dio, store: store);
+    await store.write(const MemberSession(
+      userId: '1', tenantId: '1', accessToken: 'tok',
+    ));
+
+    await sync.pushChanges([
+      const SyncChange(
+        entityType: 'task',
+        entityId: 'e1',
+        operation: 'upsert',
+        clientUpdatedAt: 1, // 远较旧
+      ),
+    ]);
+
+    expect(adapter.sentBodies.length, 1, reason: 'num 解析正确→较旧→不重推');
   });
 }
 

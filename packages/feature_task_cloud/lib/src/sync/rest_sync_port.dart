@@ -67,13 +67,16 @@ class RestSyncPort implements SyncPort {
     if (body == null || body['code'] != 0) {
       throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
     }
-    final acks = _parseAcks(body['data']);
+    var acks = _parseAcks(body['data']);
 
-    // 冲突重推（拍板策略）：有冲突且客户端较新 → 整条覆盖、带 serverRevision 重推
+    // 冲突重推（拍板策略）：客户端较新 → 整条覆盖、带 baseRevision=serverRevision
+    // 重推（cursor PR#17 阻断2：revision 必须上送否则服务端必再报冲突空转；
+    // 最终 acks 回写重推结果——首轮冲突回执不残留）
     var retried = 0;
     var pending = acks.where((a) => a.conflict != null).toList();
     while (pending.isNotEmpty && retried < maxConflictRetries) {
       final toRepush = <SyncChange>[];
+      final baseByEntity = <String, int>{};
       for (final ack in pending) {
         final original = changes.firstWhere(
           (c) => c.entityId == ack.entityId,
@@ -82,6 +85,7 @@ class RestSyncPort implements SyncPort {
         final clientNewer = (original.clientUpdatedAt ?? 0) >=
             _serverUpdatedAtOf(ack.conflict);
         if (clientNewer) {
+          baseByEntity[ack.entityId] = ack.conflict!.serverRevision;
           toRepush.add(SyncChange(
             entityType: original.entityType,
             entityId: ack.serverId ?? original.entityId,
@@ -89,12 +93,12 @@ class RestSyncPort implements SyncPort {
             payload: original.payload,
             clientMutationId: original.clientMutationId,
             clientUpdatedAt: original.clientUpdatedAt,
+            baseRevision: ack.conflict!.serverRevision,
           ));
         }
         // 客户端较旧：接受服务端值（不重推；后续 pull 自然对齐）
       }
       if (toRepush.isEmpty) break;
-      // 重推带新 revision：query baseRevision=serverRevision（契约通道复用）
       final retryResp = await _dio.post<Map<String, dynamic>>(
         '/app-api/lifeos/task/sync/push',
         data: {
@@ -105,9 +109,26 @@ class RestSyncPort implements SyncPort {
       );
       final retryBody = retryResp.data;
       if (retryBody == null || retryBody['code'] != 0) break;
-      pending = _parseAcks(retryBody['data'])
-          .where((a) => a.conflict != null)
-          .toList();
+      final retryAcks = _parseAcks(retryBody['data']);
+      // 回写：服务端 push 语义=「data 空即全部成功；有冲突才逐条回执」。
+      // 客户端较新且带 baseRevision 重推成功 → 无冲突回执 → 首轮冲突回执清为成功 ack。
+      final retryServerIds = retryAcks
+          .map((a) => a.entityId)
+          .toSet();
+      acks = [
+        for (final a in acks)
+          if (a.conflict != null && a.serverId != null)
+            (retryServerIds.contains(a.serverId))
+                ? a // 重推后又冲突（按 serverId 匹配）→ 保留新冲突回执
+                : SyncPushAck(
+                    entityId: a.entityId,
+                    serverId: a.serverId,
+                    revision: a.revision,
+                  ) // 重推成功（data 空无回执）→ 冲突清空
+          else
+            a,
+      ];
+      pending = retryAcks.where((a) => a.conflict != null).toList();
       retried++;
     }
     return acks;
@@ -144,7 +165,9 @@ class RestSyncPort implements SyncPort {
     final v = conflict?.serverValue;
     if (v == null) return 0;
     final t = v['updateTime'] ?? v['update_time'];
-    return t is int ? t : (t is String ? int.tryParse(t) ?? 0 : 0);
+    if (t is num) return t.toInt();
+    if (t is String) return int.tryParse(t) ?? 0;
+    return 0;
   }
 
   Options _authed(MemberSession session) => Options(
