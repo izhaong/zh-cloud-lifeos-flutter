@@ -347,6 +347,7 @@ void main() {
     expect(item.deletedAt, isNull);
 
     // 更新：清分区（移动列表语义 TC-API-118）+ 落回收窗（TC-API-110）
+    // 注：deletedAt 置位后条目属 smart.trash 视图，普通列表视图按回收窗语义排除
     final now = DateTime(2026, 10, 24, 2, 30);
     await repo.upsertItem(
       item.copyWith(
@@ -355,9 +356,10 @@ void main() {
       ),
     );
     final updated =
-        (await repo.watchItems(listId: 'list.personal').first).single;
+        (await repo.watchItems(listId: 'smart.trash').first).single;
     expect(updated.sectionId, isNull);
     expect(updated.deletedAt, now);
+    expect((await repo.watchItems(listId: 'list.personal').first), isEmpty);
   });
 
   test('moveItem（cursor PR#11 意见2补测）：子任务随父、分区清空、目标校验', () async {
