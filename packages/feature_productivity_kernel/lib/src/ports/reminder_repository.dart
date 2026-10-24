@@ -159,7 +159,12 @@ final class InMemoryReminderRepository implements ReminderRepository {
     }
     final i = _items.indexWhere((e) => e.id == item.id);
     if (i >= 0) {
-      _items[i] = item;
+      // 防复活（cursor PR#12）：软删行只经 restoreItem 恢复；
+      // 已删条目被全量回写（deletedAt 丢失）时保留回收窗标记
+      final existing = _items[i];
+      _items[i] = existing.deletedAt != null && item.deletedAt == null
+          ? _copyWithDeletedAt(item, existing.deletedAt!)
+          : item;
     } else {
       _items.add(item);
     }

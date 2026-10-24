@@ -88,9 +88,22 @@ class DriftReminderRepository implements kernel.ReminderRepository {
     if (item.id.startsWith('smart.')) {
       throw ArgumentError('smart. 前缀保留给智能列表派生，禁止作为条目 id');
     }
+    // 防复活（cursor PR#12）：软删行只经 restoreItem 恢复；
+    // 对已删条目的全量回写（deletedAt 丢失）保留回收窗标记
+    final existing = await (_db.select(_db.reminderItems)
+          ..where((t) => t.id.equals(item.id)))
+        .getSingleOrNull();
     await _db.into(_db.reminderItems).insertOnConflictUpdate(
           _companionFrom(item),
         );
+    if (existing != null &&
+        existing.deletedAt != null &&
+        item.deletedAt == null) {
+      await (_db.update(_db.reminderItems)
+            ..where((t) => t.id.equals(item.id)))
+          .write(
+              ReminderItemsCompanion(deletedAt: Value(existing.deletedAt)));
+    }
   }
 
   @override
@@ -338,16 +351,17 @@ class DriftReminderRepository implements kernel.ReminderRepository {
                 kernel.InMemoryReminderRepository.recycleWindow)),
       'smart.today' =>
         alive && !row.isCompleted && _isSameLocalDay(row.dueAt, now),
-      'smart.scheduled' => !row.isCompleted && row.dueAt != null,
-      'smart.all' => !row.isCompleted,
-      'smart.flagged' => !row.isCompleted && row.isFlagged,
-      'smart.urgent' => !row.isCompleted &&
+      'smart.scheduled' => alive && !row.isCompleted && row.dueAt != null,
+      'smart.all' => alive && !row.isCompleted,
+      'smart.flagged' => alive && !row.isCompleted && row.isFlagged,
+      'smart.urgent' => alive &&
+          !row.isCompleted &&
           (row.priority >= 9 ||
               (row.dueAt != null &&
                   !row.dueAt!.isAfter(now) &&
                   _isSameLocalDay(row.dueAt, now))),
-      'smart.completed' => row.isCompleted,
-      _ => row.listId == listId,
+      'smart.completed' => alive && row.isCompleted,
+      _ => alive && row.listId == listId,
     };
   }
 
