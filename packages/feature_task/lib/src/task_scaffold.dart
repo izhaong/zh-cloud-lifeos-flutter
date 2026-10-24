@@ -946,7 +946,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (items) {
           final isSearchEmpty = query.trim().isNotEmpty && items.isEmpty;
-          final isListEmpty = items.isEmpty && !_isTrashView && !isSearchEmpty;
+          final isListEmpty = items.isEmpty && !_isTrashView && !isSearchEmpty && !_showDraft;
           if (isSearchEmpty) {
             return const Center(
               key: Key('search_empty'),
@@ -1010,41 +1010,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
           return Column(
             children: [
-              if (isListEmpty)
-                // 空态引导（图2 空列表节奏；不短路——大标题/工具行/草稿行照常）
-                Expanded(
-                  child: GestureDetector(
-                    key: const ValueKey('empty_new_hint'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _openNewItemDialog,
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(CupertinoIcons.plus_circle,
-                              size: 40,
-                              color: Color(widget.list.colorArgb)
-                                  .withValues(alpha: 0.5)),
-                          const SizedBox(height: 8),
-                          const Text(
-                            '没有提醒',
-                            style: TextStyle(
-                                fontSize: 17, color: Color(0xFF8E8E93)),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            '点按此处或「＋ 新提醒」添加',
-                            style: TextStyle(
-                                fontSize: 13, color: Color(0xFFC7C7CC)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else ...[
+              // macOS 大标题（图2）：列表色大字入内容区；空列表也渲染（评审 P0）
               if (isPane && !_isTrashView)
-                // macOS 大标题（图2）：列表色大字进内容区（宽屏 AppBar 无 title）
                 Padding(
                   key: const ValueKey('list_large_title'),
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -1062,27 +1029,56 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                 ),
               if (!_isTrashView)
                 _ListHeaderToolbar(
-                remainingCount: remainingCount,
-                doneCount: doneCount,
-                onClearCompleted: doneCount == 0
-                    ? null
-                    : () => _clearCompleted(
-                          all
-                              .where((e) =>
-                                  e.isCompleted && e.parentId == null)
-                              .map((e) => e.id)
-                              .toList(growable: false),
-                        ),
-              ),
+                  remainingCount: remainingCount,
+                  doneCount: doneCount,
+                  onClearCompleted: doneCount == 0
+                      ? null
+                      : () => _clearCompleted(
+                            all
+                                .where(
+                                    (e) => e.isCompleted && e.parentId == null)
+                                .map((e) => e.id)
+                                .toList(growable: false),
+                          ),
+                ),
+              // 主体：空列表 = 空态引导（可点新建）；_showDraft 时草稿行进列表体
               Expanded(
-                child: ListView(children: rows),
+                child: isListEmpty
+                    ? GestureDetector(
+                        key: const ValueKey('empty_new_hint'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _openNewItemDialog,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(CupertinoIcons.plus_circle,
+                                  size: 40,
+                                  color: Color(widget.list.colorArgb)
+                                      .withValues(alpha: 0.5)),
+                              const SizedBox(height: 8),
+                              const Text(
+                                '没有提醒',
+                                style: TextStyle(
+                                    fontSize: 17, color: Color(0xFF8E8E93)),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                '点按此处或「＋ 新提醒」添加',
+                                style: TextStyle(
+                                    fontSize: 13, color: Color(0xFFC7C7CC)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : ListView(children: rows),
               ),
-              ],
             ],
           );
         },
       ),
-      // 底部工具条：iOS 提醒事项式「＋ 新提醒」（对齐线框；禁用 FAB）；
+
       // 最近删除视图无新建入口（Apple 口径）
       bottomNavigationBar: _isTrashView
           ? null

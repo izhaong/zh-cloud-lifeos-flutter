@@ -133,6 +133,64 @@ void main() {
         reason: '回前台后流仍活跃（写操作驱动刷新）');
   });
 
+  testWidgets('M5 实机差距批：空列表也渲染列表色大标题（cursor 复验 P0）',
+      (tester) async {
+    final repo = InMemoryReminderRepository(seedSampleData: false);
+    await repo.upsertList(const ReminderList(
+      id: 'list.empty', title: '空列表', colorArgb: 0xFFFF9500,
+    ));
+
+    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    view.physicalSize = const Size(1366, 1024);
+    view.devicePixelRatio = 1.0;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+      child: const MaterialApp(
+        home: TaskScaffold(openListId: 'list.empty'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // 空列表：大标题（列表色）在内容区 + 空态引导 + 底栏新提醒
+    final title = find.byKey(const ValueKey('list_large_title'));
+    expect(title, findsOneWidget, reason: '空列表必须有列表色大标题');
+    final text = find.descendant(
+      of: title,
+      matching: find.text('空列表'),
+    );
+    expect(text, findsOneWidget);
+    final style = tester.widget<Text>(text).style;
+    expect(style?.color, const Color(0xFFFF9500),
+        reason: '大标题须带列表色');
+    expect(find.byKey(const ValueKey('empty_new_hint')), findsOneWidget);
+    expect(find.text('新提醒'), findsOneWidget);
+  });
+
+  testWidgets('M5 实机差距批：空列表 + 工具栏＋/底栏＋ 出草稿行（cursor 复验 P0）',
+      (tester) async {
+    final repo = InMemoryReminderRepository(seedSampleData: false);
+    await repo.upsertList(const ReminderList(id: 'list.empty', title: '空'));
+
+    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    view.physicalSize = const Size(1366, 1024);
+    view.devicePixelRatio = 1.0;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+      child: const MaterialApp(
+        home: TaskScaffold(openListId: 'list.empty'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // 顶栏＋点击 → 草稿行出现（空列表不再吞掉）
+    await tester.tap(find.byKey(const ValueKey('toolbar_new_item')));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsWidgets,
+        reason: '空列表下草稿行必须可见可输入');
+    expect(find.text('没有提醒'), findsNothing,
+        reason: '草稿态时空态让位');
+  });
+
   testWidgets('TC-REG-107 负向门禁全量（M5 档）：紧凑+宽屏双档无泄漏',
       (tester) async {
     final repo = InMemoryReminderRepository();
