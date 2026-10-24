@@ -384,13 +384,25 @@ final class InMemoryReminderRepository implements ReminderRepository {
   @override
   Future<void> upsertList(ReminderList list) async {
     if (list.id.startsWith('smart.')) {
-      throw ArgumentError('smart. 前缀保留给智能列表，禁止用户数据占用');
+      // TC-UI-116：smart.custom.* 为用户自建智能列表（合法）；
+      // 仅内置五预设 + trash 由仓库派生，不得被用户数据占用/篡改。
+      if (!list.id.startsWith('smart.custom.')) {
+        throw ArgumentError('smart. 前缀保留给智能列表，禁止用户数据占用');
+      }
     }
     final i = _lists.indexWhere((e) => e.id == list.id);
     if (i >= 0) {
       _lists[i] = list;
     } else {
       _lists.add(list);
+    }
+    // cursor PR#15 阻断3：列表携带分区元数据（如 grocery 工厂预置 8 分区）
+    // 时同步种子化镜像，防后续 deleteSection/reorderSection 用空镜像覆盖。
+    if (list.sections.isNotEmpty) {
+      final mirror = _sectionsByList.putIfAbsent(list.id, () => []);
+      mirror
+        ..clear()
+        ..addAll(list.sections);
     }
     _recount();
     _notify();

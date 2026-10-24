@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -59,10 +61,67 @@ final filteredItemsForListProvider =
   final query = ref.watch(searchQueryProvider).trim().toLowerCase();
   final showCompleted =
       ref.watch(showCompletedProvider) || listId == 'smart.completed';
-  return ref
-      .watch(reminderRepositoryProvider)
-      .watchItems(listId: listId)
-      .map((items) {
+  final repo = ref.watch(reminderRepositoryProvider);
+
+  // TC-UI-116 自定义智能列表（smart.custom.*）：filter 从列表元数据读取，
+  // 命中集 = 全部未完成条目 ∩ SmartListFilter（首期标签+旗标）。
+  // Stream.multi：onCancel 统一取消内层订阅（cursor PR#15 阻断1——
+  // 旧 StreamController 版无 dispose，搜索重建 provider 时内层 listen 泄漏叠加）。
+  if (listId != null && listId.startsWith('smart.custom.')) {
+    return Stream.multi((listener) {
+      SmartListFilter? latestFilter;
+      List<ReminderItem>? latestAll;
+      var hasFilter = false;
+      var hasAll = false;
+
+      void emit() {
+        if (hasFilter && hasAll) {
+          final f = latestFilter;
+          final all = latestAll!;
+          listener.addSync(
+            f == null
+                ? const <ReminderItem>[]
+                : all.where(f.matches).toList(growable: false),
+          );
+        }
+      }
+
+      final subs = [
+        repo.watchLists().listen((lists) {
+          latestFilter = lists
+              .where((e) => e.id == listId)
+              .firstOrNull
+              ?.smartFilter;
+          hasFilter = true;
+          emit();
+        }),
+        repo.watchItems(listId: null).listen((all) {
+          latestAll = all;
+          hasAll = true;
+          emit();
+        }),
+      ];
+      // onCancel：取消两个内层订阅，防泄漏（生命周期归 Stream.multi 管）
+      listener
+        ..onCancel = () {
+          for (final s in subs) {
+            s.cancel();
+          }
+        }
+        ..onPause = () {
+          for (final s in subs) {
+            s.pause();
+          }
+        }
+        ..onResume = () {
+          for (final s in subs) {
+            s.resume();
+          }
+        };
+    });
+  }
+
+  return repo.watchItems(listId: listId).map((items) {
     var out = items;
     if (!showCompleted) {
       // 隐藏已完成条目 = 隐藏其整棵子树（cursor PR#11 意见1：只藏父行会让

@@ -57,6 +57,8 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             sortOrder: row.sortOrder,
             sections: _sortedSections(_decodeSections(row.sectionsJson)),
             groupName: row.groupName,
+            listType: kernel.ReminderListType.fromId(row.listType),
+            smartFilter: _decodeSmartFilter(row.smartFilter),
           ),
       ];
     });
@@ -271,7 +273,11 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   @override
   Future<void> upsertList(kernel.ReminderList list) async {
     if (list.id.startsWith('smart.')) {
-      throw ArgumentError('smart. 前缀保留给智能列表，禁止用户数据占用');
+      // TC-UI-116：smart.custom.* 为用户自建智能列表（合法）；
+      // 仅内置五预设 + trash 由仓库派生，不得被用户数据占用/篡改。
+      if (!list.id.startsWith('smart.custom.')) {
+        throw ArgumentError('smart. 前缀保留给智能列表，禁止用户数据占用');
+      }
     }
     await _db.into(_db.reminderLists).insertOnConflictUpdate(
           ReminderListsCompanion.insert(
@@ -280,6 +286,14 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             colorArgb: Value(list.colorArgb),
             sortOrder: Value(list.sortOrder),
             groupName: Value(list.groupName),
+            listType: Value(list.listType.id),
+            smartFilter: Value(_encodeSmartFilter(list.smartFilter)),
+            // cursor PR#15 阻断2：分区与智能标记必须随列表落库——
+            // 否则 grocery 预置分区/custom 智能列表入库即丢。
+            sectionsJson: Value(
+              _encodeSections(_sortedSections(list.sections)),
+            ),
+            isSmart: Value(list.isSmart),
           ),
         );
   }
@@ -302,6 +316,28 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       }
     } catch (_) {}
     return const [];
+  }
+
+  kernel.SmartListFilter? _decodeSmartFilter(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return kernel.SmartListFilter(
+          tagEquals: decoded['tagEquals'] as String?,
+          flaggedOnly: (decoded['flaggedOnly'] as bool?) ?? false,
+        );
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  String? _encodeSmartFilter(kernel.SmartListFilter? filter) {
+    if (filter == null) return null;
+    return jsonEncode({
+      'tagEquals': filter.tagEquals,
+      'flaggedOnly': filter.flaggedOnly,
+    });
   }
 
   String _encodeSections(List<kernel.ReminderSection> sections) =>
