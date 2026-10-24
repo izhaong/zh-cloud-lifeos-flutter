@@ -6,11 +6,11 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import '../providers.dart';
 
-/// iPad/macOS 左侧栏：智能列表 + 标签浏览器 + 我的列表 + 底部操作区
-/// （添加列表 / 隐藏侧栏 / 设置；对齐线框 Pad端与客户端画板）。
+/// iPad/macOS 左侧栏：**顶部工具条（新建列表｜隐藏侧栏｜设置，图2 口径）**
+/// + 智能列表 + 标签浏览器 + 我的列表。
 ///
 /// 布局无关的纯内容组件；选中态由外部路由/状态驱动；
-/// 底部动作由宿主注入回调（设置面板等 UI 态不放路由）。
+/// 工具条动作由宿主注入回调（设置面板等 UI 态不放路由）。
 class TaskSidebar extends ConsumerStatefulWidget {
   const TaskSidebar({
     super.key,
@@ -100,9 +100,37 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
       ..sort();
 
     return Material(
-      color: const Color(0xFFF2F2F7),
+      color: const Color(0xFFECECF1),
       child: Column(
         children: [
+              // 顶部工具条（图2：新建列表｜隐藏侧栏｜⚙设置——小图标横排）
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                child: Row(
+                  children: [
+                    _TopIcon(
+                      key: const ValueKey('sidebar_add_list'),
+                      icon: CupertinoIcons.add,
+                      tooltip: '新建列表',
+                      onTap: widget.onAddList ?? () {},
+                    ),
+                    const SizedBox(width: 12),
+                    _TopIcon(
+                      key: const ValueKey('sidebar_toggle'),
+                      icon: CupertinoIcons.sidebar_left,
+                      tooltip: '隐藏侧栏',
+                      onTap: widget.onToggleSidebar ?? () {},
+                    ),
+                    const Spacer(),
+                    _TopIcon(
+                      key: const ValueKey('sidebar_settings'),
+                      icon: CupertinoIcons.gear,
+                      tooltip: '设置',
+                      onTap: widget.onOpenSettings ?? () {},
+                    ),
+                  ],
+                ),
+              ),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -145,82 +173,36 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
               ],
             ),
           ),
-          // 底部操作区（线框：添加列表 / 隐藏侧栏 / 设置）
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                if (widget.onAddList != null)
-                  Expanded(
-                    child: _SidebarAction(
-                      key: const ValueKey('sidebar_add_list'),
-                      icon: CupertinoIcons.add,
-                      label: '添加列表',
-                      onTap: widget.onAddList!,
-                    ),
-                  ),
-                if (widget.onToggleSidebar != null)
-                  Expanded(
-                    child: _SidebarAction(
-                      key: const ValueKey('sidebar_toggle'),
-                      icon: CupertinoIcons.sidebar_left,
-                      label: '隐藏侧栏',
-                      onTap: widget.onToggleSidebar!,
-                    ),
-                  ),
-                if (widget.onOpenSettings != null)
-                  Expanded(
-                    child: _SidebarAction(
-                      key: const ValueKey('sidebar_settings'),
-                      icon: CupertinoIcons.gear,
-                      label: '设置',
-                      onTap: widget.onOpenSettings!,
-                    ),
-                  ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 }
 
-class _SidebarAction extends StatelessWidget {
-  const _SidebarAction({
+class _TopIcon extends StatelessWidget {
+  const _TopIcon({
     super.key,
     required this.icon,
-    required this.label,
     required this.onTap,
+    this.tooltip,
   });
 
   final IconData icon;
-  final String label;
+  final String? tooltip;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final btn = InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: const Color(0xFF007AFF)),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF007AFF),
-              ),
-            ),
-          ],
-        ),
+        padding: const EdgeInsets.all(6),
+        child: Icon(icon, size: 18, color: const Color(0xFF007AFF)),
       ),
     );
+    if (tooltip == null) return btn;
+    return Tooltip(message: tooltip!, child: btn);
   }
 }
 
