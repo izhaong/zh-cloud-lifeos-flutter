@@ -1,0 +1,128 @@
+{
+  "comment": "LifeOS 日历重复展开共享用例：Dart(packages/feature_productivity_kernel/test/occurrence_expander_test.dart) 与服务端 ical4j(S-07, src/test/resources/lifeos-calendar/) 用同一份。时间一律 UTC ISO-8601；窗口 [windowFrom, windowTo) 右开；期望值以 RFC 5545 / ical4j 为准（F-01，契约 §5.2）。rrule 不含 'RRULE:' 前缀（契约 §2.2）。",
+  "cases": [
+    {
+      "id": "TC-CAL-KR-201",
+      "rrule": "FREQ=DAILY",
+      "start": "2026-11-01T09:00:00Z",
+      "durationMinutes": 60,
+      "windowFrom": "2026-11-01T00:00:00Z",
+      "windowTo": "2026-11-04T00:00:00Z",
+      "expectedStarts": [
+        "2026-11-01T09:00:00Z",
+        "2026-11-02T09:00:00Z",
+        "2026-11-03T09:00:00Z"
+      ]
+    },
+    {
+      "id": "TC-CAL-KR-202",
+      "rrule": "FREQ=WEEKLY;BYDAY=MO,WE",
+      "start": "2026-11-02T09:00:00Z",
+      "durationMinutes": 60,
+      "windowFrom": "2026-11-02T00:00:00Z",
+      "windowTo": "2026-11-16T00:00:00Z",
+      "expectedStarts": [
+        "2026-11-02T09:00:00Z",
+        "2026-11-04T09:00:00Z",
+        "2026-11-09T09:00:00Z",
+        "2026-11-11T09:00:00Z"
+      ]
+    },
+    {
+      "id": "TC-CAL-KR-203",
+      "rrule": "FREQ=WEEKLY;INTERVAL=2",
+      "start": "2026-11-02T09:00:00Z",
+      "durationMinutes": 60,
+      "windowFrom": "2026-11-02T00:00:00Z",
+      "windowTo": "2026-11-17T00:00:00Z",
+      "expectedStarts": [
+        "2026-11-02T09:00:00Z",
+        "2026-11-16T09:00:00Z"
+      ]
+    },
+    {
+      "id": "TC-CAL-KR-204",
+      "rrule": "FREQ=MONTHLY",
+      "start": "2027-01-31T09:00:00Z",
+      "durationMinutes": 60,
+      "windowFrom": "2027-01-31T00:00:00Z",
+      "windowTo": "2027-05-01T00:00:00Z",
+      "expectedStarts": [
+        "2027-01-31T09:00:00Z",
+        "2027-03-31T09:00:00Z"
+      ]
+    },
+    {
+      "id": "TC-CAL-KR-205",
+      "rrule": "FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1",
+      "start": "2026-11-05T09:00:00Z",
+      "durationMinutes": 60,
+      "windowFrom": "2026-11-05T00:00:00Z",
+      "windowTo": "2027-01-01T00:00:00Z",
+      "expectedStarts": [
+        "2026-11-30T09:00:00Z",
+        "2026-12-31T09:00:00Z"
+      ]
+    },
+    {
+      "id": "TC-CAL-KR-206",
+      "rrule": "FREQ=DAILY;UNTIL=20261102T090000Z",
+      "start": "2026-11-01T09:00:00Z",
+      "durationMinutes": 60,
+      "windowFrom": "2026-11-01T00:00:00Z",
+      "windowTo": "2026-12-01T00:00:00Z",
+      "expectedStarts": [
+        "2026-11-01T09:00:00Z",
+        "2026-11-02T09:00:00Z"
+      ]
+    },
+    {
+      "id": "TC-CAL-KR-207",
+      "rrule": "FREQ=DAILY;COUNT=4",
+      "start": "2026-11-01T09:00:00Z",
+      "durationMinutes": 60,
+      "windowFrom": "2026-11-01T00:00:00Z",
+      "windowTo": "2026-12-01T00:00:00Z",
+      "expectedStarts": [
+        "2026-11-01T09:00:00Z",
+        "2026-11-02T09:00:00Z",
+        "2026-11-03T09:00:00Z",
+        "2026-11-04T09:00:00Z"
+      ]
+    },
+    {
+      "id": "TC-CAL-KR-208",
+      "rrule": "FREQ=DAILY",
+      "start": "2026-11-01T09:00:00Z",
+      "durationMinutes": 60,
+      "exdates": ["2026-11-02T09:00:00Z"],
+      "windowFrom": "2026-11-01T00:00:00Z",
+      "windowTo": "2026-11-04T00:00:00Z",
+      "expectedStarts": [
+        "2026-11-01T09:00:00Z",
+        "2026-11-03T09:00:00Z"
+      ]
+    },
+    {
+      "id": "TC-CAL-KR-209",
+      "rrule": "FREQ=DAILY",
+      "start": "2026-11-01T09:00:00Z",
+      "durationMinutes": 60,
+      "exceptions": [
+        {
+          "originalStart": "2026-11-02T09:00:00Z",
+          "start": "2026-11-02T14:00:00Z",
+          "end": "2026-11-02T15:00:00Z",
+          "title": "改期"
+        }
+      ],
+      "windowFrom": "2026-11-01T00:00:00Z",
+      "windowTo": "2026-11-04T00:00:00Z",
+      "expectedStarts": [
+        "2026-11-01T09:00:00Z",
+        "2026-11-02T14:00:00Z",
+        "2026-11-03T09:00:00Z"
+      ]
+    }
+  ]
+}
