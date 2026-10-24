@@ -15,6 +15,9 @@ class ReminderLists extends Table {
   TextColumn get sectionsJson =>
       text().nullable().withDefault(const Constant('[]'))();
 
+  /// 列表分组名（TC-UI-118；NULL = 不分组）。
+  TextColumn get groupName => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -111,6 +114,10 @@ class LifeProductivityDb extends _$LifeProductivityDb {
           if (from <= 3 && to >= 4) {
             // V4（Issue #2 / M2）：手动分区元数据（TC-KR-118）
             await m.addColumn(reminderLists, reminderLists.sectionsJson);
+          }
+          if (from <= 4 && to >= 5) {
+            // V5（Issue #2 / M2）：列表分组（TC-UI-118，降级=列表分组）
+            await m.addColumn(reminderLists, reminderLists.groupName);
           }
         },
       );

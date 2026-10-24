@@ -56,6 +56,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             itemCount: _count(itemRows, row.id, now),
             sortOrder: row.sortOrder,
             sections: _sortedSections(_decodeSections(row.sectionsJson)),
+            groupName: row.groupName,
           ),
       ];
     });
@@ -278,6 +279,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             title: list.title,
             colorArgb: Value(list.colorArgb),
             sortOrder: Value(list.sortOrder),
+            groupName: Value(list.groupName),
           ),
         );
   }
