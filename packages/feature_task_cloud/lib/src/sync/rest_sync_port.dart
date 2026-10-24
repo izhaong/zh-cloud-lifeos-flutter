@@ -149,11 +149,15 @@ class RestSyncPort implements SyncPort {
           if (a.conflict != null)
             (retryConflictByOriginal.containsKey(a.entityId))
                 ? retryConflictByOriginal[a.entityId]!
-                : SyncPushAck(
-                    entityId: a.entityId,
-                    serverId: a.serverId,
-                    revision: a.revision,
-                  ) // 无新冲突回执 → 重推成功 → 冲突清空
+                // 仅本轮**实际重推**的条目可清空（repushOriginals）；
+                // 混合批中较旧未重推的冲突回执须保留（cursor PR#17 R3：防假成功变体）
+                : (repushOriginals.contains(a.entityId))
+                    ? SyncPushAck(
+                        entityId: a.entityId,
+                        serverId: a.serverId,
+                        revision: a.revision,
+                      )
+                    : a
           else
             a,
       ];

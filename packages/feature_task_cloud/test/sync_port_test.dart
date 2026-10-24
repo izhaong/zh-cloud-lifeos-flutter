@@ -253,6 +253,60 @@ void main() {
         reason: '耗尽重试后冲突必须如实保留（假成功=数据丢失静默）');
   });
 
+  test('TC-SYNC-113 混合冲突批：较旧者不重推且冲突回执保留（cursor PR#17 R3）',
+      () async {
+    adapter.enqueue({
+      'code': 0,
+      'data': [
+        {
+          'entityId': 'new-1',
+          'serverId': 'srv-new',
+          'revision': 1,
+          'conflict': {
+            'serverRevision': 1,
+            'serverValue': {'updateTime': 1}, // 客户端较新 → 重推
+          },
+        },
+        {
+          'entityId': 'old-1',
+          'serverId': 'srv-old',
+          'revision': 1,
+          'conflict': {
+            'serverRevision': 1,
+            'serverValue': {'updateTime': 9999999999999}, // 客户端较旧 → 不重推
+          },
+        },
+      ],
+    });
+    // 重推响应：仅 new-1 成功（data 空 = 全成功）
+    adapter.enqueue({'code': 0, 'data': []});
+    final sync = RestSyncPort(dio: dio, store: store);
+    await store.write(const MemberSession(
+      userId: '1', tenantId: '1', accessToken: 'tok',
+    ));
+
+    final acks = await sync.pushChanges([
+      const SyncChange(
+        entityType: 'task',
+        entityId: 'new-1',
+        operation: 'upsert',
+        clientUpdatedAt: 1729700000000, // 较新
+      ),
+      const SyncChange(
+        entityType: 'task',
+        entityId: 'old-1',
+        operation: 'upsert',
+        clientUpdatedAt: 1, // 较旧
+      ),
+    ]);
+
+    final byId = {for (final a in acks) a.entityId: a};
+    expect(byId['new-1']!.conflict, isNull, reason: '较新者重推成功→冲突清空');
+    expect(byId['old-1']!.conflict, isNotNull,
+        reason: '较旧者未重推→冲突回执必须保留（假成功=静默数据丢失）');
+    expect(adapter.sentBodies.length, 2, reason: '原推 + 1 次重推（仅 new-1）');
+  });
+
   test('TC-SYNC-113 num 类型 serverUpdateTime 正确解析', () async {
     // 服务端 JSON 数字是 num（非 int）——时间解析不得落 0 误判
     adapter.enqueue({
