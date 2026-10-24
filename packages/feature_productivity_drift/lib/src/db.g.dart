@@ -89,6 +89,28 @@ class $ReminderListsTable extends ReminderLists
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _listTypeMeta = const VerificationMeta(
+    'listType',
+  );
+  @override
+  late final GeneratedColumn<String> listType = GeneratedColumn<String>(
+    'list_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _smartFilterMeta = const VerificationMeta(
+    'smartFilter',
+  );
+  @override
+  late final GeneratedColumn<String> smartFilter = GeneratedColumn<String>(
+    'smart_filter',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -98,6 +120,8 @@ class $ReminderListsTable extends ReminderLists
     sortOrder,
     sectionsJson,
     groupName,
+    listType,
+    smartFilter,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -157,6 +181,21 @@ class $ReminderListsTable extends ReminderLists
         groupName.isAcceptableOrUnknown(data['group_name']!, _groupNameMeta),
       );
     }
+    if (data.containsKey('list_type')) {
+      context.handle(
+        _listTypeMeta,
+        listType.isAcceptableOrUnknown(data['list_type']!, _listTypeMeta),
+      );
+    }
+    if (data.containsKey('smart_filter')) {
+      context.handle(
+        _smartFilterMeta,
+        smartFilter.isAcceptableOrUnknown(
+          data['smart_filter']!,
+          _smartFilterMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -194,6 +233,14 @@ class $ReminderListsTable extends ReminderLists
         DriftSqlType.string,
         data['${effectivePrefix}group_name'],
       ),
+      listType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}list_type'],
+      ),
+      smartFilter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}smart_filter'],
+      ),
     );
   }
 
@@ -216,6 +263,12 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
 
   /// 列表分组名（TC-UI-118；NULL = 不分组）。
   final String? groupName;
+
+  /// 清单类型（TC-UI-115；NULL/standard=标准；grocery=采购）。
+  final String? listType;
+
+  /// 自定义智能列表条件 JSON（TC-UI-116；NULL = 非自定义智能列表）。
+  final String? smartFilter;
   const ReminderList({
     required this.id,
     required this.title,
@@ -224,6 +277,8 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     required this.sortOrder,
     this.sectionsJson,
     this.groupName,
+    this.listType,
+    this.smartFilter,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -238,6 +293,12 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     }
     if (!nullToAbsent || groupName != null) {
       map['group_name'] = Variable<String>(groupName);
+    }
+    if (!nullToAbsent || listType != null) {
+      map['list_type'] = Variable<String>(listType);
+    }
+    if (!nullToAbsent || smartFilter != null) {
+      map['smart_filter'] = Variable<String>(smartFilter);
     }
     return map;
   }
@@ -255,6 +316,12 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       groupName: groupName == null && nullToAbsent
           ? const Value.absent()
           : Value(groupName),
+      listType: listType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(listType),
+      smartFilter: smartFilter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(smartFilter),
     );
   }
 
@@ -271,6 +338,8 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       sectionsJson: serializer.fromJson<String?>(json['sectionsJson']),
       groupName: serializer.fromJson<String?>(json['groupName']),
+      listType: serializer.fromJson<String?>(json['listType']),
+      smartFilter: serializer.fromJson<String?>(json['smartFilter']),
     );
   }
   @override
@@ -284,6 +353,8 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       'sortOrder': serializer.toJson<int>(sortOrder),
       'sectionsJson': serializer.toJson<String?>(sectionsJson),
       'groupName': serializer.toJson<String?>(groupName),
+      'listType': serializer.toJson<String?>(listType),
+      'smartFilter': serializer.toJson<String?>(smartFilter),
     };
   }
 
@@ -295,6 +366,8 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     int? sortOrder,
     Value<String?> sectionsJson = const Value.absent(),
     Value<String?> groupName = const Value.absent(),
+    Value<String?> listType = const Value.absent(),
+    Value<String?> smartFilter = const Value.absent(),
   }) => ReminderList(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -303,6 +376,8 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     sortOrder: sortOrder ?? this.sortOrder,
     sectionsJson: sectionsJson.present ? sectionsJson.value : this.sectionsJson,
     groupName: groupName.present ? groupName.value : this.groupName,
+    listType: listType.present ? listType.value : this.listType,
+    smartFilter: smartFilter.present ? smartFilter.value : this.smartFilter,
   );
   ReminderList copyWithCompanion(ReminderListsCompanion data) {
     return ReminderList(
@@ -315,6 +390,10 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
           ? data.sectionsJson.value
           : this.sectionsJson,
       groupName: data.groupName.present ? data.groupName.value : this.groupName,
+      listType: data.listType.present ? data.listType.value : this.listType,
+      smartFilter: data.smartFilter.present
+          ? data.smartFilter.value
+          : this.smartFilter,
     );
   }
 
@@ -327,7 +406,9 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
           ..write('isSmart: $isSmart, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('sectionsJson: $sectionsJson, ')
-          ..write('groupName: $groupName')
+          ..write('groupName: $groupName, ')
+          ..write('listType: $listType, ')
+          ..write('smartFilter: $smartFilter')
           ..write(')'))
         .toString();
   }
@@ -341,6 +422,8 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     sortOrder,
     sectionsJson,
     groupName,
+    listType,
+    smartFilter,
   );
   @override
   bool operator ==(Object other) =>
@@ -352,7 +435,9 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
           other.isSmart == this.isSmart &&
           other.sortOrder == this.sortOrder &&
           other.sectionsJson == this.sectionsJson &&
-          other.groupName == this.groupName);
+          other.groupName == this.groupName &&
+          other.listType == this.listType &&
+          other.smartFilter == this.smartFilter);
 }
 
 class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
@@ -363,6 +448,8 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
   final Value<int> sortOrder;
   final Value<String?> sectionsJson;
   final Value<String?> groupName;
+  final Value<String?> listType;
+  final Value<String?> smartFilter;
   final Value<int> rowid;
   const ReminderListsCompanion({
     this.id = const Value.absent(),
@@ -372,6 +459,8 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     this.sortOrder = const Value.absent(),
     this.sectionsJson = const Value.absent(),
     this.groupName = const Value.absent(),
+    this.listType = const Value.absent(),
+    this.smartFilter = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ReminderListsCompanion.insert({
@@ -382,6 +471,8 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     this.sortOrder = const Value.absent(),
     this.sectionsJson = const Value.absent(),
     this.groupName = const Value.absent(),
+    this.listType = const Value.absent(),
+    this.smartFilter = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title);
@@ -393,6 +484,8 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     Expression<int>? sortOrder,
     Expression<String>? sectionsJson,
     Expression<String>? groupName,
+    Expression<String>? listType,
+    Expression<String>? smartFilter,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -403,6 +496,8 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
       if (sortOrder != null) 'sort_order': sortOrder,
       if (sectionsJson != null) 'sections_json': sectionsJson,
       if (groupName != null) 'group_name': groupName,
+      if (listType != null) 'list_type': listType,
+      if (smartFilter != null) 'smart_filter': smartFilter,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -415,6 +510,8 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     Value<int>? sortOrder,
     Value<String?>? sectionsJson,
     Value<String?>? groupName,
+    Value<String?>? listType,
+    Value<String?>? smartFilter,
     Value<int>? rowid,
   }) {
     return ReminderListsCompanion(
@@ -425,6 +522,8 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
       sortOrder: sortOrder ?? this.sortOrder,
       sectionsJson: sectionsJson ?? this.sectionsJson,
       groupName: groupName ?? this.groupName,
+      listType: listType ?? this.listType,
+      smartFilter: smartFilter ?? this.smartFilter,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -453,6 +552,12 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     if (groupName.present) {
       map['group_name'] = Variable<String>(groupName.value);
     }
+    if (listType.present) {
+      map['list_type'] = Variable<String>(listType.value);
+    }
+    if (smartFilter.present) {
+      map['smart_filter'] = Variable<String>(smartFilter.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -469,6 +574,8 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
           ..write('sortOrder: $sortOrder, ')
           ..write('sectionsJson: $sectionsJson, ')
           ..write('groupName: $groupName, ')
+          ..write('listType: $listType, ')
+          ..write('smartFilter: $smartFilter, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1417,6 +1524,8 @@ typedef $$ReminderListsTableCreateCompanionBuilder =
       Value<int> sortOrder,
       Value<String?> sectionsJson,
       Value<String?> groupName,
+      Value<String?> listType,
+      Value<String?> smartFilter,
       Value<int> rowid,
     });
 typedef $$ReminderListsTableUpdateCompanionBuilder =
@@ -1428,6 +1537,8 @@ typedef $$ReminderListsTableUpdateCompanionBuilder =
       Value<int> sortOrder,
       Value<String?> sectionsJson,
       Value<String?> groupName,
+      Value<String?> listType,
+      Value<String?> smartFilter,
       Value<int> rowid,
     });
 
@@ -1472,6 +1583,16 @@ class $$ReminderListsTableFilterComposer
 
   ColumnFilters<String> get groupName => $composableBuilder(
     column: $table.groupName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get listType => $composableBuilder(
+    column: $table.listType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get smartFilter => $composableBuilder(
+    column: $table.smartFilter,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1519,6 +1640,16 @@ class $$ReminderListsTableOrderingComposer
     column: $table.groupName,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get listType => $composableBuilder(
+    column: $table.listType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get smartFilter => $composableBuilder(
+    column: $table.smartFilter,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReminderListsTableAnnotationComposer
@@ -1552,6 +1683,14 @@ class $$ReminderListsTableAnnotationComposer
 
   GeneratedColumn<String> get groupName =>
       $composableBuilder(column: $table.groupName, builder: (column) => column);
+
+  GeneratedColumn<String> get listType =>
+      $composableBuilder(column: $table.listType, builder: (column) => column);
+
+  GeneratedColumn<String> get smartFilter => $composableBuilder(
+    column: $table.smartFilter,
+    builder: (column) => column,
+  );
 }
 
 class $$ReminderListsTableTableManager
@@ -1598,6 +1737,8 @@ class $$ReminderListsTableTableManager
                 Value<int> sortOrder = const Value.absent(),
                 Value<String?> sectionsJson = const Value.absent(),
                 Value<String?> groupName = const Value.absent(),
+                Value<String?> listType = const Value.absent(),
+                Value<String?> smartFilter = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderListsCompanion(
                 id: id,
@@ -1607,6 +1748,8 @@ class $$ReminderListsTableTableManager
                 sortOrder: sortOrder,
                 sectionsJson: sectionsJson,
                 groupName: groupName,
+                listType: listType,
+                smartFilter: smartFilter,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1618,6 +1761,8 @@ class $$ReminderListsTableTableManager
                 Value<int> sortOrder = const Value.absent(),
                 Value<String?> sectionsJson = const Value.absent(),
                 Value<String?> groupName = const Value.absent(),
+                Value<String?> listType = const Value.absent(),
+                Value<String?> smartFilter = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderListsCompanion.insert(
                 id: id,
@@ -1627,6 +1772,8 @@ class $$ReminderListsTableTableManager
                 sortOrder: sortOrder,
                 sectionsJson: sectionsJson,
                 groupName: groupName,
+                listType: listType,
+                smartFilter: smartFilter,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

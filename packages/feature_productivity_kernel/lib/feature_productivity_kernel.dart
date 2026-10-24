@@ -5,5 +5,6 @@ export 'src/models/recurrence.dart';
 export 'src/models/reminder_item.dart';
 export 'src/models/reminder_list.dart';
 export 'src/models/reminder_section.dart';
+export 'src/models/reminder_list_type.dart';
 export 'src/models/window_size_class.dart';
 export 'src/ports/reminder_repository.dart';

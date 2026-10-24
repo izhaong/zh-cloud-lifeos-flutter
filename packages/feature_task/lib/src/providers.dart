@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -59,10 +61,50 @@ final filteredItemsForListProvider =
   final query = ref.watch(searchQueryProvider).trim().toLowerCase();
   final showCompleted =
       ref.watch(showCompletedProvider) || listId == 'smart.completed';
-  return ref
-      .watch(reminderRepositoryProvider)
-      .watchItems(listId: listId)
-      .map((items) {
+  final repo = ref.watch(reminderRepositoryProvider);
+
+  // TC-UI-116 自定义智能列表（smart.custom.*）：filter 从列表元数据读取，
+  // 命中集 = 全部未完成条目 ∩ SmartListFilter（首期标签+旗标）。
+  // 流式组合：列表流（filter 可能变）× 全条目流（命中集可能变），
+  // 任一更新即重算（复用 kernel _combineLatest 语义，本地内联实现）。
+  if (listId != null && listId.startsWith('smart.custom.')) {
+    late StreamController<List<ReminderItem>> ctrl;
+    SmartListFilter? latestFilter;
+    List<ReminderItem>? latestAll;
+    var hasFilter = false;
+    var hasAll = false;
+
+    void emit() {
+      if (hasFilter && hasAll) {
+        final f = latestFilter;
+        final all = latestAll!;
+        ctrl.add(
+          f == null
+              ? const <ReminderItem>[]
+              : all.where(f.matches).toList(growable: false),
+        );
+      }
+    }
+
+    ctrl = StreamController<List<ReminderItem>>(onListen: () {
+      repo.watchLists().listen((lists) {
+        latestFilter = lists
+            .where((e) => e.id == listId)
+            .firstOrNull
+            ?.smartFilter;
+        hasFilter = true;
+        emit();
+      });
+      repo.watchItems(listId: null).listen((all) {
+        latestAll = all;
+        hasAll = true;
+        emit();
+      });
+    });
+    return ctrl.stream;
+  }
+
+  return repo.watchItems(listId: listId).map((items) {
     var out = items;
     if (!showCompleted) {
       // 隐藏已完成条目 = 隐藏其整棵子树（cursor PR#11 意见1：只藏父行会让

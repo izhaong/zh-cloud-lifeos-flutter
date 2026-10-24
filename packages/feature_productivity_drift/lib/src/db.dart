@@ -18,6 +18,12 @@ class ReminderLists extends Table {
   /// 列表分组名（TC-UI-118；NULL = 不分组）。
   TextColumn get groupName => text().nullable()();
 
+  /// 清单类型（TC-UI-115；NULL/standard=标准；grocery=采购）。
+  TextColumn get listType => text().nullable()();
+
+  /// 自定义智能列表条件 JSON（TC-UI-116；NULL = 非自定义智能列表）。
+  TextColumn get smartFilter => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -71,7 +77,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -118,6 +124,11 @@ class LifeProductivityDb extends _$LifeProductivityDb {
           if (from <= 4 && to >= 5) {
             // V5（Issue #2 / M2）：列表分组（TC-UI-118，降级=列表分组）
             await m.addColumn(reminderLists, reminderLists.groupName);
+          }
+          if (from <= 5 && to >= 6) {
+            // V6（Issue #2 / M2）：清单类型 + 自定义智能列表条件
+            await m.addColumn(reminderLists, reminderLists.listType);
+            await m.addColumn(reminderLists, reminderLists.smartFilter);
           }
         },
       );

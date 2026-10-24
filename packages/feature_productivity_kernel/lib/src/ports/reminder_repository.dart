@@ -384,7 +384,11 @@ final class InMemoryReminderRepository implements ReminderRepository {
   @override
   Future<void> upsertList(ReminderList list) async {
     if (list.id.startsWith('smart.')) {
-      throw ArgumentError('smart. 前缀保留给智能列表，禁止用户数据占用');
+      // TC-UI-116：smart.custom.* 为用户自建智能列表（合法）；
+      // 仅内置五预设 + trash 由仓库派生，不得被用户数据占用/篡改。
+      if (!list.id.startsWith('smart.custom.')) {
+        throw ArgumentError('smart. 前缀保留给智能列表，禁止用户数据占用');
+      }
     }
     final i = _lists.indexWhere((e) => e.id == list.id);
     if (i >= 0) {
