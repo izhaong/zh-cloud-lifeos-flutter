@@ -137,6 +137,41 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   }
 
   @override
+  Future<void> moveItem(String itemId, String targetListId) async {
+    await _db.transaction(() async {
+      final lists = await _db.select(_db.reminderLists).get();
+      if (!lists.any((l) => l.id == targetListId && !l.isSmart)) return;
+      final rows = await _db.select(_db.reminderItems).get();
+      final byId = {for (final r in rows) r.id: r};
+      if (!byId.containsKey(itemId)) return;
+
+      // 本条 + 全部后代（子任务随父）
+      bool selfOrDescendant(String id) {
+        var cursor = byId[id];
+        for (var depth = 0; depth < 64 && cursor != null; depth++) {
+          if (id == itemId) return true;
+          final parent = cursor.parentId == null ? null : byId[cursor.parentId];
+          if (parent == null) return false;
+          if (parent.id == itemId) return true;
+          cursor = parent;
+        }
+        return false;
+      }
+
+      for (final r in rows) {
+        if (selfOrDescendant(r.id)) {
+          await (_db.update(_db.reminderItems)
+                ..where((t) => t.id.equals(r.id)))
+              .write(ReminderItemsCompanion(
+            listId: Value(targetListId),
+            sectionId: const Value(null), // 分区随列表（TC-API-118）
+          ));
+        }
+      }
+    });
+  }
+
+  @override
   Future<void> deleteItem(String itemId) async {
     // 级联删除全部后代（子任务可能多层；SQLite 端已有 FK ON DELETE CASCADE，
     // 但外键需 PRAGMA 开启，这里显式应用层级联保证内存/Drift 行为一致）

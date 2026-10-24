@@ -42,6 +42,10 @@ abstract interface class ReminderRepository {
   /// 切换旗标态。
   Future<void> toggleFlagged(String itemId);
 
+  /// 移动提醒到其他列表（TC-UI-119 / TC-API-118 同口径：分区随列表，跨列表必清空；
+  /// 子任务随父一起移动）。
+  Future<void> moveItem(String itemId, String targetListId);
+
   /// 删除单条提醒（级联删除其全部子任务）。
   Future<void> deleteItem(String itemId);
 
@@ -181,6 +185,58 @@ final class InMemoryReminderRepository implements ReminderRepository {
     final cur = _items[i];
     _items[i] = cur.copyWith(isFlagged: !cur.isFlagged);
     _notify();
+  }
+
+  @override
+  Future<void> moveItem(String itemId, String targetListId) async {
+    if (!_items.any((e) => e.id == itemId) ||
+        !_lists.any((l) => l.id == targetListId && !l.isSmart)) {
+      return;
+    }
+    for (var i = 0; i < _items.length; i++) {
+      final e = _items[i];
+      // 本条或其后代（子任务随父）→ 换列表并清分区
+      final selfOrDescendant =
+          e.id == itemId || _isDescendantOf(e.id, itemId);
+      if (selfOrDescendant) {
+        _items[i] = ReminderItem(
+          id: e.id,
+          listId: targetListId,
+          title: e.title,
+          notes: e.notes,
+          isCompleted: e.isCompleted,
+          isFlagged: e.isFlagged,
+          dueAt: e.dueAt,
+          priority: e.priority,
+          tags: e.tags,
+          recurrence: e.recurrence,
+          parentId: e.parentId,
+          sortOrder: e.sortOrder,
+          remoteId: e.remoteId,
+          completedAt: e.completedAt,
+          sectionId: null,
+          deletedAt: e.deletedAt,
+        );
+      }
+    }
+    _recount();
+    _notify();
+  }
+
+  bool _isDescendantOf(String id, String ancestorId) {
+    ReminderItem? byId(String? iid) {
+      for (final e in _items) {
+        if (e.id == iid) return e;
+      }
+      return null;
+    }
+
+    var cursor = byId(id);
+    for (var depth = 0; depth < 64 && cursor != null; depth++) {
+      if (cursor.parentId == ancestorId) return true;
+      cursor = byId(cursor.parentId);
+    }
+    return false;
   }
 
   @override

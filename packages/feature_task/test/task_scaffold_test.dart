@@ -114,7 +114,14 @@ void main() {
     await tester.tap(circles.first);
     await tester.pumpAndSettle();
 
-    // 完成后行划线；流广播自动刷新（无手动 reload）
-    expect(find.byIcon(CupertinoIcons.check_mark_circled_solid), findsOneWidget);
+    // M2「显示已完成」新语义（TC-UI-108）：默认隐藏 ⇒ 完成后行淡出列表；
+    // 开「显示已完成」后行以划线完成态回归 —— 两者都由流广播驱动（无手动 reload）
+    expect(find.byIcon(CupertinoIcons.check_mark_circled_solid), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('toggle_show_completed')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('显示已完成').last);
+    await tester.pumpAndSettle();
+    expect(
+        find.byIcon(CupertinoIcons.check_mark_circled_solid), findsOneWidget);
   });
 }
