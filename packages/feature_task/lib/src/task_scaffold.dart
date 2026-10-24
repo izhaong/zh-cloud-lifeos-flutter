@@ -721,6 +721,35 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     });
   }
 
+  /// 列表内排序（TC-UI-111）：manual=仓库契约序；其余视图序即时生效、
+  /// 不写回 sortOrder（线框「排序 ▾」语义）。
+  List<ReminderItem> _sortTopLevel(List<ReminderItem> items) {
+    final mode = ref.read(listSortModeProvider);
+    final sorted = [...items];
+    switch (mode) {
+      case ListSortMode.manual:
+        return items;
+      case ListSortMode.dueDate:
+        sorted.sort((a, b) => (a.dueAt ?? DateTime(2999, 1, 1))
+            .compareTo(b.dueAt ?? DateTime(2999, 1, 1)));
+      case ListSortMode.title:
+        sorted.sort(
+            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+      case ListSortMode.priority:
+        sorted.sort((a, b) => b.priority.compareTo(a.priority));
+    }
+    return sorted;
+  }
+
+  /// 清除已完成（线框图2「N 项完成 · 清除」）：删除当前列表全部已完成顶层条目。
+  /// Apple 口径：完成的提醒整条移除（deleteItem 级联其子任务）——cursor PR#11 意见3 拍板。
+  Future<void> _clearCompleted(List<String> ids) async {
+    final repo = ref.read(reminderRepositoryProvider);
+    for (final id in ids) {
+      await repo.deleteItem(id);
+    }
+  }
+
   Widget _buildItemRow(
     ReminderItem item, {
     Map<String, List<ReminderItem>> subtasksByParent = const {},
@@ -775,7 +804,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   Widget build(BuildContext context) {
     final itemsAsync =
         ref.watch(filteredItemsForListProvider(widget.list.id));
+    // 计数用未过滤流（已完成默认隐藏后，头部仍要能报「N 项完成」）
+    final allItemsAsync = ref.watch(itemsForListProvider(widget.list.id));
     final query = ref.watch(searchQueryProvider);
+    // 排序态驱动列表体重建（TC-UI-111：切换即时生效）
+    ref.watch(listSortModeProvider);
     final isPane = WindowSizeClass.fromWidth(
       MediaQuery.of(context).size.width,
     ).isPaneLayout;
@@ -827,11 +860,13 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
           final itemsById = {
             for (final e in items) e.id: e,
           };
-          final topLevel = items.where((e) {
-            if (e.parentId == null) return true;
-            // 孤儿（父不在结果集）或自环 → 按顶层渲染
-            return !itemsById.containsKey(e.parentId) || e.parentId == e.id;
-          }).toList(growable: false);
+          final topLevel = _sortTopLevel(
+            items.where((e) {
+              if (e.parentId == null) return true;
+              // 孤儿（父不在结果集）或自环 → 按顶层渲染
+              return !itemsById.containsKey(e.parentId) || e.parentId == e.id;
+            }).toList(growable: false),
+          );
           final subtasksByParent = <String, List<ReminderItem>>{};
           for (final e in items) {
             if (e.parentId != null &&
@@ -841,9 +876,12 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
             }
           }
 
-          // 线框主列表头：「N 项完成」只读计数（清除与完成卡同批后做）
+          // 头部计数走未过滤流（已完成可能被视图偏好隐藏）
+          final all = allItemsAsync.asData?.value ?? const <ReminderItem>[];
           final doneCount =
-              items.where((e) => e.isCompleted).length;
+              all.where((e) => e.isCompleted && e.parentId == null).length;
+          final remainingCount =
+              all.where((e) => !e.isCompleted && e.parentId == null).length;
 
           // 分区（线框客户端「分区一 ∨」）：带 dueAt 的顶层条目按日桶折叠；
           // 无日期条目单独一区。折叠为内存态（P1 不持久化）。
@@ -875,18 +913,18 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
           return Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '$doneCount 项完成',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF8E8E93),
-                    ),
-                  ),
-                ),
+              _ListHeaderToolbar(
+                remainingCount: remainingCount,
+                doneCount: doneCount,
+                onClearCompleted: doneCount == 0
+                    ? null
+                    : () => _clearCompleted(
+                          all
+                              .where((e) =>
+                                  e.isCompleted && e.parentId == null)
+                              .map((e) => e.id)
+                              .toList(growable: false),
+                        ),
               ),
               Expanded(
                 child: ListView(children: rows),
@@ -949,6 +987,133 @@ class _DraftRow extends StatelessWidget {
             icon: const Icon(Icons.keyboard_return,
                 size: 20, color: Color(0xFF007AFF)),
             onPressed: onSubmit,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 列表头工具行（线框图2 主列表头：大数字 + 显示/排序/清除）。
+class _ListHeaderToolbar extends ConsumerWidget {
+  const _ListHeaderToolbar({
+    required this.remainingCount,
+    required this.doneCount,
+    this.onClearCompleted,
+  });
+
+  final int remainingCount;
+  final int doneCount;
+  final VoidCallback? onClearCompleted;
+
+  static const _sortLabels = {
+    ListSortMode.manual: '手动',
+    ListSortMode.dueDate: '按到期日',
+    ListSortMode.title: '按标题',
+    ListSortMode.priority: '按优先级',
+  };
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final showCompleted = ref.watch(showCompletedProvider);
+    final sortMode = ref.watch(listSortModeProvider);
+    return Padding(
+      key: const ValueKey('list_header_toolbar'),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // 图2：大数字（未完成数）
+              Text(
+                '$remainingCount',
+                key: const ValueKey('remaining_count'),
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF007AFF),
+                ),
+              ),
+              const Spacer(),
+              // 显示 ▾（TC-UI-108）
+              PopupMenuButton<bool>(
+                key: const ValueKey('toggle_show_completed'),
+                tooltip: '显示',
+                initialValue: showCompleted,
+                onSelected: (v) =>
+                    ref.read(showCompletedProvider.notifier).set(v),
+                itemBuilder: (_) => const [
+                  CheckedPopupMenuItem(
+                    value: true,
+                    child: Text('显示已完成'),
+                  ),
+                  CheckedPopupMenuItem(
+                    value: false,
+                    child: Text('隐藏已完成'),
+                  ),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(showCompleted ? '显示 ✓' : '显示',
+                          style:
+                              const TextStyle(fontSize: 13, color: Color(0xFF007AFF))),
+                      const Icon(Icons.arrow_drop_down,
+                          size: 16, color: Color(0xFF007AFF)),
+                    ],
+                  ),
+                ),
+              ),
+              // 排序 ▾（TC-UI-111）
+              PopupMenuButton<ListSortMode>(
+                key: const ValueKey('sort_menu'),
+                tooltip: '排序',
+                initialValue: sortMode,
+                onSelected: (m) =>
+                    ref.read(listSortModeProvider.notifier).set(m),
+                itemBuilder: (_) => [
+                  for (final e in ListSortMode.values)
+                    CheckedPopupMenuItem(
+                      value: e,
+                      checked: e == sortMode,
+                      child: Text(_sortLabels[e]!),
+                    ),
+                ],
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('排序',
+                          style:
+                              TextStyle(fontSize: 13, color: Color(0xFF007AFF))),
+                      Icon(Icons.arrow_drop_down,
+                          size: 16, color: Color(0xFF007AFF)),
+                    ],
+                  ),
+                ),
+              ),
+              // 清除（已完成 > 0 才可用）
+              TextButton(
+                key: const ValueKey('clear_completed'),
+                onPressed: onClearCompleted,
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF007AFF),
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('清除', style: TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+          Text(
+            doneCount > 0 ? '$doneCount 项完成' : '',
+            key: const ValueKey('done_count'),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93)),
           ),
         ],
       ),

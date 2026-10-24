@@ -52,22 +52,69 @@ class SidebarVisibleNotifier extends Notifier<bool> {
 }
 
 /// 过滤后的条目流：在仓库语义过滤之上叠加本地文本匹配
-/// （标题 / 备注 / 标签，大小写不敏感）。
+/// （标题 / 备注 / 标签，大小写不敏感）+ 「显示已完成」视图偏好
+/// （TC-UI-108：默认隐藏已完成；`smart.completed` 完成卡恒显示）。
 final filteredItemsForListProvider =
     StreamProvider.family<List<ReminderItem>, String?>((ref, listId) {
   final query = ref.watch(searchQueryProvider).trim().toLowerCase();
-  if (query.isEmpty) {
-    return ref.watch(reminderRepositoryProvider).watchItems(listId: listId);
-  }
+  final showCompleted =
+      ref.watch(showCompletedProvider) || listId == 'smart.completed';
   return ref
       .watch(reminderRepositoryProvider)
       .watchItems(listId: listId)
-      .map((items) => List<ReminderItem>.unmodifiable(
-            items
-                .where((e) =>
-                    e.title.toLowerCase().contains(query) ||
-                    (e.notes ?? '').toLowerCase().contains(query) ||
-                    e.tags.any((t) => t.toLowerCase().contains(query)))
-                .toList(growable: false),
-          ));
+      .map((items) {
+    var out = items;
+    if (!showCompleted) {
+      // 隐藏已完成条目 = 隐藏其整棵子树（cursor PR#11 意见1：只藏父行会让
+      // 子任务因 parentId 不在结果集而被孤儿提升为顶层渲染）。
+      final byId = {for (final e in items) e.id: e};
+      bool subtreeHidden(String id) {
+        var cursor = byId[id];
+        for (var depth = 0; depth < 64 && cursor != null; depth++) {
+          if (cursor.isCompleted && cursor.parentId == null) return true;
+          cursor = cursor.parentId == null ? null : byId[cursor.parentId];
+        }
+        return false;
+      }
+
+      out = items.where((e) => !subtreeHidden(e.id)).toList(growable: false);
+    }
+    if (query.isEmpty) {
+      return List<ReminderItem>.unmodifiable(out);
+    }
+    return List<ReminderItem>.unmodifiable(out
+        .where((e) =>
+            e.title.toLowerCase().contains(query) ||
+            (e.notes ?? '').toLowerCase().contains(query) ||
+            e.tags.any((t) => t.toLowerCase().contains(query)))
+        .toList(growable: false));
+  });
 });
+
+/// 「显示已完成」列表内开关（线框图2 工具行「显示」；TC-UI-108）。
+final showCompletedProvider =
+    NotifierProvider<ShowCompletedNotifier, bool>(ShowCompletedNotifier.new);
+
+class ShowCompletedNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool value) => state = value;
+
+  void toggle() => state = !state;
+}
+
+/// 列表内排序模式（线框图2 工具行「排序」；TC-UI-111。
+/// manual = 仓库排序契约 `sortOrder asc, id asc`）。
+enum ListSortMode { manual, dueDate, title, priority }
+
+final listSortModeProvider =
+    NotifierProvider<ListSortModeNotifier, ListSortMode>(
+        ListSortModeNotifier.new);
+
+class ListSortModeNotifier extends Notifier<ListSortMode> {
+  @override
+  ListSortMode build() => ListSortMode.manual;
+
+  void set(ListSortMode mode) => state = mode;
+}

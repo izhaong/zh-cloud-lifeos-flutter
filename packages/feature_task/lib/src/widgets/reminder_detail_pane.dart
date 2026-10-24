@@ -112,6 +112,56 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
 
   Future<void> _deleteSubtask(String id) => _repo.deleteItem(id);
 
+  /// 当前所属列表标题（无（如智能视图选中）兜底空）。
+  String? get _currentListTitle {
+    final lists = ref.read(reminderListsProvider).asData?.value ??
+        const <ReminderList>[];
+    for (final l in lists) {
+      if (l.id == widget.item.listId) return l.title;
+    }
+    return null;
+  }
+
+  /// 移动到其他列表（TC-UI-119）：copyWith(listId) 全量回写；
+  /// 分区随列表 ⇒ 一并清空（与 TC-API-118 服务端口径一致）。
+  Future<void> _moveToOtherList() async {
+    final lists = (ref.read(reminderListsProvider).asData?.value ??
+            const <ReminderList>[])
+        .where((l) => !l.isSmart && l.id != widget.item.listId)
+        .toList(growable: false);
+    if (lists.isEmpty) return;
+    final target = await showDialog<ReminderList>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        key: const ValueKey('move_to_list_dialog'),
+        title: const Text('移动到列表'),
+        children: [
+          for (final l in lists)
+            SimpleDialogOption(
+              key: ValueKey('move_target_${l.id}'),
+              onPressed: () => Navigator.of(context).pop(l),
+              child: Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Color(l.colorArgb),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(l.title),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (target == null) return;
+    await _repo.moveItem(widget.item.id, target.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     final subtasksAsync =
@@ -242,6 +292,22 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                           _ => '低 !',
                         },
                   style: const TextStyle(color: Color(0xFF8E8E93)),
+                ),
+              ),
+            ),
+          ),
+          // 移动到其他列表（TC-UI-119 / TC-API-118 同语义：跨列表移动清分区）
+          _Row(
+            icon: CupertinoIcons.folder,
+            label: '列表',
+            trailing: TextButton(
+              key: const ValueKey('move_to_list'),
+              onPressed: _moveToOtherList,
+              child: Text(
+                _currentListTitle ?? '移动到…',
+                style: const TextStyle(
+                  color: Color(0xFF007AFF),
+                  fontSize: 13,
                 ),
               ),
             ),

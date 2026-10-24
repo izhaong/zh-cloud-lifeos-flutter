@@ -192,6 +192,10 @@ class _CountingRepo implements ReminderRepository {
   Future<void> toggleFlagged(String itemId) => _inner.toggleFlagged(itemId);
 
   @override
+  Future<void> moveItem(String itemId, String targetListId) =>
+      _inner.moveItem(itemId, targetListId);
+
+  @override
   Future<void> deleteItem(String itemId) => _inner.deleteItem(itemId);
 
   @override
