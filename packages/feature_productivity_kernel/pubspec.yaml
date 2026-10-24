@@ -22,6 +22,7 @@ dependencies:
   equatable: ^3.0.0
   json_annotation: ^4.12.0
   meta: any
+  rrule: ^0.2.18
   uuid: ^4.6.0
   intl: any
 
