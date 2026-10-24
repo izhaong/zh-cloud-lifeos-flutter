@@ -396,6 +396,14 @@ final class InMemoryReminderRepository implements ReminderRepository {
     } else {
       _lists.add(list);
     }
+    // cursor PR#15 阻断3：列表携带分区元数据（如 grocery 工厂预置 8 分区）
+    // 时同步种子化镜像，防后续 deleteSection/reorderSection 用空镜像覆盖。
+    if (list.sections.isNotEmpty) {
+      final mirror = _sectionsByList.putIfAbsent(list.id, () => []);
+      mirror
+        ..clear()
+        ..addAll(list.sections);
+    }
     _recount();
     _notify();
   }

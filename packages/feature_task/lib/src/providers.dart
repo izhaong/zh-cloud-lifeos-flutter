@@ -65,43 +65,60 @@ final filteredItemsForListProvider =
 
   // TC-UI-116 自定义智能列表（smart.custom.*）：filter 从列表元数据读取，
   // 命中集 = 全部未完成条目 ∩ SmartListFilter（首期标签+旗标）。
-  // 流式组合：列表流（filter 可能变）× 全条目流（命中集可能变），
-  // 任一更新即重算（复用 kernel _combineLatest 语义，本地内联实现）。
+  // Stream.multi：onCancel 统一取消内层订阅（cursor PR#15 阻断1——
+  // 旧 StreamController 版无 dispose，搜索重建 provider 时内层 listen 泄漏叠加）。
   if (listId != null && listId.startsWith('smart.custom.')) {
-    late StreamController<List<ReminderItem>> ctrl;
-    SmartListFilter? latestFilter;
-    List<ReminderItem>? latestAll;
-    var hasFilter = false;
-    var hasAll = false;
+    return Stream.multi((listener) {
+      SmartListFilter? latestFilter;
+      List<ReminderItem>? latestAll;
+      var hasFilter = false;
+      var hasAll = false;
 
-    void emit() {
-      if (hasFilter && hasAll) {
-        final f = latestFilter;
-        final all = latestAll!;
-        ctrl.add(
-          f == null
-              ? const <ReminderItem>[]
-              : all.where(f.matches).toList(growable: false),
-        );
+      void emit() {
+        if (hasFilter && hasAll) {
+          final f = latestFilter;
+          final all = latestAll!;
+          listener.addSync(
+            f == null
+                ? const <ReminderItem>[]
+                : all.where(f.matches).toList(growable: false),
+          );
+        }
       }
-    }
 
-    ctrl = StreamController<List<ReminderItem>>(onListen: () {
-      repo.watchLists().listen((lists) {
-        latestFilter = lists
-            .where((e) => e.id == listId)
-            .firstOrNull
-            ?.smartFilter;
-        hasFilter = true;
-        emit();
-      });
-      repo.watchItems(listId: null).listen((all) {
-        latestAll = all;
-        hasAll = true;
-        emit();
-      });
+      final subs = [
+        repo.watchLists().listen((lists) {
+          latestFilter = lists
+              .where((e) => e.id == listId)
+              .firstOrNull
+              ?.smartFilter;
+          hasFilter = true;
+          emit();
+        }),
+        repo.watchItems(listId: null).listen((all) {
+          latestAll = all;
+          hasAll = true;
+          emit();
+        }),
+      ];
+      // onCancel：取消两个内层订阅，防泄漏（生命周期归 Stream.multi 管）
+      listener
+        ..onCancel = () {
+          for (final s in subs) {
+            s.cancel();
+          }
+        }
+        ..onPause = () {
+          for (final s in subs) {
+            s.pause();
+          }
+        }
+        ..onResume = () {
+          for (final s in subs) {
+            s.resume();
+          }
+        };
     });
-    return ctrl.stream;
   }
 
   return repo.watchItems(listId: listId).map((items) {

@@ -288,6 +288,12 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             groupName: Value(list.groupName),
             listType: Value(list.listType.id),
             smartFilter: Value(_encodeSmartFilter(list.smartFilter)),
+            // cursor PR#15 阻断2：分区与智能标记必须随列表落库——
+            // 否则 grocery 预置分区/custom 智能列表入库即丢。
+            sectionsJson: Value(
+              _encodeSections(_sortedSections(list.sections)),
+            ),
+            isSmart: Value(list.isSmart),
           ),
         );
   }
