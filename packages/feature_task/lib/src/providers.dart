@@ -65,10 +65,19 @@ final filteredItemsForListProvider =
       .map((items) {
     var out = items;
     if (!showCompleted) {
-      // 隐藏已完成顶层条目；子任务仍随父行渲染（完成态由行自身呈现）
-      out = out
-          .where((e) => !e.isCompleted || e.parentId != null)
-          .toList(growable: false);
+      // 隐藏已完成条目 = 隐藏其整棵子树（cursor PR#11 意见1：只藏父行会让
+      // 子任务因 parentId 不在结果集而被孤儿提升为顶层渲染）。
+      final byId = {for (final e in items) e.id: e};
+      bool subtreeHidden(String id) {
+        var cursor = byId[id];
+        for (var depth = 0; depth < 64 && cursor != null; depth++) {
+          if (cursor.isCompleted && cursor.parentId == null) return true;
+          cursor = cursor.parentId == null ? null : byId[cursor.parentId];
+        }
+        return false;
+      }
+
+      out = items.where((e) => !subtreeHidden(e.id)).toList(growable: false);
     }
     if (query.isEmpty) {
       return List<ReminderItem>.unmodifiable(out);

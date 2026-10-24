@@ -742,6 +742,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   }
 
   /// 清除已完成（线框图2「N 项完成 · 清除」）：删除当前列表全部已完成顶层条目。
+  /// Apple 口径：完成的提醒整条移除（deleteItem 级联其子任务）——cursor PR#11 意见3 拍板。
   Future<void> _clearCompleted(List<String> ids) async {
     final repo = ref.read(reminderRepositoryProvider);
     for (final id in ids) {

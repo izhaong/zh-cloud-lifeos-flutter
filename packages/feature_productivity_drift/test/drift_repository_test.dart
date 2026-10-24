@@ -359,4 +359,35 @@ void main() {
     expect(updated.sectionId, isNull);
     expect(updated.deletedAt, now);
   });
+
+  test('moveItem（cursor PR#11 意见2补测）：子任务随父、分区清空、目标校验', () async {
+    await repo.upsertList(
+        const ReminderList(id: 'list.a', title: 'A'));
+    await repo.upsertList(
+        const ReminderList(id: 'list.b', title: 'B'));
+    await repo.upsertItem(const ReminderItem(
+      id: 'parent',
+      listId: 'list.a',
+      title: '父',
+    ).copyWith(sectionId: 'sec-x'));
+    await repo.upsertItem(const ReminderItem(
+      id: 'child',
+      listId: 'list.a',
+      title: '子',
+      parentId: 'parent',
+    ));
+
+    await repo.moveItem('parent', 'list.b');
+
+    final inB = await repo.watchItems(listId: 'list.b').first;
+    expect(inB.map((e) => e.id), containsAll(['parent', 'child'])); // 子随父
+    expect(inB.firstWhere((e) => e.id == 'parent').sectionId, isNull); // 清分区
+    final inA = await repo.watchItems(listId: 'list.a').first;
+    expect(inA, isEmpty);
+
+    // 智能列表目标拒绝（no-op）
+    await repo.moveItem('parent', 'smart.today');
+    final stillB = await repo.watchItems(listId: 'list.b').first;
+    expect(stillB.map((e) => e.id), contains('parent'));
+  });
 }
