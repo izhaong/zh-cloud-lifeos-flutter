@@ -449,7 +449,7 @@ class _TwoPane extends ConsumerWidget {
               onOpenSettings: () => showTaskSettingsSheet(context),
             ),
           ),
-          const VerticalDivider(width: 1),
+          const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
         ],
         Expanded(
           child: current == null
@@ -544,7 +544,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
               onOpenSettings: () => showTaskSettingsSheet(context),
             ),
           ),
-          const VerticalDivider(width: 1),
+          const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
         ],
         Expanded(
           child: current == null
@@ -569,7 +569,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
                 ),
         ),
         if (selected != null) ...[
-          const VerticalDivider(width: 1),
+          const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
           SizedBox(
             width: 320,
             child: KeyedSubtree(
@@ -867,7 +867,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         automaticallyImplyLeading: widget.leading == null,
         leading: widget.leading,
         leadingWidth: widget.leading == null ? null : 96,
-        title: Text(widget.list.title),
+        // macOS 大标题口径（图2）：宽屏 AppBar 不放标题，标题进内容区（列表色大字）
+        title: isPane ? null : Text(widget.list.title),
         actions: [
           if (isPane)
             SizedBox(
@@ -878,22 +879,65 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                 onChanged: (v) =>
                     ref.read(searchQueryProvider.notifier).set(v),
                 decoration: InputDecoration(
-                  hintText: '搜索提醒事项…',
-                  prefixIcon: const Icon(Icons.search, size: 20),
+                  hintText: '搜索',
+                  prefixIcon: const Icon(CupertinoIcons.search,
+                      size: 16, color: Color(0xFF8E8E93)),
                   isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                        width: 0.5, color: Color(0xFFD1D1D6)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                        width: 0.5, color: Color(0xFFD1D1D6)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                        width: 1, color: Color(0xFF007AFF)),
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFF2F2F7),
+                  fillColor: const Color(0xFFFFFFFF),
                 ),
+                style: const TextStyle(fontSize: 13),
               ),
             ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_horiz),
+          // 顶栏 ＋（图2 工具行；与 ⌘N 同构→草稿行）
+          if (isPane)
+            IconButton(
+              key: const ValueKey('toolbar_new_item'),
+              tooltip: '新提醒（⌘N）',
+              onPressed: _openNewItemDialog,
+              icon: const Icon(CupertinoIcons.add),
+            ),
+          PopupMenuButton<String>(
+            key: const ValueKey('list_more_menu'),
+            tooltip: '更多',
+            onSelected: (v) {
+              if (v == 'toggle-completed') {
+                final cur = ref.read(showCompletedProvider);
+                ref.read(showCompletedProvider.notifier).set(!cur);
+              }
+            },
+            itemBuilder: (_) => [
+              CheckedPopupMenuItem(
+                value: 'toggle-completed',
+                checked: ref.read(showCompletedProvider),
+                child: const Text('显示已完成'),
+              ),
+              const PopupMenuItem(
+                value: 'clear-sections',
+                enabled: false,
+                child: Text('按分区整理（规划）'),
+              ),
+            ],
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: Icon(Icons.more_horiz),
+            ),
           ),
         ],
       ),
@@ -903,6 +947,33 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         data: (items) {
           if (query.trim().isNotEmpty && items.isEmpty) {
             return const Center(child: Text('无匹配结果'));
+          }
+          if (items.isEmpty && !_isTrashView) {
+            // 空态引导（图2 空列表节奏）：整区可点新建（等同底栏 ＋）
+            return GestureDetector(
+              key: const ValueKey('empty_new_hint'),
+              behavior: HitTestBehavior.opaque,
+              onTap: _openNewItemDialog,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(CupertinoIcons.plus_circle,
+                        size: 40, color: Color(widget.list.colorArgb).withValues(alpha: 0.5)),
+                    const SizedBox(height: 8),
+                    const Text(
+                      '没有提醒',
+                      style: TextStyle(fontSize: 17, color: Color(0xFF8E8E93)),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      '点按此处或「＋ 新提醒」添加',
+                      style: TextStyle(fontSize: 13, color: Color(0xFFC7C7CC)),
+                    ),
+                  ],
+                ),
+              ),
+            );
           }
           // 顶层与子任务分组（watchItems 返回全层级；孤儿/环按顶层兜底）
           final itemsById = {
@@ -961,6 +1032,23 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
           return Column(
             children: [
+              if (isPane && !_isTrashView)
+                // macOS 大标题（图2）：列表色大字进内容区（宽屏 AppBar 无 title）
+                Padding(
+                  key: const ValueKey('list_large_title'),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      widget.list.title,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: Color(widget.list.colorArgb),
+                      ),
+                    ),
+                  ),
+                ),
               if (!_isTrashView)
                 _ListHeaderToolbar(
                 remainingCount: remainingCount,
@@ -1077,7 +1165,7 @@ class _ListHeaderToolbar extends ConsumerWidget {
         children: [
           Row(
             children: [
-              // 图2：大数字（未完成数）
+              // 图2：大数字（未完成数）+「N 项完成 ·」内联（0 完成时不渲染清除）
               Text(
                 '$remainingCount',
                 key: const ValueKey('remaining_count'),
@@ -1087,6 +1175,17 @@ class _ListHeaderToolbar extends ConsumerWidget {
                   color: Color(0xFF007AFF),
                 ),
               ),
+              if (doneCount > 0) ...[
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    '$doneCount 项完成',
+                    key: const ValueKey('done_count'),
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                  ),
+                ),
+              ],
               const Spacer(),
               // 显示 ▾（TC-UI-108）
               PopupMenuButton<bool>(
@@ -1148,24 +1247,20 @@ class _ListHeaderToolbar extends ConsumerWidget {
                   ),
                 ),
               ),
-              // 清除（已完成 > 0 才可用）
-              TextButton(
-                key: const ValueKey('clear_completed'),
-                onPressed: onClearCompleted,
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF007AFF),
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  minimumSize: const Size(0, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              // 清除（图2：仅存在已完成时渲染；与「N 项完成 ·」同排）
+              if (doneCount > 0)
+                TextButton(
+                  key: const ValueKey('clear_completed'),
+                  onPressed: onClearCompleted,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF007AFF),
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('清除', style: TextStyle(fontSize: 13)),
                 ),
-                child: const Text('清除', style: TextStyle(fontSize: 13)),
-              ),
             ],
-          ),
-          Text(
-            doneCount > 0 ? '$doneCount 项完成' : '',
-            key: const ValueKey('done_count'),
-            style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93)),
           ),
         ],
       ),
