@@ -1,6 +1,8 @@
 import 'package:app_core/app_core.dart';
+import 'package:dio/dio.dart';
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:feature_task/feature_task.dart';
+import 'package:feature_task_cloud/feature_task_cloud.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,8 +16,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   /// 组合根：单点工厂切换 InMemory / Drift；偏好存储与徽标源同在此注入。
+  /// M4（flutter#4）：cloud 侧 AuthPort/SyncPort 真实现注入——
+  /// 未登录时 currentSession=null，本地能力不受影响（离线优先红线）。
   final repository = await openDefaultDriftRepository();
   final prefs = await SharedPreferences.getInstance();
+  final dio = Dio(BaseOptions(baseUrl: const String.fromEnvironment(
+    'LIFEOS_API_BASE',
+    defaultValue: 'https://lifeos.zh04.com',
+  )));
+  final sessionStore = SecureSessionStore();
+  final authPort = RestAuthPort(dio: dio, store: sessionStore);
+  final syncPort = RestSyncPort(dio: dio, store: sessionStore);
 
   runApp(
     ProviderScope(
@@ -24,6 +35,8 @@ Future<void> main() async {
         pinnedTabsServiceProvider.overrideWithValue(
           PinnedTabsService(prefs),
         ),
+        authPortProvider.overrideWithValue(authPort),
+        syncPortProvider.overrideWithValue(syncPort),
       ],
       child: const LifeLauncherApp(),
     ),

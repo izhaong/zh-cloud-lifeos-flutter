@@ -13,6 +13,7 @@ workspace:
   - packages/feature_productivity_kernel
   - packages/feature_productivity_drift
   - packages/feature_task
+  - packages/feature_task_cloud
 
 dev_dependencies:
   melos: ^8.9.0

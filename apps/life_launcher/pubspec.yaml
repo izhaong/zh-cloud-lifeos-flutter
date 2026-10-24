@@ -23,6 +23,8 @@ dependencies:
     path: ../../packages/feature_productivity_drift
   feature_task:
     path: ../../packages/feature_task
+  feature_task_cloud:
+    path: ../../packages/feature_task_cloud
 
   flutter_riverpod: ^3.4.3
   hooks_riverpod: ^3.4.3

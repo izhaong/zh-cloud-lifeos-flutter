@@ -1,0 +1,31 @@
+name: feature_task_cloud
+description: LifeOS 任务真同步与登录（私有侧；AuthPort/SyncPort 真实现，经组合根注入）。
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  app_core:
+    path: ../app_core
+  feature_task:
+    path: ../feature_task
+  feature_productivity_kernel:
+    path: ../feature_productivity_kernel
+
+  dio: ^5.11.1
+  flutter_secure_storage: ^11.2.0
+
+  equatable: ^3.0.0
+  meta: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
