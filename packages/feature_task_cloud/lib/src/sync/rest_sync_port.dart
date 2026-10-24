@@ -69,26 +69,39 @@ class RestSyncPort implements SyncPort {
     }
     var acks = _parseAcks(body['data']);
 
-    // 冲突重推（拍板策略）：客户端较新 → 整条覆盖、带 baseRevision=serverRevision
-    // 重推（cursor PR#17 阻断2：revision 必须上送否则服务端必再报冲突空转；
-    // 最终 acks 回写重推结果——首轮冲突回执不残留）
+    // 冲突重推（拍板策略）：客户端较新 → 整条覆盖、带 baseRevision=serverRevision。
+    // 稳定键=originalId（首轮 localId）：重推 change 的 entityId 可能已换 serverId，
+    // ack↔change 匹配一律经 originalId 映射（cursor PR#17 R2：服务端回显 serverId
+    // 时旧 firstWhere 会 StateError；连续冲突回写需按原键）。
     var retried = 0;
     var pending = acks.where((a) => a.conflict != null).toList();
+    // originalId → 本轮重推前的最新已知 id（首轮=localId；后续轮=serverId）
+    final currentIdByOriginal = <String, String>{
+      for (final c in changes) c.entityId: c.entityId,
+    };
+    final baseByOriginal = <String, int>{};
     while (pending.isNotEmpty && retried < maxConflictRetries) {
       final toRepush = <SyncChange>[];
-      final baseByEntity = <String, int>{};
+      final repushOriginals = <String>[];
       for (final ack in pending) {
+        // ack.entityId 可能是 localId（首轮）或 serverId（重推轮回显）
+        final originalId = _resolveOriginalId(ack, currentIdByOriginal);
         final original = changes.firstWhere(
-          (c) => c.entityId == ack.entityId,
+          (c) => c.entityId == originalId,
           orElse: () => throw StateError('ack 无对应 change'),
         );
         final clientNewer = (original.clientUpdatedAt ?? 0) >=
             _serverUpdatedAtOf(ack.conflict);
         if (clientNewer) {
-          baseByEntity[ack.entityId] = ack.conflict!.serverRevision;
+          final upsertId = ack.serverId ??
+              currentIdByOriginal[originalId] ??
+              original.entityId;
+          baseByOriginal[originalId] = ack.conflict!.serverRevision;
+          currentIdByOriginal[originalId] = upsertId;
+          repushOriginals.add(originalId);
           toRepush.add(SyncChange(
             entityType: original.entityType,
-            entityId: ack.serverId ?? original.entityId,
+            entityId: upsertId,
             operation: original.operation,
             payload: original.payload,
             clientMutationId: original.clientMutationId,
@@ -110,21 +123,37 @@ class RestSyncPort implements SyncPort {
       final retryBody = retryResp.data;
       if (retryBody == null || retryBody['code'] != 0) break;
       final retryAcks = _parseAcks(retryBody['data']);
-      // 回写：服务端 push 语义=「data 空即全部成功；有冲突才逐条回执」。
-      // 客户端较新且带 baseRevision 重推成功 → 无冲突回执 → 首轮冲突回执清为成功 ack。
-      final retryServerIds = retryAcks
-          .map((a) => a.entityId)
-          .toSet();
+      // 回写（稳定键=originalId）：服务端语义=「data 空即全部成功；
+      // 有冲突才逐条回执（ack.entityId=本轮上送 id=serverId）」。
+      // serverId→originalId 反查后匹配：重推又冲突→替换为新回执；
+      // 无回执→清空 conflict（成功）。
+      final idToOriginal = <String, String>{};
+      currentIdByOriginal.forEach((orig, cur) => idToOriginal[cur] = orig);
+      final retryConflictByOriginal = <String, SyncPushAck>{};
+      for (final a in retryAcks) {
+        if (a.conflict != null) {
+          final orig = idToOriginal[a.entityId] ?? a.entityId;
+          // 归一化回执到 originalId 键域：后续轮回写才能稳定匹配
+          // （回写替换后 acks 元素须保持 entityId=originalId，否则下轮
+          // retryConflictByOriginal 按 originalId 查不到 → 误判成功）
+          retryConflictByOriginal[orig] = SyncPushAck(
+            entityId: orig,
+            serverId: a.serverId,
+            revision: a.revision,
+            conflict: a.conflict,
+          );
+        }
+      }
       acks = [
         for (final a in acks)
-          if (a.conflict != null && a.serverId != null)
-            (retryServerIds.contains(a.serverId))
-                ? a // 重推后又冲突（按 serverId 匹配）→ 保留新冲突回执
+          if (a.conflict != null)
+            (retryConflictByOriginal.containsKey(a.entityId))
+                ? retryConflictByOriginal[a.entityId]!
                 : SyncPushAck(
                     entityId: a.entityId,
                     serverId: a.serverId,
                     revision: a.revision,
-                  ) // 重推成功（data 空无回执）→ 冲突清空
+                  ) // 无新冲突回执 → 重推成功 → 冲突清空
           else
             a,
       ];
@@ -158,6 +187,18 @@ class RestSyncPort implements SyncPort {
                 : null,
           ),
     ];
+  }
+
+  /// ack.entityId（localId 或 serverId）→ 原 change 的 localId。
+  String _resolveOriginalId(
+    SyncPushAck ack,
+    Map<String, String> currentIdByOriginal,
+  ) {
+    if (currentIdByOriginal.containsKey(ack.entityId)) return ack.entityId;
+    for (final e in currentIdByOriginal.entries) {
+      if (e.value == ack.entityId) return e.key;
+    }
+    return ack.entityId;
   }
 
   int _serverUpdatedAtOf(SyncConflict? conflict) {

@@ -167,6 +167,92 @@ void main() {
         reason: '原推 + 至多 3 次重推');
   });
 
+  test('TC-SYNC-113 重推后 ack 回显 serverId 不炸（cursor PR#17 R2 Critical）',
+      () async {
+    // 第一轮回执冲突（entityId=localId）；重推后服务端回执**又冲突**且 entityId=serverId
+    adapter.enqueue({
+      'code': 0,
+      'data': [
+        {
+          'entityId': 'uuid-local-1',
+          'serverId': 'srv-9',
+          'revision': 5,
+          'conflict': {
+            'serverRevision': 5,
+            'serverValue': {'updateTime': 1},
+          },
+        },
+      ],
+    });
+    adapter.enqueue({
+      'code': 0,
+      'data': [
+        {
+          'entityId': 'srv-9', // 服务端按上送 id 回显——旧代码会 StateError
+          'serverId': 'srv-9',
+          'revision': 6,
+          'conflict': {
+            'serverRevision': 6,
+            'serverValue': {'updateTime': 1},
+          },
+        },
+      ],
+    });
+    final sync = RestSyncPort(dio: dio, store: store);
+    await store.write(const MemberSession(
+      userId: '1', tenantId: '1', accessToken: 'tok',
+    ));
+
+    await sync.pushChanges([
+      const SyncChange(
+        entityType: 'task',
+        entityId: 'uuid-local-1',
+        operation: 'upsert',
+        clientUpdatedAt: 1729700000000,
+      ),
+    ]);
+
+    // 不抛 StateError（旧代码在第二轮 firstWhere 崩）；且发生了重推
+    expect(adapter.sentBodies.length, greaterThanOrEqualTo(2),
+        reason: 'serverId 回显被稳定键匹配，重推继续而非 StateError');
+  });
+
+  test('TC-SYNC-113 连续冲突耗尽重试：最终 acks 保留 conflict 非 null（防假成功）',
+      () async {
+    for (var i = 0; i < 6; i++) {
+      adapter.enqueue({
+        'code': 0,
+        'data': [
+          {
+            'entityId': i == 0 ? 'uuid-local-1' : 'srv-9',
+            'serverId': 'srv-9',
+            'revision': 5 + i,
+            'conflict': {
+              'serverRevision': 5 + i,
+              'serverValue': {'updateTime': 1},
+            },
+          },
+        ],
+      });
+    }
+    final sync = RestSyncPort(dio: dio, store: store);
+    await store.write(const MemberSession(
+      userId: '1', tenantId: '1', accessToken: 'tok',
+    ));
+
+    final acks = await sync.pushChanges([
+      const SyncChange(
+        entityType: 'task',
+        entityId: 'uuid-local-1',
+        operation: 'upsert',
+        clientUpdatedAt: 1729700000000,
+      ),
+    ]);
+
+    expect(acks.single.conflict, isNotNull,
+        reason: '耗尽重试后冲突必须如实保留（假成功=数据丢失静默）');
+  });
+
   test('TC-SYNC-113 num 类型 serverUpdateTime 正确解析', () async {
     // 服务端 JSON 数字是 num（非 int）——时间解析不得落 0 误判
     adapter.enqueue({
@@ -188,7 +274,7 @@ void main() {
       userId: '1', tenantId: '1', accessToken: 'tok',
     ));
 
-    await sync.pushChanges([
+    final acks = await sync.pushChanges([
       const SyncChange(
         entityType: 'task',
         entityId: 'e1',
@@ -198,6 +284,7 @@ void main() {
     ]);
 
     expect(adapter.sentBodies.length, 1, reason: 'num 解析正确→较旧→不重推');
+    expect(acks.single.conflict, isNotNull, reason: '较旧保留冲突回执由 pull 对齐');
   });
 }
 
