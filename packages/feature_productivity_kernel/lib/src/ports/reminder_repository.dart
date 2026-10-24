@@ -405,6 +405,8 @@ final class InMemoryReminderRepository implements ReminderRepository {
       }
     }
     _lists.removeWhere((l) => l.id == listId);
+    // 分区元数据随列表清理（防同 id 重建列表出现幽灵分区；cursor PR#14 非阻断3）
+    _sectionsByList.remove(listId);
     _recount();
     _notify();
   }

@@ -100,6 +100,74 @@ void main() {
     });
   });
 
+  group('TC-KR-109 V3→V5 全链迁移（cursor PR#14 阻断修复）', () {
+    test('V3 库升级：sectionsJson 兜底 + group_name NULL，新分区可写读',
+        () async {
+      final raw = sqlite3.sqlite3.openInMemory();
+      raw.execute('''
+        CREATE TABLE reminder_lists (
+          id TEXT NOT NULL PRIMARY KEY,
+          title TEXT NOT NULL,
+          color_argb INTEGER NOT NULL DEFAULT 4280327039,
+          is_smart INTEGER NOT NULL DEFAULT 0,
+          sort_order INTEGER NOT NULL DEFAULT 0
+        );
+      ''');
+      raw.execute('''
+        CREATE TABLE reminder_items (
+          id TEXT NOT NULL PRIMARY KEY,
+          list_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          notes TEXT NULL,
+          is_completed INTEGER NOT NULL DEFAULT 0,
+          is_flagged INTEGER NOT NULL DEFAULT 0,
+          due_at INTEGER NULL,
+          priority INTEGER NOT NULL DEFAULT 0,
+          tags TEXT NOT NULL DEFAULT '[]',
+          recurrence TEXT NULL,
+          parent_id TEXT NULL,
+          sort_order INTEGER NOT NULL DEFAULT 0
+        );
+      ''');
+      raw.execute('PRAGMA user_version = 3');
+      raw.execute(
+        "INSERT INTO reminder_lists (id, title) VALUES ('legacy', '旧列表')",
+      );
+
+      final db2 = LifeProductivityDb(NativeDatabase.opened(raw));
+      final lists = await db2.select(db2.reminderLists).get();
+      expect(lists.map((e) => e.id), contains('legacy'));
+      final legacy = lists.firstWhere((e) => e.id == 'legacy');
+      // SQLite ALTER ADD COLUMN DEFAULT：旧行回填 '[]'（非 NULL）
+      expect(legacy.sectionsJson, '[]');
+      expect(legacy.groupName, isNull); // group_name 列无 DEFAULT → NULL
+
+      final repo2 = DriftReminderRepository(db2);
+      final viaRepo = await repo2.watchLists().first;
+      expect(
+        viaRepo.firstWhere((e) => e.id == 'legacy').sections,
+        isEmpty,
+      );
+      expect(
+        viaRepo.firstWhere((e) => e.id == 'legacy').groupName,
+        isNull,
+      );
+
+      // 新分区可写读（V5 列在线）
+      await repo2.upsertSection(
+        listId: 'legacy',
+        section: const ReminderSection(id: 's9', title: '迁移后分区'),
+      );
+      final after = await repo2.watchLists().first;
+      expect(
+        after.firstWhere((e) => e.id == 'legacy').sections
+            .map((s) => s.title),
+        ['迁移后分区'],
+      );
+      await db2.close();
+    });
+  });
+
   group('TC-KR-109 V3→V4 迁移', () {
     test('V3 旧库升级：sectionsJson 有默认 []，旧数据保留', () async {
       // 裸 sqlite3 建 V3 旧结构（无 sectionsJson）
@@ -138,8 +206,8 @@ void main() {
       final lists = await db2.select(db2.reminderLists).get();
       expect(lists.map((e) => e.id), contains('legacy'));
       final legacy = lists.firstWhere((e) => e.id == 'legacy');
-      // V3 旧行经 addColumn 后为 NULL（非 DEFAULT）——读取层兜底为空分区
-      expect(legacy.sectionsJson, isNull);
+      // SQLite ADD COLUMN DEFAULT '[]'：旧行回填 '[]'（V3→V5 迁移链生效证据）
+      expect(legacy.sectionsJson, '[]');
       // 走仓库读取：NULL 兜底空分区元数据，不炸
       final repo2 = DriftReminderRepository(db2);
       final viaRepo = await repo2.watchLists().first;

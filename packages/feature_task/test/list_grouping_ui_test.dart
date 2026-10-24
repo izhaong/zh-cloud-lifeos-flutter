@@ -81,6 +81,39 @@ void main() {
     expect(find.text('晨会清单'), findsWidgets);
   });
 
+  testWidgets('TC-UI-118 交错 groupName（B,A,B）聚合出唯一组头（cursor PR#14）',
+      (tester) async {
+    final repo = InMemoryReminderRepository(seedSampleData: false);
+    await repo.upsertList(const ReminderList(
+      id: 'l1',
+      title: '生活清单A',
+      groupName: '生活',
+      sortOrder: 0,
+    ));
+    await repo.upsertList(const ReminderList(
+      id: 'l2',
+      title: '工作清单',
+      groupName: '工作',
+      sortOrder: 1,
+    ));
+    await repo.upsertList(const ReminderList(
+      id: 'l3',
+      title: '生活清单B',
+      groupName: '生活',
+      sortOrder: 2,
+    ));
+
+    await _pump(tester, size: const Size(1366, 1024), repo: repo);
+
+    // 「生活」只出一个组头（聚合，非相邻推导）
+    expect(
+      find.byKey(const ValueKey('group_生活')),
+      findsOneWidget,
+      reason: '交错 groupName 必须聚合为唯一组头',
+    );
+    expect(find.byKey(const ValueKey('group_工作')), findsOneWidget);
+  });
+
   testWidgets('TC-UI-118 无分组列表平铺（兼容旧行为）+ 负向门禁',
       (tester) async {
     final repo = InMemoryReminderRepository();

@@ -43,39 +43,52 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
     final mine =
         widget.lists.where((e) => !e.isSmart).toList(growable: false);
 
-    // 分组渲染（TC-UI-118）：groupName 相邻同组出折叠头；null 平铺
+    // 分组渲染（TC-UI-118）：**先按 groupName 聚合**（同名唯一组头，
+    // 组内按原序；null 平铺）——交错 B,A,B 不会重复出「B」头（cursor PR#14 非阻断2）
     final groupedEntries = <Widget>[];
     final flat = <Widget>[];
-    String? lastGroup;
+    final groupOrder = <String>[];
+    final groupLists = <String, List<ReminderList>>{};
     for (final list in mine) {
-      final group = list.groupName;
-      if (group != null && group != lastGroup) {
-        final groupLists =
-            mine.where((e) => e.groupName == group).toList();
-        final groupCount =
-            groupLists.fold<int>(0, (sum, e) => sum + e.itemCount);
-        groupedEntries.add(_GroupHeader(
-          key: ValueKey('group_$group'),
-          title: group,
-          count: groupCount,
-          collapsed: _collapsedGroups.contains(group),
-          onToggle: () => setState(() {
-            if (!_collapsedGroups.remove(group)) {
-              _collapsedGroups.add(group);
-            }
-          }),
+      final g = list.groupName;
+      if (g == null) {
+        flat.add(_SidebarTile(
+          list: list,
+          selected: list.id == widget.selectedListId,
+          onTap: () => widget.onSelect(list),
         ));
+        continue;
       }
-      lastGroup = group;
-      final tile = _SidebarTile(
-        list: list,
-        selected: list.id == widget.selectedListId,
-        onTap: () => widget.onSelect(list),
-      );
-      if (group != null && _collapsedGroups.contains(group)) {
-        continue; // 折叠组不渲染行
+      if (!groupLists.containsKey(g)) {
+        groupOrder.add(g);
+        groupLists[g] = [];
       }
-      (group != null ? groupedEntries : flat).add(tile);
+      groupLists[g]!.add(list);
+    }
+    for (final g in groupOrder) {
+      final listsInGroup = groupLists[g]!;
+      final groupCount =
+          listsInGroup.fold<int>(0, (sum, e) => sum + e.itemCount);
+      groupedEntries.add(_GroupHeader(
+        key: ValueKey('group_$g'),
+        title: g,
+        count: groupCount,
+        collapsed: _collapsedGroups.contains(g),
+        onToggle: () => setState(() {
+          if (!_collapsedGroups.remove(g)) {
+            _collapsedGroups.add(g);
+          }
+        }),
+      ));
+      if (!_collapsedGroups.contains(g)) {
+        for (final list in listsInGroup) {
+          groupedEntries.add(_SidebarTile(
+            list: list,
+            selected: list.id == widget.selectedListId,
+            onTap: () => widget.onSelect(list),
+          ));
+        }
+      }
     }
     // 标签浏览器（TC-UI-117）：全部未删条目的去重标签；
     // 点选 = 写全局搜索词（过滤管线已按标题/备注/标签匹配）

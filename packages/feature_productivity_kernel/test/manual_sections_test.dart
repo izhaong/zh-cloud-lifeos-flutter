@@ -86,6 +86,32 @@ void main() {
       expect(items.firstWhere((e) => e.id == 'i1').sectionId, isNull);
     });
 
+    test('deleteSection 对回收窗内（软删）条目同样清分区（cursor PR#14 缺口4）',
+        () async {
+      await repo.upsertSection(
+        listId: 'list.work',
+        section: const ReminderSection(id: 'sec1', title: '进行中'),
+      );
+      await repo.upsertItem(
+        const ReminderItem(
+          id: 'i9',
+          listId: 'list.work',
+          title: '回收窗条目',
+          sectionId: 'sec1',
+        ),
+      );
+      await repo.deleteItem('i9'); // 进回收窗（软删）
+
+      await repo.deleteSection(listId: 'list.work', sectionId: 'sec1');
+
+      // 回收窗视角条目分区已清（恢复后落未分区，无孤儿 sectionId）
+      final trashed = await repo.watchItems(listId: 'smart.trash').first;
+      expect(
+        trashed.firstWhere((e) => e.id == 'i9').sectionId,
+        isNull,
+      );
+    });
+
     test('deleteList 软删级联不残留分区元数据', () async {
       await repo.upsertSection(
         listId: 'list.work',
