@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=LifeOS
+Comment=ZH Cloud LifeOS desktop client
+Exec=/opt/lifeos-flutter/life_launcher
+Icon=life-launcher
+Terminal=false
+Categories=Office;Utility;
+StartupWMClass=life_launcher
