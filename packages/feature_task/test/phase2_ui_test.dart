@@ -199,6 +199,12 @@ class _CountingRepo implements ReminderRepository {
   Future<void> deleteItem(String itemId) => _inner.deleteItem(itemId);
 
   @override
+  Future<void> restoreItem(String itemId) => _inner.restoreItem(itemId);
+
+  @override
+  Future<int> purgeExpiredDeleted() => _inner.purgeExpiredDeleted();
+
+  @override
   Future<void> upsertList(ReminderList list) => _inner.upsertList(list);
 
   @override

@@ -684,6 +684,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   bool get _isSmartView => widget.list.id.startsWith('smart.');
 
+  /// 最近删除视图（smart.trash）：恢复语义、无新建入口（TC-UI-109）。
+  bool get _isTrashView => widget.list.id == 'smart.trash';
+
   /// 分区（线框「分区一 ∨」）：带 dueAt 顶层条目按日桶，其余进「无日期」。
   /// 保序：沿用 items 自带排序（sortOrder asc, id asc）。
   Map<String, List<ReminderItem>> _buildSections(
@@ -755,15 +758,30 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     Map<String, List<ReminderItem>> subtasksByParent = const {},
   }) {
     final repo = ref.read(reminderRepositoryProvider);
+    final row = ReminderRow(
+      item: item,
+      onToggleCompleted: () => repo.toggleCompleted(item.id),
+      onToggleFlagged: () => repo.toggleFlagged(item.id),
+      onTap: () => widget.onSelectItem?.call(item),
+    );
+    // 最近删除视图：行尾「恢复」（TC-UI-109；对齐 Apple Recently Deleted）
+    final trashRow = _isTrashView
+        ? Row(
+            children: [
+              Expanded(child: row),
+              TextButton(
+                key: ValueKey('restore_${item.id}'),
+                onPressed: () => repo.restoreItem(item.id),
+                child: const Text('恢复',
+                    style: TextStyle(color: Color(0xFF007AFF))),
+              ),
+            ],
+          )
+        : row;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ReminderRow(
-          item: item,
-          onToggleCompleted: () => repo.toggleCompleted(item.id),
-          onToggleFlagged: () => repo.toggleFlagged(item.id),
-          onTap: () => widget.onSelectItem?.call(item),
-        ),
+        trashRow,
         for (final sub in subtasksByParent[item.id] ??
             const <ReminderItem>[])
           Padding(
@@ -913,7 +931,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
           return Column(
             children: [
-              _ListHeaderToolbar(
+              if (!_isTrashView)
+                _ListHeaderToolbar(
                 remainingCount: remainingCount,
                 doneCount: doneCount,
                 onClearCompleted: doneCount == 0
@@ -933,8 +952,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
           );
         },
       ),
-      // 底部工具条：iOS 提醒事项式「＋ 新提醒」（对齐线框；禁用 FAB）
-      bottomNavigationBar: BottomAppBar(
+      // 底部工具条：iOS 提醒事项式「＋ 新提醒」（对齐线框；禁用 FAB）；
+      // 最近删除视图无新建入口（Apple 口径）
+      bottomNavigationBar: _isTrashView
+          ? null
+          : BottomAppBar(
         elevation: 0,
         child: Row(
           children: [
