@@ -33,6 +33,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
     kernel.ReminderList(id: 'smart.flagged', title: '已旗标', isSmart: true),
     kernel.ReminderList(id: 'smart.urgent', title: '紧急', isSmart: true),
     kernel.ReminderList(id: 'smart.completed', title: '完成', isSmart: true),
+    kernel.ReminderList(id: 'smart.trash', title: '最近删除', isSmart: true),
   ];
 
   @override
@@ -69,6 +70,8 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       ]);
     if (listId != null && !listId.startsWith('smart.')) {
       query.where((t) => t.listId.equals(listId));
+      // 回收窗行不进普通列表（软删只在 smart.trash 出现）
+      query.where((t) => t.deletedAt.isNull());
     }
     return query.watch().map(
       (rows) => List<kernel.ReminderItem>.unmodifiable(
@@ -173,8 +176,65 @@ class DriftReminderRepository implements kernel.ReminderRepository {
 
   @override
   Future<void> deleteItem(String itemId) async {
-    // 级联删除全部后代（子任务可能多层；SQLite 端已有 FK ON DELETE CASCADE，
-    // 但外键需 PRAGMA 开启，这里显式应用层级联保证内存/Drift 行为一致）
+    // 软删级联（TC-UI-109）：本条 + 后代进 30 天回收窗（与 InMemory 同语义）
+    final cascade = await _cascadeFrom(itemId);
+    await (_db.update(_db.reminderItems)
+          ..where((t) => t.id.isIn(cascade)))
+        .write(ReminderItemsCompanion(deletedAt: Value(_now)));
+  }
+
+  @override
+  Future<void> restoreItem(String itemId) async {
+    await _db.transaction(() async {
+      final cascade = await _cascadeFrom(itemId);
+      final target = await (_db.select(_db.reminderItems)
+            ..where((t) => t.id.equals(itemId)))
+          .getSingleOrNull();
+      if (target == null) return;
+      final lists = await _db.select(_db.reminderLists).get();
+      final listAlive =
+          lists.any((l) => l.id == target.listId && !l.isSmart);
+      String? fallback;
+      if (!listAlive) {
+        for (final l in lists) {
+          if (!l.isSmart) {
+            fallback = l.id;
+            break;
+          }
+        }
+      }
+      if (fallback != null) {
+        await (_db.update(_db.reminderItems)
+              ..where((t) => t.id.isIn(cascade)))
+            .write(ReminderItemsCompanion(
+                listId: Value(fallback), deletedAt: const Value(null)));
+      } else {
+        await (_db.update(_db.reminderItems)
+              ..where((t) => t.id.isIn(cascade)))
+            .write(
+                const ReminderItemsCompanion(deletedAt: Value(null)));
+      }
+    });
+  }
+
+  @override
+  Future<int> purgeExpiredDeleted() async {
+    final cutoff =
+        _now.subtract(kernel.InMemoryReminderRepository.recycleWindow);
+    // 查后删：避免 drift 版本比较方法差异，语义与 InMemory 一致
+    final rows = await _db.select(_db.reminderItems).get();
+    final expired = rows
+        .where((r) =>
+            r.deletedAt != null && r.deletedAt!.isBefore(cutoff))
+        .map((r) => r.id)
+        .toSet();
+    if (expired.isEmpty) return 0;
+    return await (_db.delete(_db.reminderItems)
+          ..where((t) => t.id.isIn(expired)))
+        .go();
+  }
+
+  Future<Set<String>> _cascadeFrom(String itemId) async {
     final removed = <String>{itemId};
     var changed = true;
     while (changed) {
@@ -189,9 +249,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
         }
       }
     }
-    await (_db.delete(_db.reminderItems)
-          ..where((t) => t.id.isIn(removed)))
-        .go();
+    return removed;
   }
 
   @override
@@ -215,9 +273,10 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       throw ArgumentError('智能列表不可删除');
     }
     await _db.transaction(() async {
-      await (_db.delete(_db.reminderItems)
+      // 条目随列表进回收窗（软删；TC-UI-109），与 InMemory 同语义
+      await (_db.update(_db.reminderItems)
             ..where((t) => t.listId.equals(listId)))
-          .go();
+          .write(ReminderItemsCompanion(deletedAt: Value(_now)));
       await (_db.delete(_db.reminderLists)
             ..where((t) => t.id.equals(listId)))
           .go();
@@ -269,9 +328,16 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   }
 
   bool _matches(ReminderItem row, String? listId, DateTime now) {
-    if (listId == null) return true;
+    // 回收窗（TC-UI-109）：软删行只在 smart.trash 出现
+    final alive = row.deletedAt == null;
+    if (listId == null) return alive;
     return switch (listId) {
-      'smart.today' => !row.isCompleted && _isSameLocalDay(row.dueAt, now),
+      'smart.trash' =>
+        row.deletedAt != null &&
+            row.deletedAt!.isAfter(now.subtract(
+                kernel.InMemoryReminderRepository.recycleWindow)),
+      'smart.today' =>
+        alive && !row.isCompleted && _isSameLocalDay(row.dueAt, now),
       'smart.scheduled' => !row.isCompleted && row.dueAt != null,
       'smart.all' => !row.isCompleted,
       'smart.flagged' => !row.isCompleted && row.isFlagged,

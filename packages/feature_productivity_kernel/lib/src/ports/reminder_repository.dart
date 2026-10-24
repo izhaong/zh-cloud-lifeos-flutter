@@ -46,8 +46,15 @@ abstract interface class ReminderRepository {
   /// 子任务随父一起移动）。
   Future<void> moveItem(String itemId, String targetListId);
 
-  /// 删除单条提醒（级联删除其全部子任务）。
+  /// 删除单条提醒（级联其全部子任务）——软删：进「最近删除」30 天回收窗
+  /// （deletedAt；TC-UI-109/TC-API-110 本地侧），窗口外由 [purgeExpiredDeleted] 硬清。
   Future<void> deleteItem(String itemId);
+
+  /// 从「最近删除」恢复：清本条及其后代 deletedAt；原列表已删则落首个自有列表。
+  Future<void> restoreItem(String itemId);
+
+  /// 硬删回收窗超期（>30 天）条目，返回清理条数。
+  Future<int> purgeExpiredDeleted();
 
   /// 新增或更新列表（我的列表）。
   ///
@@ -68,7 +75,11 @@ final class InMemoryReminderRepository implements ReminderRepository {
     ReminderList(id: 'smart.flagged', title: '已旗标', isSmart: true),
     ReminderList(id: 'smart.urgent', title: '紧急', isSmart: true),
     ReminderList(id: 'smart.completed', title: '完成', isSmart: true),
+    ReminderList(id: 'smart.trash', title: '最近删除', isSmart: true),
   ];
+
+  /// 回收窗时长（Apple 口径 30 天）。
+  static const Duration recycleWindow = Duration(days: 30);
   InMemoryReminderRepository({bool seedSampleData = true}) {
     // 智能列表元数据恒在（不依赖种子开关；与 Drift smartLists 派生一致）
     _lists.addAll(smartListMeta);
@@ -241,7 +252,74 @@ final class InMemoryReminderRepository implements ReminderRepository {
 
   @override
   Future<void> deleteItem(String itemId) async {
-    // 级联删除全部后代（子任务可能多层）
+    // 软删级联（TC-UI-109）：本条 + 全部后代进 30 天回收窗
+    final cascade = _cascadeFrom(itemId);
+    for (var i = 0; i < _items.length; i++) {
+      if (cascade.contains(_items[i].id)) {
+        _items[i] = _copyWithDeletedAt(_items[i], _now);
+      }
+    }
+    _recount();
+    _notify();
+  }
+
+  @override
+  Future<void> restoreItem(String itemId) async {
+    final cascade = _cascadeFrom(itemId);
+    // 原列表已删 ⇒ 落首个自有列表（Apple 默认列表口径）
+    final target = _items.firstWhere((e) => e.id == itemId);
+    final listAlive =
+        _lists.any((l) => l.id == target.listId && !l.isSmart);
+    String? fallback;
+    if (!listAlive) {
+      for (final l in _lists) {
+        if (!l.isSmart) {
+          fallback = l.id;
+          break;
+        }
+      }
+    }
+    for (var i = 0; i < _items.length; i++) {
+      final e = _items[i];
+      if (!cascade.contains(e.id)) continue;
+      _items[i] = ReminderItem(
+        id: e.id,
+        listId: fallback ?? e.listId,
+        title: e.title,
+        notes: e.notes,
+        isCompleted: e.isCompleted,
+        isFlagged: e.isFlagged,
+        dueAt: e.dueAt,
+        priority: e.priority,
+        tags: e.tags,
+        recurrence: e.recurrence,
+        parentId: e.parentId,
+        sortOrder: e.sortOrder,
+        remoteId: e.remoteId,
+        completedAt: e.completedAt,
+        sectionId: e.sectionId,
+      ); // deletedAt 置空
+    }
+    _recount();
+    _notify();
+  }
+
+  @override
+  Future<int> purgeExpiredDeleted() async {
+    final cutoff = _now.subtract(recycleWindow);
+    final before = _items.length;
+    _items.removeWhere(
+        (e) => e.deletedAt != null && !e.deletedAt!.isAfter(cutoff));
+    final removed = before - _items.length;
+    if (removed > 0) {
+      _recount();
+      _notify();
+    }
+    return removed;
+  }
+
+  /// 本条 + 全部后代（子任务可能多层）。
+  Set<String> _cascadeFrom(String itemId) {
     final removed = <String>{itemId};
     var changed = true;
     while (changed) {
@@ -254,9 +332,28 @@ final class InMemoryReminderRepository implements ReminderRepository {
         }
       }
     }
-    _items.removeWhere((e) => removed.contains(e.id));
-    _recount();
-    _notify();
+    return removed;
+  }
+
+  ReminderItem _copyWithDeletedAt(ReminderItem e, DateTime at) {
+    return ReminderItem(
+      id: e.id,
+      listId: e.listId,
+      title: e.title,
+      notes: e.notes,
+      isCompleted: e.isCompleted,
+      isFlagged: e.isFlagged,
+      dueAt: e.dueAt,
+      priority: e.priority,
+      tags: e.tags,
+      recurrence: e.recurrence,
+      parentId: e.parentId,
+      sortOrder: e.sortOrder,
+      remoteId: e.remoteId,
+      completedAt: e.completedAt,
+      sectionId: e.sectionId,
+      deletedAt: at,
+    );
   }
 
   @override
@@ -276,11 +373,14 @@ final class InMemoryReminderRepository implements ReminderRepository {
 
   @override
   Future<void> deleteList(String listId) async {
-    if (listId.startsWith('smart.')) {
-      throw ArgumentError('智能列表不可删除');
+    // 条目随列表进回收窗（软删）；列表本身移除
+    for (var i = 0; i < _items.length; i++) {
+      if (_items[i].listId == listId) {
+        _items[i] = _copyWithDeletedAt(_items[i], _now);
+      }
     }
-    _lists.removeWhere((e) => e.id == listId);
-    _items.removeWhere((e) => e.listId == listId);
+    _lists.removeWhere((l) => l.id == listId);
+    _recount();
     _notify();
   }
 
@@ -330,22 +430,27 @@ final class InMemoryReminderRepository implements ReminderRepository {
   }
 
   Iterable<ReminderItem> _filter(String? listId, DateTime now) {
-    if (listId == null) return _items;
+    // 回收窗（TC-UI-109）：软删条目只在 smart.trash 出现
+    final alive = _items.where((e) => e.deletedAt == null);
+    if (listId == null) return alive;
     return switch (listId) {
-      'smart.today' => _items.where(
+      'smart.trash' => _items.where((e) =>
+          e.deletedAt != null &&
+          e.deletedAt!.isAfter(now.subtract(recycleWindow))),
+      'smart.today' => alive.where(
           (e) => !e.isCompleted && _isSameLocalDay(e.dueAt, now)),
       'smart.scheduled' =>
-          _items.where((e) => !e.isCompleted && e.dueAt != null),
-      'smart.all' => _items.where((e) => !e.isCompleted),
-      'smart.flagged' => _items.where((e) => !e.isCompleted && e.isFlagged),
-      'smart.urgent' => _items.where((e) =>
+          alive.where((e) => !e.isCompleted && e.dueAt != null),
+      'smart.all' => alive.where((e) => !e.isCompleted),
+      'smart.flagged' => alive.where((e) => !e.isCompleted && e.isFlagged),
+      'smart.urgent' => alive.where((e) =>
           !e.isCompleted &&
           (e.priority >= 9 ||
               (e.dueAt != null &&
                   !e.dueAt!.isAfter(now) &&
                   _isSameLocalDay(e.dueAt, now)))),
-      'smart.completed' => _items.where((e) => e.isCompleted),
-      _ => _items.where((e) => e.listId == listId),
+      'smart.completed' => alive.where((e) => e.isCompleted),
+      _ => alive.where((e) => e.listId == listId),
     };
   }
 

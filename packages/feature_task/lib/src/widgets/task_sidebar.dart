@@ -1,14 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
-/// iPad/macOS 左侧栏：智能列表 + 我的列表 + 底部操作区
+import '../providers.dart';
+
+/// iPad/macOS 左侧栏：智能列表 + 标签浏览器 + 我的列表 + 底部操作区
 /// （添加列表 / 隐藏侧栏 / 设置；对齐线框 Pad端与客户端画板）。
 ///
 /// 布局无关的纯内容组件；选中态由外部路由/状态驱动；
 /// 底部动作由宿主注入回调（设置面板等 UI 态不放路由）。
-class TaskSidebar extends StatelessWidget {
+class TaskSidebar extends ConsumerWidget {
   const TaskSidebar({
     super.key,
     required this.lists,
@@ -27,9 +30,17 @@ class TaskSidebar extends StatelessWidget {
   final VoidCallback? onOpenSettings;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final smart = lists.where((e) => e.isSmart).toList(growable: false);
     final mine = lists.where((e) => !e.isSmart).toList(growable: false);
+    // 标签浏览器（TC-UI-117）：全部未删条目的去重标签；
+    // 点选 = 写全局搜索词（过滤管线已按标题/备注/标签匹配）
+    final tagsAsync = ref.watch(itemsForListProvider(null));
+    final tags = (tagsAsync.asData?.value ?? const <ReminderItem>[])
+        .expand((e) => e.tags)
+        .toSet()
+        .toList(growable: false)
+      ..sort();
 
     return Material(
       color: const Color(0xFFF2F2F7),
@@ -47,6 +58,27 @@ class TaskSidebar extends StatelessWidget {
                       selected: list.id == selectedListId,
                       onTap: () => onSelect(list),
                     ),
+                ],
+                if (tags.isNotEmpty) ...[
+                  const _SectionLabel('标签'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final tag in tags)
+                          ActionChip(
+                            key: ValueKey('tag_chip_$tag'),
+                            label: Text(tag),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => ref
+                                .read(searchQueryProvider.notifier)
+                                .set(tag),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
                 if (mine.isNotEmpty) ...[
                   const _SectionLabel('我的列表'),
@@ -212,6 +244,7 @@ class _SidebarTile extends StatelessWidget {
       'smart.flagged' => CupertinoIcons.flag_fill,
       'smart.urgent' => CupertinoIcons.exclamationmark_triangle_fill,
       'smart.completed' => CupertinoIcons.checkmark_alt_circle,
+      'smart.trash' => CupertinoIcons.trash,
       _ => CupertinoIcons.list_bullet,
     };
   }
