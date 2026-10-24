@@ -78,3 +78,26 @@ curl http://<host>:48080/app-api/lifeos/task/ping   # → {"module":"yudao-modul
 | TC-REG-105 千级性能 | ✅ 已自动化（1000 条 <10s + 搜索在线；真机 jank 属手动） | 本 PR |
 | TC-REG-112 边界 grep | ✅ 已执行（四组 grep 全零命中） | 本 PR |
 | TC-REG-101/103/104/106/109/110/111 | 手动（本清单） | 待设备走查归档 |
+
+---
+
+## 实机复验记录（2026-10-24，macOS）
+
+### 批 1–2 修复项（PR 分支 fix/m5-parity-gaps，cursor 图评两轮）
+
+| 项 | 状态 | 证据 |
+|----|------|------|
+| P0-1 侧栏顶小图标（新建\|隐藏\|设置） | ✅ cursor r3 图评确认 | 无底栏三等分钮 |
+| P2 搜索细边白底/侧栏浅灰/空态引导 | ✅ cursor r3 图评确认 | 图评原文「已修复」 |
+| P0-2 顶栏＋ | ✅ cursor r3 图评确认 | `toolbar_new_item` 可见 |
+| P0-2 空列表大标题 | ✅ 第 3 批重构+回归测试 | `tc_reg_regression_test.dart` descendant 断言 |
+| P0-5 空列表+⌘N 草稿行 | ✅ `_showDraft` 守卫+回归测试 | 同上（工具栏＋点击路径全绿） |
+| P0-3 0 完成无「清除」 | ✅ 代码 doneCount>0 才渲染 | `_ListHeaderToolbar` |
+| P1-2 ⋯ 菜单 | ✅ PopupMenuButton | `list_more_menu` |
+
+### 截图归档
+- `docs/m5-regression-evidence/macos-main-after-parity-batch3.png`（第三批后主界面，精确窗口区域截屏）
+
+### 待续（cursor 额度 11/18 重置后补跑）
+- ⌘N 系统级快捷键实机走查（辅助访问权限需用户授予 osascript；自动化侧 19 项测试已覆盖行为）
+- P2 质感收敛：底栏＋样式、侧栏角标全量、分享钮、设置图1 真身（列于下一批清单）
