@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show OrderingTerm, Value;
+import 'package:drift/drift.dart'
+    show OrderingTerm, Value, BooleanExpressionOperators;
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart'
     as kernel;
@@ -54,6 +55,8 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             isSmart: row.isSmart,
             itemCount: _count(itemRows, row.id, now),
             sortOrder: row.sortOrder,
+            sections: _sortedSections(_decodeSections(row.sectionsJson)),
+            groupName: row.groupName,
           ),
       ];
     });
@@ -276,8 +279,131 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             title: list.title,
             colorArgb: Value(list.colorArgb),
             sortOrder: Value(list.sortOrder),
+            groupName: Value(list.groupName),
           ),
         );
+  }
+
+  // ---- 手动分区（TC-KR-118；元数据 JSON 列，条目 sectionId 挂靠）----
+
+  List<kernel.ReminderSection> _decodeSections(String? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .whereType<Map>()
+            .map((m) => kernel.ReminderSection(
+                  id: m['id'] as String,
+                  title: m['title'] as String,
+                  sortOrder: (m['sortOrder'] as num?)?.toInt() ?? 0,
+                ))
+            .toList(growable: false);
+      }
+    } catch (_) {}
+    return const [];
+  }
+
+  String _encodeSections(List<kernel.ReminderSection> sections) =>
+      jsonEncode([
+        for (final s in sections)
+          {'id': s.id, 'title': s.title, 'sortOrder': s.sortOrder},
+      ]);
+
+  /// 分区排序契约（sortOrder asc, id asc）。
+  List<kernel.ReminderSection> _sortedSections(
+    List<kernel.ReminderSection> sections,
+  ) {
+    final list = [...sections]..sort((a, b) {
+        final byOrder = a.sortOrder.compareTo(b.sortOrder);
+        return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
+      });
+    return list;
+  }
+
+  Future<void> _writeSections(
+    String listId,
+    List<kernel.ReminderSection> sections,
+  ) async {
+    await (_db.update(_db.reminderLists)
+          ..where((t) => t.id.equals(listId)))
+        .write(ReminderListsCompanion(
+      sectionsJson: Value(_encodeSections(_sortedSections(sections))),
+    ));
+  }
+
+  @override
+  Future<void> upsertSection({
+    required String listId,
+    required kernel.ReminderSection section,
+  }) async {
+    final row = await (_db.select(_db.reminderLists)
+          ..where((t) => t.id.equals(listId)))
+        .getSingleOrNull();
+    if (row == null) return;
+    final sections = [..._decodeSections(row.sectionsJson)];
+    final i = sections.indexWhere((e) => e.id == section.id);
+    if (i >= 0) {
+      sections[i] = section;
+    } else {
+      sections.add(section);
+    }
+    await _writeSections(listId, sections);
+  }
+
+  @override
+  Future<void> reorderSection({
+    required String listId,
+    required List<String> sectionIds,
+  }) async {
+    final row = await (_db.select(_db.reminderLists)
+          ..where((t) => t.id.equals(listId)))
+        .getSingleOrNull();
+    if (row == null) return;
+    final sections = _decodeSections(row.sectionsJson);
+    final byId = {
+      for (final s in sections) s.id: s,
+    };
+    final ordered = <kernel.ReminderSection>[];
+    final seen = <String>{};
+    for (final id in sectionIds) {
+      final s = byId[id];
+      if (s == null || seen.contains(id)) continue;
+      seen.add(id);
+      ordered.add(s.copyWith(sortOrder: ordered.length));
+    }
+    for (final s in sections) {
+      if (!seen.contains(s.id)) {
+        ordered.add(s.copyWith(sortOrder: ordered.length));
+      }
+    }
+    await _writeSections(listId, ordered);
+  }
+
+  @override
+  Future<void> deleteSection({
+    required String listId,
+    required String sectionId,
+  }) async {
+    final row = await (_db.select(_db.reminderLists)
+          ..where((t) => t.id.equals(listId)))
+        .getSingleOrNull();
+    if (row == null) return;
+    final sections = _decodeSections(row.sectionsJson)
+        .where((e) => e.id != sectionId)
+        .toList(growable: false);
+    // 级联：挂靠条目兜底「未分区」（drift where 多条件：先查后逐条更新）
+    final rows = await (_db.select(_db.reminderItems)
+          ..where((t) => t.listId.equals(listId) & t.sectionId.isNotNull()))
+        .get();
+    final targeted =
+        rows.where((r) => r.sectionId == sectionId).toList(growable: false);
+    for (final r in targeted) {
+      await (_db.update(_db.reminderItems)
+            ..where((t) => t.id.equals(r.id)))
+          .write(const ReminderItemsCompanion(sectionId: Value(null)));
+    }
+    await _writeSections(listId, sections);
   }
 
   @override

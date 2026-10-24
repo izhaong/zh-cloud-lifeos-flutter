@@ -209,4 +209,25 @@ class _CountingRepo implements ReminderRepository {
 
   @override
   Future<void> deleteList(String listId) => _inner.deleteList(listId);
+
+  @override
+  Future<void> upsertSection({
+    required String listId,
+    required ReminderSection section,
+  }) =>
+      _inner.upsertSection(listId: listId, section: section);
+
+  @override
+  Future<void> reorderSection({
+    required String listId,
+    required List<String> sectionIds,
+  }) =>
+      _inner.reorderSection(listId: listId, sectionIds: sectionIds);
+
+  @override
+  Future<void> deleteSection({
+    required String listId,
+    required String sectionId,
+  }) =>
+      _inner.deleteSection(listId: listId, sectionId: sectionId);
 }

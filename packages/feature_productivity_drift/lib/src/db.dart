@@ -10,6 +10,14 @@ class ReminderLists extends Table {
   BoolColumn get isSmart => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
+  /// 手动分区元数据 JSON（[{id,title,sortOrder}]；TC-KR-118）。
+  /// nullable：V3→V4 增列时旧行为 NULL，读取侧兜底空分区。
+  TextColumn get sectionsJson =>
+      text().nullable().withDefault(const Constant('[]'))();
+
+  /// 列表分组名（TC-UI-118；NULL = 不分组）。
+  TextColumn get groupName => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -63,7 +71,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -102,6 +110,14 @@ class LifeProductivityDb extends _$LifeProductivityDb {
               Index('idx_items_remote', 'CREATE INDEX idx_items_remote '
                   'ON reminder_items (remote_id)'),
             );
+          }
+          if (from <= 3 && to >= 4) {
+            // V4（Issue #2 / M2）：手动分区元数据（TC-KR-118）
+            await m.addColumn(reminderLists, reminderLists.sectionsJson);
+          }
+          if (from <= 4 && to >= 5) {
+            // V5（Issue #2 / M2）：列表分组（TC-UI-118，降级=列表分组）
+            await m.addColumn(reminderLists, reminderLists.groupName);
           }
         },
       );
