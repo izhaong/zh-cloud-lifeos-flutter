@@ -945,34 +945,12 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('加载失败：$e')),
         data: (items) {
-          if (query.trim().isNotEmpty && items.isEmpty) {
-            return const Center(child: Text('无匹配结果'));
-          }
-          if (items.isEmpty && !_isTrashView) {
-            // 空态引导（图2 空列表节奏）：整区可点新建（等同底栏 ＋）
-            return GestureDetector(
-              key: const ValueKey('empty_new_hint'),
-              behavior: HitTestBehavior.opaque,
-              onTap: _openNewItemDialog,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(CupertinoIcons.plus_circle,
-                        size: 40, color: Color(widget.list.colorArgb).withValues(alpha: 0.5)),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '没有提醒',
-                      style: TextStyle(fontSize: 17, color: Color(0xFF8E8E93)),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      '点按此处或「＋ 新提醒」添加',
-                      style: TextStyle(fontSize: 13, color: Color(0xFFC7C7CC)),
-                    ),
-                  ],
-                ),
-              ),
+          final isSearchEmpty = query.trim().isNotEmpty && items.isEmpty;
+          final isListEmpty = items.isEmpty && !_isTrashView && !isSearchEmpty;
+          if (isSearchEmpty) {
+            return const Center(
+              key: Key('search_empty'),
+              child: Text('无匹配结果'),
             );
           }
           // 顶层与子任务分组（watchItems 返回全层级；孤儿/环按顶层兜底）
@@ -1032,6 +1010,39 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
           return Column(
             children: [
+              if (isListEmpty)
+                // 空态引导（图2 空列表节奏；不短路——大标题/工具行/草稿行照常）
+                Expanded(
+                  child: GestureDetector(
+                    key: const ValueKey('empty_new_hint'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _openNewItemDialog,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(CupertinoIcons.plus_circle,
+                              size: 40,
+                              color: Color(widget.list.colorArgb)
+                                  .withValues(alpha: 0.5)),
+                          const SizedBox(height: 8),
+                          const Text(
+                            '没有提醒',
+                            style: TextStyle(
+                                fontSize: 17, color: Color(0xFF8E8E93)),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            '点按此处或「＋ 新提醒」添加',
+                            style: TextStyle(
+                                fontSize: 13, color: Color(0xFFC7C7CC)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              else ...[
               if (isPane && !_isTrashView)
                 // macOS 大标题（图2）：列表色大字进内容区（宽屏 AppBar 无 title）
                 Padding(
@@ -1066,6 +1077,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               Expanded(
                 child: ListView(children: rows),
               ),
+              ],
             ],
           );
         },
