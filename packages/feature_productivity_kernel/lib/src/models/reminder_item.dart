@@ -32,6 +32,7 @@ final class ReminderItem extends Equatable {
     this.priority = 0,
     this.tags = const [],
     this.recurrence,
+    this.recurrenceUntil,
     this.parentId,
     this.sortOrder = 0,
     this.remoteId,
@@ -57,6 +58,9 @@ final class ReminderItem extends Equatable {
 
   /// 重复规则 id（见 [Recurrence]；null = 不重复）。
   final String? recurrence;
+
+  /// 重复结束日期（T-04：本地日期；含当天仍出现，次日不再滚动；null = 永不结束）。
+  final DateTime? recurrenceUntil;
 
   /// 子任务的父提醒 id；null = 顶层提醒。
   final String? parentId;
@@ -99,6 +103,7 @@ final class ReminderItem extends Equatable {
     int? priority,
     Object? tags = const _Unset(),
     Object? recurrence = const _Unset(),
+    Object? recurrenceUntil = const _Unset(),
     Object? parentId = const _Unset(),
     int? sortOrder,
     Object? remoteId = const _Unset(),
@@ -133,6 +138,11 @@ final class ReminderItem extends Equatable {
           : recurrence is _Unset
               ? this.recurrence
               : recurrence as String?,
+      recurrenceUntil: recurrenceUntil is _Clear
+          ? null
+          : recurrenceUntil is _Unset
+              ? this.recurrenceUntil
+              : recurrenceUntil as DateTime?,
       parentId: parentId is _Clear
           ? null
           : parentId is _Unset
@@ -180,6 +190,7 @@ final class ReminderItem extends Equatable {
         completedAt,
         sectionId,
         deletedAt,
+        recurrenceUntil,
       ];
 }
 

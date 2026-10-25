@@ -121,15 +121,29 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       final cur = _toModel(row);
       final rule = cur.recurrenceRule;
       if (rule != null && !cur.isCompleted && cur.dueAt != null) {
-        // 完成带重复规则的条目：滚动下一次 dueAt，完成态回 false
         final next = rule.nextOccurrence(cur.dueAt!, _now);
-        await (_db.update(_db.reminderItems)
-              ..where((t) => t.id.equals(itemId)))
-            .write(ReminderItemsCompanion(
-          dueAt: Value(next),
-          isCompleted: const Value(false),
-          completedAt: const Value(null),
-        ));
+        // T-04（cursor R1）：与 InMemory 同口径——next 越过 recurrenceUntil
+        // 当天结束 → 真完成不滚动；否则滚动
+        final until = cur.recurrenceUntil;
+        final pastEnd = until != null &&
+            next.isAfter(
+                DateTime(until.year, until.month, until.day, 23, 59, 59, 999));
+        if (pastEnd) {
+          await (_db.update(_db.reminderItems)
+                ..where((t) => t.id.equals(itemId)))
+              .write(ReminderItemsCompanion(
+            isCompleted: const Value(true),
+            completedAt: Value(_now),
+          ));
+        } else {
+          await (_db.update(_db.reminderItems)
+                ..where((t) => t.id.equals(itemId)))
+              .write(ReminderItemsCompanion(
+            dueAt: Value(next),
+            isCompleted: const Value(false),
+            completedAt: const Value(null),
+          ));
+        }
       } else {
         // 完成时间联动（服务端 completedAt 对齐）：完成记当下，取消清空
         await (_db.update(_db.reminderItems)
@@ -544,6 +558,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       priority: row.priority,
       tags: _decodeTags(row.tags),
       recurrence: row.recurrence,
+      recurrenceUntil: row.recurrenceUntil,
       parentId: row.parentId,
       sortOrder: row.sortOrder,
       remoteId: row.remoteId,
@@ -565,6 +580,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       priority: Value(item.priority),
       tags: Value(_encodeTags(item.tags)),
       recurrence: Value(item.recurrence),
+      recurrenceUntil: Value(item.recurrenceUntil),
       parentId: Value(item.parentId),
       sortOrder: Value(item.sortOrder),
       remoteId: Value(item.remoteId),

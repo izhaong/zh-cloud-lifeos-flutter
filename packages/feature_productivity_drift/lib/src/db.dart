@@ -45,6 +45,9 @@ class ReminderItems extends Table {
   /// 重复规则 id（见 kernel Recurrence；null = 不重复）。
   TextColumn get recurrence => text().nullable()();
 
+  /// T-04：重复结束日期（本地日期；null = 永不结束）。
+  DateTimeColumn get recurrenceUntil => dateTime().nullable()();
+
   /// 子任务的父提醒 id；null = 顶层。
   TextColumn get parentId => text().nullable()();
 
@@ -199,7 +202,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -251,6 +254,10 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // V6（Issue #2 / M2）：清单类型 + 自定义智能列表条件
             await m.addColumn(reminderLists, reminderLists.listType);
             await m.addColumn(reminderLists, reminderLists.smartFilter);
+          }
+          if (from <= 7 && to >= 8) {
+            // V8（T-04 / TC-UI-319）：重复结束日期
+            await m.addColumn(reminderItems, reminderItems.recurrenceUntil);
           }
           if (from < 7) {
             // V7（lifeos/calendar F-02 / TC-CAL-KR-501）：只建三张日历表 + 时间窗索引

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
@@ -320,6 +321,132 @@ void main() {
     expect(v2row.sectionId, isNull);
     expect(v2row.deletedAt, isNull);
     await db3.close();
+  });
+
+  test('V6→V8 迁移（T-04）：recurrence_until 列默认 NULL、可往返', () async {
+    final raw = sqlite3.sqlite3.openInMemory();
+    // V6 基线 = V1 + D6 列 + 契约四列 + 分区/分组/类型 JSON（不含日历表、不含 until）
+    raw.execute('''
+      CREATE TABLE reminder_items (
+        id TEXT NOT NULL PRIMARY KEY,
+        list_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        notes TEXT NULL,
+        is_completed INTEGER NOT NULL DEFAULT 0,
+        is_flagged INTEGER NOT NULL DEFAULT 0,
+        due_at INTEGER NULL,
+        priority INTEGER NOT NULL DEFAULT 0,
+        tags TEXT NOT NULL DEFAULT '[]',
+        recurrence TEXT NULL,
+        parent_id TEXT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        remote_id TEXT NULL,
+        completed_at INTEGER NULL,
+        section_id TEXT NULL,
+        deleted_at INTEGER NULL
+      );
+    ''');
+    raw.execute('''
+      CREATE TABLE reminder_lists (
+        id TEXT NOT NULL PRIMARY KEY,
+        title TEXT NOT NULL,
+        color_argb INTEGER NOT NULL DEFAULT 4280327039,
+        is_smart INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        sections_json TEXT NULL,
+        group_name TEXT NULL,
+        list_type TEXT NULL,
+        smart_filter TEXT NULL
+      );
+    ''');
+    raw.execute(
+      'INSERT INTO reminder_items (id, list_id, title, recurrence) '
+      "VALUES ('v6row', 'list.x', 'V6 条目', 'daily')",
+    );
+    raw.execute('PRAGMA user_version = 6');
+
+    final db8 = LifeProductivityDb(NativeDatabase.opened(raw));
+    final row = (await db8.select(db8.reminderItems).get())
+        .singleWhere((e) => e.id == 'v6row');
+    expect(row.title, 'V6 条目'); // 旧数据保留
+    expect(row.recurrence, 'daily');
+    expect(row.recurrenceUntil, isNull, reason: 'V8 新列默认 NULL'); // T-04 新列
+
+    // 往返：写入结束日期再读回
+    await (db8.update(db8.reminderItems)
+          ..where((t) => t.id.equals('v6row')))
+        .write(ReminderItemsCompanion(
+      recurrenceUntil: Value(DateTime(2026, 12, 31)),
+    ));
+    final back = (await db8.select(db8.reminderItems).get())
+        .singleWhere((e) => e.id == 'v6row');
+    expect(back.recurrenceUntil, DateTime(2026, 12, 31));
+    expect(db8.schemaVersion, 8);
+    await db8.close();
+  });
+
+  test('T-04 生产守卫：drift toggleCompleted 越过结束日 → 真完成不滚动（cursor R1）',
+      () async {
+    final today = DateTime.now();
+    await repo.upsertItem(ReminderItem(
+      id: 'until1',
+      listId: 'list.personal',
+      title: '每天喝水',
+      dueAt: today,
+      recurrence: 'daily',
+      recurrenceUntil: today, // 今天=结束日
+    ));
+
+    await repo.toggleCompleted('until1');
+
+    final after = (await repo.watchItems().first)
+        .singleWhere((e) => e.id == 'until1');
+    expect(after.isCompleted, isTrue, reason: '越界 → 真完成（drift 生产路径）');
+    // drift 秒级存储截断毫秒——日期级比较
+    expect(after.dueAt!.year, today.year);
+    expect(after.dueAt!.month, today.month);
+    expect(after.dueAt!.day, today.day, reason: 'dueAt 不滚动（日期级）');
+
+    // 未越界对照
+    await repo.upsertItem(ReminderItem(
+      id: 'until2',
+      listId: 'list.personal',
+      title: '每天读书',
+      dueAt: today,
+      recurrence: 'daily',
+      recurrenceUntil: today.add(const Duration(days: 30)),
+    ));
+    await repo.toggleCompleted('until2');
+    final after2 = (await repo.watchItems().first)
+        .singleWhere((e) => e.id == 'until2');
+    expect(after2.isCompleted, isFalse, reason: '未越界 → 滚动');
+  });
+
+  test('T-04 守卫扩展：moveItem/恢复/软删后 recurrenceUntil 不丢（cursor R1）', () async {
+    final today = DateTime.now();
+    await repo.upsertItem(ReminderItem(
+      id: 'keep-until',
+      listId: 'list.personal',
+      title: '移动保留',
+      dueAt: today,
+      recurrence: 'daily',
+      recurrenceUntil: DateTime(2026, 12, 31),
+    ));
+    await repo.upsertList(const ReminderList(
+        id: 'list.work', title: '工作', colorArgb: 0xFF007AFF));
+
+    await repo.moveItem('keep-until', 'list.work');
+    var row = (await repo.watchItems().first)
+        .singleWhere((e) => e.id == 'keep-until');
+    expect(row.recurrenceUntil, DateTime(2026, 12, 31),
+        reason: '移动后结束日不丢');
+
+    await repo.deleteItem('keep-until');
+    await repo.restoreItem('keep-until');
+    row = (await repo.watchItems().first)
+        .singleWhere((e) => e.id == 'keep-until');
+    expect(row.recurrenceUntil, DateTime(2026, 12, 31),
+        reason: '软删恢复后结束日不丢');
   });
 
   test('契约字段（remoteId/completedAt/sectionId/deletedAt）经仓库往返',
