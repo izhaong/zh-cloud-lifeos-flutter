@@ -101,9 +101,23 @@ class TaskScaffold extends ConsumerWidget {
                   TextButton(
                     key: const ValueKey('undo_complete'),
                     onPressed: () {
-                      final snapshot = undo;
+                      // cursor T-03 评审：整条快照回写会静默覆盖完成后已保存的
+                      // 标题/备注/旗标等。撤销只回退完成态（completedAt 清回），
+                      // 其余字段取**当前最新**行。
                       ref.read(completionUndoProvider.notifier).clear();
-                      ref.read(reminderRepositoryProvider).upsertItem(snapshot);
+                      final repo = ref.read(reminderRepositoryProvider);
+                      repo
+                          .watchItems()
+                          .first
+                          .then((all) async {
+                        final latest = all.firstWhere(
+                          (e) => e.id == undo.id,
+                          orElse: () => undo,
+                        );
+                        if (latest.isCompleted) {
+                          await repo.toggleCompleted(latest.id);
+                        }
+                      });
                     },
                     child: const Text('撤销'),
                   ),
