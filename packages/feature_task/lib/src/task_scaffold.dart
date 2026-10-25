@@ -499,7 +499,10 @@ class _TwoPane extends ConsumerWidget {
                   ref.read(sidebarVisibleProvider.notifier).toggle(),
               onOpenSettings: () => showTaskSettingsSheet(
                     context,
-                    onOpenCloudLogin: (_) => onOpenCloudLogin?.call(),
+                    // 恒非 null 闭包会破坏「空=弱化文案」契约——传本体（null 即弱化）
+                    onOpenCloudLogin: onOpenCloudLogin == null
+                        ? null
+                        : (_) => onOpenCloudLogin!.call(),
                   ),
             ),
           ),
@@ -599,8 +602,9 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
                   ref.read(sidebarVisibleProvider.notifier).toggle(),
               onOpenSettings: () => showTaskSettingsSheet(
                     context,
-                    onOpenCloudLogin: (_) =>
-                        widget.onOpenCloudLogin?.call(),
+                    onOpenCloudLogin: widget.onOpenCloudLogin == null
+                        ? null
+                        : (_) => widget.onOpenCloudLogin!.call(),
                   ),
             ),
           ),

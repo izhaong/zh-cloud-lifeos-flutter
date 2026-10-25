@@ -33,9 +33,9 @@ class _CloudLoginPageState extends ConsumerState<CloudLoginPage> {
       if (mounted) Navigator.of(context).pop(true);
     } on AuthFailureException catch (e) {
       // TC-SYNC-104：明确失败提示；不落半登录态（AuthPort 契约保证）
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = '网络异常，请重试');
+      if (mounted) setState(() => _error = '网络异常，请重试');
     } finally {
       if (mounted) setState(() => _busy = false);
     }

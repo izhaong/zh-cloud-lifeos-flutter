@@ -1,7 +1,9 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_task/feature_task.dart';
+import 'package:feature_task_cloud/feature_task_cloud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -141,6 +143,13 @@ class _TaskTabEntryState extends ConsumerState<TaskTabEntry> {
     return TaskScaffold(
       openListId: openListId,
       selectedItemId: _selectedItemId,
+      // T-05（cursor R1-2）：设置「开启云同步」→ 登录页（cloud 侧实现；跳过不挡本地）
+      onOpenCloudLogin: () => Navigator.of(context, rootNavigator: true).push(
+        CupertinoPageRoute<bool>(
+          fullscreenDialog: true,
+          builder: (_) => const CloudLoginPage(),
+        ),
+      ),
       onOpenList: (id) {
         setState(() => _selectedItemId = null);
         if (sizeClass.isPaneLayout) {
