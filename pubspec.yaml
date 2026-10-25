@@ -14,6 +14,7 @@ workspace:
   - packages/feature_productivity_drift
   - packages/feature_task
   - packages/feature_task_cloud
+  - packages/feature_calendar
 
 dev_dependencies:
   melos: ^8.9.0
@@ -22,6 +23,9 @@ dev_dependencies:
 # Flutter 3.44 / Dart 3.12.2 与 sqlite3→hooks 传递依赖临时对齐；升级 Flutter 后删除
 dependency_overrides:
   hooks: 2.0.0
+  # table_calendar(^0.20.3) 与 cupertino_calendar_picker 2.x(经 flutter_localizations 钉 0.20.2)
+  # 冲突；SDK 自带 flutter_localizations 即 0.20.2，钉齐（F-03 ADR，见 #21）
+  intl: 0.20.2
 
 # Melos 8 脚本（melos.yaml 已不被 8.9 读取，脚本必须在此处）
 melos:
