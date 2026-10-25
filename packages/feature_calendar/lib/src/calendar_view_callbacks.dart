@@ -33,6 +33,24 @@ class CalendarViewCallbacks {
     return draft;
   }
 
+  /// TC-CAL-UI-131：月视图点/双击某日 → 全天草稿（标题空）。
+  void onDayTap(DateTime date) {
+    final dayStart = DateTime(date.year, date.month, date.day);
+    setDraft(
+      CalendarEvent(
+        id: 'draft',
+        calendarId: '',
+        uid: '',
+        title: '',
+        startAt: dayStart.toUtc(),
+        endAt: dayStart.add(const Duration(days: 1)).toUtc(),
+        allDay: true,
+        timeZone: 'UTC',
+        updatedAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
   /// TC-CAL-UI-135：拖动改时间 → 仓库 startAt 变化。
   /// TC-CAL-UI-139：全天行拖多日 → end 排他（周四 00:00）。
   Future<void> onEventMoved(
