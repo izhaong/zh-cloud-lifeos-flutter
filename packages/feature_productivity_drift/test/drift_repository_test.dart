@@ -385,6 +385,70 @@ void main() {
     await db8.close();
   });
 
+  test('T-04 生产守卫：drift toggleCompleted 越过结束日 → 真完成不滚动（cursor R1）',
+      () async {
+    final today = DateTime.now();
+    await repo.upsertItem(ReminderItem(
+      id: 'until1',
+      listId: 'list.personal',
+      title: '每天喝水',
+      dueAt: today,
+      recurrence: 'daily',
+      recurrenceUntil: today, // 今天=结束日
+    ));
+
+    await repo.toggleCompleted('until1');
+
+    final after = (await repo.watchItems().first)
+        .singleWhere((e) => e.id == 'until1');
+    expect(after.isCompleted, isTrue, reason: '越界 → 真完成（drift 生产路径）');
+    // drift 秒级存储截断毫秒——日期级比较
+    expect(after.dueAt!.year, today.year);
+    expect(after.dueAt!.month, today.month);
+    expect(after.dueAt!.day, today.day, reason: 'dueAt 不滚动（日期级）');
+
+    // 未越界对照
+    await repo.upsertItem(ReminderItem(
+      id: 'until2',
+      listId: 'list.personal',
+      title: '每天读书',
+      dueAt: today,
+      recurrence: 'daily',
+      recurrenceUntil: today.add(const Duration(days: 30)),
+    ));
+    await repo.toggleCompleted('until2');
+    final after2 = (await repo.watchItems().first)
+        .singleWhere((e) => e.id == 'until2');
+    expect(after2.isCompleted, isFalse, reason: '未越界 → 滚动');
+  });
+
+  test('T-04 守卫扩展：moveItem/恢复/软删后 recurrenceUntil 不丢（cursor R1）', () async {
+    final today = DateTime.now();
+    await repo.upsertItem(ReminderItem(
+      id: 'keep-until',
+      listId: 'list.personal',
+      title: '移动保留',
+      dueAt: today,
+      recurrence: 'daily',
+      recurrenceUntil: DateTime(2026, 12, 31),
+    ));
+    await repo.upsertList(const ReminderList(
+        id: 'list.work', title: '工作', colorArgb: 0xFF007AFF));
+
+    await repo.moveItem('keep-until', 'list.work');
+    var row = (await repo.watchItems().first)
+        .singleWhere((e) => e.id == 'keep-until');
+    expect(row.recurrenceUntil, DateTime(2026, 12, 31),
+        reason: '移动后结束日不丢');
+
+    await repo.deleteItem('keep-until');
+    await repo.restoreItem('keep-until');
+    row = (await repo.watchItems().first)
+        .singleWhere((e) => e.id == 'keep-until');
+    expect(row.recurrenceUntil, DateTime(2026, 12, 31),
+        reason: '软删恢复后结束日不丢');
+  });
+
   test('契约字段（remoteId/completedAt/sectionId/deletedAt）经仓库往返',
       () async {
     await repo.upsertList(
