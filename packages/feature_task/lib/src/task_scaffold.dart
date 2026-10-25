@@ -55,7 +55,7 @@ class TaskScaffold extends ConsumerWidget {
       error: (e, _) => Center(child: Text('加载失败：$e')),
       data: (lists) {
         // 快捷键层（⌘N 新建 / ⌘F 搜索）包裹三档外壳；触屏端无物理键不影响
-        return TaskShortcuts(
+        final panes = TaskShortcuts(
           child: switch (sizeClass) {
           WindowSizeClass.compact => openListId == null
               ? _CompactPane(
@@ -83,6 +83,35 @@ class TaskScaffold extends ConsumerWidget {
               onSelectItem: onSelectItem,
             ),
           },
+        );
+        final undo = ref.watch(completionUndoProvider);
+        if (undo == null) return panes;
+        return Column(
+          children: [
+            Material(
+              color: const Color(0xFFF2F2F7),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(left: 16),
+                      child: Text('已完成'),
+                    ),
+                  ),
+                  TextButton(
+                    key: const ValueKey('undo_complete'),
+                    onPressed: () {
+                      final snapshot = undo;
+                      ref.read(completionUndoProvider.notifier).clear();
+                      ref.read(reminderRepositoryProvider).upsertItem(snapshot);
+                    },
+                    child: const Text('撤销'),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: panes),
+          ],
         );
       },
     );
@@ -292,7 +321,7 @@ class _HomeSearchResults extends ConsumerWidget {
                 ReminderRow(
                   item: items[i],
                   onToggleCompleted: () =>
-                      repo.toggleCompleted(items[i].id),
+                      completeReminder(ref, items[i]),
                   onToggleFlagged: () => repo.toggleFlagged(items[i].id),
                   onTap: () => onSelectItem?.call(items[i]),
                 ),
@@ -790,7 +819,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     final repo = ref.read(reminderRepositoryProvider);
     final row = ReminderRow(
       item: item,
-      onToggleCompleted: () => repo.toggleCompleted(item.id),
+      onToggleCompleted: () => completeReminder(ref, item),
       onToggleFlagged: () => repo.toggleFlagged(item.id),
       onTap: () => widget.onSelectItem?.call(item),
     );
@@ -819,7 +848,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
             child: ReminderRow(
               item: sub,
               dense: true,
-              onToggleCompleted: () => repo.toggleCompleted(sub.id),
+              onToggleCompleted: () => completeReminder(ref, sub),
               onToggleFlagged: () => repo.toggleFlagged(sub.id),
             ),
           ),
