@@ -65,8 +65,8 @@ class CalendarToolbar extends ConsumerWidget {
               ),
               IconButton(
                 tooltip: '日历列表',
-                icon: const Icon(Icons.calendar_month_outlined),
-                onPressed: () {}, // F-04 侧栏切换
+                icon: const Icon(Icons.menu),
+                onPressed: () => ref.read(sidebarVisibleProvider.notifier).toggle(),
               ),
               const SizedBox(width: 8),
               const Expanded(child: _ViewSegment()),
