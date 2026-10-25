@@ -70,15 +70,17 @@ void main() {
   });
 
   testWidgets('有事件的日期下画小圆点（最多 3 色）', (tester) async {
+    // 锚点年份对齐事件年（pumpYear 渲染 anchor 年）
+    final year = DateTime.now().year;
     await repo.upsertEvent(CalendarEvent(
       id: 'e1',
       calendarId: 'c1',
       uid: 'u1',
       title: '事件甲',
-      startAt: DateTime.utc(2026, 6, 15, 10),
-      endAt: DateTime.utc(2026, 6, 15, 11),
+      startAt: DateTime.utc(year, 6, 15, 10),
+      endAt: DateTime.utc(year, 6, 15, 11),
       timeZone: 'UTC',
-      updatedAt: DateTime.utc(2026, 6, 1),
+      updatedAt: DateTime.utc(year, 6, 1),
     ));
     await pumpYear(tester);
     // 默认日历色回退 0xFF007AFF；月 6 日 15 有该色圆点

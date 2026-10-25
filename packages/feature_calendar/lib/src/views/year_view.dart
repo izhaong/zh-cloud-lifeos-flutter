@@ -30,8 +30,20 @@ class CalendarYearView extends ConsumerWidget {
       if (o.source != OccurrenceSource.event) {
         continue;
       }
-      final day = DateTime(o.start.year, o.start.month, o.start.day);
-      dotsByDate.putIfAbsent(day, () => <int>{}).add(o.colorArgb);
+      // start 为 UTC：按本地日切分；跨日 occurrence 逐日画点（含首尾）
+      final localStart = o.start.toLocal();
+      final localEnd = o.end.toLocal();
+      var day = DateTime(localStart.year, localStart.month, localStart.day);
+      final lastDay = DateTime(localEnd.year, localEnd.month, localEnd.day);
+      // 排他 end 落在整点零分即不含该日；否则含尾日
+      final endInclusive = localEnd.hour != 0 || localEnd.minute != 0;
+      final last = endInclusive
+          ? lastDay
+          : lastDay.subtract(const Duration(days: 1));
+      while (!day.isAfter(last)) {
+        dotsByDate.putIfAbsent(day, () => <int>{}).add(o.colorArgb);
+        day = day.add(const Duration(days: 1));
+      }
     }
 
     return KeyedSubtree(
