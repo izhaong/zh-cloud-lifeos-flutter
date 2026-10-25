@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 
 import 'providers.dart';
+import 'widgets/calendar_sidebar.dart';
 import 'widgets/calendar_toolbar.dart';
 
 /// 日历三档骨架（契约 §5.4/§8.5）：
@@ -16,19 +17,33 @@ class CalendarScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(viewModeProvider);
+    final sidebarVisible = ref.watch(sidebarVisibleProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final compact = constraints.maxWidth < 600; // 契约 §8.5 iPhone 档
-            return Column(
+            final width = constraints.maxWidth;
+            final compact = width < 600; // 契约 §8.5 iPhone 档
+            final expanded = width >= 1200;
+            Widget content = Column(
               children: [
                 CalendarToolbar(compact: compact),
                 const Divider(height: 1),
                 Expanded(child: _MainView(mode: mode)),
               ],
             );
+            if (!compact && sidebarVisible) {
+              // 契约 §8.5：medium 240（600–1199）、expanded 280（≥1200）
+              content = Row(
+                children: [
+                  CalendarSidebar(width: expanded ? 280 : 240),
+                  const VerticalDivider(width: 1),
+                  Expanded(child: content),
+                ],
+              );
+            }
+            return content;
           },
         ),
       ),

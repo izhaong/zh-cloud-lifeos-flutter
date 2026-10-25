@@ -100,3 +100,45 @@ final occurrencesProvider = StreamProvider.family<List<CalendarOccurrence>,
         from: from, to: to, colorByCalendar: colorByCalendar);
   });
 });
+
+/// 契约 §8.1 Apple 7 预设色（#RRGGBB；节假日默认红 #FF3B30 见 S-09）。
+const List<(String, int)> kCalendarPresetColors = [
+  ('红', 0xFFFF3B30),
+  ('橙', 0xFFFF9500),
+  ('黄', 0xFFFFCC00),
+  ('绿', 0xFF34C759),
+  ('蓝', 0xFF007AFF),
+  ('紫', 0xFFAF52DE),
+  ('棕', 0xFFA2845E),
+];
+
+/// 侧栏显隐偏好存储（组合根注入 SharedPreferences；键契约：lifeos.calendar.sidebar.visible）。
+final sidebarPrefsProvider = Provider<dynamic>((ref) {
+  // dynamic 规避 feature_calendar 对宿主偏好实现的耦合；组合根注入 SharedPreferences。
+  return null;
+});
+
+/// 侧栏显隐（medium/expanded 档；☰ 切换，shared_preferences 持久化）。
+final sidebarVisibleProvider =
+    NotifierProvider<SidebarVisibleNotifier, bool>(SidebarVisibleNotifier.new);
+
+class SidebarVisibleNotifier extends Notifier<bool> {
+  static const _key = 'lifeos.calendar.sidebar.visible';
+
+  @override
+  bool build() {
+    final prefs = ref.watch(sidebarPrefsProvider);
+    if (prefs == null) {
+      return true;
+    }
+    return prefs.getBool(_key) ?? true;
+  }
+
+  void set(bool value) {
+    state = value;
+    final prefs = ref.watch(sidebarPrefsProvider);
+    prefs?.setBool(_key, value);
+  }
+
+  void toggle() => set(!state);
+}
