@@ -13,5 +13,7 @@ export 'src/views/month_view.dart';
 export 'src/views/year_view.dart';
 export 'src/views/day_reminder_lane.dart';
 export 'src/widgets/calendar_sidebar.dart';
+export 'src/widgets/event_form_fields.dart';
+export 'src/widgets/event_inspector_pane.dart';
 export 'src/widgets/calendar_toolbar.dart';
 export 'src/widgets/mini_month.dart';

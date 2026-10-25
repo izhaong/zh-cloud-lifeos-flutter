@@ -10,6 +10,7 @@ import 'views/day_view.dart';
 import 'views/month_view.dart';
 import 'views/year_view.dart';
 import 'widgets/calendar_sidebar.dart';
+import 'widgets/event_inspector_pane.dart';
 import 'package:kalender/kalender.dart' as kalender;
 import 'widgets/calendar_toolbar.dart';
 
@@ -61,6 +62,24 @@ class CalendarScaffold extends ConsumerWidget {
                   CalendarSidebar(width: expanded ? 280 : 240),
                   const VerticalDivider(width: 1),
                   Expanded(child: content),
+                ],
+              );
+            }
+            // F-08：expanded 档第三栏 Inspector（草稿或选中事件存在时）
+            final draft = ref.watch(draftEventProvider);
+            if (expanded && draft != null) {
+              content = Row(
+                children: [
+                  content,
+                  const VerticalDivider(width: 1),
+                  SizedBox(
+                    width: 320,
+                    child: EventInspectorPane(
+                      initialEvent: draft,
+                      onSaved: () =>
+                          ref.read(draftEventProvider.notifier).clear(),
+                    ),
+                  ),
                 ],
               );
             }
