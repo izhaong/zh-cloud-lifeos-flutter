@@ -895,12 +895,21 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     final title = _draftController.text.trim();
     if (title.isEmpty) return; // 空标题不落库
     final repo = ref.read(reminderRepositoryProvider);
-    // TODO(reminders-parity): 智能视图内的新建提醒应引导选择目标列表（P1）
+    // 智能视图内新建：必须落到对应视图的语义上——
+    // today/scheduled/urgent 需要 dueAt 才能命中（smart.today 过滤 = !completed && 同日）；
+    // 没有 dueAt 的条目只会出现在「全部」视图，在「今天」里不可见。
+    final now = DateTime.now();
     await repo.upsertItem(
       ReminderItem(
         id: newReminderId(),
         listId: _isSmartView ? 'list.personal' : widget.list.id,
         title: title,
+        // 从「今天」/「计划」视图新建 → dueAt = 今天（命中 today 同日过滤 + scheduled 非空过滤）；
+        // 从「全部/旗标/已完成」视图新建 → 不设 dueAt（归入个人列表，全部视图可见）
+        dueAt: (widget.list.id == 'smart.today' ||
+                widget.list.id == 'smart.scheduled')
+            ? now
+            : null,
       ),
     );
     _draftController.clear();
