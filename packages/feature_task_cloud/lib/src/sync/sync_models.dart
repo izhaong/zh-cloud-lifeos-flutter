@@ -84,3 +84,14 @@ class SyncConflict extends Equatable {
   @override
   List<Object?> get props => [serverRevision, serverValue, clientValue];
 }
+
+/// pull 结果（T-05）：游标 + 变更批（服务端下推语义）。
+class PullResult extends Equatable {
+  const PullResult({required this.cursor, required this.changes});
+
+  final String? cursor;
+  final List<SyncChange> changes;
+
+  @override
+  List<Object?> get props => [cursor, changes];
+}

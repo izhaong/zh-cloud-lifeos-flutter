@@ -5,6 +5,7 @@
 /// - 仅经组合根注入开源仓；`feature_task` 自身只依赖 kernel 端口
 library;
 
+export 'src/auth/login_page.dart';
 export 'src/auth/rest_auth_port.dart';
 export 'src/auth/secure_session_store.dart';
 export 'src/sync/rest_sync_port.dart';
