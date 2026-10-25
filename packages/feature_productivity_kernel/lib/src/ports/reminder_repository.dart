@@ -199,10 +199,19 @@ final class InMemoryReminderRepository implements ReminderRepository {
     final cur = _items[i];
     final rule = cur.recurrenceRule;
     if (rule != null && !cur.isCompleted && cur.dueAt != null) {
-      // 完成带重复规则的条目：滚动下一次 dueAt，完成态回 false
       final next = rule.nextOccurrence(cur.dueAt!, _now);
-      _items[i] = cur.copyWith(
-          dueAt: next, isCompleted: false, completedAt: ReminderItem.clear);
+      // T-04 重复结束日期：next 晚于 recurrenceUntil 当天结束 → 不再滚动，
+      // 真正完成（含当天——「含当天仍出现，次日不再出现」）
+      final until = cur.recurrenceUntil;
+      final pastEnd = until != null && next.isAfter(DateTime(
+            until.year, until.month, until.day, 23, 59, 59, 999));
+      if (pastEnd) {
+        _items[i] = cur.copyWith(isCompleted: true, completedAt: _now);
+      } else {
+        // 完成带重复规则的条目：滚动下一次 dueAt，完成态回 false
+        _items[i] = cur.copyWith(
+            dueAt: next, isCompleted: false, completedAt: ReminderItem.clear);
+      }
     } else {
       // 完成时间联动（服务端 completedAt 对齐）：完成记当下，取消清空
       _items[i] = cur.copyWith(

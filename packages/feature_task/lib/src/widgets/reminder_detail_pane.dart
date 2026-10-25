@@ -38,6 +38,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   late bool _isFlagged;
   late int _priority;
   late String? _recurrence;
+  DateTime? _recurrenceUntil;
   bool _showSubtaskDraft = false;
 
   @override
@@ -64,6 +65,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     _isFlagged = widget.item.isFlagged;
     _priority = widget.item.priority;
     _recurrence = widget.item.recurrence;
+    _recurrenceUntil = widget.item.recurrenceUntil;
     _showSubtaskDraft = false;
   }
 
@@ -90,6 +92,8 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
       isFlagged: _isFlagged,
       priority: _priority,
       recurrence: _recurrence ?? ReminderItem.clear,
+      recurrenceUntil:
+          _recurrenceUntil ?? ReminderItem.clear,
       tags: tagList,
     );
     widget.onSaved(updated);
@@ -160,6 +164,53 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     );
     if (target == null) return;
     await _repo.moveItem(widget.item.id, target.id);
+  }
+
+  /// T-04：结束日期选择（回调式弹层：确认/取消按钮；空=永不）。
+  Future<void> _pickRecurrenceUntil() async {
+    var picked = _recurrenceUntil ?? DateTime.now();
+    final confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (ctx) => Container(
+        key: const ValueKey('recurrence_until_sheet'),
+        height: 340,
+        color: const Color(0xFFF2F2F7),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    key: const ValueKey('recurrence_until_cancel'),
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text('取消'),
+                  ),
+                  CupertinoButton(
+                    key: const ValueKey('recurrence_until_confirm'),
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: const Text('好'),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                key: const ValueKey('recurrence_until_picker'),
+                initialDateTime: picked,
+                mode: CupertinoDatePickerMode.date,
+                use24hFormat: true,
+                onDateTimeChanged: (d) => picked = d,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true) {
+      setState(() => _recurrenceUntil = picked);
+    }
   }
 
   @override
@@ -246,6 +297,35 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
               ),
             ),
           ),
+          if (_recurrence != null)
+            _Row(
+              key: const ValueKey('recurrence_until_row'),
+              icon: CupertinoIcons.calendar_badge_minus,
+              label: '结束日期',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _recurrenceUntil == null
+                        ? '永不'
+                        : '${_recurrenceUntil!.year}-'
+                            '${_recurrenceUntil!.month.toString().padLeft(2, '0')}-'
+                            '${_recurrenceUntil!.day.toString().padLeft(2, '0')}',
+                    style: const TextStyle(color: Color(0xFF8E8E93)),
+                  ),
+                  CupertinoButton(
+                    key: const ValueKey('recurrence_until_clear'),
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(44, 28),
+                    child: const Icon(CupertinoIcons.clear,
+                        size: 14, color: Color(0xFFC7C7CC)),
+                    onPressed: () =>
+                        setState(() => _recurrenceUntil = null),
+                  ),
+                ],
+              ),
+              onTap: _pickRecurrenceUntil,
+            ),
           _Row(
             icon: CupertinoIcons.flag_fill,
             label: '标记',
@@ -388,11 +468,20 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.icon, required this.label, required this.trailing});
+  const _Row({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.trailing,
+    this.onTap,
+  });
 
   final IconData icon;
   final String label;
   final Widget trailing;
+
+  /// T-04：行可点（结束日期选择）。
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -403,6 +492,7 @@ class _Row extends StatelessWidget {
         leading: Icon(icon, color: const Color(0xFF007AFF), size: 22),
         title: Text(label),
         trailing: trailing,
+        onTap: onTap,
       ),
     );
   }

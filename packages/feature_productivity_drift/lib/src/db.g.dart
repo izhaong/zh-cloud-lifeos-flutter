@@ -696,6 +696,18 @@ class $ReminderItemsTable extends ReminderItems
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _recurrenceUntilMeta = const VerificationMeta(
+    'recurrenceUntil',
+  );
+  @override
+  late final GeneratedColumn<DateTime> recurrenceUntil =
+      GeneratedColumn<DateTime>(
+        'recurrence_until',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _parentIdMeta = const VerificationMeta(
     'parentId',
   );
@@ -775,6 +787,7 @@ class $ReminderItemsTable extends ReminderItems
     priority,
     tags,
     recurrence,
+    recurrenceUntil,
     parentId,
     sortOrder,
     remoteId,
@@ -858,6 +871,15 @@ class $ReminderItemsTable extends ReminderItems
       context.handle(
         _recurrenceMeta,
         recurrence.isAcceptableOrUnknown(data['recurrence']!, _recurrenceMeta),
+      );
+    }
+    if (data.containsKey('recurrence_until')) {
+      context.handle(
+        _recurrenceUntilMeta,
+        recurrenceUntil.isAcceptableOrUnknown(
+          data['recurrence_until']!,
+          _recurrenceUntilMeta,
+        ),
       );
     }
     if (data.containsKey('parent_id')) {
@@ -948,6 +970,10 @@ class $ReminderItemsTable extends ReminderItems
         DriftSqlType.string,
         data['${effectivePrefix}recurrence'],
       ),
+      recurrenceUntil: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}recurrence_until'],
+      ),
       parentId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}parent_id'],
@@ -997,6 +1023,9 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
   /// 重复规则 id（见 kernel Recurrence；null = 不重复）。
   final String? recurrence;
 
+  /// T-04：重复结束日期（本地日期；null = 永不结束）。
+  final DateTime? recurrenceUntil;
+
   /// 子任务的父提醒 id；null = 顶层。
   final String? parentId;
 
@@ -1025,6 +1054,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     required this.priority,
     required this.tags,
     this.recurrence,
+    this.recurrenceUntil,
     this.parentId,
     required this.sortOrder,
     this.remoteId,
@@ -1050,6 +1080,9 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     map['tags'] = Variable<String>(tags);
     if (!nullToAbsent || recurrence != null) {
       map['recurrence'] = Variable<String>(recurrence);
+    }
+    if (!nullToAbsent || recurrenceUntil != null) {
+      map['recurrence_until'] = Variable<DateTime>(recurrenceUntil);
     }
     if (!nullToAbsent || parentId != null) {
       map['parent_id'] = Variable<String>(parentId);
@@ -1088,6 +1121,9 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       recurrence: recurrence == null && nullToAbsent
           ? const Value.absent()
           : Value(recurrence),
+      recurrenceUntil: recurrenceUntil == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurrenceUntil),
       parentId: parentId == null && nullToAbsent
           ? const Value.absent()
           : Value(parentId),
@@ -1123,6 +1159,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       priority: serializer.fromJson<int>(json['priority']),
       tags: serializer.fromJson<String>(json['tags']),
       recurrence: serializer.fromJson<String?>(json['recurrence']),
+      recurrenceUntil: serializer.fromJson<DateTime?>(json['recurrenceUntil']),
       parentId: serializer.fromJson<String?>(json['parentId']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       remoteId: serializer.fromJson<String?>(json['remoteId']),
@@ -1145,6 +1182,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       'priority': serializer.toJson<int>(priority),
       'tags': serializer.toJson<String>(tags),
       'recurrence': serializer.toJson<String?>(recurrence),
+      'recurrenceUntil': serializer.toJson<DateTime?>(recurrenceUntil),
       'parentId': serializer.toJson<String?>(parentId),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'remoteId': serializer.toJson<String?>(remoteId),
@@ -1165,6 +1203,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     int? priority,
     String? tags,
     Value<String?> recurrence = const Value.absent(),
+    Value<DateTime?> recurrenceUntil = const Value.absent(),
     Value<String?> parentId = const Value.absent(),
     int? sortOrder,
     Value<String?> remoteId = const Value.absent(),
@@ -1182,6 +1221,9 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     priority: priority ?? this.priority,
     tags: tags ?? this.tags,
     recurrence: recurrence.present ? recurrence.value : this.recurrence,
+    recurrenceUntil: recurrenceUntil.present
+        ? recurrenceUntil.value
+        : this.recurrenceUntil,
     parentId: parentId.present ? parentId.value : this.parentId,
     sortOrder: sortOrder ?? this.sortOrder,
     remoteId: remoteId.present ? remoteId.value : this.remoteId,
@@ -1205,6 +1247,9 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       recurrence: data.recurrence.present
           ? data.recurrence.value
           : this.recurrence,
+      recurrenceUntil: data.recurrenceUntil.present
+          ? data.recurrenceUntil.value
+          : this.recurrenceUntil,
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
@@ -1229,6 +1274,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           ..write('priority: $priority, ')
           ..write('tags: $tags, ')
           ..write('recurrence: $recurrence, ')
+          ..write('recurrenceUntil: $recurrenceUntil, ')
           ..write('parentId: $parentId, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('remoteId: $remoteId, ')
@@ -1251,6 +1297,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     priority,
     tags,
     recurrence,
+    recurrenceUntil,
     parentId,
     sortOrder,
     remoteId,
@@ -1272,6 +1319,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           other.priority == this.priority &&
           other.tags == this.tags &&
           other.recurrence == this.recurrence &&
+          other.recurrenceUntil == this.recurrenceUntil &&
           other.parentId == this.parentId &&
           other.sortOrder == this.sortOrder &&
           other.remoteId == this.remoteId &&
@@ -1291,6 +1339,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
   final Value<int> priority;
   final Value<String> tags;
   final Value<String?> recurrence;
+  final Value<DateTime?> recurrenceUntil;
   final Value<String?> parentId;
   final Value<int> sortOrder;
   final Value<String?> remoteId;
@@ -1309,6 +1358,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     this.priority = const Value.absent(),
     this.tags = const Value.absent(),
     this.recurrence = const Value.absent(),
+    this.recurrenceUntil = const Value.absent(),
     this.parentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.remoteId = const Value.absent(),
@@ -1328,6 +1378,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     this.priority = const Value.absent(),
     this.tags = const Value.absent(),
     this.recurrence = const Value.absent(),
+    this.recurrenceUntil = const Value.absent(),
     this.parentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.remoteId = const Value.absent(),
@@ -1349,6 +1400,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     Expression<int>? priority,
     Expression<String>? tags,
     Expression<String>? recurrence,
+    Expression<DateTime>? recurrenceUntil,
     Expression<String>? parentId,
     Expression<int>? sortOrder,
     Expression<String>? remoteId,
@@ -1368,6 +1420,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
       if (priority != null) 'priority': priority,
       if (tags != null) 'tags': tags,
       if (recurrence != null) 'recurrence': recurrence,
+      if (recurrenceUntil != null) 'recurrence_until': recurrenceUntil,
       if (parentId != null) 'parent_id': parentId,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (remoteId != null) 'remote_id': remoteId,
@@ -1389,6 +1442,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     Value<int>? priority,
     Value<String>? tags,
     Value<String?>? recurrence,
+    Value<DateTime?>? recurrenceUntil,
     Value<String?>? parentId,
     Value<int>? sortOrder,
     Value<String?>? remoteId,
@@ -1408,6 +1462,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
       priority: priority ?? this.priority,
       tags: tags ?? this.tags,
       recurrence: recurrence ?? this.recurrence,
+      recurrenceUntil: recurrenceUntil ?? this.recurrenceUntil,
       parentId: parentId ?? this.parentId,
       sortOrder: sortOrder ?? this.sortOrder,
       remoteId: remoteId ?? this.remoteId,
@@ -1451,6 +1506,9 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     if (recurrence.present) {
       map['recurrence'] = Variable<String>(recurrence.value);
     }
+    if (recurrenceUntil.present) {
+      map['recurrence_until'] = Variable<DateTime>(recurrenceUntil.value);
+    }
     if (parentId.present) {
       map['parent_id'] = Variable<String>(parentId.value);
     }
@@ -1488,6 +1546,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
           ..write('priority: $priority, ')
           ..write('tags: $tags, ')
           ..write('recurrence: $recurrence, ')
+          ..write('recurrenceUntil: $recurrenceUntil, ')
           ..write('parentId: $parentId, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('remoteId: $remoteId, ')
@@ -5444,6 +5503,7 @@ typedef $$ReminderItemsTableCreateCompanionBuilder =
       Value<int> priority,
       Value<String> tags,
       Value<String?> recurrence,
+      Value<DateTime?> recurrenceUntil,
       Value<String?> parentId,
       Value<int> sortOrder,
       Value<String?> remoteId,
@@ -5464,6 +5524,7 @@ typedef $$ReminderItemsTableUpdateCompanionBuilder =
       Value<int> priority,
       Value<String> tags,
       Value<String?> recurrence,
+      Value<DateTime?> recurrenceUntil,
       Value<String?> parentId,
       Value<int> sortOrder,
       Value<String?> remoteId,
@@ -5529,6 +5590,11 @@ class $$ReminderItemsTableFilterComposer
 
   ColumnFilters<String> get recurrence => $composableBuilder(
     column: $table.recurrence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get recurrenceUntil => $composableBuilder(
+    column: $table.recurrenceUntil,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5622,6 +5688,11 @@ class $$ReminderItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get recurrenceUntil => $composableBuilder(
+    column: $table.recurrenceUntil,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get parentId => $composableBuilder(
     column: $table.parentId,
     builder: (column) => ColumnOrderings(column),
@@ -5696,6 +5767,11 @@ class $$ReminderItemsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<DateTime> get recurrenceUntil => $composableBuilder(
+    column: $table.recurrenceUntil,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get parentId =>
       $composableBuilder(column: $table.parentId, builder: (column) => column);
 
@@ -5764,6 +5840,7 @@ class $$ReminderItemsTableTableManager
                 Value<int> priority = const Value.absent(),
                 Value<String> tags = const Value.absent(),
                 Value<String?> recurrence = const Value.absent(),
+                Value<DateTime?> recurrenceUntil = const Value.absent(),
                 Value<String?> parentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<String?> remoteId = const Value.absent(),
@@ -5782,6 +5859,7 @@ class $$ReminderItemsTableTableManager
                 priority: priority,
                 tags: tags,
                 recurrence: recurrence,
+                recurrenceUntil: recurrenceUntil,
                 parentId: parentId,
                 sortOrder: sortOrder,
                 remoteId: remoteId,
@@ -5802,6 +5880,7 @@ class $$ReminderItemsTableTableManager
                 Value<int> priority = const Value.absent(),
                 Value<String> tags = const Value.absent(),
                 Value<String?> recurrence = const Value.absent(),
+                Value<DateTime?> recurrenceUntil = const Value.absent(),
                 Value<String?> parentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<String?> remoteId = const Value.absent(),
@@ -5820,6 +5899,7 @@ class $$ReminderItemsTableTableManager
                 priority: priority,
                 tags: tags,
                 recurrence: recurrence,
+                recurrenceUntil: recurrenceUntil,
                 parentId: parentId,
                 sortOrder: sortOrder,
                 remoteId: remoteId,

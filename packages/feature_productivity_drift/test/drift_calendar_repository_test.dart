@@ -114,6 +114,10 @@ void main() {
     seed.customStatement('DROP TABLE IF EXISTS calendars');
     seed.customStatement('DROP TABLE IF EXISTS calendar_preferences');
     seed.customStatement('DROP INDEX IF EXISTS idx_calendar_events_cal_start');
+    // T-04（V8）：建表类已含 recurrence_until；降到 v6 基线须一并移除，
+    // 否则重开时 from=6 的 V8 加列与现存列冲突（duplicate column）
+    seed.customStatement(
+        'ALTER TABLE reminder_items DROP COLUMN recurrence_until');
     seed.customStatement('PRAGMA user_version = 6');
     await seed.close();
 
