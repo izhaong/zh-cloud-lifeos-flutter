@@ -177,3 +177,26 @@ class ListSortModeNotifier extends Notifier<ListSortMode> {
 
   void set(ListSortMode mode) => state = mode;
 }
+
+/// 最近一次「完成」前的条目快照，供一步撤销（TC-UI-122）。重做不做。
+final completionUndoProvider =
+    NotifierProvider<CompletionUndoNotifier, ReminderItem?>(
+        CompletionUndoNotifier.new);
+
+class CompletionUndoNotifier extends Notifier<ReminderItem?> {
+  @override
+  ReminderItem? build() => null;
+
+  void offer(ReminderItem item) => state = item;
+
+  void clear() => state = null;
+}
+
+/// 勾选完成。未完成 → 完成时记下快照；已完成再勾只是取消完成，不记撤销。
+Future<void> completeReminder(WidgetRef ref, ReminderItem item) {
+  final repo = ref.read(reminderRepositoryProvider);
+  if (!item.isCompleted) {
+    ref.read(completionUndoProvider.notifier).offer(item);
+  }
+  return repo.toggleCompleted(item.id);
+}

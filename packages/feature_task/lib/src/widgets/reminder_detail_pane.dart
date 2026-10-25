@@ -336,7 +336,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                       item: sub,
                       dense: true,
                       onToggleCompleted: () =>
-                          _repo.toggleCompleted(sub.id),
+                          completeReminder(ref, sub),
                     ),
                   ),
                 if (_showSubtaskDraft)
