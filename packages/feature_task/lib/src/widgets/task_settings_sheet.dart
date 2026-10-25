@@ -4,18 +4,25 @@ import 'package:flutter/material.dart';
 /// 「设置」弹窗（图1 对齐）：默认列表 / 全天提醒时点 / 标记完成开关 /
 /// 建议列表开关 / 采购清单语言 / 还原默认（TC-UI-120 UI 真身——偏好持久
 /// 接线属 P3，当前开关状态为会话级）。
-Future<void> showTaskSettingsSheet(BuildContext context) {
+Future<void> showTaskSettingsSheet(
+  BuildContext context, {
+  void Function(BuildContext sheetContext)? onOpenCloudLogin,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     constraints: const BoxConstraints(maxWidth: 480),
-    builder: (sheetContext) => const _TaskSettingsSheet(),
+    builder: (sheetContext) => _TaskSettingsSheet(
+      onOpenCloudLogin: onOpenCloudLogin,
+    ),
   );
 }
 
 class _TaskSettingsSheet extends StatefulWidget {
-  const _TaskSettingsSheet();
+  const _TaskSettingsSheet({this.onOpenCloudLogin});
+
+  final void Function(BuildContext sheetContext)? onOpenCloudLogin;
 
   @override
   State<_TaskSettingsSheet> createState() => _TaskSettingsSheetState();
@@ -87,10 +94,20 @@ class _TaskSettingsSheetState extends State<_TaskSettingsSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            const Center(
-              child: Text(
-                '会员同步：登录后可用（真实同步在 cloud 侧）',
-                style: TextStyle(fontSize: 12, color: Color(0xFFC7C7CC)),
+            Center(
+              child: CupertinoButton(
+                key: const ValueKey('settings_cloud_login'),
+                padding: EdgeInsets.zero,
+                onPressed: widget.onOpenCloudLogin == null
+                    ? null
+                    : () => widget.onOpenCloudLogin!(context),
+                child: Text(
+                  widget.onOpenCloudLogin == null
+                      ? '云同步：登录后可用'
+                      : '开启云同步',
+                  style: const TextStyle(
+                      fontSize: 13, color: Color(0xFF007AFF)),
+                ),
               ),
             ),
           ],

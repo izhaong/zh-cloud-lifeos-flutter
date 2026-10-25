@@ -24,15 +24,50 @@ class RestSyncPort implements SyncPort {
 
   @override
   Future<void> pull() async {
+    await pullChanges();
+  }
+
+  /// 增量拉取（T-05 TC-SYNC-106）：返回游标+变更批；未登录空结果。
+  Future<PullResult> pullChanges({String? cursor}) async {
     final session = await _store.read();
-    if (session == null) return; // 未登录：跳过（离线优先）
-    // 游标增量；首拉服务端返回全量 bootstrap
-    // 实际游标持久化随 UI 集成批次接 Drift；当前契约级实现
-    await _dio.get<Map<String, dynamic>>(
+    if (session == null) {
+      return const PullResult(cursor: null, changes: []);
+    }
+    final resp = await _dio.get<Map<String, dynamic>>(
       '/app-api/lifeos/task/sync/pull',
-      queryParameters: {'cursor': null},
+      queryParameters: {'cursor': cursor},
       options: _authed(session),
     );
+    final body = resp.data;
+    if (body == null || body['code'] != 0) {
+      throw SyncFailureException(body?['msg']?.toString() ?? '拉取失败');
+    }
+    final data = body['data'];
+    if (data is! Map<String, dynamic>) {
+      return const PullResult(cursor: null, changes: []);
+    }
+    return PullResult(
+      cursor: data['cursor']?.toString(),
+      changes: _parsePullChanges(data['changes']),
+    );
+  }
+
+  List<SyncChange> _parsePullChanges(dynamic raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final e in raw)
+        if (e is Map<String, dynamic>)
+          SyncChange(
+            entityType: e['entityType']?.toString() ?? '',
+            entityId: e['entityId']?.toString() ?? '',
+            operation: e['operation']?.toString() ?? 'upsert',
+            payload: (e['payload'] is Map<String, dynamic>)
+                ? e['payload'] as Map<String, dynamic>
+                : const {},
+            clientMutationId: e['clientMutationId']?.toString(),
+            baseRevision: (e['revision'] as num?)?.toInt(),
+          ),
+    ];
   }
 
   @override
@@ -55,19 +90,8 @@ class RestSyncPort implements SyncPort {
     List<SyncChange> changes,
   ) async {
     if (changes.isEmpty) return const [];
-    final resp = await _dio.post<Map<String, dynamic>>(
-      '/app-api/lifeos/task/sync/push',
-      data: {
-        'deviceId': session.userId,
-        'changes': [for (final c in changes) c.toJson()],
-      },
-      options: _authed(session),
-    );
-    final body = resp.data;
-    if (body == null || body['code'] != 0) {
-      throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
-    }
-    var acks = _parseAcks(body['data']);
+    final body = await _postPushWithRetry(session, changes);
+    var acks = _parseAcks(body?['data']);
 
     // 冲突重推（拍板策略）：客户端较新 → 整条覆盖、带 baseRevision=serverRevision。
     // 稳定键=originalId（首轮 localId）：重推 change 的 entityId 可能已换 serverId，
@@ -112,15 +136,7 @@ class RestSyncPort implements SyncPort {
         // 客户端较旧：接受服务端值（不重推；后续 pull 自然对齐）
       }
       if (toRepush.isEmpty) break;
-      final retryResp = await _dio.post<Map<String, dynamic>>(
-        '/app-api/lifeos/task/sync/push',
-        data: {
-          'deviceId': session.userId,
-          'changes': [for (final c in toRepush) c.toJson()],
-        },
-        options: _authed(session),
-      );
-      final retryBody = retryResp.data;
+      final retryBody = await _postPushWithRetry(session, toRepush);
       if (retryBody == null || retryBody['code'] != 0) break;
       final retryAcks = _parseAcks(retryBody['data']);
       // 回写（稳定键=originalId）：服务端语义=「data 空即全部成功；
@@ -213,6 +229,40 @@ class RestSyncPort implements SyncPort {
     if (t is num) return t.toInt();
     if (t is String) return int.tryParse(t) ?? 0;
     return 0;
+  }
+
+  /// TC-SYNC-114：401 → 静默重试一次原请求；再 401 上抛（本地载荷不清空）。
+  Future<Map<String, dynamic>?> _postPushWithRetry(
+    MemberSession session,
+    List<SyncChange> changes,
+  ) async {
+    Future<Response<Map<String, dynamic>?>> send() =>
+        _dio.post<Map<String, dynamic>>(
+          '/app-api/lifeos/task/sync/push',
+          data: {
+            'deviceId': session.userId,
+            'changes': [for (final c in changes) c.toJson()],
+          },
+          options: _authed(session),
+        );
+    try {
+      final resp = await send();
+      final body = resp.data;
+      if (body == null || body['code'] != 0) {
+        throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
+      }
+      return body;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        final resp = await send();
+        final body = resp.data;
+        if (body == null || body['code'] != 0) {
+          throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
+        }
+        return body;
+      }
+      rethrow;
+    }
   }
 
   Options _authed(MemberSession session) => Options(

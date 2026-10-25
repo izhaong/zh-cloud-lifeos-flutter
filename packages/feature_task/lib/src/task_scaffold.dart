@@ -27,6 +27,7 @@ class TaskScaffold extends ConsumerWidget {
     this.onOpenList,
     this.onSelectItem,
     this.onBack,
+    this.onOpenCloudLogin,
   });
 
   /// 紧凑端首页概览（列表首页）：智能列表卡片 + 我的列表。
@@ -34,6 +35,10 @@ class TaskScaffold extends ConsumerWidget {
 
   /// 三栏第三列选中的提醒 id；空 = 不显示详情栏。
   final String? selectedItemId;
+
+  /// 「开启云同步」入口（T-05 TC-SYNC-102）：由宿主（launcher/cloud 组合根）
+  /// 注入登录页跳转；空 = 显示「登录后可用」弱化文案（F1 边界：feature_task 不依赖 cloud）。
+  final VoidCallback? onOpenCloudLogin;
 
   /// 点开列表的回调（紧凑端由壳层路由推栈，仍在生活台底栏内）。
   final ValueChanged<String>? onOpenList;
@@ -74,6 +79,7 @@ class TaskScaffold extends ConsumerWidget {
               openListId: openListId,
               onOpenList: onOpenList,
               onSelectItem: onSelectItem,
+              onOpenCloudLogin: onOpenCloudLogin,
             ),
           WindowSizeClass.expanded => _ThreePane(
               lists: lists,
@@ -81,6 +87,7 @@ class TaskScaffold extends ConsumerWidget {
               selectedItemId: selectedItemId,
               onOpenList: onOpenList,
               onSelectItem: onSelectItem,
+              onOpenCloudLogin: onOpenCloudLogin,
             ),
           },
         );
@@ -461,12 +468,14 @@ class _TwoPane extends ConsumerWidget {
     required this.openListId,
     required this.onOpenList,
     this.onSelectItem,
+    this.onOpenCloudLogin,
   });
 
   final List<ReminderList> lists;
   final String? openListId;
   final ValueChanged<String>? onOpenList;
   final ValueChanged<ReminderItem>? onSelectItem;
+  final VoidCallback? onOpenCloudLogin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -488,7 +497,10 @@ class _TwoPane extends ConsumerWidget {
               ),
               onToggleSidebar: () =>
                   ref.read(sidebarVisibleProvider.notifier).toggle(),
-              onOpenSettings: () => showTaskSettingsSheet(context),
+              onOpenSettings: () => showTaskSettingsSheet(
+                    context,
+                    onOpenCloudLogin: (_) => onOpenCloudLogin?.call(),
+                  ),
             ),
           ),
           const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
@@ -528,12 +540,14 @@ class _ThreePane extends ConsumerStatefulWidget {
     required this.selectedItemId,
     required this.onOpenList,
     this.onSelectItem,
+    this.onOpenCloudLogin,
   });
 
   final List<ReminderList> lists;
   final String? openListId;
   final String? selectedItemId;
   final ValueChanged<String>? onOpenList;
+  final VoidCallback? onOpenCloudLogin;
   final ValueChanged<ReminderItem>? onSelectItem;
 
   @override
@@ -583,7 +597,11 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
               ),
               onToggleSidebar: () =>
                   ref.read(sidebarVisibleProvider.notifier).toggle(),
-              onOpenSettings: () => showTaskSettingsSheet(context),
+              onOpenSettings: () => showTaskSettingsSheet(
+                    context,
+                    onOpenCloudLogin: (_) =>
+                        widget.onOpenCloudLogin?.call(),
+                  ),
             ),
           ),
           const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
