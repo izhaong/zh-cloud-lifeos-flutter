@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kalender/kalender.dart' as kalender;
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
@@ -99,6 +100,12 @@ final occurrencesProvider = StreamProvider.family<List<CalendarOccurrence>,
     return expandOccurrences(events,
         from: from, to: to, colorByCalendar: colorByCalendar);
   });
+});
+
+/// kalender 事件控制器（视图装载 occurrence 的桥；测试可 override 注入）。
+final kalenderEventsControllerProvider =
+    Provider<kalender.DefaultEventsController>((ref) {
+  return kalender.DefaultEventsController();
 });
 
 /// 契约 §8.1 Apple 7 预设色（#RRGGBB；节假日默认红 #FF3B30 见 S-09）。
