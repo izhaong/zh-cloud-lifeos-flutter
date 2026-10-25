@@ -10,6 +10,7 @@ export 'src/calendar_view_callbacks.dart';
 export 'src/logic/lunar_label.dart';
 export 'src/views/day_view.dart';
 export 'src/views/month_view.dart';
+export 'src/views/year_view.dart';
 export 'src/views/day_reminder_lane.dart';
 export 'src/widgets/calendar_sidebar.dart';
 export 'src/widgets/calendar_toolbar.dart';
