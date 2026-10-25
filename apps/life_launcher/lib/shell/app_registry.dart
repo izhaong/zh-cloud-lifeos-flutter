@@ -45,7 +45,7 @@ const List<AppEntry> installedApps = [
     icon: Icons.calendar_today_outlined,
     selectedIcon: Icons.calendar_today,
     branchPath: '/calendar',
-    isPlaceholder: true,
+    isPlaceholder: false,
   ),
   AppEntry(
     id: 'habit',

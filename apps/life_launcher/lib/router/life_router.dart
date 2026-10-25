@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -60,8 +60,7 @@ GoRouter buildLifeRouter(WidgetRef ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/calendar',
-              builder: (context, state) => const PlaceholderPage(
-                  title: '日历', subtitle: '占位 · feature_calendar 待拆入'),
+              builder: (context, state) => const CalendarTabEntry(),
             ),
           ]),
           StatefulShellBranch(routes: [

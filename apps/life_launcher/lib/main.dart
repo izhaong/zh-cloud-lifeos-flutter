@@ -1,5 +1,6 @@
 import 'package:app_core/app_core.dart';
 import 'package:dio/dio.dart';
+import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:feature_task_cloud/feature_task_cloud.dart';
@@ -18,7 +19,9 @@ Future<void> main() async {
   /// 组合根：单点工厂切换 InMemory / Drift；偏好存储与徽标源同在此注入。
   /// M4（flutter#4）：cloud 侧 AuthPort/SyncPort 真实现注入——
   /// 未登录时 currentSession=null，本地能力不受影响（离线优先红线）。
-  final repository = await openDefaultDriftRepository();
+  final db = await openDefaultDatabase();
+  final repository = DriftReminderRepository(db);
+  final calendarRepository = openDefaultDriftCalendarRepository(db);
   final prefs = await SharedPreferences.getInstance();
   final dio = Dio(BaseOptions(baseUrl: const String.fromEnvironment(
     'LIFEOS_API_BASE',
@@ -32,6 +35,7 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         reminderRepositoryProvider.overrideWithValue(repository),
+        calendarRepositoryProvider.overrideWithValue(calendarRepository),
         pinnedTabsServiceProvider.overrideWithValue(
           PinnedTabsService(prefs),
         ),
