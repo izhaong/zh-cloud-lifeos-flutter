@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers.dart';
 import 'calendar_view_callbacks.dart';
 import 'views/day_view.dart';
+import 'views/month_view.dart';
 import 'widgets/calendar_sidebar.dart';
 import 'package:kalender/kalender.dart' as kalender;
 import 'widgets/calendar_toolbar.dart';
@@ -83,7 +84,8 @@ class _MainView extends ConsumerWidget {
     return switch (mode) {
       CalendarViewMode.day => CalendarDayView(viewCallbacks: viewCallbacks, eventsController: eventsController),
       CalendarViewMode.week => CalendarWeekView(viewCallbacks: viewCallbacks, eventsController: eventsController),
-      CalendarViewMode.month => const Center(child: Text('月')),
+      CalendarViewMode.month => CalendarMonthView(
+          viewCallbacks: viewCallbacks, eventsController: eventsController),
       CalendarViewMode.year => const Center(child: Text('年')),
       CalendarViewMode.list => const Center(child: Text('列表')),
     };
