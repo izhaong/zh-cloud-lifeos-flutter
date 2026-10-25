@@ -41,7 +41,7 @@ void main() {
     ]) {
       final repo = InMemoryReminderRepository();
       await _pump(tester, size: size, repo: repo);
-      expect(find.text('新提醒'), findsOneWidget);
+      expect(find.text('新提醒事项'), findsOneWidget);
     }
   });
 
@@ -55,7 +55,7 @@ void main() {
       child: const TaskScaffold(openListId: 'list.personal'),
     );
 
-    await tester.tap(find.text('新提醒'));
+    await tester.tap(find.text('新提醒事项'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.widgetWithText(TextField, '新提醒事项'), '买菜');
@@ -67,7 +67,7 @@ void main() {
     expect(repo.lastItem?.listId, 'list.personal');
 
     // 空标题：不落库
-    await tester.tap(find.text('新提醒'));
+    await tester.tap(find.text('新提醒事项'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, '新提醒事项'), '   ');
     await tester.testTextInput.receiveAction(TextInputAction.done);

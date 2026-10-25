@@ -1,49 +1,132 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-/// 任务 App 设置弹层（线框：客户端/Pad 侧栏「设置」入口）。
-///
-/// UI 态，不开路由；P0 先做入口 + 占位行，真实设置项随后续阶段填。
+/// 「设置」弹窗（图1 对齐）：默认列表 / 全天提醒时点 / 标记完成开关 /
+/// 建议列表开关 / 采购清单语言 / 还原默认（TC-UI-120 UI 真身——偏好持久
+/// 接线属 P3，当前开关状态为会话级）。
 Future<void> showTaskSettingsSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
     showDragHandle: true,
-    builder: (sheetContext) {
-      return const SafeArea(
+    constraints: const BoxConstraints(maxWidth: 480),
+    builder: (sheetContext) => const _TaskSettingsSheet(),
+  );
+}
+
+class _TaskSettingsSheet extends StatefulWidget {
+  const _TaskSettingsSheet();
+
+  @override
+  State<_TaskSettingsSheet> createState() => _TaskSettingsSheetState();
+}
+
+class _TaskSettingsSheetState extends State<_TaskSettingsSheet> {
+  bool _allDayNotify = true;
+  bool _markComplete = false;
+  bool _suggestLists = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-                        Padding(
-              padding: EdgeInsets.only(top: 4, bottom: 8),
-              child: Center(
-                child: Text(
-                  '设置',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+            const Center(
+              child: Text(
+                '设置',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
               ),
             ),
-                        ListTile(
-              leading: Icon(Icons.account_circle_outlined),
-              title: Text('账号与同步'),
-              subtitle: Text('登录后可用（同步仅私有 cloud）'),
+            const SizedBox(height: 12),
+            _row(
+              icon: CupertinoIcons.list_bullet,
+              label: '默认列表',
+              trailing: const Text('提醒事项',
+                  style: TextStyle(color: Color(0xFF8E8E93))),
             ),
-                        ListTile(
-              leading: Icon(Icons.notifications_outlined),
-              title: Text('通知与提醒'),
-              subtitle: Text('规划（P1）'),
+            _switchRow(
+              icon: CupertinoIcons.clock,
+              label: '全天提醒时点',
+              value: _allDayNotify,
+              onChanged: (v) => setState(() => _allDayNotify = v),
             ),
-                        ListTile(
-              leading: Icon(Icons.palette_outlined),
-              title: Text('外观'),
-              subtitle: Text('跟随系统'),
+            _switchRow(
+              icon: CupertinoIcons.checkmark_circle,
+              label: '完成时标记为已完成',
+              value: _markComplete,
+              onChanged: (v) => setState(() => _markComplete = v),
             ),
-                        SizedBox(height: 8),
+            _switchRow(
+              icon: CupertinoIcons.sparkles,
+              label: '建议列表',
+              value: _suggestLists,
+              onChanged: (v) => setState(() => _suggestLists = v),
+            ),
+            _row(
+              icon: CupertinoIcons.cart,
+              label: '采购清单语言',
+              trailing: const Text('简体中文',
+                  style: TextStyle(color: Color(0xFF8E8E93))),
+            ),
+            const Divider(height: 24),
+            Center(
+              child: CupertinoButton(
+                key: const ValueKey('settings_reset'),
+                padding: EdgeInsets.zero,
+                onPressed: () => setState(() {
+                  _allDayNotify = true;
+                  _markComplete = false;
+                  _suggestLists = true;
+                }),
+                child: const Text('还原默认设置',
+                    style: TextStyle(fontSize: 15, color: Color(0xFF007AFF))),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Center(
+              child: Text(
+                '会员同步：登录后可用（真实同步在 cloud 侧）',
+                style: TextStyle(fontSize: 12, color: Color(0xFFC7C7CC)),
+              ),
+            ),
           ],
         ),
-      );
-    },
-  );
+      ),
+    );
+  }
+
+  Widget _row({
+    required IconData icon,
+    required String label,
+    required Widget trailing,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: const Color(0xFF007AFF)),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
+          trailing,
+        ],
+      ),
+    );
+  }
+
+  Widget _switchRow({
+    required IconData icon,
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return _row(
+      icon: icon,
+      label: label,
+      trailing: CupertinoSwitch(value: value, onChanged: onChanged),
+    );
+  }
 }

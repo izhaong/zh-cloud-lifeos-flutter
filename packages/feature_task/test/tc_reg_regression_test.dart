@@ -163,7 +163,7 @@ void main() {
     expect(style?.color, const Color(0xFFFF9500),
         reason: '大标题须带列表色');
     expect(find.byKey(const ValueKey('empty_new_hint')), findsOneWidget);
-    expect(find.text('新提醒'), findsOneWidget);
+    expect(find.text('新提醒事项'), findsOneWidget);
   });
 
   testWidgets('M5 实机差距批：空列表 + 工具栏＋/底栏＋ 出草稿行（cursor 复验 P0）',

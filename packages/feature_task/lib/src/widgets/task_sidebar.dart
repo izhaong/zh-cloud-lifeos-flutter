@@ -259,12 +259,11 @@ class _SidebarTile extends StatelessWidget {
           fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
         ),
       ),
-      trailing: list.itemCount > 0
-          ? Text(
-              '${list.itemCount}',
-              style: const TextStyle(color: Color(0xFF8E8E93)),
-            )
-          : null,
+      // Apple 侧栏口径（cursor 实机图评）：0 也显示计数（金标准今天=1、旗标=0 均可见）
+      trailing: Text(
+        '${list.itemCount}',
+        style: const TextStyle(color: Color(0xFF8E8E93)),
+      ),
       selected: selected,
       selectedTileColor: const Color(0xFFD1D1D6),
       onTap: onTap,

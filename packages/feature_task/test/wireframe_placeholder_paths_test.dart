@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -50,7 +51,7 @@ void main() {
 
   // TC-UI-306：客户端 ⚙设置 → 弹层出现（**三行规划占位**，非图1 全字段；
   // 图1 的默认列表/全天/标记/建议/还原表单属 TC-UI-120，M1 服务端核对后实现）
-  testWidgets('TC-UI-306 设置弹层：三行规划占位出现且可关闭（非图1 全字段）',
+  testWidgets('TC-UI-306 设置弹层：图1 字段真身出现且可关闭（实机差距批升级）',
       (tester) async {
     final repo = InMemoryReminderRepository();
     // 宽屏走 _ThreePane：侧栏有设置入口
@@ -64,15 +65,22 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('sidebar_settings')));
     await tester.pumpAndSettle();
 
-    // 弹层出现：标题「设置」+ 三行规划占位（账号同步占位/通知 P1/外观跟随系统）
+    // 图1 级真身（TC-UI-120 骨架）：默认列表/全天提醒时点/标记完成/建议列表/采购语言/还原
     expect(find.text('设置'), findsWidgets);
-    expect(find.text('账号与同步'), findsOneWidget);
-    expect(find.text('通知与提醒'), findsOneWidget);
-    expect(find.text('外观'), findsOneWidget);
+    expect(find.text('默认列表'), findsOneWidget);
+    expect(find.text('全天提醒时点'), findsOneWidget);
+    expect(find.text('完成时标记为已完成'), findsOneWidget);
+    expect(find.text('建议列表'), findsOneWidget);
+    expect(find.text('采购清单语言'), findsOneWidget);
+    expect(find.byKey(const ValueKey('settings_reset')), findsOneWidget);
+
+    // 开关可交互（切换不炸）
+    await tester.tap(find.byType(CupertinoSwitch).first);
+    await tester.pumpAndSettle();
 
     // 关闭：点 sheet 外
     await tester.tapAt(const Offset(10, 100));
     await tester.pumpAndSettle();
-    expect(find.text('账号与同步'), findsNothing);
+    expect(find.text('默认列表'), findsNothing);
   });
 }

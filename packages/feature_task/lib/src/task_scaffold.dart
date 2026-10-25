@@ -1082,17 +1082,31 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       // 最近删除视图无新建入口（Apple 口径）
       bottomNavigationBar: _isTrashView
           ? null
-          : BottomAppBar(
-        elevation: 0,
-        child: Row(
-          children: [
-            TextButton.icon(
-              onPressed: _openNewItemDialog,
-              icon: const Icon(Icons.add, color: Color(0xFF007AFF)),
-              label: const Text('新提醒',
-                  style: TextStyle(color: Color(0xFF007AFF))),
+          : GestureDetector(
+        key: const ValueKey('bottom_new_item'),
+        onTap: _openNewItemDialog,
+        child: const BottomAppBar(
+          elevation: 0,
+          padding: EdgeInsets.zero,
+          child: SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.plus_circle_fill,
+                      size: 22, color: Color(0xFF007AFF)),
+                  SizedBox(width: 6),
+                  Text('新提醒事项',
+                      style: TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF007AFF),
+                          fontWeight: FontWeight.w500)),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
