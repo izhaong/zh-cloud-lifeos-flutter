@@ -92,8 +92,10 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
       isFlagged: _isFlagged,
       priority: _priority,
       recurrence: _recurrence ?? ReminderItem.clear,
-      recurrenceUntil:
-          _recurrenceUntil ?? ReminderItem.clear,
+      // cursor T-04 R2：规则清空（永不）时结束日一并清——防旧结束日被静默沿用
+      recurrenceUntil: _recurrence == null
+          ? ReminderItem.clear
+          : (_recurrenceUntil ?? ReminderItem.clear),
       tags: tagList,
     );
     widget.onSaved(updated);
@@ -293,7 +295,10 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                   DropdownMenuItem(value: 'monthly', child: Text('每月')),
                   DropdownMenuItem(value: 'yearly', child: Text('每年')),
                 ],
-                onChanged: (v) => setState(() => _recurrence = v),
+                onChanged: (v) => setState(() {
+                  _recurrence = v;
+                  if (v == null) _recurrenceUntil = null;
+                }),
               ),
             ),
           ),
