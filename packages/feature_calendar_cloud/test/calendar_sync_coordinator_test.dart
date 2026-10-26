@@ -124,6 +124,33 @@ void main() {
       expect(port.pushCalls, 0);
     });
 
+    test('TC-CAL-SYNC-108 pull tombstone → 本地删除（事件与日历）', () async {
+      repo.calendars.add(const Calendar(
+          id: 'srv-10',
+          remoteId: '10',
+          title: '工作',
+          colorArgb: 0xFF007AFF));
+      repo.events
+          .add(_event(id: 'srv-55', calendarId: 'srv-10', remoteId: '55'));
+      port.pullResults.add(const CalendarPullResult(changes: [], tombstones: [
+        CalendarPullChange(
+            entityType: 'event',
+            entityId: '55',
+            operation: 'DELETE',
+            payload: {}),
+        CalendarPullChange(
+            entityType: 'calendar',
+            entityId: '10',
+            operation: 'DELETE',
+            payload: {}),
+      ]));
+
+      await coordinator().syncOnce();
+
+      expect(repo.events, isEmpty, reason: '对端删除事件后本地按 remoteId 命中并删除');
+      expect(repo.calendars, isEmpty);
+    });
+
     test('pull 富快照 → 重建事件时间/时区/提醒', () async {
       port.pullResults.add(const CalendarPullResult(changes: [
         CalendarPullChange(
@@ -163,9 +190,13 @@ void main() {
   });
 }
 
-CalendarEvent _event({required String id, required String calendarId}) =>
+CalendarEvent _event(
+        {required String id,
+        required String calendarId,
+        String? remoteId}) =>
     CalendarEvent(
       id: id,
+      remoteId: remoteId,
       calendarId: calendarId,
       uid: 'u-$id',
       title: '周会',
