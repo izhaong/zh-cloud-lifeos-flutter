@@ -186,6 +186,16 @@ class _CalendarRow extends ConsumerWidget {
               size: 16,
               color: const Color(0xFF8E8E93),
             ),
+            if (calendar.lastRefreshError != null) ...[
+              const SizedBox(width: 6),
+              Icon(
+                Icons.error_outline,
+                key: Key('cal-refresh-error-${calendar.id}'),
+                semanticLabel: '刷新失败',
+                size: 14,
+                color: const Color(0xFFFF3B30),
+              ),
+            ],
             const SizedBox(width: 6),
             Expanded(
               child: Text(calendar.title, overflow: TextOverflow.ellipsis),
@@ -261,6 +271,7 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
           sourceUrl: existing.sourceUrl,
           refreshMinutes: existing.refreshMinutes,
           holidayRegion: existing.holidayRegion,
+          lastRefreshError: existing.lastRefreshError,
           permission: existing.permission,
           revision: existing.revision,
           deletedAt: existing.deletedAt,

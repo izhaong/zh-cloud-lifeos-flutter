@@ -276,4 +276,63 @@ void main() {
     final rows = await db.select(db.calendarEvents).get();
     expect(rows, isEmpty, reason: '库无新行');
   });
+
+  // TC-CAL-UI-125（持久化半）：订阅上次刷新失败信息入列并跨 upsert 覆盖（契约 §2.6 last_refresh_error）。
+  test('TC-CAL-UI-125 lastRefreshError 落库往返', () async {
+    await repo.upsertCalendar(const Calendar(
+      id: 'sub-err',
+      title: '失败订阅',
+      colorArgb: 0xFFAF52DE,
+      kind: CalendarKind.subscription,
+      lastRefreshError: '拉取超时',
+    ));
+    final row = (await db.select(db.calendars).get())
+        .singleWhere((c) => c.id == 'sub-err');
+    expect(row.lastRefreshError, '拉取超时', reason: '列写入');
+    final seen = (await repo.watchCalendars().first)
+        .singleWhere((c) => c.id == 'sub-err');
+    expect(seen.lastRefreshError, '拉取超时', reason: '读回 kernel 模型');
+
+    await repo.upsertCalendar(const Calendar(
+      id: 'sub-err',
+      title: '失败订阅',
+      colorArgb: 0xFFAF52DE,
+      kind: CalendarKind.subscription,
+    ));
+    final cleared = (await db.select(db.calendars).get())
+        .singleWhere((c) => c.id == 'sub-err');
+    expect(cleared.lastRefreshError, isNull, reason: '刷新成功后清空');
+  });
+
+  // TC-CAL-UI-125（升级半）：v9 老库（无该列）重开时由 V10 迁移补列，旧行仍可写读。
+  test('TC-CAL-UI-125 v9 迁移到 v10 补 last_refresh_error 列', () async {
+    final dir = await Directory.systemTemp.createTemp('cal_drift_v10');
+    final file = File('${dir.path}/legacy_v9.db');
+    addTearDown(() => dir.deleteSync(recursive: true));
+
+    // 先用当前类建库并灌一行，再摘掉 V10 新列降回 v9 形态
+    final seed = LifeProductivityDb(NativeDatabase(file));
+    await seed.into(seed.calendars).insert(CalendarsCompanion.insert(
+          id: 'old9',
+          title: '旧订阅',
+          colorArgb: 0xFFAF52DE,
+        ));
+    seed.customStatement('ALTER TABLE calendars DROP COLUMN last_refresh_error');
+    seed.customStatement('PRAGMA user_version = 9');
+    await seed.close();
+
+    final reopened = LifeProductivityDb(NativeDatabase(file));
+    addTearDown(reopened.close);
+    final migrated = DriftCalendarRepository(reopened);
+    await migrated.upsertCalendar(const Calendar(
+      id: 'old9',
+      title: '旧订阅',
+      colorArgb: 0xFFAF52DE,
+      kind: CalendarKind.subscription,
+      lastRefreshError: '拉取超时',
+    ));
+    final seen = (await migrated.watchCalendars().first)
+        .singleWhere((c) => c.id == 'old9');
+    expect(seen.lastRefreshError, '拉取超时', reason: '迁移补出的列可写读');
+  });
 }

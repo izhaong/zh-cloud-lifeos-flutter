@@ -101,6 +101,9 @@ class Calendars extends Table {
   /// kind=holiday 的地区码（首期 CN）。
   TextColumn get holidayRegion => text().nullable()();
 
+  /// 上次订阅刷新失败的错误信息（NULL=正常；契约 §2.6 last_refresh_error）。
+  TextColumn get lastRefreshError => text().nullable()();
+
   /// OWNER / EDIT / VIEW。
   TextColumn get permission => text().withDefault(const Constant('OWNER'))();
   IntColumn get revision => integer().withDefault(const Constant(1))();
@@ -260,7 +263,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -336,6 +339,11 @@ class LifeProductivityDb extends _$LifeProductivityDb {
               Index('idx_notes_folder', 'CREATE INDEX IF NOT EXISTS idx_notes_folder '
                   'ON notes (folder_id, sort_order)'),
             );
+          }
+          if (from >= 7 && from < 10) {
+            // V10（lifeos/calendar F-16 / TC-CAL-UI-125）：订阅上次刷新失败信息
+            // 从 <7 升级时 calendars 表由上面 createTable 建成，已含该列，故不重复加。
+            await m.addColumn(calendars, calendars.lastRefreshError);
           }
         },
       );

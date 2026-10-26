@@ -99,6 +99,7 @@ class DriftCalendarRepository implements kernel.CalendarRepository {
             sourceUrl: Value(c.sourceUrl),
             refreshMinutes: Value(c.refreshMinutes),
             holidayRegion: Value(c.holidayRegion),
+            lastRefreshError: Value(c.lastRefreshError),
             permission: Value(c.permission.id),
             revision: Value(c.revision),
             deletedAt: Value(c.deletedAt),
@@ -569,6 +570,7 @@ class DriftCalendarRepository implements kernel.CalendarRepository {
       sourceUrl: row.sourceUrl,
       refreshMinutes: row.refreshMinutes,
       holidayRegion: row.holidayRegion,
+      lastRefreshError: row.lastRefreshError,
       permission: kernel.CalendarPermission.fromId(row.permission) ??
           kernel.CalendarPermission.owner,
       revision: row.revision,
