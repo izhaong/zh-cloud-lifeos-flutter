@@ -69,6 +69,7 @@ final class Calendar extends Equatable {
     this.ignoreAlerts = false,
     this.sourceUrl,
     this.refreshMinutes,
+    this.lastRefreshError,
     this.holidayRegion,
     this.permission = CalendarPermission.owner,
     this.revision = 1,
@@ -106,6 +107,9 @@ final class Calendar extends Equatable {
   /// 订阅自动刷新间隔分钟（契约 §2.1：NULL(手动)/5/15/60/1440/10080）。
   final int? refreshMinutes;
 
+  /// 上次订阅刷新失败的错误信息（空/null = 正常；契约 §2.6 last_refresh_error）。
+  final String? lastRefreshError;
+
   /// `kind=holiday` 的地区码（首期 `CN`）。
   final String? holidayRegion;
   final CalendarPermission permission;
@@ -130,6 +134,7 @@ final class Calendar extends Equatable {
         ignoreAlerts,
         sourceUrl,
         refreshMinutes,
+        lastRefreshError,
         holidayRegion,
         permission,
         revision,
