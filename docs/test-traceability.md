@@ -1,9 +1,9 @@
 # LifeOS 任务模块 · UI/交互测试 Traceability 矩阵
 
 > 工作树：`/Users/zhonghao/code/zh/worktrees/lifeos-task-flutter`
-> 分支：`feat/76-task-kr-cases`
+> 分支：`fix/82-ui-detail-polish`
 > 生成日期：2026-10-26
-> 门禁基线：`dart run melos exec --dir-exists=test -- flutter test` → 257/257 全绿（改动前）
+> 门禁基线：`dart run melos exec --dir-exists=test -- flutter test` → 基线 270/270 全绿（develop@f0ad780）；**本批次实跑 287/287 全绿**（+17 = 新增 `detail_edit_interactions_test` 5 条 + 新增 `ui_walkthrough_test` 12 条）
 > 本文档：把「UI 视图 / 交互 / 功能点」→「测试文件 / TC ID / 操作路径 / 结果」一一对应，并如实标注覆盖缺口与合并覆盖。
 
 ---
@@ -84,7 +84,7 @@
 
 | 包 | 用例数 | 说明 |
 |---|---|---|
-| feature_productivity_kernel | 65 | TC-KR-116/117（本地 id 前缀、删智能列表不级联）、kernel/manual_sections/occurrence_expander/smart_urgent/completed/list_type/contract_fields/recycle_window/toggle_completed_at 等 |
+| feature_productivity_kernel | 71 | TC-KR-116/117（本地 id 前缀、删智能列表不级联）、kernel/manual_sections/occurrence_expander/smart_urgent/completed/list_type/contract_fields/recycle_window/toggle_completed_at、Note/NoteFolder/NoteTag 内核模型等 |
 | feature_productivity_drift | 44 | Drift 仓库单测（内存/临时库，不连真数据库） |
 | feature_task_cloud | 27 | sync_gaps/auth_port/secure_session_store/sync_port/login_page（Noop/mock，不发真网络） |
 | life_link | 9 | life_link_uri 深链契约单测 |
@@ -118,4 +118,13 @@
 - **新增/修改 UI 测试必须强断言**：不得用 `if (finder.evaluate().isNotEmpty)` 包裹关键断言。
 - **合并覆盖允许**，但每项 TC 需有独立 `expect`。
 - **占位功能**（如 TC-UI-207）的测试必须锁占位文案，落地时强制更新。
-- 全量门禁：`dart run melos exec --dir-exists=test -- flutter test`，7 包 257 用例基线全绿（改动前）。
+- 全量门禁：`dart run melos exec --dir-exists=test -- flutter test`，7 包全绿，**287/287**（本批次实跑）。
+  | 包 | 用例 |
+  |---|---|
+  | feature_task | 87（含新增 detail_edit 5 + walkthrough 12）|
+  | feature_productivity_kernel | 71 |
+  | feature_productivity_drift | 44 |
+  | feature_calendar | 37 |
+  | feature_task_cloud | 27 |
+  | life_launcher | 12 |
+  | life_link | 9 |
