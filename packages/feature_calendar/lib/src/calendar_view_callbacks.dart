@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -14,10 +15,14 @@ class CalendarViewCallbacks {
     required this.preference,
     required this.setDraft,
     this.openOccurrence,
+    this.reminderRepository,
   });
 
   final CalendarRepository repo;
   final CalendarPreference preference;
+
+  /// 提醒事项仓库（F-15 投影的完成/删除；null = 只读展示）。
+  final ReminderRepository? reminderRepository;
 
   /// 草稿落位（scaffold 注入 draftEventProvider 写入）。
   final void Function(CalendarEvent draft) setDraft;
@@ -26,8 +31,17 @@ class CalendarViewCallbacks {
   final void Function(CalendarEvent draft, DateTime occurrenceStart)?
       openOccurrence;
 
-  /// 点已有 occurrence → 取主记录（含 rrule）后打开 Inspector。
+  /// 点已有 occurrence：
+  /// - reminder → 切换完成（空心圆，TC-CAL-UI-192）
+  /// - event → 取主记录（含 rrule）后打开 Inspector
   Future<void> onOccurrenceTapped(CalendarOccurrence occurrence) async {
+    if (occurrence.source == OccurrenceSource.reminder) {
+      final id = occurrence.reminderId;
+      if (id != null) {
+        await reminderRepository?.toggleCompleted(id);
+      }
+      return;
+    }
     if (openOccurrence == null) {
       return;
     }
@@ -35,6 +49,14 @@ class CalendarViewCallbacks {
         await repo.getEvent(occurrence.eventId);
     if (master != null) {
       openOccurrence!(master, occurrence.start);
+    }
+  }
+
+  /// 删除提醒（走任务删除而非日历事件删除；TC-CAL-UI-193）。
+  Future<void> deleteReminderOccurrence(CalendarOccurrence occurrence) async {
+    final id = occurrence.reminderId;
+    if (id != null) {
+      await reminderRepository?.deleteItem(id);
     }
   }
 
@@ -174,4 +196,35 @@ class DraftEventNotifier extends Notifier<CalendarEvent?> {
   }
 
   void clear() => state = null;
+}
+
+/// 删除提醒前确认（走提醒事项删除，不进日历事件删除；TC-CAL-UI-193）。
+Future<void> confirmDeleteReminder(
+  BuildContext context,
+  CalendarViewCallbacks callbacks,
+  CalendarOccurrence occurrence,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      key: const Key('reminder_delete_dialog'),
+      title: const Text('删除提醒'),
+      content: Text('「${occurrence.title}」将移到提醒事项的最近删除。'),
+      actions: [
+        TextButton(
+          key: const Key('reminder_delete_cancel'),
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          key: const Key('reminder_delete_confirm'),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('删除'),
+        ),
+      ],
+    ),
+  );
+  if (ok == true) {
+    await callbacks.deleteReminderOccurrence(occurrence);
+  }
 }

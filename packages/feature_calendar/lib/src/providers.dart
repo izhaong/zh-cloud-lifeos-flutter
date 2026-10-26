@@ -5,6 +5,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import 'logic/event_time.dart';
 import 'logic/search_filter.dart';
+import 'logic/scheduled_reminder_projection.dart';
 
 /// 日历视图模式（契约 §5.4 viewModeProvider；iPhone 列表档含 list）。
 enum CalendarViewMode { day, week, month, year, list }
@@ -71,6 +72,42 @@ final deviceTimeZoneProvider = FutureProvider<String>((ref) {
   return deviceTimeZoneName();
 });
 
+/// 提醒事项仓库（壳注入同一实例；默认 null = 不投影，F-15）。
+final calendarReminderRepositoryProvider =
+    Provider<ReminderRepository?>((ref) => null);
+
+final reminderItemsForCalendarProvider =
+    StreamProvider<List<ReminderItem>>((ref) {
+  final repo = ref.watch(calendarReminderRepositoryProvider);
+  if (repo == null) {
+    return Stream.value(const <ReminderItem>[]);
+  }
+  return repo.watchItems();
+});
+
+final reminderListsForCalendarProvider =
+    StreamProvider<List<ReminderList>>((ref) {
+  final repo = ref.watch(calendarReminderRepositoryProvider);
+  if (repo == null) {
+    return Stream.value(const <ReminderList>[]);
+  }
+  return repo.watchLists();
+});
+
+/// 侧栏「已安排的提醒事项」勾选（默认开；F-15）。
+final scheduledRemindersVisibleProvider =
+    NotifierProvider<ScheduledRemindersVisibleNotifier, bool>(
+        ScheduledRemindersVisibleNotifier.new);
+
+class ScheduledRemindersVisibleNotifier extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void set(bool value) => state = value;
+
+  void toggle() => state = !state;
+}
+
 /// 草稿是否由某个 occurrence 打开（重复事件作用域用；F-10）。
 final draftOccurrenceStartProvider =
     NotifierProvider<DraftOccurrenceStartNotifier, DateTime?>(
@@ -128,14 +165,27 @@ final occurrencesProvider = StreamProvider.family<List<CalendarOccurrence>,
   final colorByCalendar = {
     for (final c in calendars) c.id: c.colorArgb,
   };
+  final showReminders = ref.watch(scheduledRemindersVisibleProvider);
+  final reminderItems =
+      ref.watch(reminderItemsForCalendarProvider).value ?? const <ReminderItem>[];
+  final reminderLists =
+      ref.watch(reminderListsForCalendarProvider).value ?? const <ReminderList>[];
   return ref.watch(calendarRepositoryProvider).watchEvents(from: from, to: to).map((events) {
     final filtered = query.trim().isEmpty
         ? events
         : events
             .where((e) => matchesCalendarSearch(e, query))
             .toList(growable: false);
-    return expandOccurrences(filtered,
+    final occurrences = expandOccurrences(filtered,
         from: from, to: to, colorByCalendar: colorByCalendar);
+    if (!showReminders) {
+      return occurrences;
+    }
+    return [
+      ...occurrences,
+      ...projectScheduledReminders(reminderItems, reminderLists,
+          from: from, to: to),
+    ];
   });
 });
 

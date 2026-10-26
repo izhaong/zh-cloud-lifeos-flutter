@@ -17,6 +17,7 @@ export 'src/widgets/quick_event_dialog.dart';
 export 'src/widgets/calendar_shortcuts.dart';
 export 'src/logic/search_filter.dart';
 export 'src/logic/preference_copy.dart';
+export 'src/logic/scheduled_reminder_projection.dart';
 export 'src/widgets/calendar_settings_sheet.dart';
 export 'src/views/day_view.dart';
 export 'src/views/month_view.dart';

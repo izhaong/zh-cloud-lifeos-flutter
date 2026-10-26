@@ -12,13 +12,21 @@ import 'calendar_settings_sheet.dart';
 /// F-03 骨架：结构与 Key 就位（`calendar_toolbar`）；＋→F-12、列表切换→F-04、
 /// 收件箱→M4、搜索→F-13 的行为随后续卡接入。
 class CalendarToolbar extends ConsumerWidget {
-  const CalendarToolbar({super.key, this.compact = false, this.onQuickCreate});
+  const CalendarToolbar({
+    super.key,
+    this.compact = false,
+    this.onQuickCreate,
+    this.onQuickCreateReminder,
+  });
 
   /// 宽度 <600（iPhone 档）时用精简形态（契约 §8.5）。
   final bool compact;
 
-  /// 「＋」打开快速事件输入框（F-12；由 scaffold 注入）。
+  /// 「＋」→ 新建日程（F-12；由 scaffold 注入）。
   final VoidCallback? onQuickCreate;
+
+  /// 「＋」→ 新建提醒（F-15；由 scaffold 注入）。
+  final VoidCallback? onQuickCreateReminder;
 
   static const _labels = {
     CalendarViewMode.day: '日',
@@ -57,19 +65,17 @@ class CalendarToolbar extends ConsumerWidget {
                 onPressed: () =>
                     ref.read(searchActiveProvider.notifier).set(true),
               ),
-              IconButton(
-                tooltip: '新建日程',
-                icon: const Icon(Icons.add),
-                onPressed: onQuickCreate, // F-12 快速事件
+              _QuickCreateButton(
+                onEvent: onQuickCreate,
+                onReminder: onQuickCreateReminder,
               ),
             ],
           )
         : Row(
             children: [
-              IconButton(
-                tooltip: '新建日程',
-                icon: const Icon(Icons.add),
-                onPressed: onQuickCreate, // F-12 快速事件
+              _QuickCreateButton(
+                onEvent: onQuickCreate,
+                onReminder: onQuickCreateReminder,
               ),
               IconButton(
                 tooltip: '日历列表',
@@ -217,6 +223,43 @@ class _CalendarSearchBarState extends ConsumerState<_CalendarSearchBar> {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// 「＋」下拉：日程 / 提醒（F-15）。
+class _QuickCreateButton extends StatelessWidget {
+  const _QuickCreateButton({this.onEvent, this.onReminder});
+
+  final VoidCallback? onEvent;
+  final VoidCallback? onReminder;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      key: const Key('quick_create_menu'),
+      tooltip: '新建',
+      icon: const Icon(Icons.add),
+      onSelected: (value) {
+        if (value == 'event') {
+          onEvent?.call();
+        } else if (value == 'reminder') {
+          onReminder?.call();
+        }
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          key: Key('quick_create_event'),
+          value: 'event',
+          child: Text('新建日程'),
+        ),
+        PopupMenuItem(
+          key: Key('quick_create_reminder'),
+          value: 'reminder',
+          child: Text('新建提醒'),
+        ),
+      ],
     );
   }
 }

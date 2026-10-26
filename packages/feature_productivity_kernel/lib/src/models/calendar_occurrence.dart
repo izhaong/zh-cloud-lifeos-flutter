@@ -47,6 +47,7 @@ final class CalendarOccurrence extends Equatable {
     this.status = EventStatus.confirmed,
     this.source = OccurrenceSource.event,
     this.reminderId,
+    this.completed = false,
   });
 
   /// 承载本次的行 id：主记录次 = 主记录 id；例外次 = 例外行 id。
@@ -77,6 +78,9 @@ final class CalendarOccurrence extends Equatable {
   /// `source=reminder` 时的提醒条目 id（F-15 投影）。
   final String? reminderId;
 
+  /// `source=reminder` 时是否已完成（UI 灰显；KR-404）。
+  final bool completed;
+
   @override
   List<Object?> get props => [
         eventId,
@@ -93,5 +97,6 @@ final class CalendarOccurrence extends Equatable {
         status,
         source,
         reminderId,
+        completed,
       ];
 }

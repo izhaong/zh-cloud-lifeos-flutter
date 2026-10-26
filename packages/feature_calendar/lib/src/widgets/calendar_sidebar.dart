@@ -39,6 +39,18 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                 _GroupHeader(title: entry.key),
                 for (final c in entry.value) _CalendarRow(calendar: c),
               ],
+              // F-15：「其他」组固定行——已安排的提醒事项（默认勾选）
+              CheckboxListTile(
+                key: const Key('sidebar_scheduled_reminders'),
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                secondary: const Icon(Icons.radio_button_unchecked, size: 18),
+                title: const Text('已安排的提醒事项'),
+                value: ref.watch(scheduledRemindersVisibleProvider),
+                onChanged: (v) => ref
+                    .read(scheduledRemindersVisibleProvider.notifier)
+                    .set(v ?? true),
+              ),
               const Divider(height: 1),
               TextButton.icon(
                 key: const Key('sidebar-add-calendar'),
