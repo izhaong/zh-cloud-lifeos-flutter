@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
+import '../logic/local_holidays.dart';
 import 'calendar_shortcuts.dart';
+import 'subscription_dialog.dart';
 
 /// 日历侧栏（契约 §5.4/§8.5；F-04）。
 ///
@@ -50,6 +52,35 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                 onChanged: (v) => ref
                     .read(scheduledRemindersVisibleProvider.notifier)
                     .set(v ?? true),
+              ),
+              // F-16：本地节假日开关（lunar 生成，可关）
+              SwitchListTile(
+                key: const Key('sidebar_holidays_toggle'),
+                dense: true,
+                title: const Text('中国大陆节假日'),
+                value: calendars
+                        .where((c) => c.id == kHolidayCalendarId)
+                        .firstOrNull
+                        ?.isVisible ??
+                    false,
+                onChanged: (v) async {
+                  final repo = ref.read(calendarRepositoryProvider);
+                  if (v) {
+                    await ensureLocalHolidayCalendar(repo,
+                        year: DateTime.now().year);
+                  } else {
+                    await repo.setVisibility(
+                        id: kHolidayCalendarId, visible: false);
+                  }
+                },
+              ),
+              // F-16：订阅占位（只存 URL，不发 HTTP）
+              TextButton.icon(
+                key: const Key('sidebar-add-subscription'),
+                onPressed: () => showLocalSubscriptionDialog(context,
+                    repository: ref.read(calendarRepositoryProvider)),
+                icon: const Icon(Icons.add_link),
+                label: const Text('添加订阅'),
               ),
               const Divider(height: 1),
               TextButton.icon(
