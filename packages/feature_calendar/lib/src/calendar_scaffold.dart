@@ -35,8 +35,25 @@ class CalendarScaffold extends ConsumerWidget {
       repo: ref.read(calendarRepositoryProvider),
       preference:
           ref.watch(preferenceProvider).value ?? CalendarPreference.defaults,
-      setDraft: (draft) =>
-          ref.read(draftEventProvider.notifier).setDraft(draft),
+      // 草稿落位 + 三档呈现（F-08）：compact 全屏 / medium sheet /
+      // expanded 第三栏（scaffold 尾部按 draft 渲染）。
+      setDraft: (draft) {
+        final width = MediaQuery.of(context).size.width;
+        ref.read(draftEventProvider.notifier).setDraft(draft);
+        if (width >= 1200) {
+          return; // 第三栏由 build 尾部呈现
+        }
+        void saveAndClear() {
+          ref.read(draftEventProvider.notifier).clear();
+          Navigator.of(context).pop();
+        }
+        if (width < 600) {
+          EventInspectorHost.openFullScreen(
+              context, draft, () => ref.read(draftEventProvider.notifier).clear());
+        } else {
+          EventInspectorHost.openSheet(context, draft, saveAndClear);
+        }
+      },
     );
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
