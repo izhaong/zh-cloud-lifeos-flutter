@@ -1141,7 +1141,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                               ),
                               const SizedBox(height: 4),
                               const Text(
-                                '点按此处或「＋ 新提醒」添加',
+                                '点按此处或「＋ 新提醒事项」添加',
                                 style: TextStyle(
                                     fontSize: 13, color: Color(0xFFC7C7CC)),
                               ),
