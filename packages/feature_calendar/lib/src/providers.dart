@@ -70,6 +70,18 @@ final deviceTimeZoneProvider = FutureProvider<String>((ref) {
   return deviceTimeZoneName();
 });
 
+/// 草稿是否由某个 occurrence 打开（重复事件作用域用；F-10）。
+final draftOccurrenceStartProvider =
+    NotifierProvider<DraftOccurrenceStartNotifier, DateTime?>(
+        DraftOccurrenceStartNotifier.new);
+
+class DraftOccurrenceStartNotifier extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+
+  void set(DateTime? value) => state = value;
+}
+
 /// 全局搜索词（工具栏搜索 / ⌘F 聚焦；空串 = 不过滤；F-13 消费）。
 final searchQueryProvider =
     NotifierProvider<CalendarSearchQueryNotifier, String>(

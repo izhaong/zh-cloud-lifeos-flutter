@@ -70,6 +70,13 @@ class CalendarDayView extends ConsumerWidget {
                   viewCallbacks.onEventMoved(original ?? _toKernel(updated),
                       updated.start, updated.end);
                 },
+                // F-10：点已有日程 → Inspector（带该次 occurrence 起点）
+                onEventTapped: (event) {
+                  final occurrence = _findOccurrence(occurrences, event.id);
+                  if (occurrence != null) {
+                    viewCallbacks.onOccurrenceTapped(occurrence);
+                  }
+                },
               ),
             ),
           ),
@@ -81,6 +88,16 @@ class CalendarDayView extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  CalendarOccurrence? _findOccurrence(
+      List<CalendarOccurrence> occurrences, String kalenderEventId) {
+    for (final o in occurrences) {
+      if (kalenderEventId.startsWith('${o.eventId}:')) {
+        return o;
+      }
+    }
+    return null;
   }
 
   CalendarEvent? _findOriginal(
@@ -160,9 +177,25 @@ class CalendarWeekView extends ConsumerWidget {
             viewCallbacks.onEventMoved(original ?? _toKernel(updated),
                 updated.start, updated.end);
           },
+          onEventTapped: (event) {
+            final occurrence = _findOccurrence(occurrences, event.id);
+            if (occurrence != null) {
+              viewCallbacks.onOccurrenceTapped(occurrence);
+            }
+          },
         ),
       ),
     );
+  }
+
+  CalendarOccurrence? _findOccurrence(
+      List<CalendarOccurrence> occurrences, String kalenderEventId) {
+    for (final o in occurrences) {
+      if (kalenderEventId.startsWith('${o.eventId}:')) {
+        return o;
+      }
+    }
+    return null;
   }
 
   CalendarEvent? _findOriginal(

@@ -13,6 +13,7 @@ class CalendarViewCallbacks {
     required this.repo,
     required this.preference,
     required this.setDraft,
+    this.openOccurrence,
   });
 
   final CalendarRepository repo;
@@ -20,6 +21,22 @@ class CalendarViewCallbacks {
 
   /// 草稿落位（scaffold 注入 draftEventProvider 写入）。
   final void Function(CalendarEvent draft) setDraft;
+
+  /// 由 occurrence 打开 Inspector（草稿 + 该次原始开始；F-10 作用域用）。
+  final void Function(CalendarEvent draft, DateTime occurrenceStart)?
+      openOccurrence;
+
+  /// 点已有 occurrence → 取主记录（含 rrule）后打开 Inspector。
+  Future<void> onOccurrenceTapped(CalendarOccurrence occurrence) async {
+    if (openOccurrence == null) {
+      return;
+    }
+    final master = await repo.getEvent(occurrence.masterEventId) ??
+        await repo.getEvent(occurrence.eventId);
+    if (master != null) {
+      openOccurrence!(master, occurrence.start);
+    }
+  }
 
   /// TC-CAL-UI-130：双击/拖选创建 → 草稿（时长=偏好默认；标题空不落库）。
   CalendarEvent onDraftCreate(DateTime start, DateTime end) {

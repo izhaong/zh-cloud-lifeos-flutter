@@ -9,6 +9,7 @@ export 'src/providers.dart';
 export 'src/calendar_view_callbacks.dart';
 export 'src/logic/lunar_label.dart';
 export 'src/logic/event_time.dart';
+export 'src/logic/recurrence_ui.dart';
 export 'src/views/day_view.dart';
 export 'src/views/month_view.dart';
 export 'src/views/year_view.dart';
