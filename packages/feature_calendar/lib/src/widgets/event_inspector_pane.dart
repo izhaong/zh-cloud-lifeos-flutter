@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import '../providers.dart';
-import 'event_form_fields.dart';
+import 'event_form_fields.dart' show EventFormFields, defaultCalendarOf;
 
 /// 日程 Inspector（契约 §5.4 event_inspector_pane.dart；F-08）。
 ///
@@ -77,9 +77,7 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     if (toSave.calendarId.isEmpty) {
       final asyncCalendars = ref.watch(calendarsProvider);
       final calendars = asyncCalendars.asData?.value ?? const <Calendar>[];
-      final target = calendars.any((c) => c.isDefault)
-          ? calendars.firstWhere((c) => c.isDefault)
-          : (calendars.isEmpty ? null : calendars.first);
+      final target = defaultCalendarOf(calendars);
       if (target == null) {
         // loading/无日历：明确提示而非静默失败
         setState(() {

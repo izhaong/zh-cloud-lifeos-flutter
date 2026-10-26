@@ -146,7 +146,7 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
             key: const Key('event_field_calendar_dropdown'),
             value: calendars.any((c) => c.id == _e.calendarId)
                 ? _e.calendarId
-                : (calendars.isEmpty ? null : calendars.first.id),
+                : defaultCalendarOf(calendars)?.id,
             items: [
               for (final c in calendars)
                 DropdownMenuItem(value: c.id, child: Text(c.title)),
@@ -253,4 +253,15 @@ CalendarEvent _copyWith(
     deletedAt: e.deletedAt,
     updatedAt: e.updatedAt,
   );
+}
+
+
+/// 草稿空日历的落点：优先默认日历，否则首个（与 Inspector 保存口径一致）。
+Calendar? defaultCalendarOf(List<Calendar> calendars) {
+  if (calendars.isEmpty) {
+    return null;
+  }
+  return calendars.any((c) => c.isDefault)
+      ? calendars.firstWhere((c) => c.isDefault)
+      : calendars.first;
 }
