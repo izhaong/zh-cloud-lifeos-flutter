@@ -1055,14 +1055,18 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
           // 分区（线框客户端「分区一 ∨」）：带 dueAt 的顶层条目按日桶折叠；
           // 无日期条目单独一区。折叠为内存态（P1 不持久化）。
+          // smart.today/smart.scheduled 视图：分区头与列表标题重复 → 跳过
+          final skipSectionHeader = widget.list.id == 'smart.today' ||
+              widget.list.id == 'smart.scheduled';
           final sections = _buildSections(topLevel);
           final rows = <Widget>[
             for (final entry in sections.entries) ...[
-              _SectionHeader(
-                title: entry.key,
-                collapsed: _collapsedSections.contains(entry.key),
-                onToggle: () => _toggleSection(entry.key),
-              ),
+              if (!skipSectionHeader || entry.key != widget.list.title)
+                _SectionHeader(
+                  title: entry.key,
+                  collapsed: _collapsedSections.contains(entry.key),
+                  onToggle: () => _toggleSection(entry.key),
+                ),
               if (!_collapsedSections.contains(entry.key))
                 for (final item in entry.value)
                   _buildItemRow(
@@ -1265,8 +1269,8 @@ class _ListHeaderToolbar extends ConsumerWidget {
                 '$remainingCount',
                 key: const ValueKey('remaining_count'),
                 style: const TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                   color: Color(0xFF007AFF),
                 ),
               ),

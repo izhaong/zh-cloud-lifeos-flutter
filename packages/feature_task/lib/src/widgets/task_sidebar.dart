@@ -265,7 +265,7 @@ class _SidebarTile extends StatelessWidget {
         style: const TextStyle(color: Color(0xFF8E8E93)),
       ),
       selected: selected,
-      selectedTileColor: const Color(0xFFD1D1D6),
+      selectedTileColor: const Color(0x26007AFF),
       onTap: onTap,
     );
   }
