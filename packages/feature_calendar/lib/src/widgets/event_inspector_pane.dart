@@ -16,6 +16,7 @@ class EventInspectorPane extends ConsumerStatefulWidget {
     super.key,
     required this.initialEvent,
     required this.onSaved,
+    this.onDraftChanged,
     this.onClose,
   });
 
@@ -23,6 +24,9 @@ class EventInspectorPane extends ConsumerStatefulWidget {
 
   /// 保存成功回调（外壳用于关闭 sheet / 清 selectedOccurrence）。
   final VoidCallback onSaved;
+
+  /// 草稿变更回写（第三栏场景：断点降档卸栏后未保存修改不丢；可选）。
+  final ValueChanged<CalendarEvent>? onDraftChanged;
 
   final VoidCallback? onClose;
 
@@ -134,7 +138,10 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
           Expanded(
             child: EventFormFields(
               event: _draft,
-              onChanged: (next) => setState(() => _draft = next),
+              onChanged: (next) {
+                setState(() => _draft = next);
+                widget.onDraftChanged?.call(next);
+              },
             ),
           ),
           if (_saveAttempted && _blockedReason != null)

@@ -52,6 +52,10 @@ class CalendarScaffold extends ConsumerWidget {
           if (contentWidth >= 1200) {
             return; // 第三栏由 build 尾部呈现
           }
+          // 已有 sheet/全屏在途：不叠第二层编辑面
+          if (ref.read(inspectorRouteActiveProvider)) {
+            return;
+          }
           // 打开 sheet/全屏即标记路由编辑面在途（防宽度跨档双开）
           ref.read(inspectorRouteActiveProvider.notifier).set(true);
           void routeDone() {
@@ -111,6 +115,9 @@ class CalendarScaffold extends ConsumerWidget {
                     width: 320,
                     child: EventInspectorPane(
                       initialEvent: draft,
+                      // 编辑回写 draftEventProvider：断点降档卸栏后未保存修改不丢
+                      onDraftChanged: (next) =>
+                          ref.read(draftEventProvider.notifier).setDraft(next),
                       onSaved: () =>
                           ref.read(draftEventProvider.notifier).clear(),
                       onClose: () =>
