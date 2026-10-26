@@ -171,6 +171,18 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
             title: Text('未登录，数据只在本机'),
             subtitle: Text('登录后可在多设备同步（F-17）'),
           ),
+          if (ref.watch(calendarSyncTriggerProvider) != null)
+            ListTile(
+              key: const Key('settings_sync_now'),
+              title: const Text('立即同步'),
+              trailing: TextButton(
+                key: const Key('settings_sync_now_button'),
+                onPressed: () async {
+                  await ref.read(calendarSyncTriggerProvider)?.call();
+                },
+                child: const Text('同步'),
+              ),
+            ),
         ],
       ),
     );
