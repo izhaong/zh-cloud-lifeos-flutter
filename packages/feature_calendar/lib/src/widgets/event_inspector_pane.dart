@@ -4,7 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import '../providers.dart';
+import '../logic/event_time.dart';
+import '../logic/calendar_ids.dart';
 import 'event_form_fields.dart' show EventFormFields, defaultCalendarOf;
+
+export '../logic/calendar_ids.dart' show kDraftEventId;
 
 /// 日程 Inspector（契约 §5.4 event_inspector_pane.dart；F-08）。
 ///
@@ -97,6 +101,10 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     // ① 新建草稿：保存时生成新 id（多次创建互不覆盖）
     if (_isNewDraft) {
       toSave = _copyWithId(toSave, newCalendarEventId());
+    }
+    // F-09：保存前按 timeZone 归一全天（契约 §2.2；TC-CAL-KR-120）
+    if (toSave.allDay) {
+      toSave = normalizeAllDay(toSave);
     }
     final repo = ref.read(calendarRepositoryProvider);
     setState(() => _saving = true);
@@ -208,9 +216,6 @@ class EventInspectorHost extends StatelessWidget {
   }
 }
 
-
-/// 新建草稿占位 id（双击/快捷创建入口统一使用；保存时换真 id）。
-const String kDraftEventId = 'draft';
 
 /// 日历事件 id 工厂（kernel 只提供 reminder/list 工厂；事件侧对齐命名）。
 String newCalendarEventId() =>
