@@ -171,6 +171,9 @@ class _CountingRepo implements ReminderRepository {
   ReminderItem? lastItem;
 
   @override
+  bool checkDayRollover() => _inner.checkDayRollover();
+
+  @override
   Stream<List<ReminderList>> watchLists() => _inner.watchLists();
 
   @override

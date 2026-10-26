@@ -41,8 +41,10 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   Stream<List<kernel.ReminderList>> watchLists() {
     final lists$ = _db.select(_db.reminderLists).watch();
     final items$ = _db.select(_db.reminderItems).watch();
-    return _combineLatest2<List<ReminderList>, List<ReminderItem>,
-        List<kernel.ReminderList>>(lists$, items$, (listRows, itemRows) {
+    // 跨日刷新：now 不能在建流时冻结——与日界 tick 合并，每次发射重算
+    return _combineLatest3<List<ReminderList>, List<ReminderItem>, DateTime,
+        List<kernel.ReminderList>>(
+        lists$, items$, _dayTicks(), (listRows, itemRows, _) {
       final now = _now;
       return [
         for (final smart in smartLists)
@@ -66,7 +68,6 @@ class DriftReminderRepository implements kernel.ReminderRepository {
 
   @override
   Stream<List<kernel.ReminderItem>> watchItems({String? listId}) {
-    final now = _now;
     final query = _db.select(_db.reminderItems)
       // 排序契约（与 InMemory 一致）：sortOrder asc, id asc
       ..orderBy([
@@ -78,15 +79,56 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       // 回收窗行不进普通列表（软删只在 smart.trash 出现）
       query.where((t) => t.deletedAt.isNull());
     }
-    return query.watch().map(
-      (rows) => List<kernel.ReminderItem>.unmodifiable(
+    return _combineLatest2<List<ReminderItem>, DateTime,
+        List<kernel.ReminderItem>>(query.watch(), _dayTicks(), (rows, _) {
+      final now = _now;
+      return List<kernel.ReminderItem>.unmodifiable(
         rows
             .where((row) => _matches(row, listId, now))
             .map(_toModel)
             .toList(growable: false),
-      ),
-    );
+      );
+    });
   }
+
+  /// 日界 tick：立即发一次，此后每 60s 检查本地日；跨日才再发。
+  /// 修复「app 跨午夜保持打开时智能列表仍是昨天快照」。
+  Stream<DateTime> _dayTicks() {
+    DateTime last = _todayOf(_now);
+    late StreamController<DateTime> controller;
+    Timer? timer;
+    void emitIfDayChanged() {
+      final t = _now;
+      final today = _todayOf(t);
+      if (today.year != last.year ||
+          today.month != last.month ||
+          today.day != last.day) {
+        last = today;
+        if (controller.hasListener) controller.add(t);
+      }
+    }
+
+    controller = StreamController<DateTime>.broadcast(
+      onListen: () {
+        controller.add(_now);
+        timer ??= Timer.periodic(const Duration(seconds: 60), (_) {
+          emitIfDayChanged();
+        });
+      },
+      onCancel: () {
+        timer?.cancel();
+        timer = null;
+      },
+    );
+    return controller.stream;
+  }
+
+  static DateTime _todayOf(DateTime t) => DateTime(t.year, t.month, t.day);
+
+  /// 跨日刷新（供壳层在回前台时调用）：无集中 timer——
+  /// watch 流已内置日界 tick，这里只做一次性对账。
+  @override
+  bool checkDayRollover() => true;
 
   @override
   Future<void> upsertItem(kernel.ReminderItem item) async {
@@ -475,6 +517,56 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   // ---- 内部 ----
 
   /// 轻量 combineLatest：两侧都有值后，任一侧更新即合并发射。
+  static Stream<R> _combineLatest3<A, B, C, R>(
+    Stream<A> a,
+    Stream<B> b,
+    Stream<C> c,
+    R Function(A, B, C) combine,
+  ) {
+    late StreamController<R> controller;
+    A? latestA;
+    B? latestB;
+    C? latestC;
+    var hasA = false, hasB = false, hasC = false;
+    final subs = <StreamSubscription<dynamic>>[];
+
+    void emit() {
+      if (hasA && hasB && hasC) {
+        controller.add(combine(latestA as A, latestB as B, latestC as C));
+      }
+    }
+
+    void listen() {
+      subs.add(a.listen((v) {
+        latestA = v;
+        hasA = true;
+        emit();
+      }));
+      subs.add(b.listen((v) {
+        latestB = v;
+        hasB = true;
+        emit();
+      }));
+      subs.add(c.listen((v) {
+        latestC = v;
+        hasC = true;
+        emit();
+      }));
+    }
+
+    controller = StreamController<R>.broadcast(
+      onListen: listen,
+      onCancel: () {
+        for (final s in subs) {
+          s.cancel();
+        }
+        subs.clear();
+        hasA = hasB = hasC = false;
+      },
+    );
+    return controller.stream;
+  }
+
   static Stream<R> _combineLatest2<A, B, R>(
     Stream<A> a,
     Stream<B> b,

@@ -84,11 +84,38 @@ Future<void> main() async {
   );
 }
 
-class LifeLauncherApp extends ConsumerWidget {
+class LifeLauncherApp extends ConsumerStatefulWidget {
   const LifeLauncherApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LifeLauncherApp> createState() => _LifeLauncherAppState();
+}
+
+class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// 跨日刷新（真实 bug）：app 长时间在后台/跨午夜后回到前台，
+  /// 「今天/计划」等按本地日过滤的智能列表仍是昨天快照
+  /// （表现为「今天」里躺着昨日项，分区头却已标「已过期」）。
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    ref.read(reminderRepositoryProvider).checkDayRollover();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = buildLifeRouter(ref);
     return MaterialApp.router(
       title: 'LifeOS 生活台',
