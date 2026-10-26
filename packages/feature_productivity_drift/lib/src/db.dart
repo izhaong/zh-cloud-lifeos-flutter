@@ -196,13 +196,71 @@ class CalendarPreferences extends Table {
   Set<Column> get primaryKey => {userKey};
 }
 
+/// 记录文件夹表（lifeos/note F-02；字段对齐 kernel.NoteFolder，契约 §2）。
+class NoteFolders extends Table {
+  TextColumn get id => text()();
+
+  /// 服务端实体 ID（null = 纯本地未同步）。
+  TextColumn get remoteId => text().nullable()();
+
+  /// 父文件夹 id；null = 根。
+  TextColumn get parentId => text().nullable()();
+  TextColumn get name => text()();
+
+  /// 是否智能文件夹。
+  BoolColumn get smart => boolean().withDefault(const Constant(false))();
+
+  /// 智能文件夹条件 JSON（仅 smart=true；键见契约 §1）。
+  TextColumn get filterJson => text().nullable()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// 备忘录表（lifeos/note F-02；字段对齐 kernel.Note，契约 §2）。
+///
+/// 正文两份：bodyDelta（Quill Delta JSON；锁定时为密文 Base64）与
+/// bodyText（纯文本，搜索用；锁定时强制空）。标签存 JSON 数组文本
+/// （关联表随 S-06 服务端半定形后再考虑落表，先与 reminder 同口径）。
+class Notes extends Table {
+  TextColumn get id => text()();
+
+  /// 服务端实体 ID（null = 纯本地未同步）。
+  TextColumn get remoteId => text().nullable()();
+  TextColumn get folderId => text()();
+  TextColumn get title => text()();
+  TextColumn get bodyDelta => text().withDefault(const Constant(''))();
+  TextColumn get bodyText => text().withDefault(const Constant(''))();
+  BoolColumn get pinned => boolean().withDefault(const Constant(false))();
+  BoolColumn get locked => boolean().withDefault(const Constant(false))();
+  IntColumn get checklistTotal => integer().withDefault(const Constant(0))();
+  IntColumn get checklistDone => integer().withDefault(const Constant(0))();
+
+  /// 标签 JSON 数组文本（如 '["工作"]'；空存 '[]'）。
+  TextColumn get tagNames => text().withDefault(const Constant('[]'))();
+
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+
+  /// 客户端更新时间戳（毫秒）。
+  IntColumn get clientUpdatedAt => integer().withDefault(const Constant(0))();
+
+  /// 乐观锁版本。
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
-    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences])
+    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes])
 class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -268,6 +326,15 @@ class LifeProductivityDb extends _$LifeProductivityDb {
               Index('idx_calendar_events_cal_start',
                   'CREATE INDEX IF NOT EXISTS idx_calendar_events_cal_start '
                   'ON calendar_events (calendar_id, start_at)'),
+            );
+          }
+          if (from < 9) {
+            // V9（lifeos/note F-02 / TC-NOTE-KR-101）：记录两表 + 文件夹排序索引
+            await m.createTable(noteFolders);
+            await m.createTable(notes);
+            await m.createIndex(
+              Index('idx_notes_folder', 'CREATE INDEX IF NOT EXISTS idx_notes_folder '
+                  'ON notes (folder_id, sort_order)'),
             );
           }
         },
