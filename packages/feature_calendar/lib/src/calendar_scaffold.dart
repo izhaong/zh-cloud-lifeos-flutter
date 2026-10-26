@@ -102,6 +102,8 @@ class CalendarScaffold extends ConsumerWidget {
                       initialEvent: draft,
                       onSaved: () =>
                           ref.read(draftEventProvider.notifier).clear(),
+                      onClose: () =>
+                          ref.read(draftEventProvider.notifier).clear(),
                     ),
                   ),
                 ],
