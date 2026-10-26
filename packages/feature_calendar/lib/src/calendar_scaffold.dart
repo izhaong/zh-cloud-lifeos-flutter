@@ -80,6 +80,7 @@ class CalendarScaffold extends ConsumerWidget {
       return CalendarViewCallbacks(
         repo: repo,
         preference: preference,
+        reminderRepository: ref.read(calendarReminderRepositoryProvider),
         setDraft: (draft) => openDraft(draft, null, contentWidth),
         openOccurrence: (draft, occurrenceStart) =>
             openDraft(draft, occurrenceStart, contentWidth),
@@ -111,6 +112,35 @@ class CalendarScaffold extends ConsumerWidget {
       openDraft(draft, null, MediaQuery.sizeOf(context).width);
     }
 
+    // F-15：＋ → 新建提醒（快速输入复用 F-12；写入 ReminderRepository）
+    Future<void> openQuickReminder() async {
+      final reminderRepo = ref.read(calendarReminderRepositoryProvider);
+      final lists =
+          ref.read(reminderListsForCalendarProvider).value ?? const <ReminderList>[];
+      final targets = lists.where((l) => !l.isSmart).toList();
+      if (reminderRepo == null || targets.isEmpty) {
+        return;
+      }
+      final quick = await showQuickEventDialog(
+        context,
+        defaultDurationMinutes: 30,
+        timeZone: 'UTC',
+      );
+      if (quick == null || !context.mounted) {
+        return;
+      }
+      final local = quick.startAt.toLocal();
+      final dueAt = quick.allDay
+          ? DateTime(local.year, local.month, local.day)
+          : local;
+      await reminderRepo.upsertItem(ReminderItem(
+        id: newReminderId(),
+        listId: targets.first.id,
+        title: quick.title,
+        dueAt: dueAt,
+      ));
+    }
+
     final scaffold = Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       body: SafeArea(
@@ -123,7 +153,9 @@ class CalendarScaffold extends ConsumerWidget {
             Widget content = Column(
               children: [
                 CalendarToolbar(
-                    compact: compact, onQuickCreate: openQuickEvent),
+                    compact: compact,
+                    onQuickCreate: openQuickEvent,
+                    onQuickCreateReminder: openQuickReminder),
                 const Divider(height: 1),
                 Expanded(child: _MainView(
                     mode: mode, viewCallbacks: viewCallbacks,

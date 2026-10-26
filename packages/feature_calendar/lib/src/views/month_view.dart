@@ -73,7 +73,7 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
             const <CalendarOccurrence>[];
     widget.eventsController.replaceEvents([
       for (final o in occurrences)
-        if (o.source == OccurrenceSource.event)
+        if (o.source != OccurrenceSource.holiday)
           CalendarEventTile(
             id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
             start: o.start.toUtc(),
@@ -119,6 +119,16 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
             for (final o in occurrences) {
               if (event.id.startsWith('${o.eventId}:')) {
                 widget.viewCallbacks.onOccurrenceTapped(o);
+                break;
+              }
+            }
+          },
+          onEventSecondaryTapped: (event) {
+            for (final o in occurrences) {
+              if (event.id.startsWith('${o.eventId}:')) {
+                if (o.source == OccurrenceSource.reminder) {
+                  confirmDeleteReminder(context, widget.viewCallbacks, o);
+                }
                 break;
               }
             }

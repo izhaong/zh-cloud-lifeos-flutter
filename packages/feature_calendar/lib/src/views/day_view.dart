@@ -32,7 +32,7 @@ class CalendarDayView extends ConsumerWidget {
     eventsController.clearEvents();
     eventsController.addEvents([
       for (final o in occurrences)
-        if (o.source == OccurrenceSource.event)
+        if (o.source != OccurrenceSource.holiday)
           kalender.KalenderEvent(
             id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
             start: o.start.toUtc(),
@@ -75,6 +75,13 @@ class CalendarDayView extends ConsumerWidget {
                   final occurrence = _findOccurrence(occurrences, event.id);
                   if (occurrence != null) {
                     viewCallbacks.onOccurrenceTapped(occurrence);
+                  }
+                },
+                onEventSecondaryTapped: (event) {
+                  final occurrence = _findOccurrence(occurrences, event.id);
+                  if (occurrence != null &&
+                      occurrence.source == OccurrenceSource.reminder) {
+                    confirmDeleteReminder(context, viewCallbacks, occurrence);
                   }
                 },
               ),
@@ -151,7 +158,7 @@ class CalendarWeekView extends ConsumerWidget {
     eventsController.clearEvents();
     eventsController.addEvents([
       for (final o in occurrences)
-        if (o.source == OccurrenceSource.event)
+        if (o.source != OccurrenceSource.holiday)
           kalender.KalenderEvent(
             id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
             start: o.start.toUtc(),
@@ -181,6 +188,13 @@ class CalendarWeekView extends ConsumerWidget {
             final occurrence = _findOccurrence(occurrences, event.id);
             if (occurrence != null) {
               viewCallbacks.onOccurrenceTapped(occurrence);
+            }
+          },
+          onEventSecondaryTapped: (event) {
+            final occurrence = _findOccurrence(occurrences, event.id);
+            if (occurrence != null &&
+                occurrence.source == OccurrenceSource.reminder) {
+              confirmDeleteReminder(context, viewCallbacks, occurrence);
             }
           },
         ),

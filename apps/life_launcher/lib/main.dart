@@ -40,6 +40,7 @@ Future<void> main() async {
       overrides: [
         reminderRepositoryProvider.overrideWithValue(repository),
         calendarRepositoryProvider.overrideWithValue(calendarRepository),
+        calendarReminderRepositoryProvider.overrideWithValue(repository),
         calendarAlertSchedulerProvider.overrideWithValue(calendarAlertScheduler),
         pinnedTabsServiceProvider.overrideWithValue(
           PinnedTabsService(prefs),
