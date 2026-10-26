@@ -195,7 +195,7 @@ final class CalendarEvent extends Equatable {
   /// 纯文本地点（无地图匹配，C-072 降级）。
   final String? location;
 
-  /// 网址（FaceTime 降级：放任意会议链接）。
+  /// 网址（会议链接；不绑定任何视频通话服务）。
   final String? url;
   final String? notes;
 
