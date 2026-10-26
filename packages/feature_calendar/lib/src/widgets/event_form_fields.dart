@@ -256,12 +256,18 @@ CalendarEvent _copyWith(
 }
 
 
-/// 草稿空日历的落点：优先默认日历，否则首个（与 Inspector 保存口径一致）。
+/// 草稿空日历的落点：优先默认**可写**日历，否则首个可写日历
+/// （订阅/节假日/VIEW 共享不可落库；与 Inspector 保存口径一致）。
 Calendar? defaultCalendarOf(List<Calendar> calendars) {
-  if (calendars.isEmpty) {
+  final writable = calendars
+      .where((c) => c.kind == CalendarKind.local ||
+          (c.kind == CalendarKind.shared &&
+              c.permission != CalendarPermission.view))
+      .toList();
+  if (writable.isEmpty) {
     return null;
   }
-  return calendars.any((c) => c.isDefault)
-      ? calendars.firstWhere((c) => c.isDefault)
-      : calendars.first;
+  return writable.any((c) => c.isDefault)
+      ? writable.firstWhere((c) => c.isDefault)
+      : writable.first;
 }
