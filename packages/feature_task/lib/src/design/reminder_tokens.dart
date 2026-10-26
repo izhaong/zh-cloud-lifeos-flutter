@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 /// Apple Reminders 参考图取样得到的桌面视觉 token。
 ///
 /// 只放颜色/渐变/间距等纯常量，避免各 widget 各自硬编码。
-abstract final class LifeTokens {
+abstract final class ReminderTokens {
   static const systemBlue = Color(0xFF007AFF);
   static const systemRed = Color(0xFFFF3B30);
   static const systemOrange = Color(0xFFFF9500);

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
-import 'design/life_tokens.dart';
+import 'design/reminder_tokens.dart';
 import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
@@ -485,7 +485,7 @@ class _TwoPane extends ConsumerWidget {
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final sidebarWidth = LifeTokens.sidebarWidth(constraints.maxWidth);
+        final sidebarWidth = ReminderTokens.sidebarWidth(constraints.maxWidth);
         return Row(
           children: [
             if (sidebarVisible) ...[
@@ -594,7 +594,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final sidebarWidth = LifeTokens.sidebarWidth(constraints.maxWidth);
+        final sidebarWidth = ReminderTokens.sidebarWidth(constraints.maxWidth);
         return Row(
           children: [
             if (sidebarVisible) ...[
@@ -1233,15 +1233,15 @@ class _GhostNewRow extends StatelessWidget {
         child: Row(
           children: [
             Icon(CupertinoIcons.add_circled,
-                color: LifeTokens.labelTertiary, size: 22),
+                color: ReminderTokens.labelTertiary, size: 22),
             SizedBox(width: 14),
-            Icon(CupertinoIcons.add, color: LifeTokens.systemBlue, size: 16),
+            Icon(CupertinoIcons.add, color: ReminderTokens.systemBlue, size: 16),
             SizedBox(width: 4),
             Text(
               '新提醒事项',
               style: TextStyle(
                 fontSize: 15,
-                color: LifeTokens.systemBlue,
+                color: ReminderTokens.systemBlue,
               ),
             ),
           ],
@@ -1355,7 +1355,7 @@ class _ListHeaderToolbar extends ConsumerWidget {
                       key: const ValueKey('done_count'),
                       style: const TextStyle(
                         fontSize: 13,
-                        color: LifeTokens.labelSecondary,
+                        color: ReminderTokens.labelSecondary,
                       ),
                     ),
                     const SizedBox(width: 2),
@@ -1363,15 +1363,15 @@ class _ListHeaderToolbar extends ConsumerWidget {
                       '·',
                       style: TextStyle(
                         fontSize: 13,
-                        color: LifeTokens.labelSecondary,
+                        color: ReminderTokens.labelSecondary,
                       ),
                     ),
                     TextButton(
                       key: const ValueKey('clear_completed'),
                       onPressed: doneCount == 0 ? null : onClearCompleted,
                       style: TextButton.styleFrom(
-                        foregroundColor: LifeTokens.systemBlue,
-                        disabledForegroundColor: LifeTokens.labelTertiary,
+                        foregroundColor: ReminderTokens.systemBlue,
+                        disabledForegroundColor: ReminderTokens.labelTertiary,
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         minimumSize: const Size(0, 24),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1421,9 +1421,9 @@ class _ListHeaderToolbar extends ConsumerWidget {
                 children: [
                   Text(showCompleted ? '显示 ✓' : '显示',
                       style: const TextStyle(
-                          fontSize: 13, color: LifeTokens.systemBlue)),
+                          fontSize: 13, color: ReminderTokens.systemBlue)),
                   const Icon(Icons.arrow_drop_down,
-                      size: 16, color: LifeTokens.systemBlue),
+                      size: 16, color: ReminderTokens.systemBlue),
                 ],
               ),
             ),
@@ -1450,9 +1450,9 @@ class _ListHeaderToolbar extends ConsumerWidget {
                 children: [
                   Text('排序',
                       style: TextStyle(
-                          fontSize: 13, color: LifeTokens.systemBlue)),
+                          fontSize: 13, color: ReminderTokens.systemBlue)),
                   Icon(Icons.arrow_drop_down,
-                      size: 16, color: LifeTokens.systemBlue),
+                      size: 16, color: ReminderTokens.systemBlue),
                 ],
               ),
             ),

@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
-import '../design/life_tokens.dart';
+import '../design/reminder_tokens.dart';
 import '../providers.dart';
 import 'smart_list_card.dart';
 
@@ -120,7 +120,7 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
       ..sort();
 
     return Material(
-      color: LifeTokens.sidebarBg,
+      color: ReminderTokens.sidebarBg,
       child: Column(
         children: [
           // 顶部工具条（图2：新建列表｜隐藏侧栏｜⚙设置）
@@ -164,8 +164,8 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        mainAxisSpacing: LifeTokens.cardGap,
-                        crossAxisSpacing: LifeTokens.cardGap,
+                        mainAxisSpacing: ReminderTokens.cardGap,
+                        crossAxisSpacing: ReminderTokens.cardGap,
                         mainAxisExtent: 60,
                       ),
                       itemCount: smart.length,
@@ -260,7 +260,7 @@ class _TopIcon extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
       child: Padding(
         padding: const EdgeInsets.all(6),
-        child: Icon(icon, size: 18, color: LifeTokens.systemBlue),
+        child: Icon(icon, size: 18, color: ReminderTokens.systemBlue),
       ),
     );
     if (tooltip == null) return btn;
@@ -282,7 +282,7 @@ class _SectionLabel extends StatelessWidget {
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: LifeTokens.labelSecondary,
+          color: ReminderTokens.labelSecondary,
         ),
       ),
     );
@@ -307,7 +307,7 @@ class _MyListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isTrash ? LifeTokens.labelSecondary : Color(list.colorArgb);
+    final color = isTrash ? ReminderTokens.labelSecondary : Color(list.colorArgb);
     final icon = isTrash
         ? CupertinoIcons.trash
         : customSmart
@@ -319,7 +319,7 @@ class _MyListRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       child: Material(
         color: selected
-            ? LifeTokens.systemBlue.withValues(alpha: 0.10)
+            ? ReminderTokens.systemBlue.withValues(alpha: 0.10)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
@@ -335,7 +335,7 @@ class _MyListRow extends StatelessWidget {
                   height: 24,
                   decoration: BoxDecoration(
                     color: color,
-                    borderRadius: BorderRadius.circular(LifeTokens.radiusListIcon),
+                    borderRadius: BorderRadius.circular(ReminderTokens.radiusListIcon),
                   ),
                   child: Icon(icon, color: Colors.white, size: 15),
                 ),
@@ -348,7 +348,7 @@ class _MyListRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      color: LifeTokens.labelPrimary,
+                      color: ReminderTokens.labelPrimary,
                     ),
                   ),
                 ),
@@ -356,7 +356,7 @@ class _MyListRow extends StatelessWidget {
                   '${list.itemCount}',
                   style: const TextStyle(
                     fontSize: 12,
-                    color: LifeTokens.labelSecondary,
+                    color: ReminderTokens.labelSecondary,
                   ),
                 ),
               ],
@@ -389,14 +389,14 @@ class _SuggestedListRow extends StatelessWidget {
             child: Row(
               children: [
                 const Icon(CupertinoIcons.cart_fill,
-                    color: LifeTokens.systemGreen, size: 20),
+                    color: ReminderTokens.systemGreen, size: 20),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
                     '建议列表：日常采购',
                     style: TextStyle(
                       fontSize: 13,
-                      color: LifeTokens.labelPrimary,
+                      color: ReminderTokens.labelPrimary,
                     ),
                   ),
                 ),
@@ -407,7 +407,7 @@ class _SuggestedListRow extends StatelessWidget {
                   child: const Padding(
                     padding: EdgeInsets.all(2),
                     child: Icon(CupertinoIcons.add_circled_solid,
-                        color: LifeTokens.systemGreen, size: 20),
+                        color: ReminderTokens.systemGreen, size: 20),
                   ),
                 ),
               ],
@@ -448,7 +448,7 @@ class _GroupHeader extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: LifeTokens.labelSecondary,
+                color: ReminderTokens.labelSecondary,
               ),
             ),
             if (count > 0) ...[
@@ -457,7 +457,7 @@ class _GroupHeader extends StatelessWidget {
                 '$count',
                 style: const TextStyle(
                   fontSize: 12,
-                  color: LifeTokens.labelSecondary,
+                  color: ReminderTokens.labelSecondary,
                 ),
               ),
             ],
@@ -467,7 +467,7 @@ class _GroupHeader extends StatelessWidget {
                   ? CupertinoIcons.chevron_down
                   : CupertinoIcons.chevron_up,
               size: 14,
-              color: LifeTokens.labelSecondary,
+              color: ReminderTokens.labelSecondary,
             ),
           ],
         ),

@@ -47,7 +47,7 @@ void main() {
       reason: '副标题必须包含真实列表名',
     );
     final dateSpan = spans.firstWhere(
-      (s) => s.style?.color == LifeTokens.systemRed,
+      (s) => s.style?.color == ReminderTokens.systemRed,
       orElse: () => throw StateError('未找到红色逾期日期片段'),
     );
     expect(dateSpan.text, isNotEmpty, reason: '逾期日期必须非空且标红');

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
-import '../design/life_tokens.dart';
+import '../design/reminder_tokens.dart';
 
 /// Apple Reminders 参考图同款智能列表卡：渐变色、白色图标/计数/标题。
 ///
@@ -24,7 +24,7 @@ class SmartListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(LifeTokens.radiusCard);
+    final radius = BorderRadius.circular(ReminderTokens.radiusCard);
     final padding = compact ? 8.0 : 10.0;
     final iconSize = compact ? 16.0 : 18.0;
     final countSize = compact ? 17.0 : 20.0;
@@ -35,7 +35,7 @@ class SmartListCard extends StatelessWidget {
       borderRadius: radius,
       child: Ink(
         decoration: BoxDecoration(
-          gradient: LifeTokens.smartGradient(list.id),
+          gradient: ReminderTokens.smartGradient(list.id),
           borderRadius: radius,
           border: selected
               ? Border.all(color: Colors.white.withValues(alpha: 0.92), width: 2)

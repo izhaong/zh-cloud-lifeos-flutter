@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
-import '../design/life_tokens.dart';
+import '../design/reminder_tokens.dart';
 
 /// 提醒行（Apple 提醒事项样式）：完成圆圈 + 标题 + 列表名/日期/旗标/优先级展示。
 ///
@@ -49,7 +49,7 @@ class ReminderRow extends StatelessWidget {
       spans.add(TextSpan(
         text: due.text,
         style: due.overdue
-            ? const TextStyle(color: LifeTokens.systemRed)
+            ? const TextStyle(color: ReminderTokens.systemRed)
             : null,
       ));
     }
@@ -90,7 +90,7 @@ class ReminderRow extends StatelessWidget {
           : Text.rich(
               TextSpan(children: spans),
               style: const TextStyle(
-                color: LifeTokens.labelSecondary,
+                color: ReminderTokens.labelSecondary,
                 fontSize: 12,
               ),
             ),
