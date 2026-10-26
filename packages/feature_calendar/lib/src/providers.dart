@@ -4,6 +4,7 @@ import 'package:kalender/kalender.dart' as kalender;
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import 'logic/event_time.dart';
+import 'logic/search_filter.dart';
 
 /// 日历视图模式（契约 §5.4 viewModeProvider；iPhone 列表档含 list）。
 enum CalendarViewMode { day, week, month, year, list }
@@ -94,6 +95,17 @@ class CalendarSearchQueryNotifier extends Notifier<String> {
   void set(String value) => state = value;
 }
 
+/// 搜索框是否展开（⌘F / 工具栏放大镜；F-13）。
+final searchActiveProvider =
+    NotifierProvider<SearchActiveNotifier, bool>(SearchActiveNotifier.new);
+
+class SearchActiveNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool value) => state = value;
+}
+
 /// 选中 occurrence（Inspector 第三栏 / 点击详情；F-08 消费）。
 final selectedOccurrenceProvider = NotifierProvider<SelectedOccurrenceNotifier,
     CalendarOccurrence?>(SelectedOccurrenceNotifier.new);
@@ -111,12 +123,18 @@ class SelectedOccurrenceNotifier extends Notifier<CalendarOccurrence?> {
 final occurrencesProvider = StreamProvider.family<List<CalendarOccurrence>,
     (DateTime, DateTime)>((ref, range) {
   final (from, to) = range;
+  final calendars = ref.watch(calendarsProvider).value ?? const <Calendar>[];
+  final query = ref.watch(searchQueryProvider);
+  final colorByCalendar = {
+    for (final c in calendars) c.id: c.colorArgb,
+  };
   return ref.watch(calendarRepositoryProvider).watchEvents(from: from, to: to).map((events) {
-    final calendars = ref.watch(calendarsProvider).value ?? const <Calendar>[];
-    final colorByCalendar = {
-      for (final c in calendars) c.id: c.colorArgb,
-    };
-    return expandOccurrences(events,
+    final filtered = query.trim().isEmpty
+        ? events
+        : events
+            .where((e) => matchesCalendarSearch(e, query))
+            .toList(growable: false);
+    return expandOccurrences(filtered,
         from: from, to: to, colorByCalendar: colorByCalendar);
   });
 });

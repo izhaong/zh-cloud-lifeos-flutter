@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
+import 'calendar_shortcuts.dart';
 
 /// 日历侧栏（契约 §5.4/§8.5；F-04）。
 ///
@@ -26,24 +27,27 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
     final calendarsAsync = ref.watch(calendarsProvider);
     final calendars = calendarsAsync.value ?? const <Calendar>[];
     final groups = _group(calendars);
-    return SizedBox(
-      width: widget.width,
-      child: Material(
-        color: const Color(0xFFF2F2F7),
-        child: ListView(
-          children: [
-            for (final entry in groups.entries) ...[
-              _GroupHeader(title: entry.key),
-              for (final c in entry.value) _CalendarRow(calendar: c),
+    return Shortcuts(
+      shortcuts: sidebarShortcutBindings(),
+      child: SizedBox(
+        width: widget.width,
+        child: Material(
+          color: const Color(0xFFF2F2F7),
+          child: ListView(
+            children: [
+              for (final entry in groups.entries) ...[
+                _GroupHeader(title: entry.key),
+                for (final c in entry.value) _CalendarRow(calendar: c),
+              ],
+              const Divider(height: 1),
+              TextButton.icon(
+                key: const Key('sidebar-add-calendar'),
+                onPressed: () => _openAddDialog(context),
+                icon: const Icon(Icons.add),
+                label: const Text('添加日历'),
+              ),
             ],
-            const Divider(height: 1),
-            TextButton.icon(
-              key: const Key('sidebar-add-calendar'),
-              onPressed: () => _openAddDialog(context),
-              icon: const Icon(Icons.add),
-              label: const Text('添加日历'),
-            ),
-          ],
+          ),
         ),
       ),
     );

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +10,7 @@ import 'views/day_view.dart';
 import 'views/month_view.dart';
 import 'views/year_view.dart';
 import 'widgets/calendar_sidebar.dart';
+import 'widgets/calendar_shortcuts.dart';
 import 'widgets/event_inspector_pane.dart';
 import 'widgets/quick_event_dialog.dart';
 import 'package:kalender/kalender.dart' as kalender;
@@ -174,14 +174,32 @@ class CalendarScaffold extends ConsumerWidget {
       ),
     );
 
-    // F-12：⌘N（macOS/Web）与 Ctrl+N（Windows/Linux）打开快速事件
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.keyN, meta: true):
-            openQuickEvent,
-        const SingleActivator(LogicalKeyboardKey.keyN, control: true):
-            openQuickEvent,
-      },
+    // F-13：快捷键表（⌘N/⌘F/⌘1-4/⌘T/⌘←→ 等）+ ⌘N 快速事件
+    void shiftPeriod(int direction) {
+      final anchor = ref.read(anchorDateProvider);
+      final mode = ref.read(viewModeProvider);
+      final next = switch (mode) {
+        CalendarViewMode.day ||
+        CalendarViewMode.list ||
+        CalendarViewMode.week =>
+          anchor.add(Duration(
+              days: direction * (mode == CalendarViewMode.week ? 7 : 1))),
+        CalendarViewMode.month =>
+          DateTime(anchor.year, anchor.month + direction, anchor.day),
+        CalendarViewMode.year =>
+          DateTime(anchor.year + direction, anchor.month, anchor.day),
+      };
+      ref.read(anchorDateProvider.notifier).set(next);
+    }
+
+    return CalendarShortcutActions(
+      onNextPeriod: () => shiftPeriod(1),
+      onPrevPeriod: () => shiftPeriod(-1),
+      onToday: () => ref.read(anchorDateProvider.notifier).today(),
+      onSetViewMode: (m) => ref.read(viewModeProvider.notifier).set(m),
+      onNewEvent: openQuickEvent,
+      onFocusSearch: () => ref.read(searchActiveProvider.notifier).set(true),
+      onCloseEditing: clearDraft,
       child: Focus(autofocus: true, child: scaffold),
     );
   }
@@ -197,7 +215,7 @@ class _MainView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // F-05：日/周真视图；月/年/列表随 F-06/F-07/F-13 替换
-    return switch (mode) {
+    final view = switch (mode) {
       CalendarViewMode.day => CalendarDayView(viewCallbacks: viewCallbacks, eventsController: eventsController),
       CalendarViewMode.week => CalendarWeekView(viewCallbacks: viewCallbacks, eventsController: eventsController),
       CalendarViewMode.month => CalendarMonthView(
@@ -205,5 +223,10 @@ class _MainView extends ConsumerWidget {
       CalendarViewMode.year => const CalendarYearView(),
       CalendarViewMode.list => const Center(child: Text('列表')),
     };
+    // 裸键（Delete/Esc/Return）只在主视图内生效，避免吞掉表单文本输入
+    return Shortcuts(
+      shortcuts: calendarUnmodifiedShortcutBindings(),
+      child: view,
+    );
   }
 }
