@@ -19,7 +19,11 @@ export 'src/db.dart'
         CalendarPreferences,
         CalendarsCompanion,
         CalendarEventsCompanion,
-        CalendarPreferencesCompanion;
+        CalendarPreferencesCompanion,
+        NoteFolders,
+        Notes,
+        NoteFoldersCompanion,
+        NotesCompanion;
 export 'src/drift_calendar_repository.dart';
 export 'src/drift_reminder_repository.dart';
 

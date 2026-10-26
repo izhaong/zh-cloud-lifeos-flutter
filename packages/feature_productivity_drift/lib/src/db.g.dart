@@ -5169,6 +5169,1379 @@ class CalendarPreferencesCompanion extends UpdateCompanion<CalendarPreference> {
   }
 }
 
+class $NoteFoldersTable extends NoteFolders
+    with TableInfo<$NoteFoldersTable, NoteFolder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NoteFoldersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteIdMeta = const VerificationMeta(
+    'remoteId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteId = GeneratedColumn<String>(
+    'remote_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _parentIdMeta = const VerificationMeta(
+    'parentId',
+  );
+  @override
+  late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
+    'parent_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _smartMeta = const VerificationMeta('smart');
+  @override
+  late final GeneratedColumn<bool> smart = GeneratedColumn<bool>(
+    'smart',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("smart" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _filterJsonMeta = const VerificationMeta(
+    'filterJson',
+  );
+  @override
+  late final GeneratedColumn<String> filterJson = GeneratedColumn<String>(
+    'filter_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    remoteId,
+    parentId,
+    name,
+    smart,
+    filterJson,
+    sortOrder,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_folders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NoteFolder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('remote_id')) {
+      context.handle(
+        _remoteIdMeta,
+        remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta),
+      );
+    }
+    if (data.containsKey('parent_id')) {
+      context.handle(
+        _parentIdMeta,
+        parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('smart')) {
+      context.handle(
+        _smartMeta,
+        smart.isAcceptableOrUnknown(data['smart']!, _smartMeta),
+      );
+    }
+    if (data.containsKey('filter_json')) {
+      context.handle(
+        _filterJsonMeta,
+        filterJson.isAcceptableOrUnknown(data['filter_json']!, _filterJsonMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  NoteFolder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NoteFolder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      remoteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_id'],
+      ),
+      parentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_id'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      smart: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}smart'],
+      )!,
+      filterJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}filter_json'],
+      ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $NoteFoldersTable createAlias(String alias) {
+    return $NoteFoldersTable(attachedDatabase, alias);
+  }
+}
+
+class NoteFolder extends DataClass implements Insertable<NoteFolder> {
+  final String id;
+
+  /// 服务端实体 ID（null = 纯本地未同步）。
+  final String? remoteId;
+
+  /// 父文件夹 id；null = 根。
+  final String? parentId;
+  final String name;
+
+  /// 是否智能文件夹。
+  final bool smart;
+
+  /// 智能文件夹条件 JSON（仅 smart=true；键见契约 §1）。
+  final String? filterJson;
+  final int sortOrder;
+  final DateTime? deletedAt;
+  const NoteFolder({
+    required this.id,
+    this.remoteId,
+    this.parentId,
+    required this.name,
+    required this.smart,
+    this.filterJson,
+    required this.sortOrder,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || remoteId != null) {
+      map['remote_id'] = Variable<String>(remoteId);
+    }
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<String>(parentId);
+    }
+    map['name'] = Variable<String>(name);
+    map['smart'] = Variable<bool>(smart);
+    if (!nullToAbsent || filterJson != null) {
+      map['filter_json'] = Variable<String>(filterJson);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  NoteFoldersCompanion toCompanion(bool nullToAbsent) {
+    return NoteFoldersCompanion(
+      id: Value(id),
+      remoteId: remoteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteId),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
+      name: Value(name),
+      smart: Value(smart),
+      filterJson: filterJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filterJson),
+      sortOrder: Value(sortOrder),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory NoteFolder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NoteFolder(
+      id: serializer.fromJson<String>(json['id']),
+      remoteId: serializer.fromJson<String?>(json['remoteId']),
+      parentId: serializer.fromJson<String?>(json['parentId']),
+      name: serializer.fromJson<String>(json['name']),
+      smart: serializer.fromJson<bool>(json['smart']),
+      filterJson: serializer.fromJson<String?>(json['filterJson']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'remoteId': serializer.toJson<String?>(remoteId),
+      'parentId': serializer.toJson<String?>(parentId),
+      'name': serializer.toJson<String>(name),
+      'smart': serializer.toJson<bool>(smart),
+      'filterJson': serializer.toJson<String?>(filterJson),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  NoteFolder copyWith({
+    String? id,
+    Value<String?> remoteId = const Value.absent(),
+    Value<String?> parentId = const Value.absent(),
+    String? name,
+    bool? smart,
+    Value<String?> filterJson = const Value.absent(),
+    int? sortOrder,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => NoteFolder(
+    id: id ?? this.id,
+    remoteId: remoteId.present ? remoteId.value : this.remoteId,
+    parentId: parentId.present ? parentId.value : this.parentId,
+    name: name ?? this.name,
+    smart: smart ?? this.smart,
+    filterJson: filterJson.present ? filterJson.value : this.filterJson,
+    sortOrder: sortOrder ?? this.sortOrder,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  NoteFolder copyWithCompanion(NoteFoldersCompanion data) {
+    return NoteFolder(
+      id: data.id.present ? data.id.value : this.id,
+      remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
+      name: data.name.present ? data.name.value : this.name,
+      smart: data.smart.present ? data.smart.value : this.smart,
+      filterJson: data.filterJson.present
+          ? data.filterJson.value
+          : this.filterJson,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteFolder(')
+          ..write('id: $id, ')
+          ..write('remoteId: $remoteId, ')
+          ..write('parentId: $parentId, ')
+          ..write('name: $name, ')
+          ..write('smart: $smart, ')
+          ..write('filterJson: $filterJson, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    remoteId,
+    parentId,
+    name,
+    smart,
+    filterJson,
+    sortOrder,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NoteFolder &&
+          other.id == this.id &&
+          other.remoteId == this.remoteId &&
+          other.parentId == this.parentId &&
+          other.name == this.name &&
+          other.smart == this.smart &&
+          other.filterJson == this.filterJson &&
+          other.sortOrder == this.sortOrder &&
+          other.deletedAt == this.deletedAt);
+}
+
+class NoteFoldersCompanion extends UpdateCompanion<NoteFolder> {
+  final Value<String> id;
+  final Value<String?> remoteId;
+  final Value<String?> parentId;
+  final Value<String> name;
+  final Value<bool> smart;
+  final Value<String?> filterJson;
+  final Value<int> sortOrder;
+  final Value<DateTime?> deletedAt;
+  final Value<int> rowid;
+  const NoteFoldersCompanion({
+    this.id = const Value.absent(),
+    this.remoteId = const Value.absent(),
+    this.parentId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.smart = const Value.absent(),
+    this.filterJson = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NoteFoldersCompanion.insert({
+    required String id,
+    this.remoteId = const Value.absent(),
+    this.parentId = const Value.absent(),
+    required String name,
+    this.smart = const Value.absent(),
+    this.filterJson = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name);
+  static Insertable<NoteFolder> custom({
+    Expression<String>? id,
+    Expression<String>? remoteId,
+    Expression<String>? parentId,
+    Expression<String>? name,
+    Expression<bool>? smart,
+    Expression<String>? filterJson,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (remoteId != null) 'remote_id': remoteId,
+      if (parentId != null) 'parent_id': parentId,
+      if (name != null) 'name': name,
+      if (smart != null) 'smart': smart,
+      if (filterJson != null) 'filter_json': filterJson,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NoteFoldersCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? remoteId,
+    Value<String?>? parentId,
+    Value<String>? name,
+    Value<bool>? smart,
+    Value<String?>? filterJson,
+    Value<int>? sortOrder,
+    Value<DateTime?>? deletedAt,
+    Value<int>? rowid,
+  }) {
+    return NoteFoldersCompanion(
+      id: id ?? this.id,
+      remoteId: remoteId ?? this.remoteId,
+      parentId: parentId ?? this.parentId,
+      name: name ?? this.name,
+      smart: smart ?? this.smart,
+      filterJson: filterJson ?? this.filterJson,
+      sortOrder: sortOrder ?? this.sortOrder,
+      deletedAt: deletedAt ?? this.deletedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (remoteId.present) {
+      map['remote_id'] = Variable<String>(remoteId.value);
+    }
+    if (parentId.present) {
+      map['parent_id'] = Variable<String>(parentId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (smart.present) {
+      map['smart'] = Variable<bool>(smart.value);
+    }
+    if (filterJson.present) {
+      map['filter_json'] = Variable<String>(filterJson.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NoteFoldersCompanion(')
+          ..write('id: $id, ')
+          ..write('remoteId: $remoteId, ')
+          ..write('parentId: $parentId, ')
+          ..write('name: $name, ')
+          ..write('smart: $smart, ')
+          ..write('filterJson: $filterJson, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteIdMeta = const VerificationMeta(
+    'remoteId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteId = GeneratedColumn<String>(
+    'remote_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _folderIdMeta = const VerificationMeta(
+    'folderId',
+  );
+  @override
+  late final GeneratedColumn<String> folderId = GeneratedColumn<String>(
+    'folder_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _bodyDeltaMeta = const VerificationMeta(
+    'bodyDelta',
+  );
+  @override
+  late final GeneratedColumn<String> bodyDelta = GeneratedColumn<String>(
+    'body_delta',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _bodyTextMeta = const VerificationMeta(
+    'bodyText',
+  );
+  @override
+  late final GeneratedColumn<String> bodyText = GeneratedColumn<String>(
+    'body_text',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _pinnedMeta = const VerificationMeta('pinned');
+  @override
+  late final GeneratedColumn<bool> pinned = GeneratedColumn<bool>(
+    'pinned',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("pinned" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _lockedMeta = const VerificationMeta('locked');
+  @override
+  late final GeneratedColumn<bool> locked = GeneratedColumn<bool>(
+    'locked',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("locked" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _checklistTotalMeta = const VerificationMeta(
+    'checklistTotal',
+  );
+  @override
+  late final GeneratedColumn<int> checklistTotal = GeneratedColumn<int>(
+    'checklist_total',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _checklistDoneMeta = const VerificationMeta(
+    'checklistDone',
+  );
+  @override
+  late final GeneratedColumn<int> checklistDone = GeneratedColumn<int>(
+    'checklist_done',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _tagNamesMeta = const VerificationMeta(
+    'tagNames',
+  );
+  @override
+  late final GeneratedColumn<String> tagNames = GeneratedColumn<String>(
+    'tag_names',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('[]'),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _clientUpdatedAtMeta = const VerificationMeta(
+    'clientUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> clientUpdatedAt = GeneratedColumn<int>(
+    'client_updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    remoteId,
+    folderId,
+    title,
+    bodyDelta,
+    bodyText,
+    pinned,
+    locked,
+    checklistTotal,
+    checklistDone,
+    tagNames,
+    sortOrder,
+    deletedAt,
+    clientUpdatedAt,
+    revision,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'notes';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Note> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('remote_id')) {
+      context.handle(
+        _remoteIdMeta,
+        remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta),
+      );
+    }
+    if (data.containsKey('folder_id')) {
+      context.handle(
+        _folderIdMeta,
+        folderId.isAcceptableOrUnknown(data['folder_id']!, _folderIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_folderIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('body_delta')) {
+      context.handle(
+        _bodyDeltaMeta,
+        bodyDelta.isAcceptableOrUnknown(data['body_delta']!, _bodyDeltaMeta),
+      );
+    }
+    if (data.containsKey('body_text')) {
+      context.handle(
+        _bodyTextMeta,
+        bodyText.isAcceptableOrUnknown(data['body_text']!, _bodyTextMeta),
+      );
+    }
+    if (data.containsKey('pinned')) {
+      context.handle(
+        _pinnedMeta,
+        pinned.isAcceptableOrUnknown(data['pinned']!, _pinnedMeta),
+      );
+    }
+    if (data.containsKey('locked')) {
+      context.handle(
+        _lockedMeta,
+        locked.isAcceptableOrUnknown(data['locked']!, _lockedMeta),
+      );
+    }
+    if (data.containsKey('checklist_total')) {
+      context.handle(
+        _checklistTotalMeta,
+        checklistTotal.isAcceptableOrUnknown(
+          data['checklist_total']!,
+          _checklistTotalMeta,
+        ),
+      );
+    }
+    if (data.containsKey('checklist_done')) {
+      context.handle(
+        _checklistDoneMeta,
+        checklistDone.isAcceptableOrUnknown(
+          data['checklist_done']!,
+          _checklistDoneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tag_names')) {
+      context.handle(
+        _tagNamesMeta,
+        tagNames.isAcceptableOrUnknown(data['tag_names']!, _tagNamesMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('client_updated_at')) {
+      context.handle(
+        _clientUpdatedAtMeta,
+        clientUpdatedAt.isAcceptableOrUnknown(
+          data['client_updated_at']!,
+          _clientUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Note map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Note(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      remoteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_id'],
+      ),
+      folderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}folder_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      bodyDelta: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body_delta'],
+      )!,
+      bodyText: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}body_text'],
+      )!,
+      pinned: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}pinned'],
+      )!,
+      locked: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}locked'],
+      )!,
+      checklistTotal: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}checklist_total'],
+      )!,
+      checklistDone: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}checklist_done'],
+      )!,
+      tagNames: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tag_names'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      clientUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}client_updated_at'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+    );
+  }
+
+  @override
+  $NotesTable createAlias(String alias) {
+    return $NotesTable(attachedDatabase, alias);
+  }
+}
+
+class Note extends DataClass implements Insertable<Note> {
+  final String id;
+
+  /// 服务端实体 ID（null = 纯本地未同步）。
+  final String? remoteId;
+  final String folderId;
+  final String title;
+  final String bodyDelta;
+  final String bodyText;
+  final bool pinned;
+  final bool locked;
+  final int checklistTotal;
+  final int checklistDone;
+
+  /// 标签 JSON 数组文本（如 '["工作"]'；空存 '[]'）。
+  final String tagNames;
+  final int sortOrder;
+  final DateTime? deletedAt;
+
+  /// 客户端更新时间戳（毫秒）。
+  final int clientUpdatedAt;
+
+  /// 乐观锁版本。
+  final int revision;
+  const Note({
+    required this.id,
+    this.remoteId,
+    required this.folderId,
+    required this.title,
+    required this.bodyDelta,
+    required this.bodyText,
+    required this.pinned,
+    required this.locked,
+    required this.checklistTotal,
+    required this.checklistDone,
+    required this.tagNames,
+    required this.sortOrder,
+    this.deletedAt,
+    required this.clientUpdatedAt,
+    required this.revision,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || remoteId != null) {
+      map['remote_id'] = Variable<String>(remoteId);
+    }
+    map['folder_id'] = Variable<String>(folderId);
+    map['title'] = Variable<String>(title);
+    map['body_delta'] = Variable<String>(bodyDelta);
+    map['body_text'] = Variable<String>(bodyText);
+    map['pinned'] = Variable<bool>(pinned);
+    map['locked'] = Variable<bool>(locked);
+    map['checklist_total'] = Variable<int>(checklistTotal);
+    map['checklist_done'] = Variable<int>(checklistDone);
+    map['tag_names'] = Variable<String>(tagNames);
+    map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    map['client_updated_at'] = Variable<int>(clientUpdatedAt);
+    map['revision'] = Variable<int>(revision);
+    return map;
+  }
+
+  NotesCompanion toCompanion(bool nullToAbsent) {
+    return NotesCompanion(
+      id: Value(id),
+      remoteId: remoteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteId),
+      folderId: Value(folderId),
+      title: Value(title),
+      bodyDelta: Value(bodyDelta),
+      bodyText: Value(bodyText),
+      pinned: Value(pinned),
+      locked: Value(locked),
+      checklistTotal: Value(checklistTotal),
+      checklistDone: Value(checklistDone),
+      tagNames: Value(tagNames),
+      sortOrder: Value(sortOrder),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      clientUpdatedAt: Value(clientUpdatedAt),
+      revision: Value(revision),
+    );
+  }
+
+  factory Note.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Note(
+      id: serializer.fromJson<String>(json['id']),
+      remoteId: serializer.fromJson<String?>(json['remoteId']),
+      folderId: serializer.fromJson<String>(json['folderId']),
+      title: serializer.fromJson<String>(json['title']),
+      bodyDelta: serializer.fromJson<String>(json['bodyDelta']),
+      bodyText: serializer.fromJson<String>(json['bodyText']),
+      pinned: serializer.fromJson<bool>(json['pinned']),
+      locked: serializer.fromJson<bool>(json['locked']),
+      checklistTotal: serializer.fromJson<int>(json['checklistTotal']),
+      checklistDone: serializer.fromJson<int>(json['checklistDone']),
+      tagNames: serializer.fromJson<String>(json['tagNames']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      clientUpdatedAt: serializer.fromJson<int>(json['clientUpdatedAt']),
+      revision: serializer.fromJson<int>(json['revision']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'remoteId': serializer.toJson<String?>(remoteId),
+      'folderId': serializer.toJson<String>(folderId),
+      'title': serializer.toJson<String>(title),
+      'bodyDelta': serializer.toJson<String>(bodyDelta),
+      'bodyText': serializer.toJson<String>(bodyText),
+      'pinned': serializer.toJson<bool>(pinned),
+      'locked': serializer.toJson<bool>(locked),
+      'checklistTotal': serializer.toJson<int>(checklistTotal),
+      'checklistDone': serializer.toJson<int>(checklistDone),
+      'tagNames': serializer.toJson<String>(tagNames),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'clientUpdatedAt': serializer.toJson<int>(clientUpdatedAt),
+      'revision': serializer.toJson<int>(revision),
+    };
+  }
+
+  Note copyWith({
+    String? id,
+    Value<String?> remoteId = const Value.absent(),
+    String? folderId,
+    String? title,
+    String? bodyDelta,
+    String? bodyText,
+    bool? pinned,
+    bool? locked,
+    int? checklistTotal,
+    int? checklistDone,
+    String? tagNames,
+    int? sortOrder,
+    Value<DateTime?> deletedAt = const Value.absent(),
+    int? clientUpdatedAt,
+    int? revision,
+  }) => Note(
+    id: id ?? this.id,
+    remoteId: remoteId.present ? remoteId.value : this.remoteId,
+    folderId: folderId ?? this.folderId,
+    title: title ?? this.title,
+    bodyDelta: bodyDelta ?? this.bodyDelta,
+    bodyText: bodyText ?? this.bodyText,
+    pinned: pinned ?? this.pinned,
+    locked: locked ?? this.locked,
+    checklistTotal: checklistTotal ?? this.checklistTotal,
+    checklistDone: checklistDone ?? this.checklistDone,
+    tagNames: tagNames ?? this.tagNames,
+    sortOrder: sortOrder ?? this.sortOrder,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    clientUpdatedAt: clientUpdatedAt ?? this.clientUpdatedAt,
+    revision: revision ?? this.revision,
+  );
+  Note copyWithCompanion(NotesCompanion data) {
+    return Note(
+      id: data.id.present ? data.id.value : this.id,
+      remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
+      folderId: data.folderId.present ? data.folderId.value : this.folderId,
+      title: data.title.present ? data.title.value : this.title,
+      bodyDelta: data.bodyDelta.present ? data.bodyDelta.value : this.bodyDelta,
+      bodyText: data.bodyText.present ? data.bodyText.value : this.bodyText,
+      pinned: data.pinned.present ? data.pinned.value : this.pinned,
+      locked: data.locked.present ? data.locked.value : this.locked,
+      checklistTotal: data.checklistTotal.present
+          ? data.checklistTotal.value
+          : this.checklistTotal,
+      checklistDone: data.checklistDone.present
+          ? data.checklistDone.value
+          : this.checklistDone,
+      tagNames: data.tagNames.present ? data.tagNames.value : this.tagNames,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      clientUpdatedAt: data.clientUpdatedAt.present
+          ? data.clientUpdatedAt.value
+          : this.clientUpdatedAt,
+      revision: data.revision.present ? data.revision.value : this.revision,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Note(')
+          ..write('id: $id, ')
+          ..write('remoteId: $remoteId, ')
+          ..write('folderId: $folderId, ')
+          ..write('title: $title, ')
+          ..write('bodyDelta: $bodyDelta, ')
+          ..write('bodyText: $bodyText, ')
+          ..write('pinned: $pinned, ')
+          ..write('locked: $locked, ')
+          ..write('checklistTotal: $checklistTotal, ')
+          ..write('checklistDone: $checklistDone, ')
+          ..write('tagNames: $tagNames, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('clientUpdatedAt: $clientUpdatedAt, ')
+          ..write('revision: $revision')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    remoteId,
+    folderId,
+    title,
+    bodyDelta,
+    bodyText,
+    pinned,
+    locked,
+    checklistTotal,
+    checklistDone,
+    tagNames,
+    sortOrder,
+    deletedAt,
+    clientUpdatedAt,
+    revision,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Note &&
+          other.id == this.id &&
+          other.remoteId == this.remoteId &&
+          other.folderId == this.folderId &&
+          other.title == this.title &&
+          other.bodyDelta == this.bodyDelta &&
+          other.bodyText == this.bodyText &&
+          other.pinned == this.pinned &&
+          other.locked == this.locked &&
+          other.checklistTotal == this.checklistTotal &&
+          other.checklistDone == this.checklistDone &&
+          other.tagNames == this.tagNames &&
+          other.sortOrder == this.sortOrder &&
+          other.deletedAt == this.deletedAt &&
+          other.clientUpdatedAt == this.clientUpdatedAt &&
+          other.revision == this.revision);
+}
+
+class NotesCompanion extends UpdateCompanion<Note> {
+  final Value<String> id;
+  final Value<String?> remoteId;
+  final Value<String> folderId;
+  final Value<String> title;
+  final Value<String> bodyDelta;
+  final Value<String> bodyText;
+  final Value<bool> pinned;
+  final Value<bool> locked;
+  final Value<int> checklistTotal;
+  final Value<int> checklistDone;
+  final Value<String> tagNames;
+  final Value<int> sortOrder;
+  final Value<DateTime?> deletedAt;
+  final Value<int> clientUpdatedAt;
+  final Value<int> revision;
+  final Value<int> rowid;
+  const NotesCompanion({
+    this.id = const Value.absent(),
+    this.remoteId = const Value.absent(),
+    this.folderId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.bodyDelta = const Value.absent(),
+    this.bodyText = const Value.absent(),
+    this.pinned = const Value.absent(),
+    this.locked = const Value.absent(),
+    this.checklistTotal = const Value.absent(),
+    this.checklistDone = const Value.absent(),
+    this.tagNames = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.clientUpdatedAt = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NotesCompanion.insert({
+    required String id,
+    this.remoteId = const Value.absent(),
+    required String folderId,
+    required String title,
+    this.bodyDelta = const Value.absent(),
+    this.bodyText = const Value.absent(),
+    this.pinned = const Value.absent(),
+    this.locked = const Value.absent(),
+    this.checklistTotal = const Value.absent(),
+    this.checklistDone = const Value.absent(),
+    this.tagNames = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.clientUpdatedAt = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       folderId = Value(folderId),
+       title = Value(title);
+  static Insertable<Note> custom({
+    Expression<String>? id,
+    Expression<String>? remoteId,
+    Expression<String>? folderId,
+    Expression<String>? title,
+    Expression<String>? bodyDelta,
+    Expression<String>? bodyText,
+    Expression<bool>? pinned,
+    Expression<bool>? locked,
+    Expression<int>? checklistTotal,
+    Expression<int>? checklistDone,
+    Expression<String>? tagNames,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? deletedAt,
+    Expression<int>? clientUpdatedAt,
+    Expression<int>? revision,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (remoteId != null) 'remote_id': remoteId,
+      if (folderId != null) 'folder_id': folderId,
+      if (title != null) 'title': title,
+      if (bodyDelta != null) 'body_delta': bodyDelta,
+      if (bodyText != null) 'body_text': bodyText,
+      if (pinned != null) 'pinned': pinned,
+      if (locked != null) 'locked': locked,
+      if (checklistTotal != null) 'checklist_total': checklistTotal,
+      if (checklistDone != null) 'checklist_done': checklistDone,
+      if (tagNames != null) 'tag_names': tagNames,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (clientUpdatedAt != null) 'client_updated_at': clientUpdatedAt,
+      if (revision != null) 'revision': revision,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NotesCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? remoteId,
+    Value<String>? folderId,
+    Value<String>? title,
+    Value<String>? bodyDelta,
+    Value<String>? bodyText,
+    Value<bool>? pinned,
+    Value<bool>? locked,
+    Value<int>? checklistTotal,
+    Value<int>? checklistDone,
+    Value<String>? tagNames,
+    Value<int>? sortOrder,
+    Value<DateTime?>? deletedAt,
+    Value<int>? clientUpdatedAt,
+    Value<int>? revision,
+    Value<int>? rowid,
+  }) {
+    return NotesCompanion(
+      id: id ?? this.id,
+      remoteId: remoteId ?? this.remoteId,
+      folderId: folderId ?? this.folderId,
+      title: title ?? this.title,
+      bodyDelta: bodyDelta ?? this.bodyDelta,
+      bodyText: bodyText ?? this.bodyText,
+      pinned: pinned ?? this.pinned,
+      locked: locked ?? this.locked,
+      checklistTotal: checklistTotal ?? this.checklistTotal,
+      checklistDone: checklistDone ?? this.checklistDone,
+      tagNames: tagNames ?? this.tagNames,
+      sortOrder: sortOrder ?? this.sortOrder,
+      deletedAt: deletedAt ?? this.deletedAt,
+      clientUpdatedAt: clientUpdatedAt ?? this.clientUpdatedAt,
+      revision: revision ?? this.revision,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (remoteId.present) {
+      map['remote_id'] = Variable<String>(remoteId.value);
+    }
+    if (folderId.present) {
+      map['folder_id'] = Variable<String>(folderId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (bodyDelta.present) {
+      map['body_delta'] = Variable<String>(bodyDelta.value);
+    }
+    if (bodyText.present) {
+      map['body_text'] = Variable<String>(bodyText.value);
+    }
+    if (pinned.present) {
+      map['pinned'] = Variable<bool>(pinned.value);
+    }
+    if (locked.present) {
+      map['locked'] = Variable<bool>(locked.value);
+    }
+    if (checklistTotal.present) {
+      map['checklist_total'] = Variable<int>(checklistTotal.value);
+    }
+    if (checklistDone.present) {
+      map['checklist_done'] = Variable<int>(checklistDone.value);
+    }
+    if (tagNames.present) {
+      map['tag_names'] = Variable<String>(tagNames.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    if (clientUpdatedAt.present) {
+      map['client_updated_at'] = Variable<int>(clientUpdatedAt.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotesCompanion(')
+          ..write('id: $id, ')
+          ..write('remoteId: $remoteId, ')
+          ..write('folderId: $folderId, ')
+          ..write('title: $title, ')
+          ..write('bodyDelta: $bodyDelta, ')
+          ..write('bodyText: $bodyText, ')
+          ..write('pinned: $pinned, ')
+          ..write('locked: $locked, ')
+          ..write('checklistTotal: $checklistTotal, ')
+          ..write('checklistDone: $checklistDone, ')
+          ..write('tagNames: $tagNames, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('clientUpdatedAt: $clientUpdatedAt, ')
+          ..write('revision: $revision, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LifeProductivityDb extends GeneratedDatabase {
   _$LifeProductivityDb(QueryExecutor e) : super(e);
   $LifeProductivityDbManager get managers => $LifeProductivityDbManager(this);
@@ -5178,6 +6551,8 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
   late final $CalendarEventsTable calendarEvents = $CalendarEventsTable(this);
   late final $CalendarPreferencesTable calendarPreferences =
       $CalendarPreferencesTable(this);
+  late final $NoteFoldersTable noteFolders = $NoteFoldersTable(this);
+  late final $NotesTable notes = $NotesTable(this);
   late final Index idxCalendarEventsCalStart = Index(
     'idx_calendar_events_cal_start',
     'CREATE INDEX idx_calendar_events_cal_start ON calendar_events (calendar_id, start_at)',
@@ -5192,6 +6567,8 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
     calendars,
     calendarEvents,
     calendarPreferences,
+    noteFolders,
+    notes,
     idxCalendarEventsCalStart,
   ];
 }
@@ -7571,6 +8948,675 @@ typedef $$CalendarPreferencesTableProcessedTableManager =
       CalendarPreference,
       PrefetchHooks Function()
     >;
+typedef $$NoteFoldersTableCreateCompanionBuilder =
+    NoteFoldersCompanion Function({
+      required String id,
+      Value<String?> remoteId,
+      Value<String?> parentId,
+      required String name,
+      Value<bool> smart,
+      Value<String?> filterJson,
+      Value<int> sortOrder,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+typedef $$NoteFoldersTableUpdateCompanionBuilder =
+    NoteFoldersCompanion Function({
+      Value<String> id,
+      Value<String?> remoteId,
+      Value<String?> parentId,
+      Value<String> name,
+      Value<bool> smart,
+      Value<String?> filterJson,
+      Value<int> sortOrder,
+      Value<DateTime?> deletedAt,
+      Value<int> rowid,
+    });
+
+class $$NoteFoldersTableFilterComposer
+    extends Composer<_$LifeProductivityDb, $NoteFoldersTable> {
+  $$NoteFoldersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentId => $composableBuilder(
+    column: $table.parentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get smart => $composableBuilder(
+    column: $table.smart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filterJson => $composableBuilder(
+    column: $table.filterJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NoteFoldersTableOrderingComposer
+    extends Composer<_$LifeProductivityDb, $NoteFoldersTable> {
+  $$NoteFoldersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentId => $composableBuilder(
+    column: $table.parentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get smart => $composableBuilder(
+    column: $table.smart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filterJson => $composableBuilder(
+    column: $table.filterJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NoteFoldersTableAnnotationComposer
+    extends Composer<_$LifeProductivityDb, $NoteFoldersTable> {
+  $$NoteFoldersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteId =>
+      $composableBuilder(column: $table.remoteId, builder: (column) => column);
+
+  GeneratedColumn<String> get parentId =>
+      $composableBuilder(column: $table.parentId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<bool> get smart =>
+      $composableBuilder(column: $table.smart, builder: (column) => column);
+
+  GeneratedColumn<String> get filterJson => $composableBuilder(
+    column: $table.filterJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+}
+
+class $$NoteFoldersTableTableManager
+    extends
+        RootTableManager<
+          _$LifeProductivityDb,
+          $NoteFoldersTable,
+          NoteFolder,
+          $$NoteFoldersTableFilterComposer,
+          $$NoteFoldersTableOrderingComposer,
+          $$NoteFoldersTableAnnotationComposer,
+          $$NoteFoldersTableCreateCompanionBuilder,
+          $$NoteFoldersTableUpdateCompanionBuilder,
+          (
+            NoteFolder,
+            BaseReferences<_$LifeProductivityDb, $NoteFoldersTable, NoteFolder>,
+          ),
+          NoteFolder,
+          PrefetchHooks Function()
+        > {
+  $$NoteFoldersTableTableManager(
+    _$LifeProductivityDb db,
+    $NoteFoldersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NoteFoldersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NoteFoldersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NoteFoldersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<bool> smart = const Value.absent(),
+                Value<String?> filterJson = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteFoldersCompanion(
+                id: id,
+                remoteId: remoteId,
+                parentId: parentId,
+                name: name,
+                smart: smart,
+                filterJson: filterJson,
+                sortOrder: sortOrder,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> remoteId = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
+                required String name,
+                Value<bool> smart = const Value.absent(),
+                Value<String?> filterJson = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NoteFoldersCompanion.insert(
+                id: id,
+                remoteId: remoteId,
+                parentId: parentId,
+                name: name,
+                smart: smart,
+                filterJson: filterJson,
+                sortOrder: sortOrder,
+                deletedAt: deletedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NoteFoldersTable, NoteFolder>(table),
+                  BaseReferences<
+                    _$LifeProductivityDb,
+                    $NoteFoldersTable,
+                    NoteFolder
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NoteFoldersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LifeProductivityDb,
+      $NoteFoldersTable,
+      NoteFolder,
+      $$NoteFoldersTableFilterComposer,
+      $$NoteFoldersTableOrderingComposer,
+      $$NoteFoldersTableAnnotationComposer,
+      $$NoteFoldersTableCreateCompanionBuilder,
+      $$NoteFoldersTableUpdateCompanionBuilder,
+      (
+        NoteFolder,
+        BaseReferences<_$LifeProductivityDb, $NoteFoldersTable, NoteFolder>,
+      ),
+      NoteFolder,
+      PrefetchHooks Function()
+    >;
+typedef $$NotesTableCreateCompanionBuilder =
+    NotesCompanion Function({
+      required String id,
+      Value<String?> remoteId,
+      required String folderId,
+      required String title,
+      Value<String> bodyDelta,
+      Value<String> bodyText,
+      Value<bool> pinned,
+      Value<bool> locked,
+      Value<int> checklistTotal,
+      Value<int> checklistDone,
+      Value<String> tagNames,
+      Value<int> sortOrder,
+      Value<DateTime?> deletedAt,
+      Value<int> clientUpdatedAt,
+      Value<int> revision,
+      Value<int> rowid,
+    });
+typedef $$NotesTableUpdateCompanionBuilder =
+    NotesCompanion Function({
+      Value<String> id,
+      Value<String?> remoteId,
+      Value<String> folderId,
+      Value<String> title,
+      Value<String> bodyDelta,
+      Value<String> bodyText,
+      Value<bool> pinned,
+      Value<bool> locked,
+      Value<int> checklistTotal,
+      Value<int> checklistDone,
+      Value<String> tagNames,
+      Value<int> sortOrder,
+      Value<DateTime?> deletedAt,
+      Value<int> clientUpdatedAt,
+      Value<int> revision,
+      Value<int> rowid,
+    });
+
+class $$NotesTableFilterComposer
+    extends Composer<_$LifeProductivityDb, $NotesTable> {
+  $$NotesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get folderId => $composableBuilder(
+    column: $table.folderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bodyDelta => $composableBuilder(
+    column: $table.bodyDelta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bodyText => $composableBuilder(
+    column: $table.bodyText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get pinned => $composableBuilder(
+    column: $table.pinned,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get locked => $composableBuilder(
+    column: $table.locked,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get checklistTotal => $composableBuilder(
+    column: $table.checklistTotal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get checklistDone => $composableBuilder(
+    column: $table.checklistDone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tagNames => $composableBuilder(
+    column: $table.tagNames,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get clientUpdatedAt => $composableBuilder(
+    column: $table.clientUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NotesTableOrderingComposer
+    extends Composer<_$LifeProductivityDb, $NotesTable> {
+  $$NotesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get folderId => $composableBuilder(
+    column: $table.folderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bodyDelta => $composableBuilder(
+    column: $table.bodyDelta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bodyText => $composableBuilder(
+    column: $table.bodyText,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get pinned => $composableBuilder(
+    column: $table.pinned,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get locked => $composableBuilder(
+    column: $table.locked,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get checklistTotal => $composableBuilder(
+    column: $table.checklistTotal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get checklistDone => $composableBuilder(
+    column: $table.checklistDone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tagNames => $composableBuilder(
+    column: $table.tagNames,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get clientUpdatedAt => $composableBuilder(
+    column: $table.clientUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NotesTableAnnotationComposer
+    extends Composer<_$LifeProductivityDb, $NotesTable> {
+  $$NotesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteId =>
+      $composableBuilder(column: $table.remoteId, builder: (column) => column);
+
+  GeneratedColumn<String> get folderId =>
+      $composableBuilder(column: $table.folderId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get bodyDelta =>
+      $composableBuilder(column: $table.bodyDelta, builder: (column) => column);
+
+  GeneratedColumn<String> get bodyText =>
+      $composableBuilder(column: $table.bodyText, builder: (column) => column);
+
+  GeneratedColumn<bool> get pinned =>
+      $composableBuilder(column: $table.pinned, builder: (column) => column);
+
+  GeneratedColumn<bool> get locked =>
+      $composableBuilder(column: $table.locked, builder: (column) => column);
+
+  GeneratedColumn<int> get checklistTotal => $composableBuilder(
+    column: $table.checklistTotal,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get checklistDone => $composableBuilder(
+    column: $table.checklistDone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get tagNames =>
+      $composableBuilder(column: $table.tagNames, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get clientUpdatedAt => $composableBuilder(
+    column: $table.clientUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+}
+
+class $$NotesTableTableManager
+    extends
+        RootTableManager<
+          _$LifeProductivityDb,
+          $NotesTable,
+          Note,
+          $$NotesTableFilterComposer,
+          $$NotesTableOrderingComposer,
+          $$NotesTableAnnotationComposer,
+          $$NotesTableCreateCompanionBuilder,
+          $$NotesTableUpdateCompanionBuilder,
+          (Note, BaseReferences<_$LifeProductivityDb, $NotesTable, Note>),
+          Note,
+          PrefetchHooks Function()
+        > {
+  $$NotesTableTableManager(_$LifeProductivityDb db, $NotesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NotesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
+                Value<String> folderId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> bodyDelta = const Value.absent(),
+                Value<String> bodyText = const Value.absent(),
+                Value<bool> pinned = const Value.absent(),
+                Value<bool> locked = const Value.absent(),
+                Value<int> checklistTotal = const Value.absent(),
+                Value<int> checklistDone = const Value.absent(),
+                Value<String> tagNames = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> clientUpdatedAt = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotesCompanion(
+                id: id,
+                remoteId: remoteId,
+                folderId: folderId,
+                title: title,
+                bodyDelta: bodyDelta,
+                bodyText: bodyText,
+                pinned: pinned,
+                locked: locked,
+                checklistTotal: checklistTotal,
+                checklistDone: checklistDone,
+                tagNames: tagNames,
+                sortOrder: sortOrder,
+                deletedAt: deletedAt,
+                clientUpdatedAt: clientUpdatedAt,
+                revision: revision,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> remoteId = const Value.absent(),
+                required String folderId,
+                required String title,
+                Value<String> bodyDelta = const Value.absent(),
+                Value<String> bodyText = const Value.absent(),
+                Value<bool> pinned = const Value.absent(),
+                Value<bool> locked = const Value.absent(),
+                Value<int> checklistTotal = const Value.absent(),
+                Value<int> checklistDone = const Value.absent(),
+                Value<String> tagNames = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> clientUpdatedAt = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotesCompanion.insert(
+                id: id,
+                remoteId: remoteId,
+                folderId: folderId,
+                title: title,
+                bodyDelta: bodyDelta,
+                bodyText: bodyText,
+                pinned: pinned,
+                locked: locked,
+                checklistTotal: checklistTotal,
+                checklistDone: checklistDone,
+                tagNames: tagNames,
+                sortOrder: sortOrder,
+                deletedAt: deletedAt,
+                clientUpdatedAt: clientUpdatedAt,
+                revision: revision,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NotesTable, Note>(table),
+                  BaseReferences<_$LifeProductivityDb, $NotesTable, Note>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NotesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LifeProductivityDb,
+      $NotesTable,
+      Note,
+      $$NotesTableFilterComposer,
+      $$NotesTableOrderingComposer,
+      $$NotesTableAnnotationComposer,
+      $$NotesTableCreateCompanionBuilder,
+      $$NotesTableUpdateCompanionBuilder,
+      (Note, BaseReferences<_$LifeProductivityDb, $NotesTable, Note>),
+      Note,
+      PrefetchHooks Function()
+    >;
 
 class $LifeProductivityDbManager {
   final _$LifeProductivityDb _db;
@@ -7585,4 +9631,8 @@ class $LifeProductivityDbManager {
       $$CalendarEventsTableTableManager(_db, _db.calendarEvents);
   $$CalendarPreferencesTableTableManager get calendarPreferences =>
       $$CalendarPreferencesTableTableManager(_db, _db.calendarPreferences);
+  $$NoteFoldersTableTableManager get noteFolders =>
+      $$NoteFoldersTableTableManager(_db, _db.noteFolders);
+  $$NotesTableTableManager get notes =>
+      $$NotesTableTableManager(_db, _db.notes);
 }
