@@ -271,6 +271,7 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
           sourceUrl: existing.sourceUrl,
           refreshMinutes: existing.refreshMinutes,
           holidayRegion: existing.holidayRegion,
+          lastRefreshError: existing.lastRefreshError,
           permission: existing.permission,
           revision: existing.revision,
           deletedAt: existing.deletedAt,

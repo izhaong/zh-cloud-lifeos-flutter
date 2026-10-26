@@ -86,6 +86,29 @@ void main() {
         reason: '无错误的订阅行不该出现警告图标');
   });
 
+  // TC-CAL-UI-125（回归半）：详情页改色不得把已存的刷新错误写空
+  testWidgets('TC-CAL-UI-125 改色后仍保留刷新失败标记', (tester) async {
+    prefs = await SharedPreferences.getInstance();
+    await repo.upsertCalendar(const Calendar(
+        id: 'bad',
+        title: '失败订阅',
+        colorArgb: 0xFFAF52DE,
+        kind: CalendarKind.subscription,
+        lastRefreshError: '拉取超时'));
+    await pumpSidebar(tester);
+
+    await tester.tap(find.byKey(const Key('cal-info-bad')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('preset-color-0xFFFF9500')));
+    await tester.pumpAndSettle();
+
+    expect(repo.saved.last.colorArgb, 0xFFFF9500, reason: '改色落库');
+    expect(repo.saved.last.lastRefreshError, '拉取超时',
+        reason: '全量 upsert 不能把 lastRefreshError 写成 NULL');
+    expect(find.byKey(const Key('cal-refresh-error-bad')), findsOneWidget,
+        reason: '改色后警告图标仍在');
+  });
+
   // TC-CAL-UI-120：添加日历（名称 + 绿色）→ upsert 捕获 #34C759，侧栏出现
   testWidgets('TC-CAL-UI-120 添加日历对话框', (tester) async {
     await seed(tester);
