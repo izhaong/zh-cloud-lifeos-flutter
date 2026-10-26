@@ -32,6 +32,7 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
     return Shortcuts(
       shortcuts: sidebarShortcutBindings(),
       child: SizedBox(
+        key: const Key('calendar_sidebar'),
         width: widget.width,
         child: Material(
           color: const Color(0xFFF2F2F7),
