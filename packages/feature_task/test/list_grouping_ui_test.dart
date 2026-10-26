@@ -63,22 +63,24 @@ void main() {
     // 分组头出现（含组内计数 1）
     expect(find.byKey(const ValueKey('group_工作')), findsOneWidget);
     expect(find.byKey(const ValueKey('group_生活')), findsOneWidget);
-    // 侧栏行 + 主区 AppBar 标题（openListId=list.work）各一
-    expect(find.text('晨会清单'), findsWidgets);
+    // 侧栏行存在
+    expect(find.byKey(const ValueKey('my_list_list.work')), findsOneWidget);
+    expect(find.byKey(const ValueKey('my_list_list.work2')), findsOneWidget);
 
     // 折叠「工作」
     await tester.tap(find.byKey(const ValueKey('group_工作')));
     await tester.pumpAndSettle();
-    // 折叠后侧栏行消失，主区标题仍在（=1）
-    expect(find.text('晨会清单'), findsOneWidget);
-    expect(find.text('周报清单'), findsNothing);
+    // 折叠后侧栏行消失，主区标题仍在
+    expect(find.byKey(const ValueKey('my_list_list.work')), findsNothing);
+    expect(find.byKey(const ValueKey('my_list_list.work2')), findsNothing);
+    expect(find.byKey(const ValueKey('list_large_title')), findsOneWidget);
     expect(find.byKey(const ValueKey('group_生活')), findsOneWidget); // 他组不动
 
     // 展开
     await tester.tap(find.byKey(const ValueKey('group_工作')));
     await tester.pumpAndSettle();
-    // 展开后侧栏行回来（=2）
-    expect(find.text('晨会清单'), findsWidgets);
+    // 展开后侧栏行回来
+    expect(find.byKey(const ValueKey('my_list_list.work')), findsOneWidget);
   });
 
   testWidgets('TC-UI-118 交错 groupName（B,A,B）聚合出唯一组头（cursor PR#14）',
