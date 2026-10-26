@@ -7,7 +7,8 @@ import '../providers.dart';
 import '../logic/event_time.dart';
 import '../logic/calendar_ids.dart';
 import '../alerts/calendar_alert_scheduler.dart';
-import 'event_form_fields.dart' show EventFormFields, defaultCalendarOf;
+import 'event_form_fields.dart'
+    show EventFormFields, defaultCalendarOf, copyEventWithAlerts;
 
 export '../logic/calendar_ids.dart' show kDraftEventId;
 
@@ -185,6 +186,24 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     // F-09：保存前按 timeZone 归一全天（契约 §2.2；TC-CAL-KR-120）
     if (toSave.allDay) {
       toSave = normalizeAllDay(toSave);
+    }
+    // F-14：新草稿按偏好补默认提醒（TC-CAL-UI-212）
+    if (_isNewDraft && toSave.alerts.isEmpty) {
+      final pref = ref.read(preferenceProvider).value;
+      if (pref != null) {
+        if (toSave.allDay && pref.defaultAlertAllDayDays != null) {
+          toSave = copyEventWithAlerts(toSave, [
+            EventAlert(
+              allDayOffsetDays: pref.defaultAlertAllDayDays,
+              allDayTime: pref.defaultAlertAllDayTime,
+            ),
+          ]);
+        } else if (!toSave.allDay && pref.defaultAlertTimedMinutes != null) {
+          toSave = copyEventWithAlerts(toSave, [
+            EventAlert(offsetMinutes: pref.defaultAlertTimedMinutes),
+          ]);
+        }
+      }
     }
     final repo = ref.read(calendarRepositoryProvider);
     setState(() => _saving = true);

@@ -13,6 +13,7 @@ import 'widgets/calendar_sidebar.dart';
 import 'widgets/calendar_shortcuts.dart';
 import 'widgets/event_inspector_pane.dart';
 import 'widgets/quick_event_dialog.dart';
+import 'widgets/calendar_settings_sheet.dart';
 import 'package:kalender/kalender.dart' as kalender;
 import 'widgets/calendar_toolbar.dart';
 
@@ -198,6 +199,7 @@ class CalendarScaffold extends ConsumerWidget {
       onToday: () => ref.read(anchorDateProvider.notifier).today(),
       onSetViewMode: (m) => ref.read(viewModeProvider.notifier).set(m),
       onNewEvent: openQuickEvent,
+      onSettings: () => showCalendarSettingsSheet(context),
       onFocusSearch: () => ref.read(searchActiveProvider.notifier).set(true),
       onCloseEditing: clearDraft,
       child: Focus(autofocus: true, child: scaffold),

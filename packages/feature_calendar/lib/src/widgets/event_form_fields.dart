@@ -186,7 +186,7 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
       ),
     );
     if (result != null && mounted) {
-      _emit(_copyWithAlerts(_e, result));
+      _emit(copyEventWithAlerts(_e, result));
     }
   }
 
@@ -705,8 +705,8 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
   }
 }
 
-/// 提醒全量拷贝（kernel 无 copyWith）。
-CalendarEvent _copyWithAlerts(CalendarEvent e, List<EventAlert> alerts) =>
+/// 提醒全量拷贝（kernel 无 copyWith；表单/Inspector 共用）。
+CalendarEvent copyEventWithAlerts(CalendarEvent e, List<EventAlert> alerts) =>
     CalendarEvent(
       id: e.id,
       remoteId: e.remoteId,
