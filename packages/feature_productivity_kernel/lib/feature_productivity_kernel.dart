@@ -1,4 +1,4 @@
-/// 任务/日历共享实体与本地存储端口。
+/// 任务/日历/记录共享实体与本地存储端口。
 library;
 
 export 'src/models/calendar.dart';
@@ -10,7 +10,11 @@ export 'src/models/reminder_item.dart';
 export 'src/models/reminder_list.dart';
 export 'src/models/reminder_section.dart';
 export 'src/models/reminder_list_type.dart';
+export 'src/models/note.dart';
+export 'src/models/note_folder.dart';
+export 'src/models/note_tag.dart';
 export 'src/models/window_size_class.dart';
 export 'src/logic/occurrence_expander.dart';
 export 'src/ports/reminder_repository.dart';
 export 'src/ports/calendar_repository.dart';
+export 'src/ports/note_repository.dart';
