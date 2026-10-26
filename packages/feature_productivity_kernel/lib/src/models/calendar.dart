@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
-/// 日历种类（契约 §2.1 `kind`；对齐 Apple 侧栏分组语义，剥离 iCloud 账户）。
+/// 日历种类（契约 §2.1 `kind`；对齐 Apple 侧栏分组语义，不绑定任何云端账户）。
 enum CalendarKind {
   /// 本地日历（自有，可写）。
   local,
