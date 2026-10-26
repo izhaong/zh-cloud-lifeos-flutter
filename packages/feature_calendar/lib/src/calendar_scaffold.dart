@@ -10,6 +10,7 @@ import 'views/day_view.dart';
 import 'views/month_view.dart';
 import 'views/year_view.dart';
 import 'widgets/calendar_sidebar.dart';
+import 'widgets/event_inspector_pane.dart';
 import 'package:kalender/kalender.dart' as kalender;
 import 'widgets/calendar_toolbar.dart';
 
@@ -30,13 +31,47 @@ class CalendarScaffold extends ConsumerWidget {
         initialViewMode ?? ref.watch(viewModeProvider);
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
     final eventsController = ref.watch(kalenderEventsControllerProvider);
-    final viewCallbacks = CalendarViewCallbacks(
-      repo: ref.read(calendarRepositoryProvider),
-      preference:
-          ref.watch(preferenceProvider).value ?? CalendarPreference.defaults,
-      setDraft: (draft) =>
-          ref.read(draftEventProvider.notifier).setDraft(draft),
-    );
+    final inspectorRouteActive = ref.watch(inspectorRouteActiveProvider);
+    final repo = ref.read(calendarRepositoryProvider);
+    final preference =
+        ref.watch(preferenceProvider).value ?? CalendarPreference.defaults;
+    // 草稿清理（幂等）：route 关闭后 .then 兜底再清一次即可，绝不二次 pop。
+    void clearDraft() => ref.read(draftEventProvider.notifier).clear();
+    void saveAndClose() {
+      clearDraft();
+      Navigator.of(context).pop(); // 唯一 pop：保存路径
+    }
+    // 草稿落位 + 三档呈现（F-08）。断点口径与内容区一致：由 LayoutBuilder
+    // 传入内容宽（compact 全屏 / medium sheet / expanded 第三栏）。
+    CalendarViewCallbacks viewCallbacksOf(double contentWidth) {
+      return CalendarViewCallbacks(
+        repo: repo,
+        preference: preference,
+        setDraft: (draft) {
+          ref.read(draftEventProvider.notifier).setDraft(draft);
+          if (contentWidth >= 1200) {
+            return; // 第三栏由 build 尾部呈现
+          }
+          // 已有 sheet/全屏在途：不叠第二层编辑面
+          if (ref.read(inspectorRouteActiveProvider)) {
+            return;
+          }
+          // 打开 sheet/全屏即标记路由编辑面在途（防宽度跨档双开）
+          ref.read(inspectorRouteActiveProvider.notifier).set(true);
+          void routeDone() {
+            ref.read(inspectorRouteActiveProvider.notifier).set(false);
+            clearDraft();
+          }
+          if (contentWidth < 600) {
+            EventInspectorHost.openFullScreen(context, draft, saveAndClose,
+                onDismissed: routeDone);
+          } else {
+            EventInspectorHost.openSheet(context, draft, saveAndClose,
+                onDismissed: routeDone);
+          }
+        },
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       body: SafeArea(
@@ -45,6 +80,7 @@ class CalendarScaffold extends ConsumerWidget {
             final width = constraints.maxWidth;
             final compact = width < 600; // 契约 §8.5 iPhone 档
             final expanded = width >= 1200;
+            final viewCallbacks = viewCallbacksOf(width);
             Widget content = Column(
               children: [
                 CalendarToolbar(compact: compact),
@@ -61,6 +97,33 @@ class CalendarScaffold extends ConsumerWidget {
                   CalendarSidebar(width: expanded ? 280 : 240),
                   const VerticalDivider(width: 1),
                   Expanded(child: content),
+                ],
+              );
+            }
+            // F-08：expanded 档第三栏 Inspector（草稿存在时）。
+            // 断点跨档防重复编辑面：只保留一个活动 Inspector——
+            // sheet/route 打开时由 _inspectorRouteActive 标记，第三栏不挂；
+            // 反之第三栏挂载期间 draft 持有唯一编辑权（pane 变更不回写 provider，
+            // 保存/关闭才清）。
+            final draft = ref.watch(draftEventProvider);
+            if (expanded && draft != null && !inspectorRouteActive) {
+              content = Row(
+                children: [
+                  content,
+                  const VerticalDivider(width: 1),
+                  SizedBox(
+                    width: 320,
+                    child: EventInspectorPane(
+                      initialEvent: draft,
+                      // 编辑回写 draftEventProvider：断点降档卸栏后未保存修改不丢
+                      onDraftChanged: (next) =>
+                          ref.read(draftEventProvider.notifier).setDraft(next),
+                      onSaved: () =>
+                          ref.read(draftEventProvider.notifier).clear(),
+                      onClose: () =>
+                          ref.read(draftEventProvider.notifier).clear(),
+                    ),
+                  ),
                 ],
               );
             }

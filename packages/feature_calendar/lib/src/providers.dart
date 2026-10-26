@@ -102,6 +102,18 @@ final occurrencesProvider = StreamProvider.family<List<CalendarOccurrence>,
   });
 });
 
+/// sheet/全屏 Inspector 路由在途标记（防宽度跨档双开编辑面；F-08）。
+final inspectorRouteActiveProvider =
+    NotifierProvider<InspectorRouteActiveNotifier, bool>(
+        InspectorRouteActiveNotifier.new);
+
+class InspectorRouteActiveNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool value) => state = value;
+}
+
 /// kalender 事件控制器（视图装载 occurrence 的桥；测试可 override 注入）。
 final kalenderEventsControllerProvider =
     Provider<kalender.DefaultEventsController>((ref) {
