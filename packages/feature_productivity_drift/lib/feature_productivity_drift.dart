@@ -27,12 +27,26 @@ export 'src/db.dart'
 export 'src/drift_calendar_repository.dart';
 export 'src/drift_reminder_repository.dart';
 
-/// 打开默认位置（应用文档目录）的 Drift 库（提醒与日历仓库共用同一句柄）。
+/// 打开默认位置的 Drift 库（提醒与日历仓库共用同一句柄）。
+///
+/// Web 走 drift 的 WASM 后端（OPFS，浏览器不支持时回落 IndexedDB），资源落在
+/// `apps/life_launcher/web/`。两份资源必须与 `pubspec.lock` 钉版同步升级，否则
+/// worker 与包内协议不匹配：
+/// - `sqlite3.wasm` ← github.com/simolus3/sqlite3.dart release tag `sqlite3-3.5.2`
+/// - `drift_worker.js` ← pub 包 drift 2.35.2 根目录的预构建产物
 ///
 /// 测试一律用 `LifeProductivityDb(NativeDatabase.memory())`，不经本函数。
 Future<LifeProductivityDb> openDefaultDatabase() async {
   if (kIsWeb) {
-    throw StateError('openDefaultDatabase 不支持 Web（组合根为桌面/移动端）');
+    return LifeProductivityDb(
+      driftDatabase(
+        name: 'life_productivity',
+        web: DriftWebOptions(
+          sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+          driftWorker: Uri.parse('drift_worker.js'),
+        ),
+      ),
+    );
   }
   final dir = await getApplicationDocumentsDirectory();
   return LifeProductivityDb(
