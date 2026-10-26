@@ -45,7 +45,9 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
   @override
   void didUpdateWidget(covariant EventFormFields oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.event.id != widget.event.id) {
+    // 新建草稿 id 恒为 kDraftEventId——按实例变化重绑（连续新建不残留旧值）
+    if (!identical(oldWidget.event, widget.event)
+        && oldWidget.event != widget.event) {
       _title.text = widget.event.title;
       _location.text = widget.event.location ?? '';
       _url.text = widget.event.url ?? '';

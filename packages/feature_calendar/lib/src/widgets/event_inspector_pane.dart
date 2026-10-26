@@ -59,7 +59,12 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
   /// 草稿是否为「新建」（id 由创建入口统一用 [kDraftEventId]）。
   bool get _isNewDraft => _draft.id == kDraftEventId;
 
+  bool _saving = false; // 在途互斥：连点保存不重复 upsert
+
   Future<void> _save() async {
+    if (_saving) {
+      return;
+    }
     if (_titleEmpty) {
       setState(() {
         _saveAttempted = true; // TC-CAL-UI-137：不关闭不写库
@@ -92,8 +97,15 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
       toSave = _copyWithId(toSave, newCalendarEventId());
     }
     final repo = ref.read(calendarRepositoryProvider);
-    await repo.upsertEvent(toSave);
-    widget.onSaved();
+    setState(() => _saving = true);
+    try {
+      await repo.upsertEvent(toSave);
+      widget.onSaved();
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 
   @override
