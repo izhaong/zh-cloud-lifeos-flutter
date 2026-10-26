@@ -31,34 +31,36 @@ class CalendarScaffold extends ConsumerWidget {
         initialViewMode ?? ref.watch(viewModeProvider);
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
     final eventsController = ref.watch(kalenderEventsControllerProvider);
-    final viewCallbacks = CalendarViewCallbacks(
-      repo: ref.read(calendarRepositoryProvider),
-      preference:
-          ref.watch(preferenceProvider).value ?? CalendarPreference.defaults,
-      // 草稿落位 + 三档呈现（F-08）：compact 全屏 / medium sheet /
-      // expanded 第三栏（scaffold 尾部按 draft 渲染）。
-      setDraft: (draft) {
-        final width = MediaQuery.of(context).size.width;
-        ref.read(draftEventProvider.notifier).setDraft(draft);
-        if (width >= 1200) {
-          return; // 第三栏由 build 尾部呈现
-        }
-        // 草稿清理（幂等）：route 关闭后 .then 兜底再清一次即可，绝不二次 pop。
-        void clearDraft() =>
-            ref.read(draftEventProvider.notifier).clear();
-        void saveAndClose() {
-          clearDraft();
-          Navigator.of(context).pop(); // 唯一 pop：保存路径
-        }
-        if (width < 600) {
-          EventInspectorHost.openFullScreen(context, draft, saveAndClose,
-              onDismissed: clearDraft);
-        } else {
-          EventInspectorHost.openSheet(context, draft, saveAndClose,
-              onDismissed: clearDraft);
-        }
-      },
-    );
+    final repo = ref.read(calendarRepositoryProvider);
+    final preference =
+        ref.watch(preferenceProvider).value ?? CalendarPreference.defaults;
+    // 草稿清理（幂等）：route 关闭后 .then 兜底再清一次即可，绝不二次 pop。
+    void clearDraft() => ref.read(draftEventProvider.notifier).clear();
+    void saveAndClose() {
+      clearDraft();
+      Navigator.of(context).pop(); // 唯一 pop：保存路径
+    }
+    // 草稿落位 + 三档呈现（F-08）。断点口径与内容区一致：由 LayoutBuilder
+    // 传入内容宽（compact 全屏 / medium sheet / expanded 第三栏）。
+    CalendarViewCallbacks viewCallbacksOf(double contentWidth) {
+      return CalendarViewCallbacks(
+        repo: repo,
+        preference: preference,
+        setDraft: (draft) {
+          ref.read(draftEventProvider.notifier).setDraft(draft);
+          if (contentWidth >= 1200) {
+            return; // 第三栏由 build 尾部呈现
+          }
+          if (contentWidth < 600) {
+            EventInspectorHost.openFullScreen(context, draft, saveAndClose,
+                onDismissed: clearDraft);
+          } else {
+            EventInspectorHost.openSheet(context, draft, saveAndClose,
+                onDismissed: clearDraft);
+          }
+        },
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       body: SafeArea(
@@ -67,6 +69,7 @@ class CalendarScaffold extends ConsumerWidget {
             final width = constraints.maxWidth;
             final compact = width < 600; // 契约 §8.5 iPhone 档
             final expanded = width >= 1200;
+            final viewCallbacks = viewCallbacksOf(width);
             Widget content = Column(
               children: [
                 CalendarToolbar(compact: compact),

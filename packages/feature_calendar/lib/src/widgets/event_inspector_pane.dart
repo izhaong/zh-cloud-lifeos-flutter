@@ -98,7 +98,10 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     setState(() => _saving = true);
     try {
       await repo.upsertEvent(toSave);
-      widget.onSaved();
+      // 面板已被关闭（sheet/route pop）则不再触发 onSaved（防二次 pop）
+      if (mounted) {
+        widget.onSaved();
+      }
     } finally {
       if (mounted) {
         setState(() => _saving = false);
