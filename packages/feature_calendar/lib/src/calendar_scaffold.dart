@@ -31,6 +31,7 @@ class CalendarScaffold extends ConsumerWidget {
         initialViewMode ?? ref.watch(viewModeProvider);
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
     final eventsController = ref.watch(kalenderEventsControllerProvider);
+    final inspectorRouteActive = ref.watch(inspectorRouteActiveProvider);
     final repo = ref.read(calendarRepositoryProvider);
     final preference =
         ref.watch(preferenceProvider).value ?? CalendarPreference.defaults;
@@ -51,12 +52,18 @@ class CalendarScaffold extends ConsumerWidget {
           if (contentWidth >= 1200) {
             return; // 第三栏由 build 尾部呈现
           }
+          // 打开 sheet/全屏即标记路由编辑面在途（防宽度跨档双开）
+          ref.read(inspectorRouteActiveProvider.notifier).set(true);
+          void routeDone() {
+            ref.read(inspectorRouteActiveProvider.notifier).set(false);
+            clearDraft();
+          }
           if (contentWidth < 600) {
             EventInspectorHost.openFullScreen(context, draft, saveAndClose,
-                onDismissed: clearDraft);
+                onDismissed: routeDone);
           } else {
             EventInspectorHost.openSheet(context, draft, saveAndClose,
-                onDismissed: clearDraft);
+                onDismissed: routeDone);
           }
         },
       );
@@ -89,9 +96,13 @@ class CalendarScaffold extends ConsumerWidget {
                 ],
               );
             }
-            // F-08：expanded 档第三栏 Inspector（草稿或选中事件存在时）
+            // F-08：expanded 档第三栏 Inspector（草稿存在时）。
+            // 断点跨档防重复编辑面：只保留一个活动 Inspector——
+            // sheet/route 打开时由 _inspectorRouteActive 标记，第三栏不挂；
+            // 反之第三栏挂载期间 draft 持有唯一编辑权（pane 变更不回写 provider，
+            // 保存/关闭才清）。
             final draft = ref.watch(draftEventProvider);
-            if (expanded && draft != null) {
+            if (expanded && draft != null && !inspectorRouteActive) {
               content = Row(
                 children: [
                   content,
