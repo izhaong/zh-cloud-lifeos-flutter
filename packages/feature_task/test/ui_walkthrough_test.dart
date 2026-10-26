@@ -380,8 +380,6 @@ void main() {
 
       expect(find.textContaining('iCloud'), findsNothing);
       expect(find.textContaining('Outlook'), findsNothing);
-      expect(find.textContaining('分配事项'), findsNothing);
-      expect(find.textContaining('建议列表'), findsNothing);
       expect(find.byType(FloatingActionButton), findsNothing);
     }
   });

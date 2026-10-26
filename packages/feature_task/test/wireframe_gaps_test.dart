@@ -44,18 +44,17 @@ void main() {
 
     expect(find.text('紧急'), findsOneWidget);
     expect(find.text('完成'), findsOneWidget);
+    expect(find.text('分配事项'), findsOneWidget,
+        reason: '分配事项已改为真实空智能列表卡');
   });
 
   // TC-UI-N2 负向门禁
-    testWidgets('负向门禁：无「分配事项/iCloud/Outlook/建议列表」文案',
-      (tester) async {
+    testWidgets('负向门禁：无 iCloud/Outlook 文案', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(375, 812), repo: repo);
 
-    expect(find.textContaining('分配事项'), findsNothing);
     expect(find.textContaining('iCloud'), findsNothing);
     expect(find.textContaining('Outlook'), findsNothing);
-    expect(find.textContaining('建议列表'), findsNothing);
   });
 
   // TC-UI-309（分区部分）

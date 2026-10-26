@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import 'design/life_tokens.dart';
 import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
@@ -481,12 +482,15 @@ class _TwoPane extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final current = lists.where((e) => e.id == openListId).firstOrNull;
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
-    return Row(
-      children: [
-        if (sidebarVisible) ...[
-          SizedBox(
-            width: 280,
-            child: TaskSidebar(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sidebarWidth = LifeTokens.sidebarWidth(constraints.maxWidth);
+        return Row(
+          children: [
+            if (sidebarVisible) ...[
+              SizedBox(
+                width: sidebarWidth,
+                child: TaskSidebar(
               lists: lists,
               selectedListId: openListId,
               onSelect: (l) => onOpenList?.call(l.id),
@@ -531,6 +535,8 @@ class _TwoPane extends ConsumerWidget {
                 ),
         ),
       ],
+        );
+      },
     );
   }
 }
@@ -584,12 +590,15 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
     );
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
 
-    return Row(
-      children: [
-        if (sidebarVisible) ...[
-          SizedBox(
-            width: 240,
-            child: TaskSidebar(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sidebarWidth = LifeTokens.sidebarWidth(constraints.maxWidth);
+        return Row(
+          children: [
+            if (sidebarVisible) ...[
+              SizedBox(
+                width: sidebarWidth,
+                child: TaskSidebar(
               lists: lists,
               selectedListId: openListId,
               onSelect: (l) => widget.onOpenList?.call(l.id),
@@ -648,6 +657,8 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
           ),
         ],
       ],
+        );
+      },
     );
   }
 }

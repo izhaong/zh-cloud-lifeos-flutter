@@ -34,6 +34,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
     kernel.ReminderList(id: 'smart.flagged', title: '已旗标', isSmart: true),
     kernel.ReminderList(id: 'smart.urgent', title: '紧急', isSmart: true),
     kernel.ReminderList(id: 'smart.completed', title: '完成', isSmart: true),
+    kernel.ReminderList(id: 'smart.assigned', title: '分配事项', isSmart: true),
     kernel.ReminderList(id: 'smart.trash', title: '最近删除', isSmart: true),
   ];
 
@@ -537,6 +538,8 @@ class DriftReminderRepository implements kernel.ReminderRepository {
                   !row.dueAt!.isAfter(now) &&
                   _isSameLocalDay(row.dueAt, now))),
       'smart.completed' => alive && row.isCompleted,
+      // 分配事项：本地没有 assignee 字段，协作（M4）接入前恒为空。
+      'smart.assigned' => false,
       _ => alive && row.listId == listId,
     };
   }

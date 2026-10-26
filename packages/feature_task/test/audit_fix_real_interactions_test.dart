@@ -40,21 +40,21 @@ void main() {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(1366, 1024), repo: repo);
 
-    // 初始：侧栏可见（智能列表区在）
-    expect(find.text('智能列表'), findsOneWidget);
+    // 初始：侧栏可见（智能卡在）
+    expect(find.byKey(const ValueKey('smart_card_smart.today')), findsOneWidget);
 
     // 点侧栏「隐藏侧栏」按钮（真实交互，非 provider 单测）
     await tester.tap(find.byKey(const ValueKey('sidebar_toggle')));
     await tester.pumpAndSettle();
 
     // 隐藏后：侧栏内容消失，主区出现「显示侧栏」恢复按钮
-    expect(find.text('智能列表'), findsNothing);
+    expect(find.byKey(const ValueKey('smart_card_smart.today')), findsNothing);
     expect(find.byKey(const ValueKey('show_sidebar')), findsOneWidget);
 
     // 再点恢复 → 侧栏回来
     await tester.tap(find.byKey(const ValueKey('show_sidebar')));
     await tester.pumpAndSettle();
-    expect(find.text('智能列表'), findsOneWidget);
+    expect(find.byKey(const ValueKey('smart_card_smart.today')), findsOneWidget);
     expect(find.byKey(const ValueKey('show_sidebar')), findsNothing);
   });
 
@@ -138,11 +138,14 @@ void main() {
     expect(find.byType(BottomNavigationBar), findsNothing);
     expect(find.byType(TabBar), findsNothing);
 
-    // 宽屏侧栏同样跑未实现文案门禁（原 N2 仅紧凑首页）
+    // 宽屏侧栏同样跑未实现文案门禁（原 N2 仅紧凑首页）；
+    // 分配事项/建议列表已改为真实入口，保留正向断言。
     expect(find.textContaining('iCloud'), findsNothing);
     expect(find.textContaining('Outlook'), findsNothing);
-    expect(find.textContaining('分配事项'), findsNothing);
-    expect(find.textContaining('建议列表'), findsNothing);
+    expect(find.text('分配事项'), findsOneWidget,
+        reason: '分配事项卡是真实空智能列表，不再是禁用文案');
+    expect(find.textContaining('建议列表：日常采购'), findsOneWidget,
+        reason: '建议列表是真实 grocery 模板入口');
   });
 
   // TC-UI-207 加强：⋯编辑占位精确断言（SnackBar 文案全文）
