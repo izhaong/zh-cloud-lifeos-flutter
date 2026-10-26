@@ -65,6 +65,27 @@ void main() {
     expect(find.text('个人'), findsOneWidget);
   });
 
+  // TC-CAL-UI-125：订阅刷新失败（lastRefreshError 非空）→ 该行有警告图标
+  testWidgets('TC-CAL-UI-125 订阅刷新失败显示警告图标', (tester) async {
+    prefs = await SharedPreferences.getInstance();
+    await repo.upsertCalendar(const Calendar(
+        id: 'bad',
+        title: '失败订阅',
+        colorArgb: 0xFFAF52DE,
+        kind: CalendarKind.subscription,
+        lastRefreshError: '拉取超时'));
+    await repo.upsertCalendar(const Calendar(
+        id: 'ok',
+        title: '正常订阅',
+        colorArgb: 0xFF34C759,
+        kind: CalendarKind.subscription));
+    await pumpSidebar(tester);
+    expect(find.byKey(const Key('cal-refresh-error-bad')), findsOneWidget,
+        reason: 'lastRefreshError 非空的订阅行要有警告图标');
+    expect(find.byKey(const Key('cal-refresh-error-ok')), findsNothing,
+        reason: '无错误的订阅行不该出现警告图标');
+  });
+
   // TC-CAL-UI-120：添加日历（名称 + 绿色）→ upsert 捕获 #34C759，侧栏出现
   testWidgets('TC-CAL-UI-120 添加日历对话框', (tester) async {
     await seed(tester);
