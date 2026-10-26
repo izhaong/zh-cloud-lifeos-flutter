@@ -89,6 +89,53 @@ void main() {
       expect(repo.preference.weekViewDays, 5);
     });
 
+    // TC-CAL-UI-125（同步 pull 半）：日历合并重建不得把订阅刷新失败标记写空
+    test('TC-CAL-UI-125 pull 合并保留 lastRefreshError', () async {
+      repo.calendars.add(const Calendar(
+          id: 'srv-10',
+          remoteId: '10',
+          title: '失败订阅',
+          colorArgb: 0xFFAF52DE,
+          kind: CalendarKind.subscription,
+          lastRefreshError: '拉取超时'));
+      port.pullResults.add(const CalendarPullResult(changes: [
+        CalendarPullChange(
+          entityType: 'calendar',
+          entityId: '10',
+          operation: 'UPSERT',
+          payload: {'title': '改名的订阅', 'revision': 4},
+        ),
+      ], tombstones: []));
+
+      await coordinator().syncOnce();
+
+      final merged = repo.calendars.singleWhere((c) => c.id == 'srv-10');
+      expect(merged.title, '改名的订阅');
+      expect(merged.lastRefreshError, '拉取超时',
+          reason: '全量 upsert 不能把刷新失败写成 NULL');
+    });
+
+    // TC-CAL-UI-125（同步 push 半）：接受结果写回 remoteId 时保留刷新失败标记
+    // （防御性：push 只筛 kind=local 的日历，订阅行本不进这条分支）
+    test('TC-CAL-UI-125 push 接受后保留 lastRefreshError', () async {
+      repo.calendars.add(const Calendar(
+          id: 'local-c1',
+          title: '本地日历',
+          colorArgb: 0xFF007AFF,
+          lastRefreshError: '拉取超时'));
+      port.pushResults.add(const CalendarPushResult(accepted: [
+        CalendarAccepted(
+            clientMutationId: 'local-c1', entityId: '77', revision: 2),
+      ]));
+
+      await coordinator().syncOnce();
+
+      final pushed = repo.calendars.singleWhere((c) => c.id == 'local-c1');
+      expect(pushed.remoteId, '77');
+      expect(pushed.lastRefreshError, '拉取超时',
+          reason: '接受写回不得清掉刷新失败标记');
+    });
+
     test('TC-CAL-SYNC-114 首次 push 失败保留队列与幂等键', () async {
       repo.calendars.add(const Calendar(
           id: 'srv-10',

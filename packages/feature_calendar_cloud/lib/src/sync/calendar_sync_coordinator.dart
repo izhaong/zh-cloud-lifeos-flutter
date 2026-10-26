@@ -207,6 +207,7 @@ class CalendarSyncCoordinator {
       ignoreAlerts: payload['ignoreAlerts'] is bool
           ? payload['ignoreAlerts'] as bool
           : (existing?.ignoreAlerts ?? false),
+      lastRefreshError: existing?.lastRefreshError,
       revision: (payload['revision'] as num?)?.toInt() ??
           existing?.revision ??
           1,
@@ -423,6 +424,7 @@ class CalendarSyncCoordinator {
             sourceUrl: c.sourceUrl,
             refreshMinutes: c.refreshMinutes,
             holidayRegion: c.holidayRegion,
+            lastRefreshError: c.lastRefreshError,
             permission: c.permission,
             revision: hit.revision ?? c.revision,
           ));
