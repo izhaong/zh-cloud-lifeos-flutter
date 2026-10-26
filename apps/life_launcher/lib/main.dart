@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'router/life_router.dart';
+import 'notifications/local_calendar_alert_scheduler.dart';
 import 'shell/pinned_tabs_service.dart';
 import 'shell_providers.dart';
 
@@ -30,12 +31,16 @@ Future<void> main() async {
   final sessionStore = SecureSessionStore();
   final authPort = RestAuthPort(dio: dio, store: sessionStore);
   final syncPort = RestSyncPort(dio: dio, store: sessionStore);
+  // F-11：真实本地通知调度（开源包只声明接口）
+  final calendarAlertScheduler =
+      await LocalCalendarAlertScheduler.create(calendarRepository);
 
   runApp(
     ProviderScope(
       overrides: [
         reminderRepositoryProvider.overrideWithValue(repository),
         calendarRepositoryProvider.overrideWithValue(calendarRepository),
+        calendarAlertSchedulerProvider.overrideWithValue(calendarAlertScheduler),
         pinnedTabsServiceProvider.overrideWithValue(
           PinnedTabsService(prefs),
         ),

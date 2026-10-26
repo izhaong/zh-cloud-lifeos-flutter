@@ -6,6 +6,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import '../providers.dart';
 import '../logic/event_time.dart';
 import '../logic/calendar_ids.dart';
+import '../alerts/calendar_alert_scheduler.dart';
 import 'event_form_fields.dart' show EventFormFields, defaultCalendarOf;
 
 export '../logic/calendar_ids.dart' show kDraftEventId;
@@ -127,6 +128,7 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
             occurrenceStart:
                 scope == EditScope.all ? null : widget.occurrenceStart,
           );
+      await ref.read(calendarAlertSchedulerProvider).cancelEvent(_draft.id);
       if (mounted) {
         (widget.onDeleted ?? widget.onSaved)();
       }
@@ -193,6 +195,7 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
         occurrenceStart:
             scope == EditScope.all ? null : widget.occurrenceStart,
       );
+      await ref.read(calendarAlertSchedulerProvider).scheduleEvent(toSave);
       // 面板已被关闭（sheet/route pop）则不再触发 onSaved（防二次 pop）
       if (mounted) {
         widget.onSaved();

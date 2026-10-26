@@ -7,6 +7,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import '../logic/event_time.dart';
 import '../logic/calendar_ids.dart';
 import '../logic/recurrence_ui.dart';
+import '../logic/alert_triggers.dart';
 import '../providers.dart';
 
 /// 日程表单字段（契约 §5.4 event_form_fields.dart；F-08）。
@@ -174,6 +175,21 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
     }
   }
 
+  /// 多选提醒（F-11；全天用「天 + 时刻」，定时用偏移分钟）。
+  Future<void> _pickAlerts(CalendarPreference pref) async {
+    final result = await showDialog<List<EventAlert>>(
+      context: context,
+      builder: (_) => _AlertsDialog(
+        allDay: _e.allDay,
+        initial: _e.alerts,
+        allDayTime: pref.defaultAlertAllDayTime,
+      ),
+    );
+    if (result != null && mounted) {
+      _emit(_copyWithAlerts(_e, result));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final calendars = ref.watch(calendarsProvider).value ?? const <Calendar>[];
@@ -272,12 +288,13 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
           title: const Text('行程时间'),
           trailing: Text(_e.travelMinutes == null ? '无' : '${_e.travelMinutes} 分钟'),
         ),
-        // 9. 提醒（占位下拉；接 F-11）
+        // 9. 提醒（多选；F-11）
         ListTile(
           key: const Key('event_field_alerts'),
           title: const Text('提醒'),
-          trailing: Text(_e.alerts.isEmpty ? '无' : '${_e.alerts.length} 个'),
-          onTap: () {/* F-11 提醒 UI */},
+          trailing: Text(
+              _e.alerts.isEmpty ? '无' : '${_e.alerts.length} 个'),
+          onTap: () => _pickAlerts(pref),
         ),
         // 10. 日历
         ListTile(
@@ -685,5 +702,148 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
         ),
       ],
     );
+  }
+}
+
+/// 提醒全量拷贝（kernel 无 copyWith）。
+CalendarEvent _copyWithAlerts(CalendarEvent e, List<EventAlert> alerts) =>
+    CalendarEvent(
+      id: e.id,
+      remoteId: e.remoteId,
+      calendarId: e.calendarId,
+      uid: e.uid,
+      title: e.title,
+      location: e.location,
+      url: e.url,
+      notes: e.notes,
+      startAt: e.startAt,
+      endAt: e.endAt,
+      allDay: e.allDay,
+      timeZone: e.timeZone,
+      isFloating: e.isFloating,
+      rrule: e.rrule,
+      exdates: e.exdates,
+      parentEventId: e.parentEventId,
+      originalStartAt: e.originalStartAt,
+      status: e.status,
+      availability: e.availability,
+      travelMinutes: e.travelMinutes,
+      isPrivate: e.isPrivate,
+      alerts: alerts,
+      invitees: e.invitees,
+      sequence: e.sequence,
+      revision: e.revision,
+      deletedAt: e.deletedAt,
+      updatedAt: e.updatedAt,
+    );
+
+/// 多选提醒对话框（契约 §2.3 预设；F-11）。
+class _AlertsDialog extends StatefulWidget {
+  const _AlertsDialog({
+    required this.allDay,
+    required this.initial,
+    required this.allDayTime,
+  });
+
+  final bool allDay;
+  final List<EventAlert> initial;
+  final String allDayTime;
+
+  @override
+  State<_AlertsDialog> createState() => _AlertsDialogState();
+}
+
+class _AlertsDialogState extends State<_AlertsDialog> {
+  late final Set<int> _timed = {
+    for (final a in widget.initial)
+      if (a.offsetMinutes != null) a.offsetMinutes!,
+  };
+  late final Set<int> _days = {
+    for (final a in widget.initial)
+      if (a.allDayOffsetDays != null) a.allDayOffsetDays!,
+  };
+  late final String _time = widget.initial
+          .firstWhere((a) => a.allDayTime != null,
+              orElse: () => EventAlert(allDayTime: widget.allDayTime))
+          .allDayTime ??
+      widget.allDayTime;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      key: const Key('alerts_dialog'),
+      title: const Text('提醒'),
+      content: SizedBox(
+        width: 360,
+        height: 420,
+        child: widget.allDay ? _buildAllDay() : _buildTimed(),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('alerts_dialog_cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          key: const Key('alerts_dialog_save'),
+          onPressed: () => Navigator.of(context).pop(_buildResult()),
+          child: const Text('完成'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTimed() {
+    return ListView(
+      children: [
+        for (final offset in kTimedAlertOffsets)
+          CheckboxListTile(
+            key: Key('alert_timed_$offset'),
+            title: Text(timedAlertLabel(offset)),
+            value: _timed.contains(offset),
+            onChanged: (on) => setState(() {
+              if (on == true) {
+                _timed.add(offset);
+              } else {
+                _timed.remove(offset);
+              }
+            }),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildAllDay() {
+    return ListView(
+      children: [
+        for (final days in kAllDayAlertDays)
+          CheckboxListTile(
+            key: Key('alert_allday_$days'),
+            title: Text(allDayAlertLabel(days, _time)),
+            value: _days.contains(days),
+            onChanged: (on) => setState(() {
+              if (on == true) {
+                _days.add(days);
+              } else {
+                _days.remove(days);
+              }
+            }),
+          ),
+      ],
+    );
+  }
+
+  List<EventAlert> _buildResult() {
+    if (widget.allDay) {
+      return [
+        for (final days in kAllDayAlertDays)
+          if (_days.contains(days))
+            EventAlert(allDayOffsetDays: days, allDayTime: _time),
+      ];
+    }
+    return [
+      for (final offset in kTimedAlertOffsets)
+        if (_timed.contains(offset)) EventAlert(offsetMinutes: offset),
+    ];
   }
 }
