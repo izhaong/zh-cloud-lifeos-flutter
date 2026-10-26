@@ -61,7 +61,9 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('新建日程').first);
+    await tester.tap(find.byKey(const Key('quick_create_menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('quick_create_event')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('quick_event_dialog')), findsOneWidget);
 
