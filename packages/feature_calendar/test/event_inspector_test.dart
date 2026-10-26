@@ -99,6 +99,35 @@ void main() {
 
     expect(repo.upserted, isNotEmpty);
     expect(repo.upserted.last.title, '预算评审');
+
+    // 月视图色条文字联动：装载后月视图渲染新标题
+    final monthContainer = ProviderContainer(overrides: [
+      calendarRepositoryProvider.overrideWithValue(repo),
+      sidebarPrefsProvider.overrideWith((ref) => null),
+      kalenderEventsControllerProvider.overrideWithValue(controller),
+    ]);
+    addTearDown(monthContainer.dispose);
+    monthContainer.read(anchorDateProvider.notifier)
+        .set(DateTime.utc(2026, 10, 24));
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: monthContainer,
+      child: MaterialApp(
+        home: Scaffold(
+          body: CalendarMonthView(
+            viewCallbacks: CalendarViewCallbacks(
+              repo: repo,
+              preference: const CalendarPreference(),
+              setDraft: (_) {},
+            ),
+            eventsController: controller,
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('month-event-e1')), findsOneWidget);
+    expect(find.text('预算评审'), findsOneWidget,
+        reason: '月视图色条文字变成新标题');
   });
 
   // TC-CAL-UI-134：备注写两行，再次打开仍在（同一事件 id 重进面板）
@@ -122,10 +151,10 @@ void main() {
 
   // TC-CAL-UI-136：换日历 → 保存后 calendarId 变化
   testWidgets('TC-CAL-UI-136 换日历', (tester) async {
-    // 侧栏日历数据（fake repo 返回两个日历）
+    // 侧栏日历数据（fake repo 返回两个日历；异色以便断言色条变化）
     repo.calendars.addAll([
-      _cal('c1', '工作'),
-      _cal('c2', '家庭'),
+      _cal('c1', '工作', colorArgb: 0xFF007AFF),
+      _cal('c2', '家庭', colorArgb: 0xFF34C759),
     ]);
     await pumpInspector(tester);
     await tester.tap(find.byKey(const Key('event_field_calendar_dropdown')));
@@ -136,6 +165,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repo.upserted.last.calendarId, 'c2', reason: '日历换成 c2');
+
+    // 色条颜色跟着变：月视图装载后 tile 用新日历颜色
+    final monthContainer = ProviderContainer(overrides: [
+      calendarRepositoryProvider.overrideWithValue(repo),
+      sidebarPrefsProvider.overrideWith((ref) => null),
+      kalenderEventsControllerProvider.overrideWithValue(controller),
+    ]);
+    addTearDown(monthContainer.dispose);
+    monthContainer.read(anchorDateProvider.notifier)
+        .set(DateTime.utc(2026, 10, 24));
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: monthContainer,
+      child: MaterialApp(
+        home: Scaffold(
+          body: CalendarMonthView(
+            viewCallbacks: CalendarViewCallbacks(
+              repo: repo,
+              preference: const CalendarPreference(),
+              setDraft: (_) {},
+            ),
+            eventsController: controller,
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    final tile = tester.widget<Container>(
+        find.byKey(const Key('month-event-e1')));
+    final decoration = tile.decoration! as BoxDecoration;
+    final border = decoration.border as BorderDirectional;
+    expect(border.start.color, const Color(0xFF34C759),
+        reason: '色条颜色跟着换成 c2 日历色');
   });
 
   // 审查补充：无日历时保存 → 明确提示、不写库不关闭（不静默失败）
@@ -283,10 +344,11 @@ extension _DraftCopy on CalendarEvent {
       );
 }
 
-Calendar _cal(String id, String title) => Calendar(
+Calendar _cal(String id, String title, {int colorArgb = 0xFF007AFF}) =>
+    Calendar(
       id: id,
       title: title,
-      colorArgb: 0xFF007AFF,
+      colorArgb: colorArgb,
       isVisible: true,
       isDefault: false,
     );
