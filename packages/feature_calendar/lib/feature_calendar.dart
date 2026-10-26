@@ -16,6 +16,8 @@ export 'src/nlp/quick_event_parser.dart';
 export 'src/widgets/quick_event_dialog.dart';
 export 'src/widgets/calendar_shortcuts.dart';
 export 'src/logic/search_filter.dart';
+export 'src/logic/preference_copy.dart';
+export 'src/widgets/calendar_settings_sheet.dart';
 export 'src/views/day_view.dart';
 export 'src/views/month_view.dart';
 export 'src/views/year_view.dart';

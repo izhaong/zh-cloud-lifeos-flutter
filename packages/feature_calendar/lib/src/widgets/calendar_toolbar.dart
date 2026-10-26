@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
+import 'calendar_settings_sheet.dart';
 
 /// 日历工具栏（契约 §5.4/§8.5）。
 ///
@@ -95,6 +96,12 @@ class CalendarToolbar extends ConsumerWidget {
                 tooltip: '收件箱',
                 icon: const Icon(Icons.inbox_outlined),
                 onPressed: () {}, // M4 收件箱
+              ),
+              IconButton(
+                key: const Key('calendar_settings_button'),
+                tooltip: '设置',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => showCalendarSettingsSheet(context),
               ),
               IconButton(
                 tooltip: '搜索',
