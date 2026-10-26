@@ -20,14 +20,22 @@ class EventInspectorPane extends ConsumerStatefulWidget {
     super.key,
     required this.initialEvent,
     required this.onSaved,
+    this.occurrenceStart,
     this.onDraftChanged,
     this.onClose,
+    this.onDeleted,
   });
 
   final CalendarEvent initialEvent;
 
+  /// 被编辑的 occurrence 原始开始（UTC）；重复事件 THIS/FUTURE 作用域用（F-10）。
+  final DateTime? occurrenceStart;
+
   /// 保存成功回调（外壳用于关闭 sheet / 清 selectedOccurrence）。
   final VoidCallback onSaved;
+
+  /// 删除成功回调（缺省回落到 [onSaved]）。
+  final VoidCallback? onDeleted;
 
   /// 草稿变更回写（第三栏场景：断点降档卸栏后未保存修改不丢；可选）。
   final ValueChanged<CalendarEvent>? onDraftChanged;
@@ -69,6 +77,66 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
 
   bool _saving = false; // 在途互斥：连点保存不重复 upsert
 
+  /// 重复事件编辑/删除的作用域选择（F-10 TC-CAL-UI-151/152）。
+  Future<EditScope?> _askScope(String title) {
+    return showDialog<EditScope>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        key: const Key('repeat_scope_dialog'),
+        title: Text(title),
+        content: const Text('此日程属于重复系列，请选择改动范围。'),
+        actions: [
+          TextButton(
+            key: const Key('scope_this'),
+            onPressed: () => Navigator.of(ctx).pop(EditScope.thisOnly),
+            child: const Text('仅此日程'),
+          ),
+          TextButton(
+            key: const Key('scope_future'),
+            onPressed: () => Navigator.of(ctx).pop(EditScope.thisAndFuture),
+            child: const Text('此日程及之后'),
+          ),
+          TextButton(
+            key: const Key('scope_all'),
+            onPressed: () => Navigator.of(ctx).pop(EditScope.all),
+            child: const Text('所有日程'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _delete() async {
+    if (_isNewDraft || _saving) {
+      return;
+    }
+    final recurring = (widget.initialEvent.rrule ?? '').isNotEmpty;
+    var scope = EditScope.all;
+    if (recurring && widget.occurrenceStart != null) {
+      final picked = await _askScope('删除重复日程');
+      if (picked == null || !mounted) {
+        return;
+      }
+      scope = picked;
+    }
+    setState(() => _saving = true);
+    try {
+      await ref.read(calendarRepositoryProvider).deleteEvent(
+            _draft.id,
+            scope: scope,
+            occurrenceStart:
+                scope == EditScope.all ? null : widget.occurrenceStart,
+          );
+      if (mounted) {
+        (widget.onDeleted ?? widget.onSaved)();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
   Future<void> _save() async {
     if (_saving) {
       return;
@@ -79,6 +147,16 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
         _blockedReason = '请填写标题后再保存';
       });
       return;
+    }
+    // F-10：已有重复日程 → 先选作用域（仅此 / 及之后 / 所有）
+    var scope = EditScope.all;
+    final recurring = (widget.initialEvent.rrule ?? '').isNotEmpty;
+    if (!_isNewDraft && recurring && widget.occurrenceStart != null) {
+      final picked = await _askScope('编辑重复日程');
+      if (picked == null || !mounted) {
+        return;
+      }
+      scope = picked;
     }
     // ② 草稿日历为空时写回默认日历（否则空 calendarId 落库）
     var toSave = _draft;
@@ -109,7 +187,12 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     final repo = ref.read(calendarRepositoryProvider);
     setState(() => _saving = true);
     try {
-      await repo.upsertEvent(toSave);
+      await repo.upsertEvent(
+        toSave,
+        scope: scope,
+        occurrenceStart:
+            scope == EditScope.all ? null : widget.occurrenceStart,
+      );
       // 面板已被关闭（sheet/route pop）则不再触发 onSaved（防二次 pop）
       if (mounted) {
         widget.onSaved();
@@ -130,6 +213,12 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
           AppBar(
             title: Text(_draft.title.trim().isEmpty ? '新建日程' : _draft.title),
             actions: [
+              if (!_isNewDraft)
+                IconButton(
+                  key: const Key('event_inspector_delete'),
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _delete,
+                ),
               TextButton(
                 key: const Key('event_inspector_save'),
                 onPressed: _save,
@@ -170,19 +259,27 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
 ///
 /// compact <600 → 全屏 route；medium → bottom sheet；expanded ≥1200 → 第三栏 widget。
 class EventInspectorHost extends StatelessWidget {
-  const EventInspectorHost({super.key, required this.event, required this.onSaved});
+  const EventInspectorHost(
+      {super.key,
+      required this.event,
+      required this.onSaved,
+      this.occurrenceStart});
 
   final CalendarEvent event;
   final VoidCallback onSaved;
+  final DateTime? occurrenceStart;
 
   /// compact 全屏（push 新路由；route 关闭即视为取消 → onDismissed）。
   static Future<void> openFullScreen(BuildContext context, CalendarEvent event,
       VoidCallback onSaved,
-      {VoidCallback? onDismissed}) {
+      {VoidCallback? onDismissed, DateTime? occurrenceStart}) {
     return Navigator.of(context)
         .push(MaterialPageRoute(
-          builder: (_) =>
-              Scaffold(body: EventInspectorPane(initialEvent: event, onSaved: onSaved)),
+          builder: (_) => Scaffold(
+              body: EventInspectorPane(
+                  initialEvent: event,
+                  occurrenceStart: occurrenceStart,
+                  onSaved: onSaved)),
         ))
         .then((_) => onDismissed?.call());
   }
@@ -190,7 +287,7 @@ class EventInspectorHost extends StatelessWidget {
   /// medium bottom sheet（sheet 关闭即视为取消 → onDismissed）。
   static Future<void> openSheet(BuildContext context, CalendarEvent event,
       VoidCallback onSaved,
-      {VoidCallback? onDismissed}) {
+      {VoidCallback? onDismissed, DateTime? occurrenceStart}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -198,6 +295,7 @@ class EventInspectorHost extends StatelessWidget {
         height: MediaQuery.of(context).size.height * 0.85,
         child: EventInspectorPane(
           initialEvent: event,
+          occurrenceStart: occurrenceStart,
           onSaved: onSaved,
           onClose: () => Navigator.of(context).pop(),
         ),
@@ -210,6 +308,7 @@ class EventInspectorHost extends StatelessWidget {
     // expanded 第三栏形态：外壳直接放进 Row 尾部。
     return EventInspectorPane(
       initialEvent: event,
+      occurrenceStart: occurrenceStart,
       onSaved: onSaved,
       onClose: () {},
     );

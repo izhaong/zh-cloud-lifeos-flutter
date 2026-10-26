@@ -36,7 +36,10 @@ class CalendarScaffold extends ConsumerWidget {
     final preference =
         ref.watch(preferenceProvider).value ?? CalendarPreference.defaults;
     // 草稿清理（幂等）：route 关闭后 .then 兜底再清一次即可，绝不二次 pop。
-    void clearDraft() => ref.read(draftEventProvider.notifier).clear();
+    void clearDraft() {
+      ref.read(draftEventProvider.notifier).clear();
+      ref.read(draftOccurrenceStartProvider.notifier).set(null);
+    }
     void saveAndClose() {
       clearDraft();
       Navigator.of(context).pop(); // 唯一 pop：保存路径
@@ -44,32 +47,37 @@ class CalendarScaffold extends ConsumerWidget {
     // 草稿落位 + 三档呈现（F-08）。断点口径与内容区一致：由 LayoutBuilder
     // 传入内容宽（compact 全屏 / medium sheet / expanded 第三栏）。
     CalendarViewCallbacks viewCallbacksOf(double contentWidth) {
+      // F-10：occurrence 打开时带上该次原始开始（重复事件作用域）
+      void openDraft(CalendarEvent draft, DateTime? occurrenceStart) {
+        ref.read(draftOccurrenceStartProvider.notifier).set(occurrenceStart);
+        ref.read(draftEventProvider.notifier).setDraft(draft);
+        if (contentWidth >= 1200) {
+          return; // 第三栏由 build 尾部呈现
+        }
+        // 已有 sheet/全屏在途：不叠第二层编辑面
+        if (ref.read(inspectorRouteActiveProvider)) {
+          return;
+        }
+        // 打开 sheet/全屏即标记路由编辑面在途（防宽度跨档双开）
+        ref.read(inspectorRouteActiveProvider.notifier).set(true);
+        void routeDone() {
+          ref.read(inspectorRouteActiveProvider.notifier).set(false);
+          clearDraft();
+        }
+        if (contentWidth < 600) {
+          EventInspectorHost.openFullScreen(context, draft, saveAndClose,
+              occurrenceStart: occurrenceStart, onDismissed: routeDone);
+        } else {
+          EventInspectorHost.openSheet(context, draft, saveAndClose,
+              occurrenceStart: occurrenceStart, onDismissed: routeDone);
+        }
+      }
+
       return CalendarViewCallbacks(
         repo: repo,
         preference: preference,
-        setDraft: (draft) {
-          ref.read(draftEventProvider.notifier).setDraft(draft);
-          if (contentWidth >= 1200) {
-            return; // 第三栏由 build 尾部呈现
-          }
-          // 已有 sheet/全屏在途：不叠第二层编辑面
-          if (ref.read(inspectorRouteActiveProvider)) {
-            return;
-          }
-          // 打开 sheet/全屏即标记路由编辑面在途（防宽度跨档双开）
-          ref.read(inspectorRouteActiveProvider.notifier).set(true);
-          void routeDone() {
-            ref.read(inspectorRouteActiveProvider.notifier).set(false);
-            clearDraft();
-          }
-          if (contentWidth < 600) {
-            EventInspectorHost.openFullScreen(context, draft, saveAndClose,
-                onDismissed: routeDone);
-          } else {
-            EventInspectorHost.openSheet(context, draft, saveAndClose,
-                onDismissed: routeDone);
-          }
-        },
+        setDraft: (draft) => openDraft(draft, null),
+        openOccurrence: openDraft,
       );
     }
     return Scaffold(
@@ -115,6 +123,8 @@ class CalendarScaffold extends ConsumerWidget {
                     width: 320,
                     child: EventInspectorPane(
                       initialEvent: draft,
+                      occurrenceStart:
+                          ref.watch(draftOccurrenceStartProvider),
                       // 编辑回写 draftEventProvider：断点降档卸栏后未保存修改不丢
                       onDraftChanged: (next) =>
                           ref.read(draftEventProvider.notifier).setDraft(next),

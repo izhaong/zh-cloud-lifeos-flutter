@@ -68,11 +68,11 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
     }
 
     // occurrence → kalender 事件装载（重叠/跨周布局由库处理）。
+    final occurrences =
+        ref.watch(occurrencesProvider(_visibleMonthRange())).value ??
+            const <CalendarOccurrence>[];
     widget.eventsController.replaceEvents([
-      for (final o in ref
-          .watch(occurrencesProvider(_visibleMonthRange()))
-          .value ??
-          const <CalendarOccurrence>[])
+      for (final o in occurrences)
         if (o.source == OccurrenceSource.event)
           CalendarEventTile(
             id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
@@ -114,6 +114,14 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
           onEventCreate: (event) {
             widget.viewCallbacks.onDayTap(event.start);
             return event;
+          },
+          onEventTapped: (event) {
+            for (final o in occurrences) {
+              if (event.id.startsWith('${o.eventId}:')) {
+                widget.viewCallbacks.onOccurrenceTapped(o);
+                break;
+              }
+            }
           },
         ),
       ),

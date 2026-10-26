@@ -6,6 +6,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import '../logic/event_time.dart';
 import '../logic/calendar_ids.dart';
+import '../logic/recurrence_ui.dart';
 import '../providers.dart';
 
 /// 日程表单字段（契约 §5.4 event_form_fields.dart；F-08）。
@@ -159,6 +160,20 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
     }
   }
 
+  /// 自定义重复：编辑器返回配置 → 生成 RRULE（F-10）。
+  Future<void> _editRecurrence() async {
+    final config = await showDialog<RecurrenceConfig>(
+      context: context,
+      builder: (_) => _RecurrenceEditorDialog(
+        initial: parseRRule(_e.rrule, _e.startAt),
+        startAt: _e.startAt,
+      ),
+    );
+    if (config != null && mounted) {
+      _emit(_copyWithRrule(_e, buildRRule(config, _e.startAt)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final calendars = ref.watch(calendarsProvider).value ?? const <Calendar>[];
@@ -228,12 +243,28 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
             onChanged: (v) =>
                 _emit(copyEventWithTimes(_e, isFloating: v)),
           ),
-        // 7. 重复（占位下拉；选项接 F-10）
+        // 7. 重复（预设下拉 + 自定义编辑器；F-10）
         ListTile(
           key: const Key('event_field_repeat'),
           title: const Text('重复'),
-          trailing: const Text('不重复'),
-          onTap: () {/* F-10 重复 UI */},
+          trailing: DropdownButton<RecurrencePreset>(
+            key: const Key('event_field_repeat_dropdown'),
+            value: presetOf(_e.rrule),
+            items: [
+              for (final p in RecurrencePreset.values)
+                DropdownMenuItem(value: p, child: Text(p.label)),
+            ],
+            onChanged: (p) {
+              if (p == null) {
+                return;
+              }
+              if (p == RecurrencePreset.custom) {
+                _editRecurrence();
+              } else {
+                _emit(_copyWithRrule(_e, rruleForPreset(p, _e.startAt)));
+              }
+            },
+          ),
         ),
         // 8. 行程时间
         ListTile(
@@ -439,6 +470,218 @@ class _TimeZoneDialogState extends State<_TimeZoneDialog> {
           key: const Key('event_timezone_cancel'),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
+        ),
+      ],
+    );
+  }
+}
+
+/// 重复规则全量拷贝（kernel 无 copyWith）。
+CalendarEvent _copyWithRrule(CalendarEvent e, String? rrule) => CalendarEvent(
+      id: e.id,
+      remoteId: e.remoteId,
+      calendarId: e.calendarId,
+      uid: e.uid,
+      title: e.title,
+      location: e.location,
+      url: e.url,
+      notes: e.notes,
+      startAt: e.startAt,
+      endAt: e.endAt,
+      allDay: e.allDay,
+      timeZone: e.timeZone,
+      isFloating: e.isFloating,
+      rrule: rrule,
+      exdates: e.exdates,
+      parentEventId: e.parentEventId,
+      originalStartAt: e.originalStartAt,
+      status: e.status,
+      availability: e.availability,
+      travelMinutes: e.travelMinutes,
+      isPrivate: e.isPrivate,
+      alerts: e.alerts,
+      invitees: e.invitees,
+      sequence: e.sequence,
+      revision: e.revision,
+      deletedAt: e.deletedAt,
+      updatedAt: e.updatedAt,
+    );
+
+/// 自定义重复编辑器（契约 §3.2.1 频率/间隔/周几/第 N 个周 X/结束；F-10）。
+class _RecurrenceEditorDialog extends StatefulWidget {
+  const _RecurrenceEditorDialog({required this.initial, required this.startAt});
+
+  final RecurrenceConfig initial;
+  final DateTime startAt;
+
+  @override
+  State<_RecurrenceEditorDialog> createState() =>
+      _RecurrenceEditorDialogState();
+}
+
+class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
+  late final RecurrenceConfig _c = widget.initial;
+  late final TextEditingController _interval =
+      TextEditingController(text: '${widget.initial.interval}');
+  late final TextEditingController _count = TextEditingController(
+      text: widget.initial.count == null ? '' : '${widget.initial.count}');
+
+  @override
+  void dispose() {
+    _interval.dispose();
+    _count.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      key: const Key('recurrence_editor'),
+      title: const Text('自定义重复'),
+      content: SizedBox(
+        width: 380,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                key: const Key('recurrence_freq'),
+                initialValue: _c.freq,
+                decoration: const InputDecoration(labelText: '频率'),
+                items: const [
+                  DropdownMenuItem(value: kFreqDaily, child: Text('每天')),
+                  DropdownMenuItem(value: kFreqWeekly, child: Text('每周')),
+                  DropdownMenuItem(value: kFreqMonthly, child: Text('每月')),
+                  DropdownMenuItem(value: kFreqYearly, child: Text('每年')),
+                ],
+                onChanged: (v) => setState(() => _c.freq = v ?? _c.freq),
+              ),
+              TextField(
+                key: const Key('recurrence_interval'),
+                controller: _interval,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: '间隔'),
+                onChanged: (v) => _c.interval = int.tryParse(v) ?? 1,
+              ),
+              if (_c.freq == kFreqWeekly)
+                Wrap(
+                  key: const Key('recurrence_weekdays'),
+                  spacing: 6,
+                  children: [
+                    for (var d = 1; d <= 7; d++)
+                      FilterChip(
+                        key: Key('recurrence_weekday_$d'),
+                        label: Text(kWeekdayCodes[d - 1]),
+                        selected: _c.weekdays.contains(d),
+                        onSelected: (on) => setState(() {
+                          if (on) {
+                            _c.weekdays.add(d);
+                          } else {
+                            _c.weekdays.remove(d);
+                          }
+                        }),
+                      ),
+                  ],
+                ),
+              if (_c.freq == kFreqMonthly)
+                SwitchListTile(
+                  key: const Key('recurrence_monthly_same_day'),
+                  title: const Text('每月同日'),
+                  value: _c.monthlyByDayOfMonth,
+                  onChanged: (v) =>
+                      setState(() => _c.monthlyByDayOfMonth = v),
+                ),
+              if (_c.freq == kFreqMonthly && !_c.monthlyByDayOfMonth)
+                Row(
+                  children: [
+                    DropdownButton<int>(
+                      key: const Key('recurrence_ordinal'),
+                      value: _c.ordinal,
+                      items: [
+                        for (final o in kOrdinalChoices)
+                          DropdownMenuItem(
+                            value: o,
+                            child: Text(o == -1 ? '最后' : '第 $o'),
+                          ),
+                      ],
+                      onChanged: (v) => setState(() => _c.ordinal = v ?? 1),
+                    ),
+                    const SizedBox(width: 8),
+                    DropdownButton<int>(
+                      key: const Key('recurrence_ordinal_weekday'),
+                      value: _c.ordinalWeekday,
+                      items: [
+                        for (var d = 1; d <= 7; d++)
+                          DropdownMenuItem(
+                            value: d,
+                            child: Text(kWeekdayCodes[d - 1]),
+                          ),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _c.ordinalWeekday = v ?? 1),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                key: const Key('recurrence_end'),
+                initialValue: _c.count != null
+                    ? 'count'
+                    : (_c.until != null ? 'until' : 'never'),
+                decoration: const InputDecoration(labelText: '结束'),
+                items: const [
+                  DropdownMenuItem(value: 'never', child: Text('永不')),
+                  DropdownMenuItem(value: 'until', child: Text('日期')),
+                  DropdownMenuItem(value: 'count', child: Text('次数')),
+                ],
+                onChanged: (v) => setState(() {
+                  _c.count = v == 'count' ? (_c.count ?? 10) : null;
+                  _c.until = v == 'until'
+                      ? (_c.until ??
+                          widget.startAt.toUtc().add(const Duration(days: 30)))
+                      : null;
+                }),
+              ),
+              if (_c.count != null)
+                TextField(
+                  key: const Key('recurrence_count'),
+                  controller: _count,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: '次数'),
+                  onChanged: (v) => _c.count = int.tryParse(v),
+                ),
+              if (_c.until != null)
+                ListTile(
+                  key: const Key('recurrence_until'),
+                  title: const Text('结束日期'),
+                  trailing: Text(
+                      '${_c.until!.year}-${_c.until!.month}-${_c.until!.day}'),
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _c.until!,
+                      firstDate: widget.startAt,
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => _c.until = picked);
+                    }
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('recurrence_editor_cancel'),
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          key: const Key('recurrence_editor_save'),
+          onPressed: () => Navigator.of(context).pop(_c),
+          child: const Text('完成'),
         ),
       ],
     );
