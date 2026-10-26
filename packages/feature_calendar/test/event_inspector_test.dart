@@ -138,6 +138,34 @@ void main() {
     expect(repo.upserted.last.calendarId, 'c2', reason: '日历换成 c2');
   });
 
+  // 审查补充：无日历时保存 → 明确提示、不写库不关闭（不静默失败）
+  testWidgets('无日历保存给出明确提示', (tester) async {
+    final draft = draftEvent().copy(id: kDraftEventId, calendarId: '');
+    var savedCalled = false;
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: Scaffold(
+          body: EventInspectorPane(
+            initialEvent: draft,
+            onSaved: () => savedCalled = true,
+            onClose: () {},
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('event_inspector_save')));
+    await tester.pumpAndSettle();
+
+    expect(repo.upserted, isEmpty, reason: '不写库');
+    expect(savedCalled, isFalse, reason: '不关闭');
+    expect(find.byKey(const Key('event_inspector_blocked_hint')),
+        findsOneWidget, reason: '阻塞提示可见');
+    expect(find.text('没有可用日历，无法保存'), findsOneWidget);
+  });
+
   // 审查补充：新建草稿 id='draft' 保存 → 生成新 id（两次保存不互相覆盖）
   testWidgets('新建草稿保存生成新 id', (tester) async {
     final draft = draftEvent().copy(id: kDraftEventId, calendarId: 'c1');
@@ -216,8 +244,9 @@ void main() {
     expect(find.byKey(const Key('event_inspector_pane')), findsOneWidget,
         reason: '面板仍在');
     expect(find.byKey(const Key('event_inspector_pane')), findsOneWidget);
-    expect(find.text('请填写标题后再保存'), findsOneWidget,
+    expect(find.byKey(const Key('event_inspector_blocked_hint')), findsOneWidget,
         reason: '空标题提示出现');
+    expect(find.text('请填写标题后再保存'), findsOneWidget);
   });
 }
 

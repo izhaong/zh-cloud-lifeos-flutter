@@ -53,25 +53,37 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
 
   bool get _titleEmpty => _draft.title.trim().isEmpty;
 
+  /// 保存受阻原因（标题空/日历缺失共用提示通道；空串=可保存）。
+  String? _blockedReason;
+
   /// 草稿是否为「新建」（id 由创建入口统一用 [kDraftEventId]）。
   bool get _isNewDraft => _draft.id == kDraftEventId;
 
   Future<void> _save() async {
     if (_titleEmpty) {
-      setState(() => _saveAttempted = true); // TC-CAL-UI-137：不关闭不写库
+      setState(() {
+        _saveAttempted = true; // TC-CAL-UI-137：不关闭不写库
+        _blockedReason = '请填写标题后再保存';
+      });
       return;
     }
     // ② 草稿日历为空时写回默认日历（否则空 calendarId 落库）
     var toSave = _draft;
     if (toSave.calendarId.isEmpty) {
-      final calendars =
-          ref.watch(calendarsProvider).value ?? const <Calendar>[];
+      final asyncCalendars = ref.watch(calendarsProvider);
+      final calendars = asyncCalendars.asData?.value ?? const <Calendar>[];
       final target = calendars.any((c) => c.isDefault)
           ? calendars.firstWhere((c) => c.isDefault)
           : (calendars.isEmpty ? null : calendars.first);
       if (target == null) {
-        setState(() => _saveAttempted = true);
-        return; // 无日历可落：不写库不关闭
+        // loading/无日历：明确提示而非静默失败
+        setState(() {
+          _saveAttempted = true;
+          _blockedReason = asyncCalendars.isLoading
+              ? '日历仍在加载，请稍候再保存'
+              : '没有可用日历，无法保存';
+        });
+        return; // 不写库不关闭
       }
       toSave = _copyWithCalendar(toSave, target.id);
     }
@@ -112,11 +124,13 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
               onChanged: (next) => setState(() => _draft = next),
             ),
           ),
-          if (_saveAttempted && _titleEmpty)
-            const Padding(
-              padding: EdgeInsets.all(8),
-              child: Text('请填写标题后再保存',
-                  style: TextStyle(color: Color(0xFFFF3B30), fontSize: 12)),
+          if (_saveAttempted && _blockedReason != null)
+            Padding(
+              key: const Key('event_inspector_blocked_hint'),
+              padding: const EdgeInsets.all(8),
+              child: Text(_blockedReason!,
+                  style:
+                      const TextStyle(color: Color(0xFFFF3B30), fontSize: 12)),
             ),
         ],
       ),
