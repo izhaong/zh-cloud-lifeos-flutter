@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import '../providers.dart';
+import '../logic/event_time.dart';
 import 'event_form_fields.dart' show EventFormFields, defaultCalendarOf;
 
 /// 日程 Inspector（契约 §5.4 event_inspector_pane.dart；F-08）。
@@ -97,6 +98,10 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     // ① 新建草稿：保存时生成新 id（多次创建互不覆盖）
     if (_isNewDraft) {
       toSave = _copyWithId(toSave, newCalendarEventId());
+    }
+    // F-09：保存前按 timeZone 归一全天（契约 §2.2；TC-CAL-KR-120）
+    if (toSave.allDay) {
+      toSave = normalizeAllDay(toSave);
     }
     final repo = ref.read(calendarRepositoryProvider);
     setState(() => _saving = true);

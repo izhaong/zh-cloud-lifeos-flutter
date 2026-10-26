@@ -3,6 +3,8 @@ import 'package:kalender/kalender.dart' as kalender;
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import 'logic/event_time.dart';
+
 /// 日历视图模式（契约 §5.4 viewModeProvider；iPhone 列表档含 list）。
 enum CalendarViewMode { day, week, month, year, list }
 
@@ -61,6 +63,11 @@ class ViewModeNotifier extends Notifier<CalendarViewMode> {
 /// 用户偏好（未保存时仓库层回契约 §2.9 默认值）。
 final preferenceProvider = StreamProvider<CalendarPreference>((ref) {
   return ref.watch(calendarRepositoryProvider).watchPreference();
+});
+
+/// 设备本地时区（flutter_timezone；无插件环境回退 UTC；F-09）。
+final deviceTimeZoneProvider = FutureProvider<String>((ref) {
+  return deviceTimeZoneName();
 });
 
 /// 全局搜索词（工具栏搜索 / ⌘F 聚焦；空串 = 不过滤；F-13 消费）。
