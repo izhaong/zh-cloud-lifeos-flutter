@@ -157,17 +157,22 @@ class EventInspectorHost extends StatelessWidget {
   final CalendarEvent event;
   final VoidCallback onSaved;
 
-  /// compact 全屏（push 新路由）。
+  /// compact 全屏（push 新路由；route 关闭即视为取消 → onDismissed）。
   static Future<void> openFullScreen(BuildContext context, CalendarEvent event,
-      VoidCallback onSaved) {
-    return Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => Scaffold(body: EventInspectorPane(initialEvent: event, onSaved: onSaved)),
-    ));
+      VoidCallback onSaved,
+      {VoidCallback? onDismissed}) {
+    return Navigator.of(context)
+        .push(MaterialPageRoute(
+          builder: (_) =>
+              Scaffold(body: EventInspectorPane(initialEvent: event, onSaved: onSaved)),
+        ))
+        .then((_) => onDismissed?.call());
   }
 
-  /// medium bottom sheet。
+  /// medium bottom sheet（sheet 关闭即视为取消 → onDismissed）。
   static Future<void> openSheet(BuildContext context, CalendarEvent event,
-      VoidCallback onSaved) {
+      VoidCallback onSaved,
+      {VoidCallback? onDismissed}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -179,7 +184,7 @@ class EventInspectorHost extends StatelessWidget {
           onClose: () => Navigator.of(context).pop(),
         ),
       ),
-    );
+    ).then((_) => onDismissed?.call());
   }
 
   @override

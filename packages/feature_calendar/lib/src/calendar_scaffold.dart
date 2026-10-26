@@ -43,15 +43,23 @@ class CalendarScaffold extends ConsumerWidget {
         if (width >= 1200) {
           return; // 第三栏由 build 尾部呈现
         }
-        void saveAndClear() {
-          ref.read(draftEventProvider.notifier).clear();
+        // 保存/取消都清草稿（sheet/全屏关闭时随 route pop 一并清）
+        void clearDraft() =>
+            ref.read(draftEventProvider.notifier).clear();
+        void saveAndClose() {
+          clearDraft();
+          Navigator.of(context).pop();
+        }
+        void dismissAndClose() {
+          clearDraft();
           Navigator.of(context).pop();
         }
         if (width < 600) {
-          EventInspectorHost.openFullScreen(
-              context, draft, () => ref.read(draftEventProvider.notifier).clear());
+          EventInspectorHost.openFullScreen(context, draft, saveAndClose,
+              onDismissed: dismissAndClose);
         } else {
-          EventInspectorHost.openSheet(context, draft, saveAndClear);
+          EventInspectorHost.openSheet(context, draft, saveAndClose,
+              onDismissed: dismissAndClose);
         }
       },
     );
