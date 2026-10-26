@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'views/month_view.dart';
 import 'views/year_view.dart';
 import 'widgets/calendar_sidebar.dart';
 import 'widgets/event_inspector_pane.dart';
+import 'widgets/quick_event_dialog.dart';
 import 'package:kalender/kalender.dart' as kalender;
 import 'widgets/calendar_toolbar.dart';
 
@@ -46,41 +48,69 @@ class CalendarScaffold extends ConsumerWidget {
     }
     // 草稿落位 + 三档呈现（F-08）。断点口径与内容区一致：由 LayoutBuilder
     // 传入内容宽（compact 全屏 / medium sheet / expanded 第三栏）。
-    CalendarViewCallbacks viewCallbacksOf(double contentWidth) {
-      // F-10：occurrence 打开时带上该次原始开始（重复事件作用域）
-      void openDraft(CalendarEvent draft, DateTime? occurrenceStart) {
-        ref.read(draftOccurrenceStartProvider.notifier).set(occurrenceStart);
-        ref.read(draftEventProvider.notifier).setDraft(draft);
-        if (contentWidth >= 1200) {
-          return; // 第三栏由 build 尾部呈现
-        }
-        // 已有 sheet/全屏在途：不叠第二层编辑面
-        if (ref.read(inspectorRouteActiveProvider)) {
-          return;
-        }
-        // 打开 sheet/全屏即标记路由编辑面在途（防宽度跨档双开）
-        ref.read(inspectorRouteActiveProvider.notifier).set(true);
-        void routeDone() {
-          ref.read(inspectorRouteActiveProvider.notifier).set(false);
-          clearDraft();
-        }
-        if (contentWidth < 600) {
-          EventInspectorHost.openFullScreen(context, draft, saveAndClose,
-              occurrenceStart: occurrenceStart, onDismissed: routeDone);
-        } else {
-          EventInspectorHost.openSheet(context, draft, saveAndClose,
-              occurrenceStart: occurrenceStart, onDismissed: routeDone);
-        }
+    // F-10：occurrence 打开时带上该次原始开始（重复事件作用域）
+    void openDraft(
+        CalendarEvent draft, DateTime? occurrenceStart, double contentWidth) {
+      ref.read(draftOccurrenceStartProvider.notifier).set(occurrenceStart);
+      ref.read(draftEventProvider.notifier).setDraft(draft);
+      if (contentWidth >= 1200) {
+        return; // 第三栏由 build 尾部呈现
       }
+      // 已有 sheet/全屏在途：不叠第二层编辑面
+      if (ref.read(inspectorRouteActiveProvider)) {
+        return;
+      }
+      // 打开 sheet/全屏即标记路由编辑面在途（防宽度跨档双开）
+      ref.read(inspectorRouteActiveProvider.notifier).set(true);
+      void routeDone() {
+        ref.read(inspectorRouteActiveProvider.notifier).set(false);
+        clearDraft();
+      }
+      if (contentWidth < 600) {
+        EventInspectorHost.openFullScreen(context, draft, saveAndClose,
+            occurrenceStart: occurrenceStart, onDismissed: routeDone);
+      } else {
+        EventInspectorHost.openSheet(context, draft, saveAndClose,
+            occurrenceStart: occurrenceStart, onDismissed: routeDone);
+      }
+    }
 
+    CalendarViewCallbacks viewCallbacksOf(double contentWidth) {
       return CalendarViewCallbacks(
         repo: repo,
         preference: preference,
-        setDraft: (draft) => openDraft(draft, null),
-        openOccurrence: openDraft,
+        setDraft: (draft) => openDraft(draft, null, contentWidth),
+        openOccurrence: (draft, occurrenceStart) =>
+            openDraft(draft, occurrenceStart, contentWidth),
       );
     }
-    return Scaffold(
+
+    // F-12：⌘N 与工具栏「＋」打开同一个快速事件输入框
+    Future<void> openQuickEvent() async {
+      final zone = ref.read(deviceTimeZoneProvider).value ?? 'UTC';
+      final quick = await showQuickEventDialog(
+        context,
+        defaultDurationMinutes: preference.defaultDurationMinutes,
+        timeZone: zone,
+      );
+      if (quick == null || !context.mounted) {
+        return;
+      }
+      final draft = CalendarEvent(
+        id: kDraftEventId,
+        calendarId: '',
+        uid: '',
+        title: quick.title,
+        startAt: quick.startAt,
+        endAt: quick.endAt,
+        allDay: quick.allDay,
+        timeZone: zone,
+        updatedAt: DateTime.now().toUtc(),
+      );
+      openDraft(draft, null, MediaQuery.sizeOf(context).width);
+    }
+
+    final scaffold = Scaffold(
       backgroundColor: const Color(0xFFF2F2F7),
       body: SafeArea(
         child: LayoutBuilder(
@@ -91,7 +121,8 @@ class CalendarScaffold extends ConsumerWidget {
             final viewCallbacks = viewCallbacksOf(width);
             Widget content = Column(
               children: [
-                CalendarToolbar(compact: compact),
+                CalendarToolbar(
+                    compact: compact, onQuickCreate: openQuickEvent),
                 const Divider(height: 1),
                 Expanded(child: _MainView(
                     mode: mode, viewCallbacks: viewCallbacks,
@@ -141,6 +172,17 @@ class CalendarScaffold extends ConsumerWidget {
           },
         ),
       ),
+    );
+
+    // F-12：⌘N（macOS/Web）与 Ctrl+N（Windows/Linux）打开快速事件
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyN, meta: true):
+            openQuickEvent,
+        const SingleActivator(LogicalKeyboardKey.keyN, control: true):
+            openQuickEvent,
+      },
+      child: Focus(autofocus: true, child: scaffold),
     );
   }
 }

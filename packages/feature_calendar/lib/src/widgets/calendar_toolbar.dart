@@ -11,10 +11,13 @@ import '../providers.dart';
 /// F-03 骨架：结构与 Key 就位（`calendar_toolbar`）；＋→F-12、列表切换→F-04、
 /// 收件箱→M4、搜索→F-13 的行为随后续卡接入。
 class CalendarToolbar extends ConsumerWidget {
-  const CalendarToolbar({super.key, this.compact = false});
+  const CalendarToolbar({super.key, this.compact = false, this.onQuickCreate});
 
   /// 宽度 <600（iPhone 档）时用精简形态（契约 §8.5）。
   final bool compact;
+
+  /// 「＋」打开快速事件输入框（F-12；由 scaffold 注入）。
+  final VoidCallback? onQuickCreate;
 
   static const _labels = {
     CalendarViewMode.day: '日',
@@ -52,7 +55,7 @@ class CalendarToolbar extends ConsumerWidget {
               IconButton(
                 tooltip: '新建日程',
                 icon: const Icon(Icons.add),
-                onPressed: () {}, // F-12 快速事件
+                onPressed: onQuickCreate, // F-12 快速事件
               ),
             ],
           )
@@ -61,7 +64,7 @@ class CalendarToolbar extends ConsumerWidget {
               IconButton(
                 tooltip: '新建日程',
                 icon: const Icon(Icons.add),
-                onPressed: () {}, // F-12 快速事件
+                onPressed: onQuickCreate, // F-12 快速事件
               ),
               IconButton(
                 tooltip: '日历列表',
