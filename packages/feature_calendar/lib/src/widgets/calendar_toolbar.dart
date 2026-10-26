@@ -29,6 +29,9 @@ class CalendarToolbar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(searchActiveProvider)) {
+      return const _CalendarSearchBar();
+    }
     final anchor = ref.watch(anchorDateProvider);
     final toolbar = compact
         ? Row(
@@ -50,7 +53,8 @@ class CalendarToolbar extends ConsumerWidget {
               IconButton(
                 tooltip: '搜索',
                 icon: const Icon(Icons.search),
-                onPressed: () {}, // F-13 搜索
+                onPressed: () =>
+                    ref.read(searchActiveProvider.notifier).set(true),
               ),
               IconButton(
                 tooltip: '新建日程',
@@ -95,7 +99,8 @@ class CalendarToolbar extends ConsumerWidget {
               IconButton(
                 tooltip: '搜索',
                 icon: const Icon(Icons.search),
-                onPressed: () {}, // F-13 搜索
+                onPressed: () =>
+                    ref.read(searchActiveProvider.notifier).set(true),
               ),
             ],
           );
@@ -150,6 +155,60 @@ class _ViewSegment extends ConsumerWidget {
       style: const ButtonStyle(
         visualDensity: VisualDensity.compact,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
+  }
+}
+
+/// 搜索框（⌘F / 放大镜展开；F-13 TC-CAL-UI-171）。
+class _CalendarSearchBar extends ConsumerStatefulWidget {
+  const _CalendarSearchBar();
+
+  @override
+  ConsumerState<_CalendarSearchBar> createState() => _CalendarSearchBarState();
+}
+
+class _CalendarSearchBarState extends ConsumerState<_CalendarSearchBar> {
+  late final TextEditingController _controller =
+      TextEditingController(text: ref.read(searchQueryProvider));
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('calendar_toolbar'),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              key: const Key('calendar_search_field'),
+              controller: _controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: '搜索日程（标题/地点/备注）',
+                border: InputBorder.none,
+              ),
+              onChanged: (v) => ref.read(searchQueryProvider.notifier).set(v),
+            ),
+          ),
+          IconButton(
+            key: const Key('calendar_search_close'),
+            tooltip: '关闭搜索',
+            icon: const Icon(Icons.close),
+            onPressed: () {
+              _controller.clear();
+              ref.read(searchQueryProvider.notifier).set('');
+              ref.read(searchActiveProvider.notifier).set(false);
+            },
+          ),
+        ],
       ),
     );
   }
