@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:feature_calendar/feature_calendar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -141,6 +142,39 @@ void main() {
       expect(state.event.startAt, DateTime.utc(2026, 10, 24, 10),
           reason: '墙上 10:00 不变');
       expect(find.byKey(const Key('event_timezone_dialog')), findsNothing);
+    });
+
+    testWidgets('新建草稿默认设备本地时区', (tester) async {
+      const channel = MethodChannel('flutter_timezone');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'getLocalTimezone') {
+          return 'Asia/Shanghai';
+        }
+        return null;
+      });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      });
+
+      final draft = CalendarEvent(
+        id: kDraftEventId,
+        calendarId: 'c1',
+        uid: 'u-draft',
+        title: '新日程',
+        startAt: DateTime.utc(2026, 10, 24, 2),
+        endAt: DateTime.utc(2026, 10, 24, 3),
+        timeZone: 'UTC', // 创建入口占位
+        updatedAt: DateTime.utc(2026, 10, 24),
+      );
+      final state = await pumpForm(tester, draft);
+      await tester.pumpAndSettle();
+
+      expect(state.event.timeZone, 'Asia/Shanghai',
+          reason: '草稿默认设备本地时区');
+      expect(state.event.startAt, DateTime.utc(2026, 10, 24, 2),
+          reason: '只改时区标签，时刻不动');
     });
   });
 

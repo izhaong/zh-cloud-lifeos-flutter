@@ -5,6 +5,7 @@ import 'package:cupertino_calendar_picker/cupertino_calendar_picker.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import '../logic/event_time.dart';
+import '../logic/calendar_ids.dart';
 import '../providers.dart';
 
 /// 日程表单字段（契约 §5.4 event_form_fields.dart；F-08）。
@@ -42,6 +43,21 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
     _location = TextEditingController(text: widget.event.location ?? '');
     _url = TextEditingController(text: widget.event.url ?? '');
     _notes = TextEditingController(text: widget.event.notes ?? '');
+    _applyDeviceZoneToNewDraft();
+  }
+
+  /// 新建草稿默认使用设备本地时区（F-09；创建入口给的是 UTC 占位）。
+  Future<void> _applyDeviceZoneToNewDraft() async {
+    if (widget.event.id != kDraftEventId) {
+      return;
+    }
+    final zone = await ref.read(deviceTimeZoneProvider.future);
+    if (!mounted || zone == 'UTC') {
+      return;
+    }
+    if (widget.event.timeZone == 'UTC') {
+      _emit(copyEventWithTimes(widget.event, timeZone: zone));
+    }
   }
 
   @override
