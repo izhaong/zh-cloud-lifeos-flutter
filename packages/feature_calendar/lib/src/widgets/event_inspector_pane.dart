@@ -43,7 +43,9 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
   @override
   void didUpdateWidget(covariant EventInspectorPane oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialEvent.id != widget.initialEvent.id) {
+    // ③ 新建草稿 id 恒为 kDraftEventId——按「实例变化」重置（连续双击也刷新）
+    if (!identical(oldWidget.initialEvent, widget.initialEvent)
+        && oldWidget.initialEvent != widget.initialEvent) {
       _draft = widget.initialEvent;
       _saveAttempted = false;
     }
@@ -51,13 +53,34 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
 
   bool get _titleEmpty => _draft.title.trim().isEmpty;
 
+  /// 草稿是否为「新建」（id 由创建入口统一用 [kDraftEventId]）。
+  bool get _isNewDraft => _draft.id == kDraftEventId;
+
   Future<void> _save() async {
     if (_titleEmpty) {
       setState(() => _saveAttempted = true); // TC-CAL-UI-137：不关闭不写库
       return;
     }
+    // ② 草稿日历为空时写回默认日历（否则空 calendarId 落库）
+    var toSave = _draft;
+    if (toSave.calendarId.isEmpty) {
+      final calendars =
+          ref.watch(calendarsProvider).value ?? const <Calendar>[];
+      final target = calendars.any((c) => c.isDefault)
+          ? calendars.firstWhere((c) => c.isDefault)
+          : (calendars.isEmpty ? null : calendars.first);
+      if (target == null) {
+        setState(() => _saveAttempted = true);
+        return; // 无日历可落：不写库不关闭
+      }
+      toSave = _copyWithCalendar(toSave, target.id);
+    }
+    // ① 新建草稿：保存时生成新 id（多次创建互不覆盖）
+    if (_isNewDraft) {
+      toSave = _copyWithId(toSave, newCalendarEventId());
+    }
     final repo = ref.read(calendarRepositoryProvider);
-    await repo.upsertEvent(_draft);
+    await repo.upsertEvent(toSave);
     widget.onSaved();
   }
 
@@ -145,3 +168,78 @@ class EventInspectorHost extends StatelessWidget {
     );
   }
 }
+
+
+/// 新建草稿占位 id（双击/快捷创建入口统一使用；保存时换真 id）。
+const String kDraftEventId = 'draft';
+
+/// 日历事件 id 工厂（kernel 只提供 reminder/list 工厂；事件侧对齐命名）。
+String newCalendarEventId() =>
+    'cal_${DateTime.now().microsecondsSinceEpoch}_'
+    '${_shortRand()}';
+
+String _shortRand() {
+  final r = DateTime.now().hashCode ^ identityHashCode(Object());
+  return (r & 0xFFFFFF).toRadixString(36);
+}
+
+CalendarEvent _copyWithId(CalendarEvent e, String id) => CalendarEvent(
+      id: id,
+      remoteId: e.remoteId,
+      calendarId: e.calendarId,
+      uid: e.uid.isEmpty ? id : e.uid,
+      title: e.title,
+      location: e.location,
+      url: e.url,
+      notes: e.notes,
+      startAt: e.startAt,
+      endAt: e.endAt,
+      allDay: e.allDay,
+      timeZone: e.timeZone,
+      isFloating: e.isFloating,
+      rrule: e.rrule,
+      exdates: e.exdates,
+      parentEventId: e.parentEventId,
+      originalStartAt: e.originalStartAt,
+      status: e.status,
+      availability: e.availability,
+      travelMinutes: e.travelMinutes,
+      isPrivate: e.isPrivate,
+      alerts: e.alerts,
+      invitees: e.invitees,
+      sequence: e.sequence,
+      revision: e.revision,
+      deletedAt: e.deletedAt,
+      updatedAt: e.updatedAt,
+    );
+
+CalendarEvent _copyWithCalendar(CalendarEvent e, String calendarId) =>
+    CalendarEvent(
+      id: e.id,
+      remoteId: e.remoteId,
+      calendarId: calendarId,
+      uid: e.uid,
+      title: e.title,
+      location: e.location,
+      url: e.url,
+      notes: e.notes,
+      startAt: e.startAt,
+      endAt: e.endAt,
+      allDay: e.allDay,
+      timeZone: e.timeZone,
+      isFloating: e.isFloating,
+      rrule: e.rrule,
+      exdates: e.exdates,
+      parentEventId: e.parentEventId,
+      originalStartAt: e.originalStartAt,
+      status: e.status,
+      availability: e.availability,
+      travelMinutes: e.travelMinutes,
+      isPrivate: e.isPrivate,
+      alerts: e.alerts,
+      invitees: e.invitees,
+      sequence: e.sequence,
+      revision: e.revision,
+      deletedAt: e.deletedAt,
+      updatedAt: e.updatedAt,
+    );

@@ -138,6 +138,57 @@ void main() {
     expect(repo.upserted.last.calendarId, 'c2', reason: '日历换成 c2');
   });
 
+  // 审查补充：新建草稿 id='draft' 保存 → 生成新 id（两次保存不互相覆盖）
+  testWidgets('新建草稿保存生成新 id', (tester) async {
+    final draft = draftEvent().copy(id: kDraftEventId, calendarId: 'c1');
+    repo.calendars.add(_cal('c1', '工作'));
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: Scaffold(
+          body: EventInspectorPane(
+            initialEvent: draft,
+            onSaved: () {},
+            onClose: () {},
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('event_inspector_save')));
+    await tester.pumpAndSettle();
+
+    final first = repo.upserted.single;
+    expect(first.id, isNot(kDraftEventId), reason: '保存换新 id');
+    expect(first.calendarId, 'c1', reason: '日历保留');
+
+    // 第二次新建草稿保存 → 又一个不同 id
+    final draft2 = draftEvent()
+        .copy(id: kDraftEventId, calendarId: 'c1', title: '第二个');
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        home: Scaffold(
+          body: EventInspectorPane(
+            initialEvent: draft2,
+            onSaved: () {},
+            onClose: () {},
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const Key('event_field_title')), '第二个');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('event_inspector_save')));
+    await tester.pumpAndSettle();
+
+    expect(repo.upserted.length, 2);
+    expect(repo.upserted[1].id, isNot(repo.upserted[0].id),
+        reason: '两次新建不互相覆盖');
+  });
+
   // TC-CAL-UI-137：空标题点保存 → 不关闭不写库
   testWidgets('TC-CAL-UI-137 空标题禁止保存', (tester) async {
     var savedCalled = false;
@@ -168,6 +219,39 @@ void main() {
     expect(find.text('请填写标题后再保存'), findsOneWidget,
         reason: '空标题提示出现');
   });
+}
+
+extension _DraftCopy on CalendarEvent {
+  CalendarEvent copy({String? id, String? calendarId, String? title}) =>
+      CalendarEvent(
+        id: id ?? this.id,
+        remoteId: remoteId,
+        calendarId: calendarId ?? this.calendarId,
+        uid: uid,
+        title: title ?? this.title,
+        location: location,
+        url: url,
+        notes: notes,
+        startAt: startAt,
+        endAt: endAt,
+        allDay: allDay,
+        timeZone: timeZone,
+        isFloating: isFloating,
+        rrule: rrule,
+        exdates: exdates,
+        parentEventId: parentEventId,
+        originalStartAt: originalStartAt,
+        status: status,
+        availability: availability,
+        travelMinutes: travelMinutes,
+        isPrivate: isPrivate,
+        alerts: alerts,
+        invitees: invitees,
+        sequence: sequence,
+        revision: revision,
+        deletedAt: deletedAt,
+        updatedAt: updatedAt,
+      );
 }
 
 Calendar _cal(String id, String title) => Calendar(
