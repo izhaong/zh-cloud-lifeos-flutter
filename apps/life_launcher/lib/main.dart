@@ -36,7 +36,12 @@ Future<void> main() async {
   )));
   final sessionStore = SecureSessionStore();
   final authPort = RestAuthPort(dio: dio, store: sessionStore);
-  final syncPort = RestSyncPort(dio: dio, store: sessionStore);
+  // TC-SYNC-114：401 时先走 authPort.refresh() 换新 token 再重试，不再拿过期 token 空转
+  final syncPort = RestSyncPort(
+    dio: dio,
+    store: sessionStore,
+    refreshSession: () async => await authPort.refresh() != null,
+  );
   // F-11：真实本地通知调度（开源包只声明接口）
   final calendarAlertScheduler =
       await LocalCalendarAlertScheduler.create(calendarRepository);
