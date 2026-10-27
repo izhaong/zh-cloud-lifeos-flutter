@@ -147,10 +147,11 @@ void main() {
     expect(find.byType(TabBar), findsNothing);
 
     // 宽屏侧栏同样跑未实现文案门禁（原 N2 仅紧凑首页）；
-    // 分配事项/建议列表已改为真实入口，保留正向断言。
+    // 分配事项按批次裁定不出现在任务 UI（TC-API-121 降级口径）——负向断言。
     expect(find.textContaining('iCloud'), findsNothing);
     expect(find.textContaining('Outlook'), findsNothing);
-    expect(find.text('分配事项'), findsOneWidget, reason: '分配事项卡是真实空智能列表，不再是禁用文案');
+    expect(find.text('分配事项'), findsNothing,
+        reason: '任务 UI 不出现「分配事项」（TC-API-121 客户端禁该文案）');
     expect(
       find.textContaining('建议列表：日常采购'),
       findsOneWidget,

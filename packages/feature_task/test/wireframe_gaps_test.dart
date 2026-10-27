@@ -44,8 +44,8 @@ void main() {
 
     expect(find.text('紧急'), findsOneWidget);
     expect(find.text('完成'), findsOneWidget);
-    expect(find.text('分配事项'), findsOneWidget,
-        reason: '分配事项已改为真实空智能列表卡');
+    expect(find.text('分配事项'), findsNothing,
+        reason: '分配事项按裁定不出现在任务 UI（TC-API-121 降级口径；负向门禁）');
   });
 
   // TC-UI-N2 负向门禁

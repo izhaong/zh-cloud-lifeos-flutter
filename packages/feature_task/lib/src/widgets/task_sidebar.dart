@@ -35,6 +35,8 @@ class TaskSidebar extends ConsumerStatefulWidget {
 }
 
 class _TaskSidebarState extends ConsumerState<TaskSidebar> {
+  // 分配事项（smart.assigned）按批次裁定不出现在任务 UI（对等矩阵降级口径：
+  // TC-API-121/122 客户端仍禁该文案）——侧栏内置区与自定义区都不展示。
   static const _builtinSmartIds = {
     'smart.today',
     'smart.scheduled',
@@ -42,7 +44,6 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
     'smart.flagged',
     'smart.urgent',
     'smart.completed',
-    'smart.assigned',
   };
   @override
   Widget build(BuildContext context) {
@@ -52,8 +53,10 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
         widget.lists.where((e) => e.isSmart).toList(growable: false);
     final smart =
         allSmart.where((e) => _builtinSmartIds.contains(e.id)).toList();
+    // smart.assigned（分配事项）按裁定整个不出现——内置区与自定义区都排除。
+    final hiddenSmartIds = {'smart.assigned', 'smart.trash'};
     final customSmart = allSmart.where(
-      (e) => !_builtinSmartIds.contains(e.id) && e.id != 'smart.trash',
+      (e) => !_builtinSmartIds.contains(e.id) && !hiddenSmartIds.contains(e.id),
     );
     final trash = allSmart.where((e) => e.id == 'smart.trash').firstOrNull;
     final mine =
