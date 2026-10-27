@@ -127,3 +127,28 @@ class NoteSettingsNotifier extends Notifier<NoteSettings> {
 final noteSettingsProvider =
     NotifierProvider<NoteSettingsNotifier, NoteSettings>(
         NoteSettingsNotifier.new);
+
+
+/// 共享端口（F-14；接口未合并时用假端口，开源包不打网络）。
+abstract interface class NoteSharePort {
+  Future<void> share({
+    required String noteId,
+    required String targetUserId,
+    required bool writable,
+  });
+}
+
+final class _UnavailableNoteSharePort implements NoteSharePort {
+  @override
+  Future<void> share({
+    required String noteId,
+    required String targetUserId,
+    required bool writable,
+  }) async {
+    throw UnsupportedError('共享客户端未接入');
+  }
+}
+
+final noteSharePortProvider = Provider<NoteSharePort>((ref) {
+  return _UnavailableNoteSharePort();
+});

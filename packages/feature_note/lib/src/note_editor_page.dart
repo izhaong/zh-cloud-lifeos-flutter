@@ -62,6 +62,83 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     return quill.Document();
   }
 
+  Future<void> _share() async {
+    final existing = widget.note;
+    if (existing == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('先保存备忘录再共享')),
+      );
+      return;
+    }
+    final userIdController = TextEditingController();
+    var writable = false;
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('共享备忘录'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                key: const ValueKey('note_share_user_id'),
+                controller: userIdController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(hintText: '对方用户编号'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  ChoiceChip(
+                    key: const ValueKey('note_share_read'),
+                    label: const Text('只读'),
+                    selected: !writable,
+                    onSelected: (_) => setLocalState(() => writable = false),
+                  ),
+                  const SizedBox(width: 8),
+                  ChoiceChip(
+                    key: const ValueKey('note_share_write'),
+                    label: const Text('可写'),
+                    selected: writable,
+                    onSelected: (_) => setLocalState(() => writable = true),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              key: const ValueKey('note_share_submit'),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('共享'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (submitted != true) {
+      return;
+    }
+    final targetUserId = userIdController.text.trim();
+    if (targetUserId.isEmpty) {
+      return;
+    }
+    await ref.read(noteSharePortProvider).share(
+          noteId: existing.id,
+          targetUserId: targetUserId,
+          writable: writable,
+        );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已共享')),
+      );
+    }
+  }
+
   Future<void> _lock() async {
     final existing = widget.note;
     if (existing == null || existing.locked) {
@@ -180,6 +257,12 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       appBar: AppBar(
         title: Text(widget.note == null ? '新建备忘录' : '编辑备忘录'),
         actions: [
+          IconButton(
+            key: const ValueKey('note_editor_share'),
+            tooltip: '共享',
+            icon: const Icon(Icons.people_outline),
+            onPressed: _share,
+          ),
           IconButton(
             key: const ValueKey('note_editor_lock'),
             tooltip: '锁定',
