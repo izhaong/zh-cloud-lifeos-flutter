@@ -2,12 +2,19 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Issue #3 · kernel 与服务端契约对齐（M2）
-/// TC-KR-107：服务端 ID 映射字段（remoteId，Spec 028 临时 ID 映射的本地侧）；
-/// TC-KR-108：回收窗字段（deletedAt）与完成时间（completedAt）；
-/// TC-KR-109：分区归属（sectionId，A15 手动分区）；
-/// TC-KR-110：优先级映射编解码（FL 0/1/5/9 ↔ 服务端 0/1/2/3，M1 冻结口径）。
+///
+/// 号段裁定（docs#307）：本文件四个组原先占用的台账号段与 zh-cloud-docs
+/// `lifeos/task/testcases/task-kernel-repo.md` 同号不同义（台账侧那四个号分别是
+/// 完成计数、删除列表级联、Drift 迁移、断点纯函数），故本文件改用独立号段
+/// TC-KR-CF-101~104（CF = contract fields），与台账脱钩。
+/// 台账里「契约字段」面的锚点请引本文件的 CF 号；本文件不再出现台账旧号，
+/// 这样按台账号 grep 不会误落到契约字段测试上。
+/// TC-KR-CF-101：服务端 ID 映射字段（remoteId，Spec 028 临时 ID 映射的本地侧）；
+/// TC-KR-CF-102：回收窗字段（deletedAt）与完成时间（completedAt）；
+/// TC-KR-CF-103：分区归属（sectionId，A15 手动分区）；
+/// TC-KR-CF-104：优先级映射编解码（FL 0/1/5/9 ↔ 服务端 0/1/2/3，M1 冻结口径）。
 void main() {
-  group('TC-KR-107 remoteId 服务端 ID 映射字段', () {
+  group('TC-KR-CF-101 remoteId 服务端 ID 映射字段', () {
     test('默认 null；copyWith 可写入/清除', () {
       const item = ReminderItem(id: 'local-1', listId: 'l1', title: 't');
       expect(item.remoteId, isNull);
@@ -26,7 +33,7 @@ void main() {
     });
   });
 
-  group('TC-KR-108 completedAt / deletedAt 契约字段', () {
+  group('TC-KR-CF-102 completedAt / deletedAt 契约字段', () {
     test('默认 null；copyWith 哨兵三态', () {
       const item = ReminderItem(id: '1', listId: 'l', title: 't');
       final now = DateTime.utc(2026, 10, 24, 1, 0);
@@ -44,7 +51,7 @@ void main() {
     });
   });
 
-  group('TC-KR-109 sectionId 分区归属', () {
+  group('TC-KR-CF-103 sectionId 分区归属', () {
     test('默认 null；copyWith 写入/清除（移动列表时应清空）', () {
       const item = ReminderItem(id: '1', listId: 'l', title: 't');
       final sectioned = item.copyWith(sectionId: 'sec-1');
@@ -54,7 +61,7 @@ void main() {
     });
   });
 
-  group('TC-KR-110 优先级映射编解码（FL ↔ 服务端）', () {
+  group('TC-KR-CF-104 优先级映射编解码（FL ↔ 服务端）', () {
     test('FL 0/1/5/9 ↔ 服务端 0/1/2/3 双向', () {
       expect(ReminderPriorityCodec.toServer(0), 0);
       expect(ReminderPriorityCodec.toServer(1), 1);
