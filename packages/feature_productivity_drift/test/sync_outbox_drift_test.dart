@@ -31,7 +31,8 @@ void main() {
   }
 
   test('V11：发件箱表随 schemaVersion 11 建表', () async {
-    expect(db.schemaVersion, 11, reason: 'sync 发件箱为 V11（flutter#124 卡 2）');
+    expect(db.schemaVersion, 12,
+        reason: 'V11 建发件箱、V12 建游标表（flutter#124 卡 2/卡 3）');
     expect(await outbox.pending(), isEmpty);
   });
 
@@ -73,7 +74,8 @@ void main() {
     expect(again.clientMutationId, first.clientMutationId,
         reason: '断网重试/二次编辑都不得换幂等键（服务端按键去重）');
     expect(again.payload['title'], '终稿');
-    expect(again.payload['priority'], 9);
+    expect(again.payload['priority'], 3,
+        reason: '载荷走服务端 0–3 档（LifeosTaskDO 冻结 + DB CHECK），客户端 9 要换算');
   });
 
   test('TC-SYNC-107 完成/旗标/移动/删除都入队；删除记 delete', () async {

@@ -61,10 +61,110 @@ abstract interface class SyncOutbox {
   });
 }
 
+/// 服务端语义的落库侧（flutter#124 卡 3）：把一批入站变更写进本地存储。
+///
+/// 与 [SyncOutbox] 的关键区别：**入站落库不得再回写发件箱**，
+/// 否则 pull→enqueue→push 会自己造出无限往返。
+abstract interface class SyncApplier {
+  /// 落一批入站变更（同事务：要么全落、要么都不落，游标由调用方在成功后前进）。
+  Future<void> applyAll(Iterable<SyncIncomingChange> changes);
+}
+
+/// 任务域增量游标的持久化端口（TC-SYNC-107「游标前进」的本地半边）。
+abstract interface class SyncCursorStore {
+  /// 上次成功落库的游标；null = 从未同步过（首次全量）。
+  Future<String?> read();
+
+  /// 覆盖写入（一个域一行）。
+  Future<void> write(String cursor);
+}
+
+/// 入站变更（服务端下推的一条变更向量）。
+@immutable
+final class SyncIncomingChange extends Equatable {
+  const SyncIncomingChange({
+    required this.entityType,
+    required this.entityId,
+    required this.operation,
+    this.payload = const {},
+  });
+
+  final String entityType;
+
+  /// 服务端实体 id（本地行的 `remoteId`）。
+  final String entityId;
+
+  /// `upsert` / `delete`。
+  final String operation;
+
+  final Map<String, dynamic> payload;
+
+  @override
+  List<Object?> get props => [entityType, entityId, operation, payload];
+}
+
+/// 任务域同步载荷 → 提醒条目（[taskSyncPayload] 的逆向；服务端 0–3 档回转客户端档）。
+///
+/// 日期是 epoch 毫秒（服务端 `LifeosTaskCodec.epochMilli` 同口径），解回本地 DateTime；
+/// 缺键按「不动该字段」的中性值处理，损坏载荷不炸整批。
+ReminderItem reminderItemFromSyncPayload(
+  Map<String, dynamic> payload, {
+  required String entityId,
+  required String listId,
+  ReminderItem? existing,
+}) {
+  int? asInt(Object? v) => v is num ? v.toInt() : int.tryParse('$v');
+  DateTime? asDate(Object? v) => v is num
+      ? DateTime.fromMillisecondsSinceEpoch(v.toInt())
+      : (v == null ? null : DateTime.tryParse('$v'));
+  bool asBool(Object? v, bool fallback) => v is bool
+      ? v
+      : (v == null
+          ? fallback
+          : ('' == '$v' ? fallback : ('1' == '$v' || 'true' == '$v')));
+  String? asString(Object? v) => v?.toString();
+  Object? pick(String camel, String snake) =>
+      payload.containsKey(camel) ? payload[camel] : payload[snake];
+
+  final tagsRaw = payload['tags'];
+  return ReminderItem(
+    id: existing?.id ?? entityId,
+    listId: listId,
+    title: asString(payload['title']) ?? existing?.title ?? '',
+    notes: asString(payload['notes']) ??
+        asString(payload['description']) ??
+        existing?.notes,
+    isCompleted: asBool(payload['isCompleted'], existing?.isCompleted ?? false),
+    isFlagged: asBool(
+        pick('isFlagged', 'is_flagged') ?? payload['isFlagged'],
+        existing?.isFlagged ?? false),
+    dueAt: asDate(payload['dueAt']) ?? existing?.dueAt,
+    priority: payload.containsKey('priority')
+        ? ReminderPriorityCodec.fromServer(asInt(payload['priority']) ?? 0)
+        : (existing?.priority ?? 0),
+    tags: tagsRaw is List
+        ? tagsRaw.whereType<String>().toList(growable: false)
+        : (existing?.tags ?? const []),
+    recurrence: asString(payload['recurrence']) ?? existing?.recurrence,
+    recurrenceUntil: asDate(payload['recurrenceUntil']) ??
+        existing?.recurrenceUntil,
+    parentId: asString(pick('parentTaskId', 'parent_task_id')) ??
+        existing?.parentId,
+    sortOrder: asInt(payload['sortOrder']) ?? existing?.sortOrder ?? 0,
+    remoteId: entityId,
+    completedAt: asDate(payload['completedAt']) ?? existing?.completedAt,
+    sectionId: asString(pick('sectionId', 'section_id')) ??
+        existing?.sectionId,
+    deletedAt: asDate(payload['deletedAt']) ?? existing?.deletedAt,
+  );
+}
+
 /// 提醒条目 → 任务域同步载荷（服务端 push/pull 两侧读的就是这套键名）。
 ///
 /// 日期一律 epoch 毫秒（`LifeosTaskSyncCodec.epochMilli` 同口径）；
-/// `isFlagged` 双键（camel + snake）沿用 Todo 线 TC-API-103 的拼写兼容。
+/// `isFlagged` 双键（camel + snake）沿用 Todo 线 TC-API-103 的拼写兼容；
+/// `priority` 走**服务端 0–3 档**（`LifeosTaskDO` 冻结并有 DB CHECK，
+/// 直接发客户端的 0/1/5/9 会被 CHECK 拒掉）。
 Map<String, dynamic> taskSyncPayload(ReminderItem item) => {
       'id': item.id,
       'listId': item.listId,
@@ -74,7 +174,7 @@ Map<String, dynamic> taskSyncPayload(ReminderItem item) => {
       'description': item.notes,
       'notes': item.notes,
       'dueAt': _epochMilli(item.dueAt),
-      'priority': item.priority,
+      'priority': ReminderPriorityCodec.toServer(item.priority),
       'isFlagged': item.isFlagged,
       'is_flagged': item.isFlagged,
       'isCompleted': item.isCompleted,

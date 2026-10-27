@@ -7040,6 +7040,272 @@ class TaskOutboxRowsCompanion extends UpdateCompanion<TaskOutboxRow> {
   }
 }
 
+class $SyncCursorRowsTable extends SyncCursorRows
+    with TableInfo<$SyncCursorRowsTable, SyncCursorRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncCursorRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _domainMeta = const VerificationMeta('domain');
+  @override
+  late final GeneratedColumn<String> domain = GeneratedColumn<String>(
+    'domain',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cursorMeta = const VerificationMeta('cursor');
+  @override
+  late final GeneratedColumn<String> cursor = GeneratedColumn<String>(
+    'cursor',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [domain, cursor, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_cursor_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncCursorRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('domain')) {
+      context.handle(
+        _domainMeta,
+        domain.isAcceptableOrUnknown(data['domain']!, _domainMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_domainMeta);
+    }
+    if (data.containsKey('cursor')) {
+      context.handle(
+        _cursorMeta,
+        cursor.isAcceptableOrUnknown(data['cursor']!, _cursorMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {domain};
+  @override
+  SyncCursorRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncCursorRow(
+      domain: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}domain'],
+      )!,
+      cursor: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cursor'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncCursorRowsTable createAlias(String alias) {
+    return $SyncCursorRowsTable(attachedDatabase, alias);
+  }
+}
+
+class SyncCursorRow extends DataClass implements Insertable<SyncCursorRow> {
+  final String domain;
+  final String? cursor;
+  final int updatedAt;
+  const SyncCursorRow({
+    required this.domain,
+    this.cursor,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['domain'] = Variable<String>(domain);
+    if (!nullToAbsent || cursor != null) {
+      map['cursor'] = Variable<String>(cursor);
+    }
+    map['updated_at'] = Variable<int>(updatedAt);
+    return map;
+  }
+
+  SyncCursorRowsCompanion toCompanion(bool nullToAbsent) {
+    return SyncCursorRowsCompanion(
+      domain: Value(domain),
+      cursor: cursor == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cursor),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SyncCursorRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncCursorRow(
+      domain: serializer.fromJson<String>(json['domain']),
+      cursor: serializer.fromJson<String?>(json['cursor']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'domain': serializer.toJson<String>(domain),
+      'cursor': serializer.toJson<String?>(cursor),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+    };
+  }
+
+  SyncCursorRow copyWith({
+    String? domain,
+    Value<String?> cursor = const Value.absent(),
+    int? updatedAt,
+  }) => SyncCursorRow(
+    domain: domain ?? this.domain,
+    cursor: cursor.present ? cursor.value : this.cursor,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SyncCursorRow copyWithCompanion(SyncCursorRowsCompanion data) {
+    return SyncCursorRow(
+      domain: data.domain.present ? data.domain.value : this.domain,
+      cursor: data.cursor.present ? data.cursor.value : this.cursor,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncCursorRow(')
+          ..write('domain: $domain, ')
+          ..write('cursor: $cursor, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(domain, cursor, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncCursorRow &&
+          other.domain == this.domain &&
+          other.cursor == this.cursor &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SyncCursorRowsCompanion extends UpdateCompanion<SyncCursorRow> {
+  final Value<String> domain;
+  final Value<String?> cursor;
+  final Value<int> updatedAt;
+  final Value<int> rowid;
+  const SyncCursorRowsCompanion({
+    this.domain = const Value.absent(),
+    this.cursor = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncCursorRowsCompanion.insert({
+    required String domain,
+    this.cursor = const Value.absent(),
+    required int updatedAt,
+    this.rowid = const Value.absent(),
+  }) : domain = Value(domain),
+       updatedAt = Value(updatedAt);
+  static Insertable<SyncCursorRow> custom({
+    Expression<String>? domain,
+    Expression<String>? cursor,
+    Expression<int>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (domain != null) 'domain': domain,
+      if (cursor != null) 'cursor': cursor,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncCursorRowsCompanion copyWith({
+    Value<String>? domain,
+    Value<String?>? cursor,
+    Value<int>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SyncCursorRowsCompanion(
+      domain: domain ?? this.domain,
+      cursor: cursor ?? this.cursor,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (domain.present) {
+      map['domain'] = Variable<String>(domain.value);
+    }
+    if (cursor.present) {
+      map['cursor'] = Variable<String>(cursor.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncCursorRowsCompanion(')
+          ..write('domain: $domain, ')
+          ..write('cursor: $cursor, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LifeProductivityDb extends GeneratedDatabase {
   _$LifeProductivityDb(QueryExecutor e) : super(e);
   $LifeProductivityDbManager get managers => $LifeProductivityDbManager(this);
@@ -7052,6 +7318,7 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
   late final $NoteFoldersTable noteFolders = $NoteFoldersTable(this);
   late final $NotesTable notes = $NotesTable(this);
   late final $TaskOutboxRowsTable taskOutboxRows = $TaskOutboxRowsTable(this);
+  late final $SyncCursorRowsTable syncCursorRows = $SyncCursorRowsTable(this);
   late final Index idxCalendarEventsCalStart = Index(
     'idx_calendar_events_cal_start',
     'CREATE INDEX idx_calendar_events_cal_start ON calendar_events (calendar_id, start_at)',
@@ -7069,6 +7336,7 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
     noteFolders,
     notes,
     taskOutboxRows,
+    syncCursorRows,
     idxCalendarEventsCalStart,
   ];
 }
@@ -10384,6 +10652,187 @@ typedef $$TaskOutboxRowsTableProcessedTableManager =
       TaskOutboxRow,
       PrefetchHooks Function()
     >;
+typedef $$SyncCursorRowsTableCreateCompanionBuilder =
+    SyncCursorRowsCompanion Function({
+      required String domain,
+      Value<String?> cursor,
+      required int updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SyncCursorRowsTableUpdateCompanionBuilder =
+    SyncCursorRowsCompanion Function({
+      Value<String> domain,
+      Value<String?> cursor,
+      Value<int> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SyncCursorRowsTableFilterComposer
+    extends Composer<_$LifeProductivityDb, $SyncCursorRowsTable> {
+  $$SyncCursorRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get domain => $composableBuilder(
+    column: $table.domain,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cursor => $composableBuilder(
+    column: $table.cursor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncCursorRowsTableOrderingComposer
+    extends Composer<_$LifeProductivityDb, $SyncCursorRowsTable> {
+  $$SyncCursorRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get domain => $composableBuilder(
+    column: $table.domain,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cursor => $composableBuilder(
+    column: $table.cursor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncCursorRowsTableAnnotationComposer
+    extends Composer<_$LifeProductivityDb, $SyncCursorRowsTable> {
+  $$SyncCursorRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get domain =>
+      $composableBuilder(column: $table.domain, builder: (column) => column);
+
+  GeneratedColumn<String> get cursor =>
+      $composableBuilder(column: $table.cursor, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SyncCursorRowsTableTableManager
+    extends
+        RootTableManager<
+          _$LifeProductivityDb,
+          $SyncCursorRowsTable,
+          SyncCursorRow,
+          $$SyncCursorRowsTableFilterComposer,
+          $$SyncCursorRowsTableOrderingComposer,
+          $$SyncCursorRowsTableAnnotationComposer,
+          $$SyncCursorRowsTableCreateCompanionBuilder,
+          $$SyncCursorRowsTableUpdateCompanionBuilder,
+          (
+            SyncCursorRow,
+            BaseReferences<
+              _$LifeProductivityDb,
+              $SyncCursorRowsTable,
+              SyncCursorRow
+            >,
+          ),
+          SyncCursorRow,
+          PrefetchHooks Function()
+        > {
+  $$SyncCursorRowsTableTableManager(
+    _$LifeProductivityDb db,
+    $SyncCursorRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncCursorRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncCursorRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncCursorRowsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> domain = const Value.absent(),
+                Value<String?> cursor = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncCursorRowsCompanion(
+                domain: domain,
+                cursor: cursor,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String domain,
+                Value<String?> cursor = const Value.absent(),
+                required int updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncCursorRowsCompanion.insert(
+                domain: domain,
+                cursor: cursor,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SyncCursorRowsTable, SyncCursorRow>(table),
+                  BaseReferences<
+                    _$LifeProductivityDb,
+                    $SyncCursorRowsTable,
+                    SyncCursorRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncCursorRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LifeProductivityDb,
+      $SyncCursorRowsTable,
+      SyncCursorRow,
+      $$SyncCursorRowsTableFilterComposer,
+      $$SyncCursorRowsTableOrderingComposer,
+      $$SyncCursorRowsTableAnnotationComposer,
+      $$SyncCursorRowsTableCreateCompanionBuilder,
+      $$SyncCursorRowsTableUpdateCompanionBuilder,
+      (
+        SyncCursorRow,
+        BaseReferences<
+          _$LifeProductivityDb,
+          $SyncCursorRowsTable,
+          SyncCursorRow
+        >,
+      ),
+      SyncCursorRow,
+      PrefetchHooks Function()
+    >;
 
 class $LifeProductivityDbManager {
   final _$LifeProductivityDb _db;
@@ -10404,4 +10853,6 @@ class $LifeProductivityDbManager {
       $$NotesTableTableManager(_db, _db.notes);
   $$TaskOutboxRowsTableTableManager get taskOutboxRows =>
       $$TaskOutboxRowsTableTableManager(_db, _db.taskOutboxRows);
+  $$SyncCursorRowsTableTableManager get syncCursorRows =>
+      $$SyncCursorRowsTableTableManager(_db, _db.syncCursorRows);
 }
