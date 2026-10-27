@@ -19,7 +19,8 @@ class LifeShell extends ConsumerWidget {
   const LifeShell({super.key, required this.navigationShell});
 
   /// 「更多」在 StatefulShellRoute 分支里的索引（分支序与 installedApps 一致 +1）。
-  static const int moreBranchIndex = 3;
+  /// 按注册表长度推导：新增应用（如 F-03「记录」）后不会指错分支。
+  static int get moreBranchIndex => installedApps.length;
 
   final StatefulNavigationShell navigationShell;
 

@@ -2,6 +2,7 @@ import 'package:app_core/app_core.dart';
 import 'package:dio/dio.dart';
 import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_calendar_cloud/feature_calendar_cloud.dart';
+import 'package:feature_note/feature_note.dart';
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:feature_task_cloud/feature_task_cloud.dart';
@@ -24,6 +25,8 @@ Future<void> main() async {
   final db = await openDefaultDatabase();
   final repository = DriftReminderRepository(db);
   final calendarRepository = openDefaultDriftCalendarRepository(db);
+  // F-03：记录仓库（Drift 实现随 F-04 落地前先 InMemory；组合根单点切换）
+  final noteRepository = InMemoryNoteRepository();
   final prefs = await SharedPreferences.getInstance();
   final dio = Dio(BaseOptions(baseUrl: const String.fromEnvironment(
     'LIFEOS_API_BASE',
@@ -60,6 +63,7 @@ Future<void> main() async {
       overrides: [
         reminderRepositoryProvider.overrideWithValue(repository),
         calendarRepositoryProvider.overrideWithValue(calendarRepository),
+        noteRepositoryProvider.overrideWithValue(noteRepository),
         calendarReminderRepositoryProvider.overrideWithValue(repository),
         calendarAlertSchedulerProvider.overrideWithValue(calendarAlertScheduler),
         calendarCollabPortProvider.overrideWithValue(calendarCollabPort),

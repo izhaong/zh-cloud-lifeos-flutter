@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'package:feature_calendar/feature_calendar.dart';
+import 'package:feature_note/feature_note.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:feature_task_cloud/feature_task_cloud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,6 +64,12 @@ GoRouter buildLifeRouter(WidgetRef ref) {
             GoRoute(
               path: '/calendar',
               builder: (context, state) => const CalendarTabEntry(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/note',
+              builder: (context, state) => const NoteTabEntry(),
             ),
           ]),
           StatefulShellBranch(routes: [

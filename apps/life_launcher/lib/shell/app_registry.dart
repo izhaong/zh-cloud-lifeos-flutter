@@ -48,6 +48,13 @@ const List<AppEntry> installedApps = [
     isPlaceholder: false,
   ),
   AppEntry(
+    id: 'note',
+    title: '记录',
+    icon: Icons.sticky_note_2_outlined,
+    selectedIcon: Icons.sticky_note_2,
+    branchPath: '/note',
+  ),
+  AppEntry(
     id: 'habit',
     title: '习惯',
     icon: Icons.spa_outlined,
