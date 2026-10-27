@@ -70,7 +70,15 @@ void main() {
       );
     });
 
-    test('smart.today 只含今天未完成', () async {
+    test('smart.today = 今天到期 + 已过期未完成', () async {
+      await repo.upsertItem(
+        ReminderItem(
+          id: 't0',
+          listId: 'list.personal',
+          title: '昨天过期',
+          dueAt: DateTime(2026, 10, 21, 9, 0),
+        ),
+      );
       await repo.upsertItem(
         ReminderItem(
           id: 't1',
@@ -98,7 +106,7 @@ void main() {
       );
 
       final today = await repo.watchItems(listId: 'smart.today').first;
-      expect(today.map((e) => e.id), ['t1']);
+      expect(today.map((e) => e.id), ['t0', 't1']);
     });
 
     test('smart.scheduled = 有日期且未完成；smart.flagged = 旗标且未完成', () async {

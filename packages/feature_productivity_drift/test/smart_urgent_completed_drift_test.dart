@@ -19,8 +19,8 @@ void main() {
     await db.close();
   });
 
-  group('smart.urgent（当日过期 ∨ priority>=9）', () {
-    test('当日过期未完成入选；昨日过期不入选；未来不入选', () async {
+  group('smart.urgent（已过期 ∨ priority>=9）', () {
+    test('今天已过时与昨日过期都入选；未来不入选', () async {
       await repo.upsertList(
         const ReminderList(id: 'list.work', title: '工作'),
       );
@@ -50,7 +50,7 @@ void main() {
       );
 
       final urgent = await repo.watchItems(listId: 'smart.urgent').first;
-      expect(urgent.map((e) => e.id), ['u1']);
+      expect(urgent.map((e) => e.id), ['u1', 'u2']);
     });
 
     test('priority>=9 未完成入选；已完成高优不入选', () async {

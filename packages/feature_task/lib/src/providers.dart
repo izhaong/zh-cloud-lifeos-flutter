@@ -184,12 +184,26 @@ final completionUndoProvider =
         CompletionUndoNotifier.new);
 
 class CompletionUndoNotifier extends Notifier<ReminderItem?> {
+  Timer? _timer;
+
   @override
-  ReminderItem? build() => null;
+  ReminderItem? build() {
+    ref.onDispose(() => _timer?.cancel());
+    return null;
+  }
 
-  void offer(ReminderItem item) => state = item;
+  void offer(ReminderItem item) {
+    _timer?.cancel();
+    state = item;
+    _timer = Timer(const Duration(seconds: 4), () {
+      if (state?.id == item.id) state = null;
+    });
+  }
 
-  void clear() => state = null;
+  void clear() {
+    _timer?.cancel();
+    state = null;
+  }
 }
 
 /// 勾选完成。未完成 → 完成时记下快照；已完成再勾只是取消完成，不记撤销。

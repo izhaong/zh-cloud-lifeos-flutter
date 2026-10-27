@@ -17,6 +17,11 @@ void main() {
     repo.nowForTest = day1;
     await repo.upsertItem(ReminderItem(
         id: 'i1', listId: 'list.p', title: '昨天到期', dueAt: day1));
+    await repo.upsertItem(ReminderItem(
+        id: 'i2',
+        listId: 'list.p',
+        title: '次日项',
+        dueAt: DateTime(2026, 10, 26, 9, 0)));
 
     // 首次检查：初始化「上次见到的日」（同日 → 不刷新）
     expect(repo.checkDayRollover(), isTrue, reason: '首次调用建立基线（last=null）');
@@ -30,18 +35,19 @@ void main() {
     expect(repo.checkDayRollover(), isTrue, reason: '日界变化触发刷新');
 
     final after = await repo.watchItems(listId: 'smart.today').first;
-    expect(after, isEmpty, reason: '跨日后 i1 不再属于「今天」（它已过期）');
+    expect(after.map((e) => e.id), ['i1', 'i2'],
+        reason: '跨日后 i1 转过期仍在「今天」，i2 进入「今天」');
 
     final scheduled =
         await repo.watchItems(listId: 'smart.scheduled').first;
-    expect(scheduled.map((e) => e.id), ['i1'],
-        reason: '「计划」= dueAt 非空（含过期），i1 仍在');
+    expect(scheduled.map((e) => e.id), ['i1', 'i2'],
+        reason: '「计划」= dueAt 非空（含过期）');
 
     // 同日再检查：不得重复刷新
     expect(repo.checkDayRollover(), isFalse);
   });
 
-  test('跨日刷新后侧栏「今天」计数归零', () async {
+  test('跨日刷新后侧栏「今天」保留过期项计数', () async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     repo.disposeDayRolloverWatch();
     await repo.upsertList(
@@ -63,7 +69,7 @@ void main() {
     expect(repo.checkDayRollover(), isTrue);
 
     lists = await repo.watchLists().first;
-    expect(lists.singleWhere((l) => l.id == 'smart.today').itemCount, 0,
-        reason: '跨日后「今天」计数归零');
+    expect(lists.singleWhere((l) => l.id == 'smart.today').itemCount, 1,
+        reason: '跨日后 i1 转过期，仍计入「今天」');
   });
 }
