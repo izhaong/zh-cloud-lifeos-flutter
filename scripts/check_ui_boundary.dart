@@ -9,18 +9,32 @@ import 'dart:io';
 ///
 /// 白名单逐文件写明原因与移除条件。
 
-const _scanRoots = <String>[
-  'apps/life_launcher/lib',
-  'packages/app_core/lib',
-  'packages/feature_task/lib',
-  'packages/feature_calendar/lib',
-  'packages/feature_note/lib',
-];
+/// 扫描根自动发现：覆盖 `apps/*/lib` 与 `packages/*/lib`。
+/// 原先硬编码 5 个根，静默漏掉 6 个包（含 feature_task_cloud 里那个 SDK Cupertino 登录页），
+/// 使 `violations` 看起来比真实少。改为发现式，新增包自动纳管。
+List<String> _discoverScanRoots(String root) {
+  final found = <String>[];
+  for (final base in const ['apps', 'packages']) {
+    final dir = Directory('$root/$base');
+    if (!dir.existsSync()) continue;
+    for (final entry in dir.listSync().whereType<Directory>()) {
+      final lib = '${entry.path}/lib';
+      if (!Directory(lib).existsSync()) continue;
+      found.add(lib.startsWith('$root/') ? lib.substring(root.length + 1) : lib);
+    }
+  }
+  found.sort();
+  return found;
+}
 
-/// 迁移中的包：feature_task 已收口（#129），日历/记录在各自 PR 内逐步从 pending 移除。
+/// 迁移中的包：feature_task 已收口（#129），日历/记录/日历云在各自 PR 内逐步从 pending 移除。
+/// 记名豁免不等于收口：`--strict` 仍会全量列出，台账要引 `scanned/pending/violations` 三元组。
 const _pendingPackages = <String>{
   'packages/feature_calendar',
   'packages/feature_note',
+  // 扫描根扩全后暴露（#135）。整页 Material（Scaffold/AppBar/ListTile×2/FilledButton×2/TextField），
+  // 归属 #130 日历迁移；#130 完成后删除本条。
+  'packages/feature_calendar_cloud',
 };
 
 /// 允许出现 Material API 的文件（仅这些文件）。
@@ -58,7 +72,7 @@ void main(List<String> args) {
   var scanned = 0;
   final pending = <String>[];
 
-  for (final rel in _scanRoots) {
+  for (final rel in _discoverScanRoots(root)) {
     final isPending = _pendingPackages.any(
       (p) => rel == '$p/lib' || rel.startsWith('$p/'),
     );
