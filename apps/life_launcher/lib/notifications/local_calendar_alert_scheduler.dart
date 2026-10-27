@@ -7,7 +7,11 @@ import 'package:timezone/timezone.dart' as tz;
 ///
 /// feature_calendar 只声明 [CalendarAlertScheduler]；本实现由组合根注入。
 class LocalCalendarAlertScheduler implements CalendarAlertScheduler {
-  LocalCalendarAlertScheduler._(this._plugin, this._repository);
+  LocalCalendarAlertScheduler._(
+    this._plugin,
+    this._repository, {
+    this._requestPermissions,
+  });
 
   static const String channelId = 'lifeos_calendar_alerts';
   static const String _categoryId = 'lifeos_calendar_alert';
@@ -15,44 +19,94 @@ class LocalCalendarAlertScheduler implements CalendarAlertScheduler {
 
   final FlutterLocalNotificationsPlugin _plugin;
   final CalendarRepository _repository;
+  final Future<void> Function()? _requestPermissions;
   final Map<String, CalendarEvent> _events = {};
+  bool _permissionsRequested = false;
 
   static Future<LocalCalendarAlertScheduler> create(
-      CalendarRepository repository) async {
+    CalendarRepository repository, {
+    FlutterLocalNotificationsPlugin? plugin,
+    Future<void> Function()? requestPermissions,
+  }) async {
     tzdata.initializeTimeZones();
-    final plugin = FlutterLocalNotificationsPlugin();
-    final scheduler = LocalCalendarAlertScheduler._(plugin, repository);
+    final plugin0 = plugin ?? FlutterLocalNotificationsPlugin();
+    final scheduler = LocalCalendarAlertScheduler._(
+      plugin0,
+      repository,
+      requestPermissions:
+          requestPermissions ??
+          () async {
+            final ios = plugin0
+                .resolvePlatformSpecificImplementation<
+                  IOSFlutterLocalNotificationsPlugin
+                >();
+            if (ios != null) {
+              await ios.requestPermissions(
+                alert: true,
+                badge: false,
+                sound: true,
+              );
+              return;
+            }
+            final mac = plugin0
+                .resolvePlatformSpecificImplementation<
+                  MacOSFlutterLocalNotificationsPlugin
+                >();
+            if (mac != null) {
+              await mac.requestPermissions(
+                alert: true,
+                badge: false,
+                sound: true,
+              );
+              return;
+            }
+            await plugin0
+                .resolvePlatformSpecificImplementation<
+                  AndroidFlutterLocalNotificationsPlugin
+                >()
+                ?.requestNotificationsPermission();
+          },
+    );
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     final darwin = DarwinInitializationSettings(
-      requestAlertPermission: true,
+      requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
       notificationCategories: [
-        DarwinNotificationCategory(_categoryId, actions: [
-          DarwinNotificationAction.plain('snooze', '稍后 9 分钟'),
-          DarwinNotificationAction.plain('dismiss', '关闭',
-              options: {DarwinNotificationActionOption.foreground}),
-        ]),
+        DarwinNotificationCategory(
+          _categoryId,
+          actions: [
+            DarwinNotificationAction.plain('snooze', '稍后 9 分钟'),
+            DarwinNotificationAction.plain(
+              'dismiss',
+              '关闭',
+              options: {DarwinNotificationActionOption.foreground},
+            ),
+          ],
+        ),
       ],
     );
-    await plugin.initialize(
-      settings: InitializationSettings(android: android, iOS: darwin, macOS: darwin),
+    await plugin0.initialize(
+      settings: InitializationSettings(
+        android: android,
+        iOS: darwin,
+        macOS: darwin,
+      ),
       onDidReceiveNotificationResponse: scheduler._onResponse,
     );
-    await plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.requestNotificationsPermission();
     return scheduler;
   }
 
   @override
   Future<void> scheduleEvent(CalendarEvent event) async {
+    await _ensurePermissionsRequested();
     await cancelEvent(event.id);
     _events[event.id] = event;
-    final triggers =
-        calendarAlertTriggers(event, after: DateTime.now().toUtc());
+    final triggers = calendarAlertTriggers(
+      event,
+      after: DateTime.now().toUtc(),
+    );
     for (var i = 0; i < triggers.length && i < _maxSlots; i++) {
       await _schedule(event, _eventNotificationId(event.id, i), triggers[i]);
     }
@@ -68,13 +122,28 @@ class LocalCalendarAlertScheduler implements CalendarAlertScheduler {
 
   @override
   Future<void> snooze(CalendarEvent event, DateTime fireAt) async {
+    await _ensurePermissionsRequested();
     _events[event.id] = event;
-    await _schedule(event, _eventNotificationId(event.id, _maxSlots),
-        fireAt.toUtc());
+    await _schedule(
+      event,
+      _eventNotificationId(event.id, _maxSlots),
+      fireAt.toUtc(),
+    );
+  }
+
+  Future<void> _ensurePermissionsRequested() async {
+    if (_permissionsRequested || _requestPermissions == null) {
+      return;
+    }
+    _permissionsRequested = true;
+    await _requestPermissions();
   }
 
   Future<void> _schedule(
-      CalendarEvent event, int id, DateTime fireAtUtc) async {
+    CalendarEvent event,
+    int id,
+    DateTime fireAtUtc,
+  ) async {
     final title = event.title.trim().isEmpty ? '日程提醒' : event.title;
     final when = tz.TZDateTime.from(fireAtUtc.toUtc(), tz.local);
     await _plugin.zonedSchedule(
@@ -91,8 +160,11 @@ class LocalCalendarAlertScheduler implements CalendarAlertScheduler {
           priority: Priority.high,
           actions: [
             AndroidNotificationAction('snooze', '稍后 9 分钟'),
-            AndroidNotificationAction('dismiss', '关闭',
-                showsUserInterface: false),
+            AndroidNotificationAction(
+              'dismiss',
+              '关闭',
+              showsUserInterface: false,
+            ),
           ],
         ),
         iOS: DarwinNotificationDetails(categoryIdentifier: _categoryId),
@@ -111,8 +183,7 @@ class LocalCalendarAlertScheduler implements CalendarAlertScheduler {
     if (response.actionId == 'snooze') {
       final event = _events[eventId] ?? await _repository.getEvent(eventId);
       if (event != null) {
-        await CalendarNotificationActions(this)
-            .onSnooze(event);
+        await CalendarNotificationActions(this).onSnooze(event);
       }
     }
   }
