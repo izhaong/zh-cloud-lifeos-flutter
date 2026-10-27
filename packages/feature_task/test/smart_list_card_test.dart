@@ -55,7 +55,7 @@ void main() {
               child: SmartListCard(
                 list: const ReminderList(
                   id: 'smart.flagged',
-                  title: '已旗标',
+                  title: '旗标',
                   isSmart: true,
                   itemCount: 0,
                 ),

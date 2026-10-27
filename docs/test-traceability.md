@@ -39,7 +39,7 @@
 | 搜索匹配备注与标签；清空全回来 | `test/search_ui_test.dart` | TC-UI-202 | 种含 notes/tags → 搜「老板」→「交报告」出现；清空 → 全部回来 | ✅ |
 | 无匹配显示「无匹配结果」 | `test/search_ui_test.dart` | TC-UI-203 | 搜不存在的词 → 断言「无匹配结果」 | ✅ |
 | 手动分区：按元数据序、未分区兜底、折叠、互斥 | `test/manual_sections_ui_test.dart` | TC-UI-110 | upsert Section/Item → 断言分区头顺序、条目落桶、点分区头折叠、手动模式不出日桶、无分区回退日桶 | ✅ |
-| 首页计数：计划 3/全部 4/已旗标 1；点入 smart.* 命中集 | `test/smart_list_semantics_test.dart` | TC-UI-102/103/104 | pump 首页断言计数；分别 pump scheduled/all/flagged → 断言命中/未命中 | ✅ |
+| 首页计数：计划 3/全部 4/旗标 1；点入 smart.* 命中集 | `test/smart_list_semantics_test.dart` | TC-UI-102/103/104 | pump 首页断言计数；分别 pump scheduled/all/flagged → 断言命中/未命中 | ✅ |
 | 侧栏分组折叠/展开、交错 groupName 聚合、无分组平铺 | `test/list_grouping_ui_test.dart` | TC-UI-118 | 点 `group_工作` 折叠 → 组内行消失、他组不动；再展开；交错 B,A,B → 唯一组头 | ✅ |
 | 删除 → 最近删除视图可见 → 恢复回原列表 | `test/trash_and_tags_test.dart` | TC-UI-109 | deleteItem → 列表内消失 → 换 smart.trash → 可见 → 点 `restore_i1` → 回 list.a | ✅ |
 | 标签浏览器：chip 出现，点选按标签过滤 | `test/trash_and_tags_test.dart` | TC-UI-117 | 种含 tags → 断言 chip → 点 `tag_chip_工作` → 命中/过滤 | ✅ |

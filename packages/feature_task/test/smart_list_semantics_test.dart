@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// TC-UI-102/103/104：计划 / 全部 / 已旗标。
+/// TC-UI-102/103/104：计划 / 全部 / 旗标。
 ///
 /// 语义以 kernel `_filter` 为准：
 /// - 计划：未完成且 dueAt 非空（含今天与已过期）
@@ -84,7 +84,7 @@ void main() {
     await pump();
     expect(cardCount('计划', '3'), findsOneWidget);
     expect(cardCount('全部', '4'), findsOneWidget);
-    expect(cardCount('已旗标', '1'), findsOneWidget);
+    expect(cardCount('旗标', '1'), findsOneWidget);
 
     await pump(openListId: 'smart.scheduled');
     expect(find.text('今天旗标'), findsOneWidget);

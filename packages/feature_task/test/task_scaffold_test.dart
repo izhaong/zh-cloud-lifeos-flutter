@@ -42,7 +42,7 @@ void main() {
     expect(find.text('今天'), findsOneWidget);
     expect(find.text('计划'), findsOneWidget);
     expect(find.text('全部'), findsOneWidget);
-    expect(find.text('已旗标'), findsOneWidget);
+    expect(find.text('旗标'), findsOneWidget);
     expect(find.text('我的列表'), findsOneWidget);
     expect(find.text('个人'), findsOneWidget);
     expect(find.text('工作'), findsOneWidget);
