@@ -64,6 +64,7 @@ class DriftReminderRepository
             groupName: row.groupName,
             listType: kernel.ReminderListType.fromId(row.listType),
             smartFilter: _decodeSmartFilter(row.smartFilter),
+            remoteId: row.remoteId,
           ),
       ];
     });
@@ -376,13 +377,28 @@ class DriftReminderRepository
     if (changes.isEmpty) return;
     await _db.transaction(() async {
       for (final c in changes) {
-        // 列表/分区/标签实体在本地没有 remoteId 列，本卡只落 task
-        if (c.entityType != 'task') continue;
-        if (c.operation == 'delete') {
-          await _applyInboundDelete(c);
-        } else {
-          await _applyInboundUpsert(c);
+        if (c.entityType == 'task') {
+          if (c.operation == 'delete') {
+            await _applyInboundDelete(c);
+          } else {
+            await _applyInboundUpsert(c);
+          }
+        } else if (c.entityType == 'list') {
+          // flutter#144 / TC-SYNC-106：清单入站落库
+          if (c.operation == 'delete') {
+            await _applyInboundListDelete(c);
+          } else {
+            await _applyInboundListUpsert(c);
+          }
+        } else if (c.entityType == 'task_section') {
+          if (c.operation == 'delete') {
+            await _applyInboundSectionDelete(c);
+          } else {
+            await _applyInboundSectionUpsert(c);
+          }
         }
+        // 标签不是服务端实体（LifeosTaskSyncCodec 只有 task/list/task_section）：
+        // 本地标签是 reminder_items.tags 的 JSON 数组，随任务载荷走，无行可落。
       }
     });
   }
@@ -430,6 +446,158 @@ class DriftReminderRepository
         .getSingleOrNull();
   }
 
+  /// 清单行 → kernel 模型（`itemCount` 由 watcher 派生，这里不需要）。
+  kernel.ReminderList _listModelFrom(ReminderList row) => kernel.ReminderList(
+        id: row.id,
+        title: row.title,
+        colorArgb: row.colorArgb,
+        isSmart: row.isSmart,
+        sortOrder: row.sortOrder,
+        sections: _sortedSections(_decodeSections(row.sectionsJson)),
+        groupName: row.groupName,
+        listType: kernel.ReminderListType.fromId(row.listType),
+        smartFilter: _decodeSmartFilter(row.smartFilter),
+        remoteId: row.remoteId,
+      );
+
+  /// 清单版临时 ID 映射：先按 remoteId 找，找不到再按 id 兜底（历史数据把
+  /// 服务端 id 直接当本地 id 用），与 [_findByServerId] 同口径。
+  Future<ReminderList?> _findListByServerId(String entityId) async {
+    final byRemote = await (_db.select(_db.reminderLists)
+          ..where((t) => t.remoteId.equals(entityId)))
+        .get();
+    if (byRemote.isNotEmpty) return byRemote.first;
+    return (_db.select(_db.reminderLists)
+          ..where((t) => t.id.equals(entityId)))
+        .getSingleOrNull();
+  }
+
+  Future<void> _applyInboundListUpsert(kernel.SyncIncomingChange c) async {
+    final row = await _findListByServerId(c.entityId);
+    if (row != null && row.isSmart && !row.id.startsWith('smart.custom.')) {
+      return; // 内置智能列表由仓库派生，不接受服务端写入
+    }
+    final model = kernel.reminderListFromSyncPayload(
+      c.payload,
+      entityId: c.entityId,
+      existing: row == null ? null : _listModelFrom(row),
+    );
+    await _db.into(_db.reminderLists).insertOnConflictUpdate(
+          ReminderListsCompanion.insert(
+            id: model.id,
+            title: model.title,
+            colorArgb: Value(model.colorArgb),
+            sortOrder: Value(model.sortOrder),
+            groupName: Value(model.groupName),
+            listType: Value(model.listType.id),
+            smartFilter: Value(_encodeSmartFilter(model.smartFilter)),
+            sectionsJson:
+                Value(_encodeSections(_sortedSections(model.sections))),
+            isSmart: Value(model.isSmart),
+            remoteId: Value(model.remoteId),
+          ),
+        );
+  }
+
+  Future<void> _applyInboundListDelete(kernel.SyncIncomingChange c) async {
+    final row = await _findListByServerId(c.entityId);
+    if (row == null) return; // 幂等：本地没有这条
+    // 与本地 deleteList 同口径：条目随清单进回收窗（软删），再删清单行。
+    // 服务端级联下推的条目 delete 再落一次也只是重写 deletedAt，幂等。
+    await (_db.update(_db.reminderItems)
+          ..where((t) => t.listId.equals(row.id)))
+        .write(ReminderItemsCompanion(deletedAt: Value(_now)));
+    await (_db.delete(_db.reminderLists)
+          ..where((t) => t.id.equals(row.id)))
+        .go();
+  }
+
+  Future<void> _applyInboundSectionUpsert(kernel.SyncIncomingChange c) async {
+    final listId = c.payload['listId']?.toString();
+    if (listId == null) return;
+    final row = await _findListByServerId(listId);
+    if (row == null) return; // 归属清单还没到：跳过（服务端按批重推）
+    final sections = [..._decodeSections(row.sectionsJson)];
+    final i = sections.indexWhere(
+      (e) => e.remoteId == c.entityId || e.id == c.entityId,
+    );
+    final section = kernel.reminderSectionFromSyncPayload(
+      c.payload,
+      entityId: c.entityId,
+      existing: i >= 0 ? sections[i] : null,
+    );
+    if (i >= 0) {
+      sections[i] = section;
+    } else {
+      sections.add(section);
+    }
+    await _writeSections(row.id, sections);
+  }
+
+  Future<void> _applyInboundSectionDelete(kernel.SyncIncomingChange c) async {
+    final listId = c.payload['listId']?.toString();
+    if (listId == null) return;
+    final row = await _findListByServerId(listId);
+    if (row == null) return;
+    final all = _decodeSections(row.sectionsJson);
+    final doomedIds = all
+        .where((e) => e.remoteId == c.entityId || e.id == c.entityId)
+        .map((e) => e.id)
+        .toSet();
+    if (doomedIds.isEmpty) return; // 幂等
+    final kept = all
+        .where((e) => !doomedIds.contains(e.id))
+        .toList(growable: false);
+    // 级联：挂靠条目兜底「未分区」（与本地 deleteSection 同语义）
+    final rows = await (_db.select(_db.reminderItems)
+          ..where((t) => t.listId.equals(row.id) & t.sectionId.isNotNull()))
+        .get();
+    for (final r in rows.where((e) => doomedIds.contains(e.sectionId))) {
+      await (_db.update(_db.reminderItems)
+            ..where((t) => t.id.equals(r.id)))
+          .write(const ReminderItemsCompanion(sectionId: Value(null)));
+    }
+    await _writeSections(row.id, kept);
+  }
+
+  /// 清单变更登记进发件箱（flutter#144 / TC-SYNC-106 出站半边）。
+  ///
+  /// 与业务写表同事务调用；载荷取**写库后**的行快照。[deleted] 为真时记
+  /// delete（行已删，载荷用删前快照）。
+  Future<void> _enqueueListOutbox(
+    kernel.ReminderList list, {
+    bool deleted = false,
+  }) async {
+    final at = _now;
+    final entityId = list.remoteId ?? list.id;
+    await DriftSyncOutbox(_db).enqueue(kernel.SyncOutboxEntry(
+      entityType: 'list',
+      entityId: entityId,
+      operation: deleted ? 'delete' : 'upsert',
+      payload: kernel.listSyncPayload(list),
+      clientMutationId: 'list-$entityId-${at.microsecondsSinceEpoch}',
+      clientUpdatedAt: at.millisecondsSinceEpoch,
+    ));
+  }
+
+  /// 分区变更登记进发件箱；[listId] 传服务端清单 ID（有 remoteId 用它）。
+  Future<void> _enqueueSectionOutbox({
+    required String listId,
+    required kernel.ReminderSection section,
+    bool deleted = false,
+  }) async {
+    final at = _now;
+    final entityId = section.remoteId ?? section.id;
+    await DriftSyncOutbox(_db).enqueue(kernel.SyncOutboxEntry(
+      entityType: 'task_section',
+      entityId: entityId,
+      operation: deleted ? 'delete' : 'upsert',
+      payload: kernel.sectionSyncPayload(listId: listId, section: section),
+      clientMutationId: 'task_section-$entityId-${at.microsecondsSinceEpoch}',
+      clientUpdatedAt: at.millisecondsSinceEpoch,
+    ));
+  }
+
   Future<String?> _firstOwnListId() async {
     final lists = await _db.select(_db.reminderLists).get();
     for (final l in lists) {
@@ -447,23 +615,31 @@ class DriftReminderRepository
         throw ArgumentError('smart. 前缀保留给智能列表，禁止用户数据占用');
       }
     }
-    await _db.into(_db.reminderLists).insertOnConflictUpdate(
-          ReminderListsCompanion.insert(
-            id: list.id,
-            title: list.title,
-            colorArgb: Value(list.colorArgb),
-            sortOrder: Value(list.sortOrder),
-            groupName: Value(list.groupName),
-            listType: Value(list.listType.id),
-            smartFilter: Value(_encodeSmartFilter(list.smartFilter)),
-            // cursor PR#15 阻断2：分区与智能标记必须随列表落库——
-            // 否则 grocery 预置分区/custom 智能列表入库即丢。
-            sectionsJson: Value(
-              _encodeSections(_sortedSections(list.sections)),
+    await _db.transaction(() async {
+      await _db.into(_db.reminderLists).insertOnConflictUpdate(
+            ReminderListsCompanion.insert(
+              id: list.id,
+              title: list.title,
+              colorArgb: Value(list.colorArgb),
+              sortOrder: Value(list.sortOrder),
+              groupName: Value(list.groupName),
+              listType: Value(list.listType.id),
+              smartFilter: Value(_encodeSmartFilter(list.smartFilter)),
+              // cursor PR#15 阻断2：分区与智能标记必须随列表落库——
+              // 否则 grocery 预置分区/custom 智能列表入库即丢。
+              sectionsJson: Value(
+                _encodeSections(_sortedSections(list.sections)),
+              ),
+              isSmart: Value(list.isSmart),
+              remoteId: Value(list.remoteId),
             ),
-            isSmart: Value(list.isSmart),
-          ),
-        );
+          );
+      // flutter#144 / TC-SYNC-106 出站半边：清单变更也要进发件箱
+      final row = await (_db.select(_db.reminderLists)
+            ..where((t) => t.id.equals(list.id)))
+          .getSingleOrNull();
+      if (row != null) await _enqueueListOutbox(_listModelFrom(row));
+    });
   }
 
   // ---- 手动分区（TC-KR-118；元数据 JSON 列，条目 sectionId 挂靠）----
@@ -479,6 +655,7 @@ class DriftReminderRepository
                   id: m['id'] as String,
                   title: m['title'] as String,
                   sortOrder: (m['sortOrder'] as num?)?.toInt() ?? 0,
+                  remoteId: m['remoteId'] as String?,
                 ))
             .toList(growable: false);
       }
@@ -511,7 +688,12 @@ class DriftReminderRepository
   String _encodeSections(List<kernel.ReminderSection> sections) =>
       jsonEncode([
         for (final s in sections)
-          {'id': s.id, 'title': s.title, 'sortOrder': s.sortOrder},
+          {
+            'id': s.id,
+            'title': s.title,
+            'sortOrder': s.sortOrder,
+            'remoteId': s.remoteId,
+          },
       ]);
 
   /// 分区排序契约（sortOrder asc, id asc）。
@@ -552,7 +734,13 @@ class DriftReminderRepository
     } else {
       sections.add(section);
     }
-    await _writeSections(listId, sections);
+    await _db.transaction(() async {
+      await _writeSections(listId, sections);
+      await _enqueueSectionOutbox(
+        listId: row.remoteId ?? listId,
+        section: section,
+      );
+    });
   }
 
   @override
@@ -581,7 +769,12 @@ class DriftReminderRepository
         ordered.add(s.copyWith(sortOrder: ordered.length));
       }
     }
-    await _writeSections(listId, ordered);
+    await _db.transaction(() async {
+      await _writeSections(listId, ordered);
+      for (final s in ordered) {
+        await _enqueueSectionOutbox(listId: row.remoteId ?? listId, section: s);
+      }
+    });
   }
 
   @override
@@ -593,9 +786,10 @@ class DriftReminderRepository
           ..where((t) => t.id.equals(listId)))
         .getSingleOrNull();
     if (row == null) return;
-    final sections = _decodeSections(row.sectionsJson)
-        .where((e) => e.id != sectionId)
-        .toList(growable: false);
+    final all = _decodeSections(row.sectionsJson);
+    final doomed = all.where((e) => e.id == sectionId).toList(growable: false);
+    final sections =
+        all.where((e) => e.id != sectionId).toList(growable: false);
     // 级联：挂靠条目兜底「未分区」（drift where 多条件：先查后逐条更新）
     final rows = await (_db.select(_db.reminderItems)
           ..where((t) => t.listId.equals(listId) & t.sectionId.isNotNull()))
@@ -609,6 +803,13 @@ class DriftReminderRepository
       await _enqueueOutbox([r.id]);
     }
     await _writeSections(listId, sections);
+    for (final d in doomed) {
+      await _enqueueSectionOutbox(
+        listId: row.remoteId ?? listId,
+        section: d,
+        deleted: true,
+      );
+    }
   }
 
   @override
@@ -624,10 +825,17 @@ class DriftReminderRepository
       await (_db.update(_db.reminderItems)
             ..where((t) => t.listId.equals(listId)))
           .write(ReminderItemsCompanion(deletedAt: Value(_now)));
+      final gone = await (_db.select(_db.reminderLists)
+            ..where((t) => t.id.equals(listId)))
+          .getSingleOrNull();
       await (_db.delete(_db.reminderLists)
             ..where((t) => t.id.equals(listId)))
           .go();
       await _enqueueOutbox([for (final r in doomed) r.id]);
+      // flutter#144：清单本体也要出站记 delete（条目级联已各自记过，不重复）
+      if (gone != null) {
+        await _enqueueListOutbox(_listModelFrom(gone), deleted: true);
+      }
     });
   }
 

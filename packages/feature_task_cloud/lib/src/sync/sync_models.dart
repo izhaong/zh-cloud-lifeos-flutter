@@ -12,7 +12,10 @@ class SyncChange extends Equatable {
     this.baseRevision,
   });
 
-  /// `task` / `list` / `task_section` / `tag`。
+  /// `task` / `list` / `task_section`（服务端 `LifeosTaskSyncCodec` 只有这三种）。
+  ///
+  /// 标签不是独立实体：本地是 `reminder_items.tags` 的 JSON 数组，随任务载荷
+  /// 上下行；别按旧注释去实现服务端没有的 tag 实体（flutter#144 第 4 步裁定）。
   final String entityType;
 
   /// 本地实体 id（离线新建=本地 UUID；服务端回填映射后换 serverId）。
