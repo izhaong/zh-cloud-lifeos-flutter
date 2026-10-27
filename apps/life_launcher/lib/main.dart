@@ -42,6 +42,12 @@ Future<void> main() async {
     store: sessionStore,
     refreshSession: () async => await authPort.refresh() != null,
   );
+  // 卡 2（flutter#124）：注入壳层的 SyncPort 是协调器——push() 从 Drift 发件箱
+  // 真装载变更，回执带 serverId 时同事务回填 reminder_items.remote_id。
+  final taskSyncCoordinator = TaskSyncCoordinator(
+    outbox: DriftSyncOutbox(db),
+    syncPort: syncPort,
+  );
   // F-11：真实本地通知调度（开源包只声明接口）
   final calendarAlertScheduler =
       await LocalCalendarAlertScheduler.create(calendarRepository);
@@ -92,7 +98,7 @@ Future<void> main() async {
           PinnedTabsService(prefs),
         ),
         authPortProvider.overrideWithValue(authPort),
-        syncPortProvider.overrideWithValue(syncPort),
+        syncPortProvider.overrideWithValue(taskSyncCoordinator),
       ],
       child: const LifeLauncherApp(),
     ),
@@ -127,6 +133,16 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     ref.read(reminderRepositoryProvider).checkDayRollover();
+    // 回前台续推发件箱（TC-SYNC-107「离线改 → 联网推」的触发点）：
+    // 未登录/队空内部直接返回，失败不清队也不打扰用户。
+    final port = ref.read(syncPortProvider);
+    Future<void>(() async {
+      try {
+        await port.push();
+      } catch (_) {
+        // 离线优先：续推失败不影响本地可用
+      }
+    });
   }
 
   @override

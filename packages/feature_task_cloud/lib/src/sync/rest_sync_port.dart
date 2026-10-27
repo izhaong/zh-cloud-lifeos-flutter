@@ -41,6 +41,10 @@ class RestSyncPort implements SyncPort {
     return await hook();
   }
 
+  /// 是否已有会话。发件箱装载器用它决定要不要动队列：
+  /// 未登录时 `pushChanges` 返回空回执，装载器若按「空=全部接受」清队就把本地变更抹了。
+  Future<bool> isSignedIn() async => await _store.read() != null;
+
   @override
   Future<void> pull() async {
     await pullChanges();
@@ -96,10 +100,8 @@ class RestSyncPort implements SyncPort {
 
   @override
   Future<void> push() async {
-    final session = await _store.read();
-    if (session == null) return;
-    // 变更装载随 UI 集成批次接本地 outbox；当前契约级实现
-    await _pushChanges(session, const []);
+    // 卡 2 后真装载归 TaskSyncCoordinator.pushPending()（它才是注入壳层的 SyncPort）：
+    // 本类看不见 Drift 发件箱（包依赖方向），直接调本方法即「不带载荷」而非假装推过。
   }
 
   /// 推送变更批（含冲突重推「新者胜」）。
