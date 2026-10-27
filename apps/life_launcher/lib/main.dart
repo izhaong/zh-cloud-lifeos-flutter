@@ -124,13 +124,20 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
     ref.read(reminderRepositoryProvider).checkDayRollover();
   }
 
+  /// 系统亮/暗切换要重建主题：令牌是 Apple 动态色，但根主题的 `brightness`
+  /// 与 Material 岛的静态 `ColorScheme` 都得按当前档位重新解算。
+  @override
+  void didChangePlatformBrightness() => setState(() {});
+
   @override
   Widget build(BuildContext context) {
     final router = buildLifeRouter(ref);
+    final brightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
     return CupertinoApp.router(
       title: 'LifeOS 生活台',
       debugShowCheckedModeBanner: false,
-      theme: LifeTokens.cupertino(),
+      theme: LifeTokens.cupertino(brightness),
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [
         Locale('zh', 'CN'),
@@ -142,7 +149,7 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
         GlobalMaterialLocalizations.delegate,
       ],
       builder: (context, child) => Theme(
-        data: LifeTokens.materialIsland(),
+        data: LifeTokens.materialIsland(brightness),
         child: ScaffoldMessenger(
           child: child ?? const SizedBox.shrink(),
         ),
