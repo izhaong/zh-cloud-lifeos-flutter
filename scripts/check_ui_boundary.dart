@@ -20,7 +20,9 @@ List<String> _discoverScanRoots(String root) {
     for (final entry in dir.listSync().whereType<Directory>()) {
       final lib = '${entry.path}/lib';
       if (!Directory(lib).existsSync()) continue;
-      found.add(lib.startsWith('$root/') ? lib.substring(root.length + 1) : lib);
+      found.add(
+        lib.startsWith('$root/') ? lib.substring(root.length + 1) : lib,
+      );
     }
   }
   found.sort();
@@ -32,9 +34,6 @@ List<String> _discoverScanRoots(String root) {
 const _pendingPackages = <String>{
   // feature_calendar 已随 #130 Cupertino 化收口，移出 pending。
   'packages/feature_note',
-  // 扫描根扩全后暴露（#135）。整页 Material（Scaffold/AppBar/ListTile×2/FilledButton×2/TextField），
-  // 待日历云包 Cupertino 化后删除本条。
-  'packages/feature_calendar_cloud',
 };
 
 /// 允许出现 Material API 的文件（仅这些文件）。
