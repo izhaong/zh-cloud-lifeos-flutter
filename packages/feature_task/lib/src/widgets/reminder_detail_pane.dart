@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import '../design/reminder_tokens.dart';
 import '../providers.dart';
 import 'reminder_row.dart';
 
@@ -215,6 +216,26 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     }
   }
 
+  Widget _groupedRows(List<Widget> rows) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      elevation: 0,
+      color: Colors.white,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(ReminderTokens.radiusCard + 2),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const Divider(height: 1, indent: 48),
+            rows[i],
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final subtasksAsync =
@@ -228,9 +249,15 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: ReminderTokens.windowBg,
       appBar: AppBar(
-        title: const Text('详细信息'),
+        backgroundColor: ReminderTokens.windowBg,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          '详细信息',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+        ),
         leading: widget.onClose != null
             ? CloseButton(onPressed: widget.onClose)
             : null,
@@ -273,9 +300,10 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
           ),
           const SizedBox(height: 20),
 
-          // 日期与时间（展示；编辑入口 Phase 4 完整日历选择）
-          _Row(
-            icon: CupertinoIcons.calendar,
+          _groupedRows([
+            // 日期与时间（展示；编辑入口 Phase 4 完整日历选择）
+            _Row(
+              icon: CupertinoIcons.calendar,
             label: '日期与时间',
             trailing: Text(widget.item.dueAt == null
                 ? '无'
@@ -397,6 +425,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
               ),
             ),
           ),
+          ]),
           const SizedBox(height: 20),
 
           // 子任务：真实列表（勾选/删除随流刷新）+ 新建草稿行
@@ -490,15 +519,13 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
-      elevation: 0,
-      child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF007AFF), size: 22),
-        title: Text(label),
-        trailing: trailing,
-        onTap: onTap,
-      ),
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      leading: Icon(icon, color: ReminderTokens.systemBlue, size: 20),
+      title: Text(label, style: const TextStyle(fontSize: 15)),
+      trailing: trailing,
+      onTap: onTap,
     );
   }
 }

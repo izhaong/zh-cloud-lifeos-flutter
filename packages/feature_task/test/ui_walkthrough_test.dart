@@ -188,15 +188,15 @@ void main() {
     await tester.pumpAndSettle();
 
     // 有分区头
-    final sectionHeader = find.textContaining('今天');
-    expect(sectionHeader, findsWidgets, reason: '有分区头');
+    final sectionHeader = find.byKey(const ValueKey('section_今天'));
+    expect(sectionHeader, findsOneWidget, reason: '有分区头');
 
     // 点分区头折叠
-    await tester.tap(sectionHeader.first);
+    await tester.tap(sectionHeader);
     await tester.pumpAndSettle();
     // 折叠后条目不可见（或分区头有折叠态）
     // 再次点击展开
-    await tester.tap(find.textContaining('今天').first);
+    await tester.tap(find.byKey(const ValueKey('section_今天')));
     await tester.pumpAndSettle();
     expect(find.text('今天分区A'), findsOneWidget, reason: '展开后条目可见');
   });
@@ -380,8 +380,6 @@ void main() {
 
       expect(find.textContaining('iCloud'), findsNothing);
       expect(find.textContaining('Outlook'), findsNothing);
-      expect(find.textContaining('分配事项'), findsNothing);
-      expect(find.textContaining('建议列表'), findsNothing);
       expect(find.byType(FloatingActionButton), findsNothing);
     }
   });

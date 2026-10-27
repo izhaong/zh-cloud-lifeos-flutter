@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
-/// 提醒行（Apple 提醒事项样式）：完成圆圈 + 标题 + 日期/旗标/优先级展示。
+import '../design/reminder_tokens.dart';
+
+/// 提醒行（Apple 提醒事项样式）：完成圆圈 + 标题 + 列表名/日期/旗标/优先级展示。
 ///
 /// 布局无关：紧凑单栏、分栏右栏、三栏中栏共用；
 /// 旗标可点击即时切换（detail 编辑走 copyWith + upsertItem 全量回写）。
@@ -15,9 +17,11 @@ class ReminderRow extends StatelessWidget {
     this.onToggleFlagged,
     this.onTap,
     this.dense = false,
+    this.listName,
   });
 
   final ReminderItem item;
+  final String? listName;
   final VoidCallback onToggleCompleted;
   final VoidCallback? onToggleFlagged;
   final VoidCallback? onTap;
@@ -27,11 +31,32 @@ class ReminderRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dueText = _dueText(context, item.dueAt);
+    final due = _dueText(context, item.dueAt);
     final meta = <String>[
       if (item.recurrence != null) _recurrenceLabel(item.recurrence!),
       if (item.tags.isNotEmpty) item.tags.join(' '),
     ];
+    final spans = <InlineSpan>[];
+    void addSeparator() {
+      if (spans.isNotEmpty) spans.add(const TextSpan(text: ' · '));
+    }
+
+    if (listName != null && listName!.isNotEmpty) {
+      spans.add(TextSpan(text: listName));
+    }
+    if (due != null) {
+      addSeparator();
+      spans.add(TextSpan(
+        text: due.text,
+        style: due.overdue
+            ? const TextStyle(color: ReminderTokens.systemRed)
+            : null,
+      ));
+    }
+    for (final m in meta) {
+      addSeparator();
+      spans.add(TextSpan(text: m));
+    }
 
     return ListTile(
       dense: dense,
@@ -60,11 +85,14 @@ class ReminderRow extends StatelessWidget {
           fontSize: dense ? 14 : 16,
         ),
       ),
-      subtitle: (dueText == null && meta.isEmpty)
+      subtitle: spans.isEmpty
           ? null
-          : Text(
-              [?dueText, ...meta].join(' · '),
-              style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 12),
+          : Text.rich(
+              TextSpan(children: spans),
+              style: const TextStyle(
+                color: ReminderTokens.labelSecondary,
+                fontSize: 12,
+              ),
             ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -102,15 +130,29 @@ class ReminderRow extends StatelessWidget {
     );
   }
 
-  String? _dueText(BuildContext context, DateTime? dueAt) {
+  ({String text, bool overdue})? _dueText(
+    BuildContext context,
+    DateTime? dueAt,
+  ) {
     if (dueAt == null) return null;
     final material = MaterialLocalizations.of(context);
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (dueAt.isBefore(today)) {
+      return (text: material.formatMediumDate(dueAt), overdue: true);
+    }
     final isToday = dueAt.year == now.year &&
         dueAt.month == now.month &&
         dueAt.day == now.day;
-    if (isToday) return '今天';
-    return material.formatMediumDate(dueAt);
+    if (isToday) {
+      if (dueAt.hour != 0 || dueAt.minute != 0) {
+        final hh = dueAt.hour.toString().padLeft(2, '0');
+        final mm = dueAt.minute.toString().padLeft(2, '0');
+        return (text: '$hh:$mm', overdue: false);
+      }
+      return (text: '今天', overdue: false);
+    }
+    return (text: material.formatMediumDate(dueAt), overdue: false);
   }
 
   static String _recurrenceLabel(String id) {

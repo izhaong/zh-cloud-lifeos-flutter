@@ -98,6 +98,7 @@ final class InMemoryReminderRepository implements ReminderRepository {
     ReminderList(id: 'smart.flagged', title: '已旗标', isSmart: true),
     ReminderList(id: 'smart.urgent', title: '紧急', isSmart: true),
     ReminderList(id: 'smart.completed', title: '完成', isSmart: true),
+    ReminderList(id: 'smart.assigned', title: '分配事项', isSmart: true),
     ReminderList(id: 'smart.trash', title: '最近删除', isSmart: true),
   ];
 
@@ -621,6 +622,8 @@ final class InMemoryReminderRepository implements ReminderRepository {
                   !e.dueAt!.isAfter(now) &&
                   _isSameLocalDay(e.dueAt, now)))),
       'smart.completed' => alive.where((e) => e.isCompleted),
+      // 分配事项：本地没有 assignee 字段，协作（M4）接入前恒为空。
+      'smart.assigned' => const <ReminderItem>[],
       _ => alive.where((e) => e.listId == listId),
     };
   }

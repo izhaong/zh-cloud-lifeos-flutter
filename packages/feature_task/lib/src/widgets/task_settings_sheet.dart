@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../design/reminder_tokens.dart';
+
 /// 「设置」弹窗（图1 对齐）：默认列表 / 全天提醒时点 / 标记完成开关 /
 /// 建议列表开关 / 采购清单语言 / 还原默认（TC-UI-120 UI 真身——偏好持久
 /// 接线属 P3，当前开关状态为会话级）。
@@ -12,6 +14,7 @@ Future<void> showTaskSettingsSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    backgroundColor: ReminderTokens.windowBg,
     constraints: const BoxConstraints(maxWidth: 480),
     builder: (sheetContext) => _TaskSettingsSheet(
       onOpenCloudLogin: onOpenCloudLogin,
@@ -49,35 +52,52 @@ class _TaskSettingsSheetState extends State<_TaskSettingsSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            _row(
-              icon: CupertinoIcons.list_bullet,
-              label: '默认列表',
-              trailing: const Text('提醒事项',
-                  style: TextStyle(color: Color(0xFF8E8E93))),
-            ),
-            _switchRow(
-              icon: CupertinoIcons.clock,
-              label: '全天提醒时点',
-              value: _allDayNotify,
-              onChanged: (v) => setState(() => _allDayNotify = v),
-            ),
-            _switchRow(
-              icon: CupertinoIcons.checkmark_circle,
-              label: '完成时标记为已完成',
-              value: _markComplete,
-              onChanged: (v) => setState(() => _markComplete = v),
-            ),
-            _switchRow(
-              icon: CupertinoIcons.sparkles,
-              label: '建议列表',
-              value: _suggestLists,
-              onChanged: (v) => setState(() => _suggestLists = v),
-            ),
-            _row(
-              icon: CupertinoIcons.cart,
-              label: '采购清单语言',
-              trailing: const Text('简体中文',
-                  style: TextStyle(color: Color(0xFF8E8E93))),
+            Card(
+              margin: EdgeInsets.zero,
+              elevation: 0,
+              color: Colors.white,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _row(
+                    icon: CupertinoIcons.list_bullet,
+                    label: '默认列表',
+                    trailing: const Text('提醒事项',
+                        style: TextStyle(color: ReminderTokens.labelSecondary)),
+                  ),
+                  const Divider(height: 1, indent: 48),
+                  _switchRow(
+                    icon: CupertinoIcons.clock,
+                    label: '全天提醒时点',
+                    value: _allDayNotify,
+                    onChanged: (v) => setState(() => _allDayNotify = v),
+                  ),
+                  const Divider(height: 1, indent: 48),
+                  _switchRow(
+                    icon: CupertinoIcons.checkmark_circle,
+                    label: '完成时标记为已完成',
+                    value: _markComplete,
+                    onChanged: (v) => setState(() => _markComplete = v),
+                  ),
+                  const Divider(height: 1, indent: 48),
+                  _switchRow(
+                    icon: CupertinoIcons.sparkles,
+                    label: '建议列表',
+                    value: _suggestLists,
+                    onChanged: (v) => setState(() => _suggestLists = v),
+                  ),
+                  const Divider(height: 1, indent: 48),
+                  _row(
+                    icon: CupertinoIcons.cart,
+                    label: '采购清单语言',
+                    trailing: const Text('简体中文',
+                        style: TextStyle(color: ReminderTokens.labelSecondary)),
+                  ),
+                ],
+              ),
             ),
             const Divider(height: 24),
             Center(

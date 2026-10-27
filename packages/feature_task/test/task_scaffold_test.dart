@@ -71,7 +71,7 @@ void main() {
     );
 
     // 侧栏与内容同时可见
-    expect(find.text('智能列表'), findsOneWidget);
+    expect(find.byKey(const ValueKey('smart_card_smart.today')), findsOneWidget);
     expect(find.text('我的列表'), findsOneWidget);
     expect(find.text('买牛奶'), findsOneWidget);
   });

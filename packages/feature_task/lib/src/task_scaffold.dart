@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import 'design/reminder_tokens.dart';
 import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
 import 'widgets/reminder_row.dart';
+import 'widgets/smart_list_card.dart';
 import 'widgets/task_settings_sheet.dart';
 import 'widgets/task_shortcuts.dart';
 import 'widgets/task_sidebar.dart';
@@ -96,7 +98,7 @@ class TaskScaffold extends ConsumerWidget {
         return Column(
           children: [
             Material(
-              color: const Color(0xFFF2F2F7),
+              color: ReminderTokens.windowBg,
               child: Row(
                 children: [
                   const Expanded(
@@ -153,17 +155,22 @@ class _CompactPane extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final smart = lists.where((e) => e.isSmart).toList(growable: false);
+    final smart = lists
+        .where((e) => e.isSmart && e.id != 'smart.trash')
+        .toList(growable: false);
     final mine = lists.where((e) => !e.isSmart).toList(growable: false);
+    final trash = lists.where((e) => e.id == 'smart.trash').firstOrNull;
+    final hasGrocery =
+        mine.any((e) => e.listType == ReminderListType.grocery);
     final query = ref.watch(searchQueryProvider).trim();
     final searching = query.isNotEmpty;
 
     // iOS 提醒事项「列表」首页：大标题 + 搜索 + 智能卡片 + 我的列表。
     // 嵌在生活台壳内时，壳应用栏常显；本页不再另起全屏路由。
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: ReminderTokens.windowBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF2F2F7),
+        backgroundColor: ReminderTokens.windowBg,
         surfaceTintColor: Colors.transparent,
         title: const Text('列表'),
         actions: [
@@ -189,7 +196,7 @@ class _CompactPane extends ConsumerWidget {
               hintText: '搜索',
               prefixIcon: const Icon(CupertinoIcons.search, size: 20),
               filled: true,
-              fillColor: const Color(0xFFE5E5EA),
+              fillColor: ReminderTokens.separator,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(
@@ -205,20 +212,41 @@ class _CompactPane extends ConsumerWidget {
               onSelectItem: onSelectItem,
             )
           else ...[
-            GridView.count(
-              crossAxisCount: 2,
+            GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.55,
-              children: [
-                for (final list in smart
-                  ..sort(
-                      (a, b) => _smartOrder(a.id).compareTo(_smartOrder(b.id))))
-                  _SmartCard(list: list, onTap: () => onOpenList?.call(list.id)),
-              ],
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                mainAxisExtent: 84,
+              ),
+              itemCount: smart.length,
+              itemBuilder: (context, i) {
+                final list = smart[i];
+                return SmartListCard(
+                  list: list,
+                  selected: false,
+                  compact: true,
+                  onTap: () => onOpenList?.call(list.id),
+                );
+              },
             ),
+            if (!hasGrocery)
+              ListTile(
+                key: const ValueKey('suggested_grocery_home'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(CupertinoIcons.cart_fill,
+                    color: ReminderTokens.systemGreen),
+                title: const Text('建议列表：日常采购'),
+                trailing: IconButton(
+                  key: const ValueKey('suggested_grocery_home_add'),
+                  icon: const Icon(CupertinoIcons.add_circled_solid,
+                      color: ReminderTokens.systemGreen),
+                  onPressed: () => _createSuggestedGrocery(ref),
+                ),
+                onTap: () => _createSuggestedGrocery(ref),
+              ),
             const SizedBox(height: 20),
             Text(
               '我的列表',
@@ -240,9 +268,15 @@ class _CompactPane extends ConsumerWidget {
                   for (var i = 0; i < mine.length; i++) ...[
                     if (i > 0) const Divider(height: 1, indent: 52),
                     ListTile(
-                      leading: CircleAvatar(
-                        radius: 10,
-                        backgroundColor: Color(mine[i].colorArgb),
+                      leading: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Color(mine[i].colorArgb),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(CupertinoIcons.list_bullet,
+                            color: Colors.white, size: 15),
                       ),
                       title: Text(mine[i].title),
                       trailing: Row(
@@ -272,6 +306,28 @@ class _CompactPane extends ConsumerWidget {
                           .upsertList(list),
                     ),
                   ),
+                  if (trash != null) ...[
+                    const Divider(height: 1, indent: 52),
+                    ListTile(
+                      leading: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: ReminderTokens.labelSecondary,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(CupertinoIcons.trash,
+                            color: Colors.white, size: 15),
+                      ),
+                      title: Text(trash.title),
+                      trailing: Text(
+                        '${trash.itemCount}',
+                        style: const TextStyle(
+                            color: ReminderTokens.labelSecondary),
+                      ),
+                      onTap: () => onOpenList?.call(trash.id),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -281,16 +337,11 @@ class _CompactPane extends ConsumerWidget {
     );
   }
 
-  static int _smartOrder(String id) {
-    return switch (id) {
-      'smart.today' => 0,
-      'smart.scheduled' => 1,
-      'smart.all' => 2,
-      'smart.flagged' => 3,
-      'smart.urgent' => 4,
-      'smart.completed' => 5,
-      _ => 9,
-    };
+  static void _createSuggestedGrocery(WidgetRef ref) {
+    final id = 'list.grocery.${DateTime.now().millisecondsSinceEpoch}';
+    ref.read(reminderRepositoryProvider).upsertList(
+          ReminderList.createGroceryList(id: id, title: '日常采购'),
+        );
   }
 }
 
@@ -375,13 +426,14 @@ class _CompactListPane extends StatelessWidget {
     final list = lists.where((e) => e.id == openListId).firstOrNull;
     if (list == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFFF2F2F7),
+        backgroundColor: ReminderTokens.windowBg,
         body: Center(child: Text('列表不存在')),
       );
     }
     return ListContentPane(
       list: list,
       onSelectItem: onSelectItem,
+      listTitles: {for (final l in lists) l.id: l.title},
       leading: onBack == null
           ? null
           : TextButton.icon(
@@ -394,70 +446,6 @@ class _CompactListPane extends StatelessWidget {
               ),
             ),
     );
-  }
-}
-
-class _SmartCard extends StatelessWidget {
-  const _SmartCard({required this.list, required this.onTap});
-
-  final ReminderList list;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const SizedBox(width: 2),
-                  Icon(
-                    _icon(list.id),
-                    color: const Color(0xFF007AFF),
-                    size: 22,
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${list.itemCount}',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                list.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  static IconData _icon(String id) {
-    return switch (id) {
-      'smart.today' => Icons.today_outlined,
-      'smart.scheduled' => Icons.calendar_today_outlined,
-      'smart.all' => Icons.inbox_outlined,
-      'smart.flagged' => Icons.flag_outlined,
-      'smart.urgent' => Icons.warning_amber_outlined,
-      'smart.completed' => Icons.check_circle_outline,
-      _ => Icons.list,
-    };
   }
 }
 
@@ -481,12 +469,15 @@ class _TwoPane extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final current = lists.where((e) => e.id == openListId).firstOrNull;
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
-    return Row(
-      children: [
-        if (sidebarVisible) ...[
-          SizedBox(
-            width: 280,
-            child: TaskSidebar(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sidebarWidth = ReminderTokens.sidebarWidth(constraints.maxWidth);
+        return Row(
+          children: [
+            if (sidebarVisible) ...[
+              SizedBox(
+                width: sidebarWidth,
+                child: TaskSidebar(
               lists: lists,
               selectedListId: openListId,
               onSelect: (l) => onOpenList?.call(l.id),
@@ -506,7 +497,7 @@ class _TwoPane extends ConsumerWidget {
                   ),
             ),
           ),
-          const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
+          const VerticalDivider(width: 1, color: ReminderTokens.separator),
         ],
         Expanded(
           child: current == null
@@ -518,6 +509,7 @@ class _TwoPane extends ConsumerWidget {
               : ListContentPane(
                   list: current,
                   onSelectItem: onSelectItem,
+                  listTitles: {for (final l in lists) l.id: l.title},
                   leading: sidebarVisible
                       ? null
                       : IconButton(
@@ -531,6 +523,8 @@ class _TwoPane extends ConsumerWidget {
                 ),
         ),
       ],
+        );
+      },
     );
   }
 }
@@ -584,12 +578,15 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
     );
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
 
-    return Row(
-      children: [
-        if (sidebarVisible) ...[
-          SizedBox(
-            width: 240,
-            child: TaskSidebar(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final sidebarWidth = ReminderTokens.sidebarWidth(constraints.maxWidth);
+        return Row(
+          children: [
+            if (sidebarVisible) ...[
+              SizedBox(
+                width: sidebarWidth,
+                child: TaskSidebar(
               lists: lists,
               selectedListId: openListId,
               onSelect: (l) => widget.onOpenList?.call(l.id),
@@ -608,7 +605,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
                   ),
             ),
           ),
-          const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
+          const VerticalDivider(width: 1, color: ReminderTokens.separator),
         ],
         Expanded(
           child: current == null
@@ -620,6 +617,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
               : ListContentPane(
                   list: current,
                   onSelectItem: _handleSelect,
+                  listTitles: {for (final l in lists) l.id: l.title},
                   leading: sidebarVisible
                       ? null
                       : IconButton(
@@ -633,7 +631,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
                 ),
         ),
         if (selected != null) ...[
-          const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
+          const VerticalDivider(width: 1, color: ReminderTokens.separator),
           SizedBox(
             width: 320,
             child: KeyedSubtree(
@@ -648,6 +646,8 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
           ),
         ],
       ],
+        );
+      },
     );
   }
 }
@@ -690,6 +690,7 @@ class ListContentPane extends ConsumerStatefulWidget {
     required this.list,
     this.onSelectItem,
     this.leading,
+    this.listTitles,
   });
 
   final ReminderList list;
@@ -697,6 +698,9 @@ class ListContentPane extends ConsumerStatefulWidget {
 
   /// 紧凑端 AppBar 左侧返回（如「‹ 列表」）；null 时用系统默认（或无 leading）。
   final Widget? leading;
+
+  /// 条目副标题用的真实列表名（智能视图下不是「今天/计划」）。
+  final Map<String, String>? listTitles;
 
   @override
   ConsumerState<ListContentPane> createState() => _ListContentPaneState();
@@ -852,8 +856,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     Map<String, List<ReminderItem>> subtasksByParent = const {},
   }) {
     final repo = ref.read(reminderRepositoryProvider);
+    final listName = widget.listTitles?[item.listId] ?? widget.list.title;
     final row = ReminderRow(
       item: item,
+      listName: listName,
       onToggleCompleted: () => completeReminder(ref, item),
       onToggleFlagged: () => repo.toggleFlagged(item.id),
       onTap: () => widget.onSelectItem?.call(item),
@@ -882,6 +888,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
             padding: const EdgeInsets.only(left: 40),
             child: ReminderRow(
               item: sub,
+              listName: listName,
               dense: true,
               onToggleCompleted: () => completeReminder(ref, sub),
               onToggleFlagged: () => repo.toggleFlagged(sub.id),
@@ -937,7 +944,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        automaticallyImplyLeading: widget.leading == null,
+        // 桌面三栏不显示返回箭头（参考图主区直接是标题/工具条）。
+        automaticallyImplyLeading: !isPane && widget.leading == null,
         leading: widget.leading,
         leadingWidth: widget.leading == null ? null : 96,
         // macOS 大标题口径（图2）：宽屏 AppBar 不放标题，标题进内容区（列表色大字）
@@ -1059,7 +1067,22 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
           final skipSectionHeader = widget.list.id == 'smart.today' ||
               widget.list.id == 'smart.scheduled';
           final sections = _buildSections(topLevel);
+          final draftRow = _DraftRow(
+            controller: _draftController,
+            onSubmit: _submitDraft,
+            onCancel: () {
+              _draftController.clear();
+              setState(() => _showDraft = false);
+            },
+          );
           final rows = <Widget>[
+            // 桌面/两栏：参考图首行「新提醒事项」幽灵行；草稿态原位替换。
+            if (isPane && !_isTrashView)
+              _showDraft
+                  ? draftRow
+                  : _GhostNewRow(
+                      onTap: () => setState(() => _showDraft = true),
+                    ),
             for (final entry in sections.entries) ...[
               if (!skipSectionHeader || entry.key != widget.list.title)
                 _SectionHeader(
@@ -1074,38 +1097,16 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                     subtasksByParent: subtasksByParent,
                   ),
             ],
-            if (_showDraft)
-              _DraftRow(
-                controller: _draftController,
-                onSubmit: _submitDraft,
-                onCancel: () {
-                  _draftController.clear();
-                  setState(() => _showDraft = false);
-                },
-              ),
+            // 紧凑端保留底部工具条入口，草稿行仍落在列表体末尾。
+            if (!isPane && _showDraft) draftRow,
           ];
 
           return Column(
             children: [
-              // macOS 大标题（图2）：列表色大字入内容区；空列表也渲染（评审 P0）
-              if (isPane && !_isTrashView)
-                Padding(
-                  key: const ValueKey('list_large_title'),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      widget.list.title,
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: Color(widget.list.colorArgb),
-                      ),
-                    ),
-                  ),
-                ),
               if (!_isTrashView)
                 _ListHeaderToolbar(
+                  list: widget.list,
+                  isPane: isPane,
                   remainingCount: remainingCount,
                   doneCount: doneCount,
                   onClearCompleted: doneCount == 0
@@ -1121,33 +1122,46 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               // 主体：空列表 = 空态引导（可点新建）；_showDraft 时草稿行进列表体
               Expanded(
                 child: isListEmpty
-                    ? GestureDetector(
-                        key: const ValueKey('empty_new_hint'),
-                        behavior: HitTestBehavior.opaque,
-                        onTap: _openNewItemDialog,
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(CupertinoIcons.plus_circle,
-                                  size: 40,
-                                  color: Color(widget.list.colorArgb)
-                                      .withValues(alpha: 0.5)),
-                              const SizedBox(height: 8),
-                              const Text(
-                                '没有提醒',
-                                style: TextStyle(
-                                    fontSize: 17, color: Color(0xFF8E8E93)),
+                    ? Column(
+                        children: [
+                          if (isPane && !_isTrashView)
+                            _GhostNewRow(
+                              onTap: () =>
+                                  setState(() => _showDraft = true),
+                            ),
+                          Expanded(
+                            child: GestureDetector(
+                              key: const ValueKey('empty_new_hint'),
+                              behavior: HitTestBehavior.opaque,
+                              onTap: _openNewItemDialog,
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(CupertinoIcons.plus_circle,
+                                        size: 40,
+                                        color: Color(widget.list.colorArgb)
+                                            .withValues(alpha: 0.5)),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      '没有提醒',
+                                      style: TextStyle(
+                                          fontSize: 17,
+                                          color: Color(0xFF8E8E93)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    const Text(
+                                      '点按此处或「＋ 新提醒事项」添加',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: Color(0xFFC7C7CC)),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                '点按此处或「＋ 新提醒事项」添加',
-                                style: TextStyle(
-                                    fontSize: 13, color: Color(0xFFC7C7CC)),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
+                        ],
                       )
                     : ListView(children: rows),
               ),
@@ -1156,8 +1170,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         },
       ),
 
-      // 最近删除视图无新建入口（Apple 口径）
-      bottomNavigationBar: _isTrashView
+      // 桌面/两栏用首行幽灵行；紧凑端保留底部工具条。最近删除无入口。
+      bottomNavigationBar: _isTrashView || isPane
           ? null
           : GestureDetector(
         key: const ValueKey('bottom_new_item'),
@@ -1184,6 +1198,40 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 参考图主列表首行「新提醒事项」幽灵行（桌面/两栏）。
+class _GhostNewRow extends StatelessWidget {
+  const _GhostNewRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: const ValueKey('ghost_new_item'),
+      onTap: onTap,
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(CupertinoIcons.add_circled,
+                color: ReminderTokens.labelTertiary, size: 22),
+            SizedBox(width: 14),
+            Icon(CupertinoIcons.add, color: ReminderTokens.systemBlue, size: 16),
+            SizedBox(width: 4),
+            Text(
+              '新提醒事项',
+              style: TextStyle(
+                fontSize: 15,
+                color: ReminderTokens.systemBlue,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1233,14 +1281,18 @@ class _DraftRow extends StatelessWidget {
   }
 }
 
-/// 列表头工具行（线框图2 主列表头：大数字 + 显示/排序/清除）。
+/// 列表头（图2）：列表色大标题 + 「N 项完成 · 清除」+ 右侧大计数/显示/排序。
 class _ListHeaderToolbar extends ConsumerWidget {
   const _ListHeaderToolbar({
+    required this.list,
+    required this.isPane,
     required this.remainingCount,
     required this.doneCount,
     this.onClearCompleted,
   });
 
+  final ReminderList list;
+  final bool isPane;
   final int remainingCount;
   final int doneCount;
   final VoidCallback? onClearCompleted;
@@ -1256,110 +1308,141 @@ class _ListHeaderToolbar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final showCompleted = ref.watch(showCompletedProvider);
     final sortMode = ref.watch(listSortModeProvider);
+    final titleColor = Color(list.colorArgb);
     return Padding(
       key: const ValueKey('list_header_toolbar'),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Row(
-            children: [
-              // 图2：大数字（未完成数）+「N 项完成 ·」内联（0 完成时不渲染清除）
-              Text(
-                '$remainingCount',
-                key: const ValueKey('remaining_count'),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF007AFF),
-                ),
-              ),
-              if (doneCount > 0) ...[
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    '$doneCount 项完成',
-                    key: const ValueKey('done_count'),
-                    style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isPane)
+                  Padding(
+                    key: const ValueKey('list_large_title'),
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      list.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        color: titleColor,
+                        height: 1.1,
+                      ),
+                    ),
                   ),
+                Row(
+                  children: [
+                    Text(
+                      '$doneCount 项完成',
+                      key: const ValueKey('done_count'),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: ReminderTokens.labelSecondary,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Text(
+                      '·',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: ReminderTokens.labelSecondary,
+                      ),
+                    ),
+                    TextButton(
+                      key: const ValueKey('clear_completed'),
+                      onPressed: doneCount == 0 ? null : onClearCompleted,
+                      style: TextButton.styleFrom(
+                        foregroundColor: ReminderTokens.systemBlue,
+                        disabledForegroundColor: ReminderTokens.labelTertiary,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        minimumSize: const Size(0, 24),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('清除', style: TextStyle(fontSize: 13)),
+                    ),
+                  ],
                 ),
               ],
-              const Spacer(),
-              // 显示 ▾（TC-UI-108）
-              PopupMenuButton<bool>(
-                key: const ValueKey('toggle_show_completed'),
-                tooltip: '显示',
-                initialValue: showCompleted,
-                onSelected: (v) =>
-                    ref.read(showCompletedProvider.notifier).set(v),
-                itemBuilder: (_) => const [
-                  CheckedPopupMenuItem(
-                    value: true,
-                    child: Text('显示已完成'),
-                  ),
-                  CheckedPopupMenuItem(
-                    value: false,
-                    child: Text('隐藏已完成'),
-                  ),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(showCompleted ? '显示 ✓' : '显示',
-                          style:
-                              const TextStyle(fontSize: 13, color: Color(0xFF007AFF))),
-                      const Icon(Icons.arrow_drop_down,
-                          size: 16, color: Color(0xFF007AFF)),
-                    ],
-                  ),
+            ),
+          ),
+          if (isPane && !list.isSmart)
+            Padding(
+              padding: const EdgeInsets.only(right: 12, bottom: 0),
+              child: Text(
+                '$remainingCount',
+                key: const ValueKey('remaining_count'),
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  color: titleColor,
+                  height: 1,
                 ),
               ),
-              // 排序 ▾（TC-UI-111）
-              PopupMenuButton<ListSortMode>(
-                key: const ValueKey('sort_menu'),
-                tooltip: '排序',
-                initialValue: sortMode,
-                onSelected: (m) =>
-                    ref.read(listSortModeProvider.notifier).set(m),
-                itemBuilder: (_) => [
-                  for (final e in ListSortMode.values)
-                    CheckedPopupMenuItem(
-                      value: e,
-                      checked: e == sortMode,
-                      child: Text(_sortLabels[e]!),
-                    ),
-                ],
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('排序',
-                          style:
-                              TextStyle(fontSize: 13, color: Color(0xFF007AFF))),
-                      Icon(Icons.arrow_drop_down,
-                          size: 16, color: Color(0xFF007AFF)),
-                    ],
-                  ),
-                ),
+            ),
+          // 显示 ▾（TC-UI-108）
+          PopupMenuButton<bool>(
+            key: const ValueKey('toggle_show_completed'),
+            tooltip: '显示',
+            initialValue: showCompleted,
+            onSelected: (v) =>
+                ref.read(showCompletedProvider.notifier).set(v),
+            itemBuilder: (_) => const [
+              CheckedPopupMenuItem(
+                value: true,
+                child: Text('显示已完成'),
               ),
-              // 清除（图2：仅存在已完成时渲染；与「N 项完成 ·」同排）
-              if (doneCount > 0)
-                TextButton(
-                  key: const ValueKey('clear_completed'),
-                  onPressed: onClearCompleted,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF007AFF),
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    minimumSize: const Size(0, 32),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: const Text('清除', style: TextStyle(fontSize: 13)),
+              CheckedPopupMenuItem(
+                value: false,
+                child: Text('隐藏已完成'),
+              ),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(showCompleted ? '显示 ✓' : '显示',
+                      style: const TextStyle(
+                          fontSize: 13, color: ReminderTokens.systemBlue)),
+                  const Icon(Icons.arrow_drop_down,
+                      size: 16, color: ReminderTokens.systemBlue),
+                ],
+              ),
+            ),
+          ),
+          // 排序 ▾（TC-UI-111）
+          PopupMenuButton<ListSortMode>(
+            key: const ValueKey('sort_menu'),
+            tooltip: '排序',
+            initialValue: sortMode,
+            onSelected: (m) =>
+                ref.read(listSortModeProvider.notifier).set(m),
+            itemBuilder: (_) => [
+              for (final e in ListSortMode.values)
+                CheckedPopupMenuItem(
+                  value: e,
+                  checked: e == sortMode,
+                  child: Text(_sortLabels[e]!),
                 ),
             ],
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 5),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('排序',
+                      style: TextStyle(
+                          fontSize: 13, color: ReminderTokens.systemBlue)),
+                  Icon(Icons.arrow_drop_down,
+                      size: 16, color: ReminderTokens.systemBlue),
+                ],
+              ),
+            ),
           ),
         ],
       ),

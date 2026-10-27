@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import '../design/reminder_tokens.dart';
 import '../providers.dart';
+import 'smart_list_card.dart';
 
-/// iPad/macOS 左侧栏：**顶部工具条（新建列表｜隐藏侧栏｜设置，图2 口径）**
-/// + 智能列表 + 标签浏览器 + 我的列表。
+/// Apple Reminders 桌面侧栏（参考图 2）：
+/// 顶部工具条 + 2 列彩色智能卡 + 建议列表 + 我的列表 + 标签 + 最近删除。
 ///
 /// 布局无关的纯内容组件；选中态由外部路由/状态驱动；
 /// 工具条动作由宿主注入回调（设置面板等 UI 态不放路由）。
@@ -34,17 +36,34 @@ class TaskSidebar extends ConsumerStatefulWidget {
 }
 
 class _TaskSidebarState extends ConsumerState<TaskSidebar> {
+  static const _builtinSmartIds = {
+    'smart.today',
+    'smart.scheduled',
+    'smart.all',
+    'smart.flagged',
+    'smart.urgent',
+    'smart.completed',
+    'smart.assigned',
+  };
   final _collapsedGroups = <String>{};
 
   @override
   Widget build(BuildContext context) {
-    final smart =
+    final allSmart =
         widget.lists.where((e) => e.isSmart).toList(growable: false);
+    final smart =
+        allSmart.where((e) => _builtinSmartIds.contains(e.id)).toList();
+    final customSmart = allSmart.where(
+      (e) => !_builtinSmartIds.contains(e.id) && e.id != 'smart.trash',
+    );
+    final trash = allSmart.where((e) => e.id == 'smart.trash').firstOrNull;
     final mine =
         widget.lists.where((e) => !e.isSmart).toList(growable: false);
+    final hasGrocery =
+        mine.any((e) => e.listType == ReminderListType.grocery);
 
-    // 分组渲染（TC-UI-118）：**先按 groupName 聚合**（同名唯一组头，
-    // 组内按原序；null 平铺）——交错 B,A,B 不会重复出「B」头（cursor PR#14 非阻断2）
+    // 分组渲染（TC-UI-118）：先按 groupName 聚合（同名唯一组头，
+    // 组内按原序；null 平铺）——交错 B,A,B 不重复出「B」头。
     final groupedEntries = <Widget>[];
     final flat = <Widget>[];
     final groupOrder = <String>[];
@@ -52,7 +71,7 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
     for (final list in mine) {
       final g = list.groupName;
       if (g == null) {
-        flat.add(_SidebarTile(
+        flat.add(_MyListRow(
           list: list,
           selected: list.id == widget.selectedListId,
           onTap: () => widget.onSelect(list),
@@ -82,7 +101,7 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
       ));
       if (!_collapsedGroups.contains(g)) {
         for (final list in listsInGroup) {
-          groupedEntries.add(_SidebarTile(
+          groupedEntries.add(_MyListRow(
             list: list,
             selected: list.id == widget.selectedListId,
             onTap: () => widget.onSelect(list),
@@ -90,8 +109,9 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
         }
       }
     }
+
     // 标签浏览器（TC-UI-117）：全部未删条目的去重标签；
-    // 点选 = 写全局搜索词（过滤管线已按标题/备注/标签匹配）
+    // 点选 = 写全局搜索词（过滤管线已按标题/备注/标签匹配）。
     final tagsAsync = ref.watch(itemsForListProvider(null));
     final tags = (tagsAsync.asData?.value ?? const <ReminderItem>[])
         .expand((e) => e.tags)
@@ -100,48 +120,95 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
       ..sort();
 
     return Material(
-      color: const Color(0xFFECECF1),
+      color: ReminderTokens.sidebarBg,
       child: Column(
         children: [
-              // 顶部工具条（图2：新建列表｜隐藏侧栏｜⚙设置——小图标横排）
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-                child: Row(
-                  children: [
-                    _TopIcon(
-                      key: const ValueKey('sidebar_add_list'),
-                      icon: CupertinoIcons.add,
-                      tooltip: '新建列表',
-                      onTap: widget.onAddList ?? () {},
-                    ),
-                    const SizedBox(width: 12),
-                    _TopIcon(
-                      key: const ValueKey('sidebar_toggle'),
-                      icon: CupertinoIcons.sidebar_left,
-                      tooltip: '隐藏侧栏',
-                      onTap: widget.onToggleSidebar ?? () {},
-                    ),
-                    const Spacer(),
-                    _TopIcon(
-                      key: const ValueKey('sidebar_settings'),
-                      icon: CupertinoIcons.gear,
-                      tooltip: '设置',
-                      onTap: widget.onOpenSettings ?? () {},
-                    ),
-                  ],
+          // 顶部工具条（图2：新建列表｜隐藏侧栏｜⚙设置）
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+            child: Row(
+              children: [
+                _TopIcon(
+                  key: const ValueKey('sidebar_add_list'),
+                  icon: CupertinoIcons.add,
+                  tooltip: '新建列表',
+                  onTap: widget.onAddList ?? () {},
                 ),
-              ),
+                const SizedBox(width: 12),
+                _TopIcon(
+                  key: const ValueKey('sidebar_toggle'),
+                  icon: CupertinoIcons.sidebar_left,
+                  tooltip: '隐藏侧栏',
+                  onTap: widget.onToggleSidebar ?? () {},
+                ),
+                const Spacer(),
+                _TopIcon(
+                  key: const ValueKey('sidebar_settings'),
+                  icon: CupertinoIcons.gear,
+                  tooltip: '设置',
+                  onTap: widget.onOpenSettings ?? () {},
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.only(bottom: 8),
               children: [
-                if (smart.isNotEmpty) ...[
-                  const _SectionLabel('智能列表'),
-                  for (final list in smart)
-                    _SidebarTile(
+                if (smart.isNotEmpty)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      // 参考图卡片随侧栏变宽而增高（360 宽约 60，1532 宽约 75）。
+                      final cardHeight =
+                          ((constraints.maxWidth - 32) * 0.18)
+                              .clamp(60.0, 84.0)
+                              .toDouble();
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: ReminderTokens.cardGap,
+                            crossAxisSpacing: ReminderTokens.cardGap,
+                            mainAxisExtent: cardHeight,
+                          ),
+                          itemCount: smart.length,
+                          itemBuilder: (context, i) => SmartListCard(
+                            list: smart[i],
+                            selected: smart[i].id == widget.selectedListId,
+                            compact: cardHeight < 72,
+                            onTap: () => widget.onSelect(smart[i]),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                if (!hasGrocery)
+                  _SuggestedListRow(
+                    onTap: () {
+                      final id =
+                          'list.grocery.${DateTime.now().millisecondsSinceEpoch}';
+                      ref.read(reminderRepositoryProvider).upsertList(
+                            ReminderList.createGroceryList(
+                              id: id,
+                              title: '日常采购',
+                            ),
+                          );
+                    },
+                  ),
+                if (mine.isNotEmpty || customSmart.isNotEmpty) ...[
+                  const _SectionLabel('我的列表'),
+                  ...groupedEntries,
+                  ...flat,
+                  for (final list in customSmart)
+                    _MyListRow(
                       list: list,
                       selected: list.id == widget.selectedListId,
                       onTap: () => widget.onSelect(list),
+                      customSmart: true,
                     ),
                 ],
                 if (tags.isNotEmpty) ...[
@@ -165,11 +232,16 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
                     ),
                   ),
                 ],
-                if (mine.isNotEmpty) ...[
-                  const _SectionLabel('我的列表'),
-                  ...groupedEntries,
-                  ...flat,
-                ],
+                if (trash != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                    child: _MyListRow(
+                      list: trash,
+                      selected: trash.id == widget.selectedListId,
+                      onTap: () => widget.onSelect(trash),
+                      isTrash: true,
+                    ),
+                  ),
               ],
             ),
           ),
@@ -198,7 +270,7 @@ class _TopIcon extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
       child: Padding(
         padding: const EdgeInsets.all(6),
-        child: Icon(icon, size: 18, color: const Color(0xFF007AFF)),
+        child: Icon(icon, size: 18, color: ReminderTokens.systemBlue),
       ),
     );
     if (tooltip == null) return btn;
@@ -214,73 +286,146 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
       child: Text(
         text,
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF8E8E93),
+          color: ReminderTokens.labelSecondary,
         ),
       ),
     );
   }
 }
 
-class _SidebarTile extends StatelessWidget {
-  const _SidebarTile({
+/// 我的列表行：24px 彩色圆角图标 + 标题 + 计数。
+class _MyListRow extends StatelessWidget {
+  const _MyListRow({
     required this.list,
     required this.selected,
     required this.onTap,
+    this.customSmart = false,
+    this.isTrash = false,
   });
 
   final ReminderList list;
   final bool selected;
   final VoidCallback onTap;
+  final bool customSmart;
+  final bool isTrash;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      dense: true,
-      leading: list.isSmart
-          ? Icon(
-              _smartIcon(list.id),
-              size: 20,
-              color: const Color(0xFF007AFF),
-            )
-          : CircleAvatar(
-              radius: 8,
-              backgroundColor: Color(list.colorArgb),
+    final color = isTrash ? ReminderTokens.labelSecondary : Color(list.colorArgb);
+    final icon = isTrash
+        ? CupertinoIcons.trash
+        : customSmart
+            ? CupertinoIcons.sparkles
+            : list.listType == ReminderListType.grocery
+                ? CupertinoIcons.cart
+                : CupertinoIcons.list_bullet;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: Material(
+        color: selected
+            ? ReminderTokens.systemBlue.withValues(alpha: 0.10)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          key: ValueKey('my_list_${list.id}'),
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            child: Row(
+              children: [
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(ReminderTokens.radiusListIcon),
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 15),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    list.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                      color: ReminderTokens.labelPrimary,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${list.itemCount}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: ReminderTokens.labelSecondary,
+                  ),
+                ),
+              ],
             ),
-      title: Text(
-        list.title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          ),
         ),
       ),
-      // Apple 侧栏口径（cursor 实机图评）：0 也显示计数（金标准今天=1、旗标=0 均可见）
-      trailing: Text(
-        '${list.itemCount}',
-        style: const TextStyle(color: Color(0xFF8E8E93)),
-      ),
-      selected: selected,
-      selectedTileColor: const Color(0x26007AFF),
-      onTap: onTap,
     );
   }
+}
 
-  static IconData _smartIcon(String id) {
-    return switch (id) {
-      'smart.today' => CupertinoIcons.today,
-      'smart.scheduled' => CupertinoIcons.calendar,
-      'smart.all' => CupertinoIcons.tray_full,
-      'smart.flagged' => CupertinoIcons.flag_fill,
-      'smart.urgent' => CupertinoIcons.exclamationmark_triangle_fill,
-      'smart.completed' => CupertinoIcons.checkmark_alt_circle,
-      'smart.trash' => CupertinoIcons.trash,
-      _ => CupertinoIcons.list_bullet,
-    };
+/// 建议列表（参考图「建议列表：日常采购 ＋」）；点击创建真实 grocery 列表。
+class _SuggestedListRow extends StatelessWidget {
+  const _SuggestedListRow({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const ValueKey('suggested_grocery'),
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
+            child: Row(
+              children: [
+                const Icon(CupertinoIcons.cart_fill,
+                    color: ReminderTokens.systemGreen, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    '建议列表：日常采购',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: ReminderTokens.labelPrimary,
+                    ),
+                  ),
+                ),
+                InkWell(
+                  key: const ValueKey('suggested_grocery_add'),
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(12),
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: Icon(CupertinoIcons.add_circled_solid,
+                        color: ReminderTokens.systemGreen, size: 20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -313,8 +458,8 @@ class _GroupHeader extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF8E8E93),
-            ),
+                color: ReminderTokens.labelSecondary,
+              ),
             ),
             if (count > 0) ...[
               const SizedBox(width: 4),
@@ -322,7 +467,7 @@ class _GroupHeader extends StatelessWidget {
                 '$count',
                 style: const TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF8E8E93),
+                  color: ReminderTokens.labelSecondary,
                 ),
               ),
             ],
@@ -332,7 +477,7 @@ class _GroupHeader extends StatelessWidget {
                   ? CupertinoIcons.chevron_down
                   : CupertinoIcons.chevron_up,
               size: 14,
-              color: const Color(0xFF8E8E93),
+              color: ReminderTokens.labelSecondary,
             ),
           ],
         ),
