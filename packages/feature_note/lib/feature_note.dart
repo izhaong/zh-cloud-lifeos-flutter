@@ -6,3 +6,4 @@ export 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 export 'src/providers.dart';
 export 'src/note_tab_entry.dart';
 export 'src/note_scaffold.dart';
+export 'src/note_sidebar.dart';
