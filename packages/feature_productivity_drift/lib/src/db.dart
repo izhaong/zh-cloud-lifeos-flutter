@@ -257,13 +257,70 @@ class Notes extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// 同步发件箱（flutter#124 卡 2 / TC-SYNC-107、112）。
+///
+/// 主键取 (entity_type, entity_id)：同一实体的多次编辑合并成一条待推，
+/// 幂等键首次入队生成后不再换（服务端按 clientMutationId 去重）。
+class TaskOutboxRows extends Table {
+  TextColumn get entityType => text()();
+  TextColumn get entityId => text()();
+  TextColumn get operation => text()();
+
+  /// 变更时刻的实体快照 JSON。
+  TextColumn get payloadJson => text()();
+
+  TextColumn get clientMutationId => text()();
+  IntColumn get clientUpdatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {entityType, entityId};
+}
+
+/// 任务域增量游标（flutter#124 卡 3 / TC-SYNC-107「游标前进」的本地半边）。
+///
+/// 一个域一行：只有「落库成功」的游标才写回，重启后从上次的位置续拉，
+/// 而不是每次从头（游标写坏=重复物化或对不齐）。
+class SyncCursorRows extends Table {
+  TextColumn get domain => text()();
+  TextColumn get cursor => text().nullable()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {domain};
+}
+
+/// 任务侧本地偏好（flutter#124 卡 4 / TC-UI-120）。
+///
+/// 照 `CalendarPreferences` 先例：本地单用户一行（`userKey='local'`），
+/// `revision` 每次保存 +1；无行时仓库回契约默认且不建行。
+class TaskPreferences extends Table {
+  TextColumn get userKey => text()();
+  TextColumn get defaultListId => text().nullable()();
+  BoolColumn get allDayNotify => boolean().withDefault(const Constant(true))();
+  BoolColumn get markComplete => boolean().withDefault(const Constant(false))();
+  BoolColumn get suggestLists => boolean().withDefault(const Constant(true))();
+
+  /// 视图态（卡 4b）：显示已完成 / 排序模式 / 侧栏显隐 / 折叠键 JSON 数组。
+  BoolColumn get showCompleted =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get sortMode => text().withDefault(const Constant('manual'))();
+  BoolColumn get sidebarVisible => boolean().withDefault(const Constant(true))();
+  TextColumn get collapsedKeysJson =>
+      text().withDefault(const Constant('[]'))();
+
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {userKey};
+}
+
 @DriftDatabase(
-    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes])
+    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows, SyncCursorRows, TaskPreferences])
 class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -344,6 +401,23 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // V10（lifeos/calendar F-16 / TC-CAL-UI-125）：订阅上次刷新失败信息
             // 从 <7 升级时 calendars 表由上面 createTable 建成，已含该列，故不重复加。
             await m.addColumn(calendars, calendars.lastRefreshError);
+          }
+          if (from < 11) {
+            // V11（flutter#124 卡 2 / TC-SYNC-107、112）：同步发件箱
+            await m.createTable(taskOutboxRows);
+            await m.createIndex(
+              Index('idx_task_outbox_due',
+                  'CREATE INDEX IF NOT EXISTS idx_task_outbox_due '
+                  'ON task_outbox_rows (client_updated_at, entity_id)'),
+            );
+          }
+          if (from < 12) {
+            // V12（flutter#124 卡 3 / TC-SYNC-106、107）：增量游标持久化
+            await m.createTable(syncCursorRows);
+          }
+          if (from < 13) {
+            // V13（flutter#124 卡 4 / TC-UI-120）：任务侧本地偏好
+            await m.createTable(taskPreferences);
           }
         },
       );

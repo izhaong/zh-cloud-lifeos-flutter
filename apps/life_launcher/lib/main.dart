@@ -27,6 +27,8 @@ Future<void> main() async {
   final db = await openDefaultDatabase();
   final repository = DriftReminderRepository(db);
   final calendarRepository = openDefaultDriftCalendarRepository(db);
+  // TC-UI-120（flutter#124 卡 4）：设置弹层四档落 Drift，重启后读回同一行
+  final taskPreferenceRepository = DriftTaskPreferenceRepository(db);
   // F-03：记录仓库（Drift 实现随 F-04 落地前先 InMemory；组合根单点切换）
   final noteRepository = InMemoryNoteRepository();
   final prefs = await SharedPreferences.getInstance();
@@ -36,7 +38,21 @@ Future<void> main() async {
   )));
   final sessionStore = SecureSessionStore();
   final authPort = RestAuthPort(dio: dio, store: sessionStore);
-  final syncPort = RestSyncPort(dio: dio, store: sessionStore);
+  // TC-SYNC-114：401 时先走 authPort.refresh() 换新 token 再重试，不再拿过期 token 空转
+  final syncPort = RestSyncPort(
+    dio: dio,
+    store: sessionStore,
+    refreshSession: () async => await authPort.refresh() != null,
+  );
+  // 卡 2（flutter#124）：注入壳层的 SyncPort 是协调器——push() 从 Drift 发件箱
+  // 真装载变更，回执带 serverId 时同事务回填 reminder_items.remote_id；
+  // 卡 3：pull() 带上次游标拉增量，交仓库落 Drift（delete 进回收窗）后才前进游标。
+  final taskSyncCoordinator = TaskSyncCoordinator(
+    outbox: DriftSyncOutbox(db),
+    syncPort: syncPort,
+    applier: repository,
+    cursors: DriftSyncCursorStore(db),
+  );
   // F-11：真实本地通知调度（开源包只声明接口）
   final calendarAlertScheduler =
       await LocalCalendarAlertScheduler.create(calendarRepository);
@@ -59,11 +75,20 @@ Future<void> main() async {
       // 离线优先：启动同步失败不影响本地可用
     }
   });
+  // TC-SYNC-106/107：任务域冷启动也补一轮（先推本地、再拉增量落库）
+  Future<void>(() async {
+    try {
+      await taskSyncCoordinator.syncOnce();
+    } catch (_) {
+      // 离线优先：未登录/断网都不挡本地能力
+    }
+  });
 
   runApp(
     ProviderScope(
       overrides: [
         reminderRepositoryProvider.overrideWithValue(repository),
+        taskPreferenceRepositoryProvider.overrideWithValue(taskPreferenceRepository),
         calendarRepositoryProvider.overrideWithValue(calendarRepository),
         noteRepositoryProvider.overrideWithValue(noteRepository),
         calendarReminderRepositoryProvider.overrideWithValue(repository),
@@ -87,7 +112,7 @@ Future<void> main() async {
           PinnedTabsService(prefs),
         ),
         authPortProvider.overrideWithValue(authPort),
-        syncPortProvider.overrideWithValue(syncPort),
+        syncPortProvider.overrideWithValue(taskSyncCoordinator),
       ],
       child: const LifeLauncherApp(),
     ),
@@ -122,15 +147,33 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     ref.read(reminderRepositoryProvider).checkDayRollover();
+    // 回前台续一轮（TC-SYNC-107「离线改 → 联网推」的触发点）：
+    // 未登录/队空内部直接返回，失败不清队也不打扰用户。
+    final port = ref.read(syncPortProvider);
+    Future<void>(() async {
+      try {
+        await port.push();
+        await port.pull();
+      } catch (_) {
+        // 离线优先：续推失败不影响本地可用
+      }
+    });
   }
+
+  /// 系统亮/暗切换要重建主题：令牌是 Apple 动态色，但根主题的 `brightness`
+  /// 与 Material 岛的静态 `ColorScheme` 都得按当前档位重新解算。
+  @override
+  void didChangePlatformBrightness() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
     final router = buildLifeRouter(ref);
+    final brightness =
+        WidgetsBinding.instance.platformDispatcher.platformBrightness;
     return CupertinoApp.router(
       title: 'LifeOS 生活台',
       debugShowCheckedModeBanner: false,
-      theme: LifeTokens.cupertino(),
+      theme: LifeTokens.cupertino(brightness),
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [
         Locale('zh', 'CN'),
@@ -142,7 +185,7 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
         GlobalMaterialLocalizations.delegate,
       ],
       builder: (context, child) => Theme(
-        data: LifeTokens.materialIsland(),
+        data: LifeTokens.materialIsland(brightness),
         child: ScaffoldMessenger(
           child: child ?? const SizedBox.shrink(),
         ),

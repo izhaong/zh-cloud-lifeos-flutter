@@ -1,5 +1,4 @@
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -45,10 +44,10 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
     'smart.completed',
     'smart.assigned',
   };
-  final _collapsedGroups = <String>{};
-
   @override
   Widget build(BuildContext context) {
+    final collapsedGroups = ref.watch(collapsedKeysProvider);
+    bool isGroupCollapsed(String g) => collapsedGroups.contains('group:$g');
     final allSmart =
         widget.lists.where((e) => e.isSmart).toList(growable: false);
     final smart =
@@ -92,14 +91,11 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
         key: ValueKey('group_$g'),
         title: g,
         count: groupCount,
-        collapsed: _collapsedGroups.contains(g),
-        onToggle: () => setState(() {
-          if (!_collapsedGroups.remove(g)) {
-            _collapsedGroups.add(g);
-          }
-        }),
+        collapsed: isGroupCollapsed(g),
+        onToggle: () =>
+            ref.read(collapsedKeysProvider.notifier).toggle('group:$g'),
       ));
-      if (!_collapsedGroups.contains(g)) {
+      if (!isGroupCollapsed(g)) {
         for (final list in listsInGroup) {
           groupedEntries.add(_MyListRow(
             list: list,
@@ -119,7 +115,7 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
         .toList(growable: false)
       ..sort();
 
-    return Material(
+    return ColoredBox(
       color: ReminderTokens.sidebarBg,
       child: Column(
         children: [
@@ -220,11 +216,10 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
                       runSpacing: 6,
                       children: [
                         for (final tag in tags)
-                          ActionChip(
+                          _TagChip(
                             key: ValueKey('tag_chip_$tag'),
-                            label: Text(tag),
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () => ref
+                            label: tag,
+                            onTap: () => ref
                                 .read(searchQueryProvider.notifier)
                                 .set(tag),
                           ),
@@ -265,16 +260,42 @@ class _TopIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final btn = InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+    final btn = CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      onPressed: onTap,
       child: Padding(
         padding: const EdgeInsets.all(6),
         child: Icon(icon, size: 18, color: ReminderTokens.systemBlue),
       ),
     );
     if (tooltip == null) return btn;
-    return Tooltip(message: tooltip!, child: btn);
+    return Semantics(label: tooltip!, button: true, child: btn);
+  }
+}
+
+class _TagChip extends StatelessWidget {
+  const _TagChip({super.key, required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      minimumSize: Size.zero,
+      color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+      borderRadius: BorderRadius.circular(12),
+      onPressed: onTap,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: CupertinoColors.label.resolveFrom(context),
+        ),
+      ),
+    );
   }
 }
 
@@ -327,50 +348,54 @@ class _MyListRow extends StatelessWidget {
                 : CupertinoIcons.list_bullet;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-      child: Material(
-        color: selected
-            ? ReminderTokens.systemBlue.withValues(alpha: 0.10)
-            : Colors.transparent,
+      child: CupertinoButton(
+        key: ValueKey('my_list_${list.id}'),
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        alignment: Alignment.centerLeft,
         borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          key: ValueKey('my_list_${list.id}'),
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            child: Row(
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(ReminderTokens.radiusListIcon),
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 15),
+        onPressed: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: selected
+                ? ReminderTokens.systemBlue.withValues(alpha: 0.10)
+                : null,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius:
+                      BorderRadius.circular(ReminderTokens.radiusListIcon),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    list.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      color: ReminderTokens.labelPrimary,
-                    ),
-                  ),
-                ),
-                Text(
-                  '${list.itemCount}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: ReminderTokens.labelSecondary,
+                child: Icon(icon, color: CupertinoColors.white, size: 15),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  list.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: ReminderTokens.labelPrimary,
                   ),
                 ),
-              ],
-            ),
+              ),
+              Text(
+                '${list.itemCount}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: ReminderTokens.labelSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -388,40 +413,41 @@ class _SuggestedListRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 2),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          key: const ValueKey('suggested_grocery'),
-          borderRadius: BorderRadius.circular(8),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
-            child: Row(
-              children: [
-                const Icon(CupertinoIcons.cart_fill,
-                    color: ReminderTokens.systemGreen, size: 20),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    '建议列表：日常采购',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: ReminderTokens.labelPrimary,
-                    ),
+      child: CupertinoButton(
+        key: const ValueKey('suggested_grocery'),
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        alignment: Alignment.centerLeft,
+        borderRadius: BorderRadius.circular(8),
+        onPressed: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
+          child: Row(
+            children: [
+              const Icon(CupertinoIcons.cart_fill,
+                  color: ReminderTokens.systemGreen, size: 20),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  '建议列表：日常采购',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: ReminderTokens.labelPrimary,
                   ),
                 ),
-                InkWell(
-                  key: const ValueKey('suggested_grocery_add'),
-                  onTap: onTap,
-                  borderRadius: BorderRadius.circular(12),
-                  child: const Padding(
-                    padding: EdgeInsets.all(2),
-                    child: Icon(CupertinoIcons.add_circled_solid,
-                        color: ReminderTokens.systemGreen, size: 20),
-                  ),
+              ),
+              CupertinoButton(
+                key: const ValueKey('suggested_grocery_add'),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                onPressed: onTap,
+                child: const Padding(
+                  padding: EdgeInsets.all(2),
+                  child: Icon(CupertinoIcons.add_circled_solid,
+                      color: ReminderTokens.systemGreen, size: 20),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -447,39 +473,45 @@ class _GroupHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onToggle,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-        child: Row(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: ReminderTokens.labelSecondary,
-              ),
-            ),
-            if (count > 0) ...[
-              const SizedBox(width: 4),
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
+      alignment: Alignment.centerLeft,
+      onPressed: onToggle,
+      child: SizedBox(
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+          child: Row(
+            children: [
               Text(
-                '$count',
+                title,
                 style: const TextStyle(
                   fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   color: ReminderTokens.labelSecondary,
                 ),
               ),
+              if (count > 0) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: ReminderTokens.labelSecondary,
+                  ),
+                ),
+              ],
+              const Spacer(),
+              Icon(
+                collapsed
+                    ? CupertinoIcons.chevron_down
+                    : CupertinoIcons.chevron_up,
+                size: 14,
+                color: ReminderTokens.labelSecondary,
+              ),
             ],
-            const Spacer(),
-            Icon(
-              collapsed
-                  ? CupertinoIcons.chevron_down
-                  : CupertinoIcons.chevron_up,
-              size: 14,
-              color: ReminderTokens.labelSecondary,
-            ),
-          ],
+          ),
         ),
       ),
     );

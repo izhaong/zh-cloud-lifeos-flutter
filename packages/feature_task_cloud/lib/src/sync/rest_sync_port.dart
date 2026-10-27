@@ -14,40 +14,60 @@ import 'sync_models.dart';
 ///   （反对字段级合流；人工弹窗后置）
 /// - 未登录：push/pull 直接跳过（TC-SYNC-105 不挡本地）
 class RestSyncPort implements SyncPort {
-  RestSyncPort({required this._dio, required this._store});
+  RestSyncPort({
+    required this._dio,
+    required this._store,
+    Future<bool> Function()? refreshSession,
+  }) : _refreshSession = refreshSession;
 
   final Dio _dio;
   final SessionStore _store;
 
+  /// TC-SYNC-114：401 时先走这条换 token（返回 true=刷新成功，可重试）。
+  /// 组合根注入 `RestAuthPort::refresh`；未注入（如离线单测）时 401 走老路径重试一次同 token，
+  /// 保持向后兼容不炸旧用例。
+  final Future<bool> Function()? _refreshSession;
+
   /// 冲突重推次数上限（防服务端时钟异常死循环）。
   static const maxConflictRetries = 3;
+
+  /// 用当前 store 里的会话（refresh 之后已换新 token）；未登录返回 null。
+  Future<MemberSession?> _currentSession() => _store.read();
+
+  /// 401 分支共用：先尝试 refresh，成功返回 true 让上层重发（重发时读**新**会话即可拿到新 token）。
+  Future<bool> _tryRefresh() async {
+    final hook = _refreshSession;
+    if (hook == null) return false;
+    return await hook();
+  }
+
+  /// 是否已有会话。发件箱装载器用它决定要不要动队列：
+  /// 未登录时 `pushChanges` 返回空回执，装载器若按「空=全部接受」清队就把本地变更抹了。
+  Future<bool> isSignedIn() async => await _store.read() != null;
 
   @override
   Future<void> pull() async {
     await pullChanges();
   }
 
-  /// 增量拉取（T-05 TC-SYNC-106）：返回游标+变更批；未登录空结果。
+  /// 增量拉取（T-05 TC-SYNC-106/107）：返回游标+变更批；未登录空结果。
+  ///
+  /// **契约 §3.9 两端都是 POST**（`AppLifeosTaskSyncController`），body 需带 `deviceId`
+  /// 与 `cursor`——游标按设备隔离，不带 `deviceId` 就等于每次从头。响应字段是 `nextCursor`，
+  /// 不是 `cursor`（服务端 `PullRespVO.setNextCursor`）；读错字段名会「永远拉同一批」但
+  /// 不抛异常，是最难查的一种漂移。
   Future<PullResult> pullChanges({String? cursor}) async {
     final session = await _store.read();
     if (session == null) {
       return const PullResult(cursor: null, changes: []);
     }
-    final resp = await _dio.get<Map<String, dynamic>>(
-      '/app-api/lifeos/task/sync/pull',
-      queryParameters: {'cursor': cursor},
-      options: _authed(session),
-    );
-    final body = resp.data;
-    if (body == null || body['code'] != 0) {
-      throw SyncFailureException(body?['msg']?.toString() ?? '拉取失败');
-    }
+    final body = await _postPullWithRetry(session, cursor);
     final data = body['data'];
     if (data is! Map<String, dynamic>) {
       return const PullResult(cursor: null, changes: []);
     }
     return PullResult(
-      cursor: data['cursor']?.toString(),
+      cursor: data['nextCursor']?.toString(),
       changes: _parsePullChanges(data['changes']),
     );
   }
@@ -72,10 +92,8 @@ class RestSyncPort implements SyncPort {
 
   @override
   Future<void> push() async {
-    final session = await _store.read();
-    if (session == null) return;
-    // 变更装载随 UI 集成批次接本地 outbox；当前契约级实现
-    await _pushChanges(session, const []);
+    // 卡 2 后真装载归 TaskSyncCoordinator.pushPending()（它才是注入壳层的 SyncPort）：
+    // 本类看不见 Drift 发件箱（包依赖方向），直接调本方法即「不带载荷」而非假装推过。
   }
 
   /// 推送变更批（含冲突重推「新者胜」）。
@@ -231,37 +249,70 @@ class RestSyncPort implements SyncPort {
     return 0;
   }
 
-  /// TC-SYNC-114：401 → 静默重试一次原请求；再 401 上抛（本地载荷不清空）。
+  /// TC-SYNC-114：401 → 先走 refreshSession 回调换 accessToken，再拿**新会话**重发一次；
+  /// 没注入回调（离线单测/未接 AuthPort）时退回"同 token 再发一次"的老路径，保持向后兼容。
+  /// 载荷不清空（无论刷新成功与否都保留原 changes 与幂等键）——下次同步还会带上。
   Future<Map<String, dynamic>?> _postPushWithRetry(
     MemberSession session,
     List<SyncChange> changes,
   ) async {
-    Future<Response<Map<String, dynamic>?>> send() =>
+    Future<Response<Map<String, dynamic>?>> sendWith(MemberSession s) =>
         _dio.post<Map<String, dynamic>>(
           '/app-api/lifeos/task/sync/push',
           data: {
-            'deviceId': session.userId,
+            'deviceId': s.userId,
             'changes': [for (final c in changes) c.toJson()],
           },
-          options: _authed(session),
+          options: _authed(s),
         );
     try {
-      final resp = await send();
+      final resp = await sendWith(session);
       final body = resp.data;
       if (body == null || body['code'] != 0) {
         throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
       }
       return body;
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        final resp = await send();
-        final body = resp.data;
-        if (body == null || body['code'] != 0) {
-          throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
-        }
-        return body;
+      if (e.response?.statusCode != 401) rethrow;
+      final refreshed = await _tryRefresh();
+      final retrySession = refreshed ? (await _currentSession() ?? session) : session;
+      final resp = await sendWith(retrySession);
+      final body = resp.data;
+      if (body == null || body['code'] != 0) {
+        throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
       }
-      rethrow;
+      return body;
+    }
+  }
+
+  /// TC-SYNC-114（pull 半边）：401 与 push 同走 refresh 通道——
+  /// 之前只有 push 有，pull 撞上过期令牌就直接炸，冷启动同步等于没接。
+  Future<Map<String, dynamic>> _postPullWithRetry(
+    MemberSession session,
+    String? cursor,
+  ) async {
+    Future<Response<Map<String, dynamic>>> sendWith(MemberSession s) =>
+        _dio.post<Map<String, dynamic>>(
+          '/app-api/lifeos/task/sync/pull',
+          data: {'deviceId': s.userId, 'cursor': cursor},
+          options: _authed(s),
+        );
+    Map<String, dynamic> unwrap(Response<Map<String, dynamic>> resp) {
+      final body = resp.data;
+      if (body == null || body['code'] != 0) {
+        throw SyncFailureException(body?['msg']?.toString() ?? '拉取失败');
+      }
+      return body;
+    }
+
+    try {
+      return unwrap(await sendWith(session));
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 401) rethrow;
+      final refreshed = await _tryRefresh();
+      final retrySession =
+          refreshed ? (await _currentSession() ?? session) : session;
+      return unwrap(await sendWith(retrySession));
     }
   }
 

@@ -8,6 +8,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart'
     as kernel;
 
 import 'db.dart';
+import 'drift_sync_outbox.dart';
 
 /// [kernel.ReminderRepository] 的 Drift 实现（离线持久化）。
 ///
@@ -16,7 +17,8 @@ import 'db.dart';
 ///   toggle 留仓库层（防读改写丢更新 + 重复滚动）；删除为级联语义动作
 /// - 智能列表语义过滤与 InMemory 实现一致；排序契约 `sortOrder asc, id asc`
 /// - UI 不接触 drift 类型：本包只向端口吐 kernel 实体
-class DriftReminderRepository implements kernel.ReminderRepository {
+class DriftReminderRepository
+    implements kernel.ReminderRepository, kernel.SyncApplier {
   DriftReminderRepository(this._db);
 
   final LifeProductivityDb _db;
@@ -136,22 +138,25 @@ class DriftReminderRepository implements kernel.ReminderRepository {
     if (item.id.startsWith('smart.')) {
       throw ArgumentError('smart. 前缀保留给智能列表派生，禁止作为条目 id');
     }
-    // 防复活（cursor PR#12）：软删行只经 restoreItem 恢复；
-    // 对已删条目的全量回写（deletedAt 丢失）保留回收窗标记
-    final existing = await (_db.select(_db.reminderItems)
-          ..where((t) => t.id.equals(item.id)))
-        .getSingleOrNull();
-    await _db.into(_db.reminderItems).insertOnConflictUpdate(
-          _companionFrom(item),
-        );
-    if (existing != null &&
-        existing.deletedAt != null &&
-        item.deletedAt == null) {
-      await (_db.update(_db.reminderItems)
+    await _db.transaction(() async {
+      // 防复活（cursor PR#12）：软删行只经 restoreItem 恢复；
+      // 对已删条目的全量回写（deletedAt 丢失）保留回收窗标记
+      final existing = await (_db.select(_db.reminderItems)
             ..where((t) => t.id.equals(item.id)))
-          .write(
-              ReminderItemsCompanion(deletedAt: Value(existing.deletedAt)));
-    }
+          .getSingleOrNull();
+      await _db.into(_db.reminderItems).insertOnConflictUpdate(
+            _companionFrom(item),
+          );
+      if (existing != null &&
+          existing.deletedAt != null &&
+          item.deletedAt == null) {
+        await (_db.update(_db.reminderItems)
+              ..where((t) => t.id.equals(item.id)))
+            .write(
+                ReminderItemsCompanion(deletedAt: Value(existing.deletedAt)));
+      }
+      await _enqueueOutbox([item.id]);
+    });
   }
 
   @override
@@ -197,6 +202,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
               Value(!cur.isCompleted ? _now : null),
         ));
       }
+      await _enqueueOutbox([itemId]);
     });
   }
 
@@ -211,6 +217,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             ..where((t) => t.id.equals(itemId)))
           .write(
               ReminderItemsCompanion(isFlagged: Value(!row.isFlagged)));
+      await _enqueueOutbox([itemId]);
     });
   }
 
@@ -244,6 +251,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             listId: Value(targetListId),
             sectionId: const Value(null), // 分区随列表（TC-API-118）
           ));
+          await _enqueueOutbox([r.id]);
         }
       }
     });
@@ -253,9 +261,12 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   Future<void> deleteItem(String itemId) async {
     // 软删级联（TC-UI-109）：本条 + 后代进 30 天回收窗（与 InMemory 同语义）
     final cascade = await _cascadeFrom(itemId);
-    await (_db.update(_db.reminderItems)
-          ..where((t) => t.id.isIn(cascade)))
-        .write(ReminderItemsCompanion(deletedAt: Value(_now)));
+    await _db.transaction(() async {
+      await (_db.update(_db.reminderItems)
+            ..where((t) => t.id.isIn(cascade)))
+          .write(ReminderItemsCompanion(deletedAt: Value(_now)));
+      await _enqueueOutbox(cascade);
+    });
   }
 
   @override
@@ -289,6 +300,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             .write(
                 const ReminderItemsCompanion(deletedAt: Value(null)));
       }
+      await _enqueueOutbox(cascade);
     });
   }
 
@@ -325,6 +337,105 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       }
     }
     return removed;
+  }
+
+  /// 把受影响条目登记进同步发件箱（flutter#124 卡 2 / TC-SYNC-107）。
+  ///
+  /// 与业务写表同事务调用：写库成功而队列丢失=变更永不上传，故必须在事务内。
+  /// 载荷取**写库后**的行快照；`deletedAt` 非空记 delete（覆盖此前未推的 upsert，
+  /// 幂等键由 [DriftSyncOutbox] 保留首条）。
+  Future<void> _enqueueOutbox(Iterable<String> itemIds) async {
+    final outbox = DriftSyncOutbox(_db);
+    for (final id in itemIds) {
+      final row = await (_db.select(_db.reminderItems)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (row == null) continue;
+      final at = _now;
+      await outbox.enqueue(kernel.SyncOutboxEntry(
+        entityType: 'task',
+        entityId: id,
+        operation: row.deletedAt != null ? 'delete' : 'upsert',
+        payload: kernel.taskSyncPayload(_toModel(row)),
+        clientMutationId: 'task-$id-${at.microsecondsSinceEpoch}',
+        clientUpdatedAt: at.millisecondsSinceEpoch,
+      ));
+    }
+  }
+
+  // ---- 入站落库（flutter#124 卡 3 / TC-SYNC-106、109、112）----
+
+  /// 落一批服务端下推的变更。
+  ///
+  /// 关键约束：**入站落库不进发件箱**——否则 pull 写一次就顺手 enqueue 一条
+  /// 出站变更，push 再推回服务端，两端自己造出无限往返。所以这里绕开
+  /// [upsertItem]/[deleteItem] 直接写行。
+  /// 同事务：一条不落完就不落，调用方（协调器）据此决定游标要不要前进。
+  @override
+  Future<void> applyAll(Iterable<kernel.SyncIncomingChange> changes) async {
+    if (changes.isEmpty) return;
+    await _db.transaction(() async {
+      for (final c in changes) {
+        // 列表/分区/标签实体在本地没有 remoteId 列，本卡只落 task
+        if (c.entityType != 'task') continue;
+        if (c.operation == 'delete') {
+          await _applyInboundDelete(c);
+        } else {
+          await _applyInboundUpsert(c);
+        }
+      }
+    });
+  }
+
+  Future<void> _applyInboundUpsert(kernel.SyncIncomingChange c) async {
+    final existing = await _findByServerId(c.entityId);
+    final listId = c.payload['listId']?.toString() ??
+        (existing?.listId ?? await _firstOwnListId());
+    if (listId == null) return; // 无处安放（既没载荷 listId、本地也没自有列表）
+    final model = kernel.reminderItemFromSyncPayload(
+      c.payload,
+      entityId: c.entityId,
+      listId: listId,
+      existing: existing == null ? null : _toModel(existing),
+    );
+    await _db
+        .into(_db.reminderItems)
+        .insertOnConflictUpdate(_companionFrom(model));
+  }
+
+  Future<void> _applyInboundDelete(kernel.SyncIncomingChange c) async {
+    final target = await _findByServerId(c.entityId);
+    if (target == null) return; // 本地没有这条：幂等跳过
+    final at = c.payload['deletedAt'] is num
+        ? DateTime.fromMillisecondsSinceEpoch(
+            (c.payload['deletedAt'] as num).toInt())
+        : _now;
+    // 与服务端 applier 同口径：软删入 30 天回收窗，且删父级联整树入窗
+    final cascade = await _cascadeFrom(target.id);
+    await (_db.update(_db.reminderItems)
+          ..where((t) => t.id.isIn(cascade)))
+        .write(ReminderItemsCompanion(deletedAt: Value(at)));
+  }
+
+  /// 临时 ID 映射的另一半：对端把同一条任务改了几次，落到本地只能更新原行。
+  /// 先按 remoteId（服务端 id）找——离线建的行本地 id 是 UUID，回填后 remoteId
+  /// 才是服务端 id；找不到再按 id 相等兜底（历史数据把服务端 id 直接当本地 id 用）。
+  Future<ReminderItem?> _findByServerId(String entityId) async {
+    final byRemote = await (_db.select(_db.reminderItems)
+          ..where((t) => t.remoteId.equals(entityId)))
+        .get();
+    if (byRemote.isNotEmpty) return byRemote.first;
+    return (_db.select(_db.reminderItems)
+          ..where((t) => t.id.equals(entityId)))
+        .getSingleOrNull();
+  }
+
+  Future<String?> _firstOwnListId() async {
+    final lists = await _db.select(_db.reminderLists).get();
+    for (final l in lists) {
+      if (!l.isSmart) return l.id;
+    }
+    return null;
   }
 
   @override
@@ -495,6 +606,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       await (_db.update(_db.reminderItems)
             ..where((t) => t.id.equals(r.id)))
           .write(const ReminderItemsCompanion(sectionId: Value(null)));
+      await _enqueueOutbox([r.id]);
     }
     await _writeSections(listId, sections);
   }
@@ -505,6 +617,9 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       throw ArgumentError('智能列表不可删除');
     }
     await _db.transaction(() async {
+      final doomed = await (_db.select(_db.reminderItems)
+            ..where((t) => t.listId.equals(listId)))
+          .get();
       // 条目随列表进回收窗（软删；TC-UI-109），与 InMemory 同语义
       await (_db.update(_db.reminderItems)
             ..where((t) => t.listId.equals(listId)))
@@ -512,6 +627,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       await (_db.delete(_db.reminderLists)
             ..where((t) => t.id.equals(listId)))
           .go();
+      await _enqueueOutbox([for (final r in doomed) r.id]);
     });
   }
 

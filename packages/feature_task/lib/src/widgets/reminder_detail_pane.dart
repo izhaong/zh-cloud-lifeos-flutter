@@ -1,5 +1,4 @@
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -27,8 +26,7 @@ class ReminderDetailPane extends ConsumerStatefulWidget {
   final VoidCallback? onClose;
 
   @override
-  ConsumerState<ReminderDetailPane> createState() =>
-      _ReminderDetailPaneState();
+  ConsumerState<ReminderDetailPane> createState() => _ReminderDetailPaneState();
 }
 
 class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
@@ -130,8 +128,8 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
 
   /// 当前所属列表标题（无（如智能视图选中）兜底空）。
   String? get _currentListTitle {
-    final lists = ref.read(reminderListsProvider).asData?.value ??
-        const <ReminderList>[];
+    final lists =
+        ref.read(reminderListsProvider).asData?.value ?? const <ReminderList>[];
     for (final l in lists) {
       if (l.id == widget.item.listId) return l.title;
     }
@@ -141,19 +139,21 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   /// 移动到其他列表（TC-UI-119）：copyWith(listId) 全量回写；
   /// 分区随列表 ⇒ 一并清空（与 TC-API-118 服务端口径一致）。
   Future<void> _moveToOtherList() async {
-    final lists = (ref.read(reminderListsProvider).asData?.value ??
-            const <ReminderList>[])
-        .where((l) => !l.isSmart && l.id != widget.item.listId)
-        .toList(growable: false);
+    final lists =
+        (ref.read(reminderListsProvider).asData?.value ??
+                const <ReminderList>[])
+            .where((l) => !l.isSmart && l.id != widget.item.listId)
+            .toList(growable: false);
     if (lists.isEmpty) return;
-    final target = await showDialog<ReminderList>(
+    if (!mounted) return;
+    final target = await showCupertinoDialog<ReminderList>(
       context: context,
-      builder: (context) => SimpleDialog(
+      builder: (context) => CupertinoAlertDialog(
         key: const ValueKey('move_to_list_dialog'),
         title: const Text('移动到列表'),
-        children: [
+        actions: [
           for (final l in lists)
-            SimpleDialogOption(
+            CupertinoDialogAction(
               key: ValueKey('move_target_${l.id}'),
               onPressed: () => Navigator.of(context).pop(l),
               child: Row(
@@ -256,8 +256,10 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
             child: Column(
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -296,8 +298,13 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                           allDay = v;
                           picked = v
                               ? DateTime(picked.year, picked.month, picked.day)
-                              : DateTime(picked.year, picked.month, picked.day,
-                                  9, 0);
+                              : DateTime(
+                                  picked.year,
+                                  picked.month,
+                                  picked.day,
+                                  9,
+                                  0,
+                                );
                         }),
                       ),
                     ],
@@ -311,9 +318,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                     minuteInterval: 5,
                     use24hFormat: true,
                     onDateTimeChanged: (d) {
-                      picked = allDay
-                          ? DateTime(d.year, d.month, d.day)
-                          : d;
+                      picked = allDay ? DateTime(d.year, d.month, d.day) : d;
                     },
                   ),
                 ),
@@ -333,19 +338,90 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     }
   }
 
+  static const _recurrenceLabels = <String, String>{
+    'daily': '每天',
+    'weekly': '每周',
+    'weekdays': '工作日',
+    'monthly': '每月',
+    'yearly': '每年',
+  };
+
+  String get _recurrenceLabel =>
+      _recurrence == null ? '永不' : _recurrenceLabels[_recurrence]!;
+
+  /// 重复规则选择（ActionSheet；当前规则高亮）。
+  /// 「永不」以空串出参（pop(null) 与取消同形，无法区分）。
+  Future<void> _pickRecurrence() async {
+    final selected = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('重复'),
+        actions: [
+          for (final entry in {null: '永不', ..._recurrenceLabels}.entries)
+            CupertinoActionSheetAction(
+              key: ValueKey('recurrence_${entry.key ?? 'none'}'),
+              isDefaultAction: entry.key == _recurrence,
+              onPressed: () => Navigator.of(ctx).pop(entry.key ?? ''),
+              child: Text(entry.value),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _recurrence = selected.isEmpty ? null : selected;
+      if (selected.isEmpty) _recurrenceUntil = null;
+    });
+  }
+
+  static const _priorityLabels = <int, String>{
+    0: '无 —',
+    1: '低 !',
+    5: '中 !!',
+    9: '高 !!!',
+  };
+
+  /// 优先级选择（ActionSheet；当前值高亮）。
+  Future<void> _pickPriority() async {
+    final selected = await showCupertinoModalPopup<int>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('优先级'),
+        actions: [
+          for (final entry in _priorityLabels.entries)
+            CupertinoActionSheetAction(
+              key: ValueKey('priority_${entry.key}'),
+              isDefaultAction: entry.key == _priority,
+              onPressed: () => Navigator.of(ctx).pop(entry.key),
+              child: Text(entry.value),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    setState(() => _priority = selected);
+  }
+
   Widget _groupedRows(List<Widget> rows) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      elevation: 0,
-      color: Colors.white,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
+      decoration: BoxDecoration(
+        color: CupertinoColors.white,
         borderRadius: BorderRadius.circular(ReminderTokens.radiusCard + 2),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) const Divider(height: 1, indent: 48),
+            if (i > 0) const _Hairline(indent: 48),
             rows[i],
           ],
         ],
@@ -355,64 +431,71 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
 
   @override
   Widget build(BuildContext context) {
-    final subtasksAsync =
-        ref.watch(itemsForListProvider(widget.item.listId));
+    final subtasksAsync = ref.watch(itemsForListProvider(widget.item.listId));
     final subtasks = subtasksAsync.maybeWhen(
-      data: (items) =>
-          items.where((e) => e.parentId == widget.item.id).toList(
-                growable: false,
-              ),
+      data: (items) => items
+          .where((e) => e.parentId == widget.item.id)
+          .toList(growable: false),
       orElse: () => const <ReminderItem>[],
     );
 
-    return Scaffold(
+    return CupertinoPageScaffold(
       backgroundColor: ReminderTokens.windowBg,
-      appBar: AppBar(
+      navigationBar: CupertinoNavigationBar(
         backgroundColor: ReminderTokens.windowBg,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
+        automaticallyImplyLeading: false,
+        middle: const Text(
           '详细信息',
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
         ),
         leading: widget.onClose != null
-            ? CloseButton(onPressed: widget.onClose)
+            ? CupertinoButton(
+                key: const ValueKey('detail_close'),
+                padding: EdgeInsets.zero,
+                onPressed: widget.onClose,
+                child: const Icon(CupertinoIcons.xmark, size: 20),
+              )
             : null,
-        actions: [
-          TextButton(onPressed: _save, child: const Text('完成')),
-        ],
+        trailing: CupertinoButton(
+          key: const ValueKey('detail_save'),
+          onPressed: _save,
+          child: const Text('完成'),
+        ),
       ),
-      body: ListView(
+      child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 12),
         children: [
           // 标题 + 备注区（iOS 卡片样式）
-          Card(
+          Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            elevation: 0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _title,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w500),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: '标题',
-                    ),
+            decoration: BoxDecoration(
+              color: CupertinoColors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              children: [
+                CupertinoTextField(
+                  key: const ValueKey('detail_title'),
+                  controller: _title,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
                   ),
-                  const Divider(height: 1),
-                  TextField(
-                    controller: _notes,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: '备注',
-                    ),
-                  ),
-                ],
-              ),
+                  placeholder: '标题',
+                  decoration: const BoxDecoration(),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                const _Hairline(),
+                CupertinoTextField(
+                  key: const ValueKey('detail_notes'),
+                  controller: _notes,
+                  maxLines: 3,
+                  placeholder: '备注',
+                  decoration: const BoxDecoration(),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),
@@ -425,93 +508,82 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
               onTap: _pickDueAt,
               trailing: Text(_dueLabel()),
             ),
-          _Row(
-            icon: CupertinoIcons.arrow_2_circlepath,
-            label: '重复',
-            trailing: DropdownButtonHideUnderline(
-              child: DropdownButton<String?>(
-                value: _recurrence,
-                items: const [
-                  DropdownMenuItem(value: null, child: Text('永不')),
-                  DropdownMenuItem(value: 'daily', child: Text('每天')),
-                  DropdownMenuItem(value: 'weekly', child: Text('每周')),
-                  DropdownMenuItem(value: 'weekdays', child: Text('工作日')),
-                  DropdownMenuItem(value: 'monthly', child: Text('每月')),
-                  DropdownMenuItem(value: 'yearly', child: Text('每年')),
-                ],
-                onChanged: (v) => setState(() {
-                  _recurrence = v;
-                  if (v == null) _recurrenceUntil = null;
-                }),
-              ),
-            ),
-          ),
-          if (_recurrence != null)
             _Row(
-              key: const ValueKey('recurrence_until_row'),
-              icon: CupertinoIcons.calendar_badge_minus,
-              label: '结束日期',
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _recurrenceUntil == null
-                        ? '永不'
-                        : '${_recurrenceUntil!.year}-'
-                            '${_recurrenceUntil!.month.toString().padLeft(2, '0')}-'
-                            '${_recurrenceUntil!.day.toString().padLeft(2, '0')}',
-                    style: const TextStyle(color: Color(0xFF8E8E93)),
-                  ),
-                  CupertinoButton(
-                    key: const ValueKey('recurrence_until_clear'),
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(44, 28),
-                    child: const Icon(CupertinoIcons.clear,
-                        size: 14, color: Color(0xFFC7C7CC)),
-                    onPressed: () =>
-                        setState(() => _recurrenceUntil = null),
-                  ),
-                ],
-              ),
-              onTap: _pickRecurrenceUntil,
-            ),
-          _Row(
-            icon: CupertinoIcons.flag_fill,
-            label: '标记',
-            trailing: CupertinoSwitch(
-              value: _isFlagged,
-              onChanged: (v) => setState(() => _isFlagged = v),
-            ),
-          ),
-          _Row(
-            icon: CupertinoIcons.tag,
-            label: '标签',
-            trailing: SizedBox(
-              width: 160,
-              child: TextField(
-                controller: _tags,
-                textAlign: TextAlign.right,
-                decoration: const InputDecoration(
-                  border: InputBorder.none,
-                  hintText: '如：工作, 设计',
+              icon: CupertinoIcons.arrow_2_circlepath,
+              label: '重复',
+              trailing: CupertinoButton(
+                key: const ValueKey('recurrence_menu'),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                onPressed: _pickRecurrence,
+                child: Text(
+                  _recurrenceLabel,
+                  style: const TextStyle(color: Color(0xFF8E8E93)),
                 ),
               ),
             ),
-          ),
-          _Row(
-            icon: CupertinoIcons.exclamationmark_circle,
-            label: '优先级',
-            trailing: PopupMenuButton<int>(
-              initialValue: _priority,
-              onSelected: (v) => setState(() => _priority = v),
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 0, child: Text('无 —')),
-                PopupMenuItem(value: 1, child: Text('低 !')),
-                PopupMenuItem(value: 5, child: Text('中 !!')),
-                PopupMenuItem(value: 9, child: Text('高 !!!')),
-              ],
-              child: Padding(
+            if (_recurrence != null)
+              _Row(
+                key: const ValueKey('recurrence_until_row'),
+                icon: CupertinoIcons.calendar_badge_minus,
+                label: '结束日期',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _recurrenceUntil == null
+                          ? '永不'
+                          : '${_recurrenceUntil!.year}-'
+                                '${_recurrenceUntil!.month.toString().padLeft(2, '0')}-'
+                                '${_recurrenceUntil!.day.toString().padLeft(2, '0')}',
+                      style: const TextStyle(color: Color(0xFF8E8E93)),
+                    ),
+                    CupertinoButton(
+                      key: const ValueKey('recurrence_until_clear'),
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      child: const Icon(
+                        CupertinoIcons.clear,
+                        size: 14,
+                        color: Color(0xFFC7C7CC),
+                      ),
+                      onPressed: () => setState(() => _recurrenceUntil = null),
+                    ),
+                  ],
+                ),
+                onTap: _pickRecurrenceUntil,
+              ),
+            _Row(
+              icon: CupertinoIcons.flag_fill,
+              label: '标记',
+              trailing: CupertinoSwitch(
+                value: _isFlagged,
+                onChanged: (v) => setState(() => _isFlagged = v),
+              ),
+            ),
+            _Row(
+              icon: CupertinoIcons.tag,
+              label: '标签',
+              trailing: SizedBox(
+                width: 160,
+                child: CupertinoTextField(
+                  key: const ValueKey('detail_tags'),
+                  controller: _tags,
+                  textAlign: TextAlign.right,
+                  placeholder: '如：工作, 设计',
+                  decoration: const BoxDecoration(),
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                ),
+              ),
+            ),
+            _Row(
+              icon: CupertinoIcons.exclamationmark_circle,
+              label: '优先级',
+              trailing: CupertinoButton(
+                key: const ValueKey('priority_menu'),
+                minimumSize: Size.zero,
                 padding: const EdgeInsets.symmetric(horizontal: 4),
+                onPressed: _pickPriority,
                 child: Text(
                   _priority == 0
                       ? '无'
@@ -524,30 +596,35 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                 ),
               ),
             ),
-          ),
-          // 移动到其他列表（TC-UI-119 / TC-API-118 同语义：跨列表移动清分区）
-          _Row(
-            icon: CupertinoIcons.folder,
-            label: '列表',
-            trailing: TextButton(
-              key: const ValueKey('move_to_list'),
-              onPressed: _moveToOtherList,
-              child: Text(
-                _currentListTitle ?? '移动到…',
-                style: const TextStyle(
-                  color: Color(0xFF007AFF),
-                  fontSize: 13,
+            // 移动到其他列表（TC-UI-119 / TC-API-118 同语义：跨列表移动清分区）
+            _Row(
+              icon: CupertinoIcons.folder,
+              label: '列表',
+              trailing: CupertinoButton(
+                key: const ValueKey('move_to_list'),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                onPressed: _moveToOtherList,
+                child: Text(
+                  _currentListTitle ?? '移动到…',
+                  style: const TextStyle(
+                    color: Color(0xFF007AFF),
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
-          ),
           ]),
           const SizedBox(height: 20),
 
           // 子任务：真实列表（勾选/删除随流刷新）+ 新建草稿行
-          Card(
+          Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
-            elevation: 0,
+            decoration: BoxDecoration(
+              color: CupertinoColors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
                 for (final sub in subtasks)
@@ -558,50 +635,64 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                       color: const Color(0xFFFF3B30),
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(right: 20),
-                      child: const Icon(CupertinoIcons.delete,
-                          color: Colors.white),
+                      child: const Icon(
+                        CupertinoIcons.delete,
+                        color: CupertinoColors.white,
+                      ),
                     ),
                     onDismissed: (_) => _deleteSubtask(sub.id),
                     child: ReminderRow(
                       item: sub,
                       dense: true,
-                      onToggleCompleted: () =>
-                          completeReminder(ref, sub),
+                      onToggleCompleted: () => completeReminder(ref, sub),
                     ),
                   ),
                 if (_showSubtaskDraft)
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 4),
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
                     child: Row(
                       children: [
-                        const Icon(CupertinoIcons.circle,
-                            size: 18, color: Color(0xFFC7C7CC)),
+                        const Icon(
+                          CupertinoIcons.circle,
+                          size: 18,
+                          color: Color(0xFFC7C7CC),
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: TextField(
+                          child: CupertinoTextField(
+                            key: const ValueKey('detail_subtask'),
                             controller: _subtask,
                             autofocus: true,
+                            placeholder: '子任务',
                             onSubmitted: (_) => _submitSubtask(),
-                            decoration: const InputDecoration(
-                              hintText: '子任务',
-                              border: InputBorder.none,
-                              isDense: true,
-                            ),
+                            decoration: const BoxDecoration(),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ListTile(
-                  dense: true,
-                  leading: const Icon(CupertinoIcons.add,
-                      size: 20, color: Color(0xFF007AFF)),
-                  title: Text(
-                    subtasks.isEmpty ? '添加子任务' : '添加子任务',
-                    style: const TextStyle(color: Color(0xFF007AFF)),
+                CupertinoButton(
+                  onPressed: () => setState(() => _showSubtaskDraft = true),
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
                   ),
-                  onTap: () => setState(() => _showSubtaskDraft = true),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        CupertinoIcons.add,
+                        size: 20,
+                        color: Color(0xFF007AFF),
+                      ),
+                      SizedBox(width: 8),
+                      Text('添加子任务', style: TextStyle(color: Color(0xFF007AFF))),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -609,13 +700,13 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Center(
-              child: TextButton(
+              child: CupertinoButton(
                 key: const ValueKey('detail_delete'),
                 onPressed: _delete,
-                style: TextButton.styleFrom(
-                  foregroundColor: ReminderTokens.systemRed,
+                child: const Text(
+                  '删除提醒',
+                  style: TextStyle(color: ReminderTokens.systemRed),
                 ),
-                child: const Text('删除提醒'),
               ),
             ),
           ),
@@ -627,6 +718,22 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   static String _fmtDate(DateTime t) {
     return '${t.year}-${t.month.toString().padLeft(2, '0')}-'
         '${t.day.toString().padLeft(2, '0')}';
+  }
+}
+
+/// 0.5px 分隔线（iOS 发丝线）。
+class _Hairline extends StatelessWidget {
+  const _Hairline({this.indent = 0});
+
+  final double indent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 0.5,
+      margin: EdgeInsets.only(left: indent),
+      color: ReminderTokens.separator,
+    );
   }
 }
 
@@ -648,13 +755,35 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-      leading: Icon(icon, color: ReminderTokens.systemBlue, size: 20),
-      title: Text(label, style: const TextStyle(fontSize: 15)),
-      trailing: trailing,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Icon(icon, color: ReminderTokens.systemBlue, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 测试环境 Ahem 字体下固定宽（如时间文本）会超出可用宽度，允许收缩
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: trailing,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

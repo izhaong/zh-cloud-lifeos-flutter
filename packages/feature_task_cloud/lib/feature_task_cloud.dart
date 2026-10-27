@@ -10,3 +10,4 @@ export 'src/auth/rest_auth_port.dart';
 export 'src/auth/secure_session_store.dart';
 export 'src/sync/rest_sync_port.dart';
 export 'src/sync/sync_models.dart';
+export 'src/sync/task_sync_coordinator.dart';

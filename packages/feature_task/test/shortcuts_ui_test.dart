@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,7 +14,7 @@ void main() {
   // 激活器键位静态核对。真机/桌面手动验收 ⌘N/⌘F。
 
   // TC-UI-301
-    testWidgets('TaskShortcuts controller 广播票据自增', (tester) async {
+  testWidgets('TaskShortcuts controller 广播票据自增', (tester) async {
     late TaskShortcutsController controller;
     await tester.pumpWidget(
       TaskShortcuts(
@@ -35,7 +36,7 @@ void main() {
   });
 
   // TC-UI-301
-    testWidgets('未包 TaskShortcuts 时 of() 返回空实现不抛错', (tester) async {
+  testWidgets('未包 TaskShortcuts 时 of() 返回空实现不抛错', (tester) async {
     late TaskShortcutsController controller;
     await tester.pumpWidget(
       Builder(
@@ -53,10 +54,10 @@ void main() {
   });
 
   // TC-UI-301
-    testWidgets('快捷键广播驱动 ListContentPane 打开草稿行', (tester) async {
+  testWidgets('快捷键广播驱动 ListContentPane 打开草稿行', (tester) async {
     final repo = InMemoryReminderRepository();
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views
-        .first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view
       ..physicalSize = const Size(1366, 1024)
       ..devicePixelRatio = 1.0;
@@ -82,7 +83,7 @@ void main() {
     // 广播「新建提醒」→ 列表内容区打开草稿行（首帧后监听已挂上）
     controller.requestNewReminder();
     await tester.pumpAndSettle();
-    expect(find.byType(TextField), findsWidgets); // 草稿行输入框出现
+    expect(find.byType(CupertinoTextField), findsWidgets); // 草稿行输入框出现
 
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();

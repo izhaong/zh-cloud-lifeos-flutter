@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart' as cui;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'support/life_test_app.dart';
 
 /// Issue #1 审计修复 · 真实交互测试（替换过度宣称的锚点）
 /// 覆盖：TC-UI-304（侧栏显隐真实交互）、TC-UI-307（inspector 就地切换/关闭）、
@@ -14,14 +16,15 @@ Future<void> _pump(
   required ReminderRepository repo,
   Widget child = const TaskScaffold(openListId: 'smart.today'),
 }) async {
-  final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+  final view =
+      TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
   view
     ..physicalSize = size
     ..devicePixelRatio = 1.0;
   await tester.pumpWidget(
     ProviderScope(
       overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: MaterialApp(home: child),
+      child: lifeTestHost(child),
     ),
   );
   await tester.pumpAndSettle();
@@ -29,8 +32,8 @@ Future<void> _pump(
 
 void main() {
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views
-        .first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
@@ -41,7 +44,10 @@ void main() {
     await _pump(tester, size: const Size(1366, 1024), repo: repo);
 
     // 初始：侧栏可见（智能卡在）
-    expect(find.byKey(const ValueKey('smart_card_smart.today')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('smart_card_smart.today')),
+      findsOneWidget,
+    );
 
     // 点侧栏「隐藏侧栏」按钮（真实交互，非 provider 单测）
     await tester.tap(find.byKey(const ValueKey('sidebar_toggle')));
@@ -54,7 +60,10 @@ void main() {
     // 再点恢复 → 侧栏回来
     await tester.tap(find.byKey(const ValueKey('show_sidebar')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('smart_card_smart.today')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('smart_card_smart.today')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('show_sidebar')), findsNothing);
   });
 
@@ -82,8 +91,8 @@ void main() {
     expect(find.text('详细信息'), findsOneWidget); // 仍是唯一 inspector
     // inspector 标题输入框已重置为新条目标题（didUpdateWidget + Key 双保险）
     // 定位：详情面板标题卡片内的第一个 TextField（hint=标题）
-    final titleField = tester.widget<TextField>(
-      find.widgetWithText(TextField, '写 LifeOS 基建'),
+    final titleField = tester.widget<cui.CupertinoTextField>(
+      find.byKey(const ValueKey('detail_title')),
     );
     expect(
       titleField.controller?.text ?? '',
@@ -124,8 +133,7 @@ void main() {
   });
 
   // TC-UI-N3：负向门禁——无第二套底部导航、宽屏无未实现文案
-  testWidgets('TC-UI-N3 宽屏负向：任务区无 NavigationBar 泄漏、无未实现文案',
-      (tester) async {
+  testWidgets('TC-UI-N3 宽屏负向：任务区无 NavigationBar 泄漏、无未实现文案', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(1366, 1024), repo: repo);
 
@@ -142,10 +150,12 @@ void main() {
     // 分配事项/建议列表已改为真实入口，保留正向断言。
     expect(find.textContaining('iCloud'), findsNothing);
     expect(find.textContaining('Outlook'), findsNothing);
-    expect(find.text('分配事项'), findsOneWidget,
-        reason: '分配事项卡是真实空智能列表，不再是禁用文案');
-    expect(find.textContaining('建议列表：日常采购'), findsOneWidget,
-        reason: '建议列表是真实 grocery 模板入口');
+    expect(find.text('分配事项'), findsOneWidget, reason: '分配事项卡是真实空智能列表，不再是禁用文案');
+    expect(
+      find.textContaining('建议列表：日常采购'),
+      findsOneWidget,
+      reason: '建议列表是真实 grocery 模板入口',
+    );
   });
 
   // TC-UI-207 加强：⋯编辑占位精确断言（SnackBar 文案全文）
@@ -161,7 +171,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('home_edit_placeholder')));
     await tester.pump(); // SnackBar 出现帧
 
-    // 精确锁全文（未来换真编辑页时该断言失败 → 强制更新测试）
-    expect(find.text('编辑列表 · 规划占位'), findsOneWidget);
+    // 精确锁占位（未来换真编辑页时该断言失败 → 强制更新测试）
+    expect(find.text('编辑列表'), findsOneWidget);
+    expect(find.text('规划占位'), findsOneWidget);
   });
 }

@@ -1,5 +1,4 @@
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -53,37 +52,39 @@ class TaskScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sizeClass =
-        WindowSizeClass.fromWidth(MediaQuery.of(context).size.width);
+    final sizeClass = WindowSizeClass.fromWidth(
+      MediaQuery.of(context).size.width,
+    );
     final listsAsync = ref.watch(reminderListsProvider);
 
     return listsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: CupertinoActivityIndicator()),
       error: (e, _) => Center(child: Text('加载失败：$e')),
       data: (lists) {
         // 快捷键层（⌘N 新建 / ⌘F 搜索）包裹三档外壳；触屏端无物理键不影响
         final panes = TaskShortcuts(
           child: switch (sizeClass) {
-          WindowSizeClass.compact => openListId == null
-              ? _CompactPane(
-                  lists: lists,
-                  onOpenList: onOpenList,
-                  onSelectItem: onSelectItem,
-                )
-              : _CompactListPane(
-                  lists: lists,
-                  openListId: openListId!,
-                  onSelectItem: onSelectItem,
-                  onBack: onBack,
-                ),
-          WindowSizeClass.medium => _TwoPane(
+            WindowSizeClass.compact =>
+              openListId == null
+                  ? _CompactPane(
+                      lists: lists,
+                      onOpenList: onOpenList,
+                      onSelectItem: onSelectItem,
+                    )
+                  : _CompactListPane(
+                      lists: lists,
+                      openListId: openListId!,
+                      onSelectItem: onSelectItem,
+                      onBack: onBack,
+                    ),
+            WindowSizeClass.medium => _TwoPane(
               lists: lists,
               openListId: openListId,
               onOpenList: onOpenList,
               onSelectItem: onSelectItem,
               onOpenCloudLogin: onOpenCloudLogin,
             ),
-          WindowSizeClass.expanded => _ThreePane(
+            WindowSizeClass.expanded => _ThreePane(
               lists: lists,
               openListId: openListId,
               selectedItemId: selectedItemId,
@@ -97,7 +98,7 @@ class TaskScaffold extends ConsumerWidget {
         if (undo == null) return panes;
         return Column(
           children: [
-            Material(
+            ColoredBox(
               color: ReminderTokens.windowBg,
               child: Row(
                 children: [
@@ -107,7 +108,7 @@ class TaskScaffold extends ConsumerWidget {
                       child: Text('已完成'),
                     ),
                   ),
-                  TextButton(
+                  CupertinoButton(
                     key: const ValueKey('undo_complete'),
                     onPressed: () {
                       // cursor 两轮评审收口：撤销=只回退「完成相关」+ 滚动过的 dueAt，
@@ -160,57 +161,60 @@ class _CompactPane extends ConsumerWidget {
         .toList(growable: false);
     final mine = lists.where((e) => !e.isSmart).toList(growable: false);
     final trash = lists.where((e) => e.id == 'smart.trash').firstOrNull;
-    final hasGrocery =
-        mine.any((e) => e.listType == ReminderListType.grocery);
+    final hasGrocery = mine.any((e) => e.listType == ReminderListType.grocery);
     final query = ref.watch(searchQueryProvider).trim();
     final searching = query.isNotEmpty;
 
     // iOS 提醒事项「列表」首页：大标题 + 搜索 + 智能卡片 + 我的列表。
     // 嵌在生活台壳内时，壳应用栏常显；本页不再另起全屏路由。
-    return Scaffold(
+    return CupertinoPageScaffold(
       backgroundColor: ReminderTokens.windowBg,
-      appBar: AppBar(
+      navigationBar: CupertinoNavigationBar(
         backgroundColor: ReminderTokens.windowBg,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('列表'),
-        actions: [
-          IconButton(
-            key: const ValueKey('home_edit_placeholder'),
-            tooltip: '编辑（规划）',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('编辑列表 · 规划占位')),
-              );
-            },
-            icon: const Icon(CupertinoIcons.ellipsis_circle),
+        automaticallyImplyLeading: false,
+        middle: const Text('列表'),
+        trailing: CupertinoButton(
+          key: const ValueKey('home_edit_placeholder'),
+          onPressed: () => showCupertinoDialog<void>(
+            context: context,
+            builder: (ctx) => CupertinoAlertDialog(
+              title: const Text('编辑列表'),
+              content: const Text('规划占位'),
+              actions: [
+                CupertinoDialogAction(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('好'),
+                ),
+              ],
+            ),
           ),
-        ],
+          child: const Icon(CupertinoIcons.ellipsis_circle, size: 22),
+        ),
       ),
-      body: ListView(
+      child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
-          TextField(
+          CupertinoTextField(
             key: const ValueKey('home_search'),
             onChanged: (v) => ref.read(searchQueryProvider.notifier).set(v),
-            decoration: InputDecoration(
-              hintText: '搜索',
-              prefixIcon: const Icon(CupertinoIcons.search, size: 20),
-              filled: true,
-              fillColor: ReminderTokens.separator,
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide.none,
+            placeholder: '搜索',
+            prefix: const Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Icon(
+                CupertinoIcons.search,
+                size: 20,
+                color: Color(0xFF8E8E93),
               ),
             ),
+            decoration: BoxDecoration(
+              color: ReminderTokens.separator,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           ),
           const SizedBox(height: 16),
           if (searching)
-            _HomeSearchResults(
-              query: query,
-              onSelectItem: onSelectItem,
-            )
+            _HomeSearchResults(query: query, onSelectItem: onSelectItem)
           else ...[
             GridView.builder(
               shrinkWrap: true,
@@ -233,98 +237,96 @@ class _CompactPane extends ConsumerWidget {
               },
             ),
             if (!hasGrocery)
-              ListTile(
+              GestureDetector(
                 key: const ValueKey('suggested_grocery_home'),
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(CupertinoIcons.cart_fill,
-                    color: ReminderTokens.systemGreen),
-                title: const Text('建议列表：日常采购'),
-                trailing: IconButton(
-                  key: const ValueKey('suggested_grocery_home_add'),
-                  icon: const Icon(CupertinoIcons.add_circled_solid,
-                      color: ReminderTokens.systemGreen),
-                  onPressed: () => _createSuggestedGrocery(ref),
-                ),
+                behavior: HitTestBehavior.opaque,
                 onTap: () => _createSuggestedGrocery(ref),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        CupertinoIcons.cart_fill,
+                        color: ReminderTokens.systemGreen,
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(child: Text('建议列表：日常采购')),
+                      CupertinoButton(
+                        key: const ValueKey('suggested_grocery_home_add'),
+                        minimumSize: Size.zero,
+                        padding: const EdgeInsets.all(2),
+                        onPressed: () => _createSuggestedGrocery(ref),
+                        child: const Icon(
+                          CupertinoIcons.add_circled_solid,
+                          color: ReminderTokens.systemGreen,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             const SizedBox(height: 20),
-            Text(
+            const Text(
               '我的列表',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: const Color(0xFF8E8E93),
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF8E8E93),
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
-            Card(
-              margin: EdgeInsets.zero,
-              elevation: 0,
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
+            Container(
+              decoration: BoxDecoration(
+                color: CupertinoColors.white,
                 borderRadius: BorderRadius.circular(12),
               ),
+              clipBehavior: Clip.antiAlias,
               child: Column(
                 children: [
                   for (var i = 0; i < mine.length; i++) ...[
-                    if (i > 0) const Divider(height: 1, indent: 52),
-                    ListTile(
-                      leading: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Color(mine[i].colorArgb),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(CupertinoIcons.list_bullet,
-                            color: Colors.white, size: 15),
-                      ),
-                      title: Text(mine[i].title),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${mine[i].itemCount}',
-                            style: const TextStyle(color: Color(0xFF8E8E93)),
-                          ),
-                          const Icon(CupertinoIcons.chevron_forward,
-                              size: 16, color: Color(0xFFC7C7CC)),
-                        ],
-                      ),
+                    if (i > 0) const _Hairline(indent: 52),
+                    _HomeListRow(
+                      list: mine[i],
                       onTap: () => onOpenList?.call(mine[i].id),
                     ),
                   ],
-                  const Divider(height: 1, indent: 52),
-                  ListTile(
-                    leading: const Icon(CupertinoIcons.add_circled_solid,
-                        color: Color(0xFF007AFF)),
-                    title: const Text('添加列表',
-                        style: TextStyle(color: Color(0xFF007AFF))),
+                  const _Hairline(indent: 52),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
                     onTap: () => showNewListDialog(
                       context,
-                      onCreate: (list) => ref
-                          .read(reminderRepositoryProvider)
-                          .upsertList(list),
+                      onCreate: (list) =>
+                          ref.read(reminderRepositoryProvider).upsertList(list),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.add_circled_solid,
+                            color: Color(0xFF007AFF),
+                            size: 24,
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            '添加列表',
+                            style: TextStyle(
+                              color: Color(0xFF007AFF),
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   if (trash != null) ...[
-                    const Divider(height: 1, indent: 52),
-                    ListTile(
-                      leading: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: ReminderTokens.labelSecondary,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(CupertinoIcons.trash,
-                            color: Colors.white, size: 15),
-                      ),
-                      title: Text(trash.title),
-                      trailing: Text(
-                        '${trash.itemCount}',
-                        style: const TextStyle(
-                            color: ReminderTokens.labelSecondary),
-                      ),
+                    const _Hairline(indent: 52),
+                    _HomeListRow(
+                      list: trash,
+                      isTrash: true,
                       onTap: () => onOpenList?.call(trash.id),
                     ),
                   ],
@@ -339,18 +341,15 @@ class _CompactPane extends ConsumerWidget {
 
   static void _createSuggestedGrocery(WidgetRef ref) {
     final id = 'list.grocery.${DateTime.now().millisecondsSinceEpoch}';
-    ref.read(reminderRepositoryProvider).upsertList(
-          ReminderList.createGroceryList(id: id, title: '日常采购'),
-        );
+    ref
+        .read(reminderRepositoryProvider)
+        .upsertList(ReminderList.createGroceryList(id: id, title: '日常采购'));
   }
 }
 
 /// 首页搜索结果：复用「全部」过滤；空态文案对齐线框。
 class _HomeSearchResults extends ConsumerWidget {
-  const _HomeSearchResults({
-    required this.query,
-    this.onSelectItem,
-  });
+  const _HomeSearchResults({required this.query, this.onSelectItem});
 
   final String query;
   final ValueChanged<ReminderItem>? onSelectItem;
@@ -362,7 +361,7 @@ class _HomeSearchResults extends ConsumerWidget {
     return itemsAsync.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator()),
+        child: Center(child: CupertinoActivityIndicator()),
       ),
       error: (e, _) => Text('加载失败：$e'),
       data: (items) {
@@ -378,21 +377,19 @@ class _HomeSearchResults extends ConsumerWidget {
             ),
           );
         }
-        return Card(
-          margin: EdgeInsets.zero,
-          elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
+        return Container(
+          decoration: BoxDecoration(
+            color: CupertinoColors.white,
             borderRadius: BorderRadius.circular(12),
           ),
+          clipBehavior: Clip.antiAlias,
           child: Column(
             children: [
               for (var i = 0; i < items.length; i++) ...[
-                if (i > 0) const Divider(height: 1, indent: 56),
+                if (i > 0) const _Hairline(indent: 56),
                 ReminderRow(
                   item: items[i],
-                  onToggleCompleted: () =>
-                      completeReminder(ref, items[i]),
+                  onToggleCompleted: () => completeReminder(ref, items[i]),
                   onToggleFlagged: () => repo.toggleFlagged(items[i].id),
                   onTap: () => onSelectItem?.call(items[i]),
                 ),
@@ -404,8 +401,6 @@ class _HomeSearchResults extends ConsumerWidget {
     );
   }
 }
-
-
 
 /// 紧凑端单列表（壳内子路由）：「‹ 列表」返回 + 列表内容；生活台底栏仍由壳提供。
 class _CompactListPane extends StatelessWidget {
@@ -425,9 +420,9 @@ class _CompactListPane extends StatelessWidget {
   Widget build(BuildContext context) {
     final list = lists.where((e) => e.id == openListId).firstOrNull;
     if (list == null) {
-      return const Scaffold(
+      return const CupertinoPageScaffold(
         backgroundColor: ReminderTokens.windowBg,
-        body: Center(child: Text('列表不存在')),
+        child: Center(child: Text('列表不存在')),
       );
     }
     return ListContentPane(
@@ -436,13 +431,17 @@ class _CompactListPane extends StatelessWidget {
       listTitles: {for (final l in lists) l.id: l.title},
       leading: onBack == null
           ? null
-          : TextButton.icon(
+          : CupertinoButton(
               onPressed: onBack,
-              icon: const Icon(CupertinoIcons.back, size: 18),
-              label: const Text('列表'),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF007AFF),
-                padding: const EdgeInsets.only(left: 4),
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.only(left: 4),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(CupertinoIcons.back, size: 18),
+                  SizedBox(width: 2),
+                  Text('列表', style: TextStyle(fontSize: 17)),
+                ],
               ),
             ),
     );
@@ -478,51 +477,59 @@ class _TwoPane extends ConsumerWidget {
               SizedBox(
                 width: sidebarWidth,
                 child: TaskSidebar(
-              lists: lists,
-              selectedListId: openListId,
-              onSelect: (l) => onOpenList?.call(l.id),
-              onAddList: () => showNewListDialog(
-                context,
-                onCreate: (list) =>
-                    ref.read(reminderRepositoryProvider).upsertList(list),
-              ),
-              onToggleSidebar: () =>
-                  ref.read(sidebarVisibleProvider.notifier).toggle(),
-              onOpenSettings: () => showTaskSettingsSheet(
+                  lists: lists,
+                  selectedListId: openListId,
+                  onSelect: (l) => onOpenList?.call(l.id),
+                  onAddList: () => showNewListDialog(
+                    context,
+                    onCreate: (list) =>
+                        ref.read(reminderRepositoryProvider).upsertList(list),
+                  ),
+                  onToggleSidebar: () =>
+                      ref.read(sidebarVisibleProvider.notifier).toggle(),
+                  onOpenSettings: () => showTaskSettingsSheet(
                     context,
                     // 恒非 null 闭包会破坏「空=弱化文案」契约——传本体（null 即弱化）
                     onOpenCloudLogin: onOpenCloudLogin == null
                         ? null
                         : (_) => onOpenCloudLogin!.call(),
                   ),
-            ),
-          ),
-          const VerticalDivider(width: 1, color: ReminderTokens.separator),
-        ],
-        Expanded(
-          child: current == null
-              ? _EmptyOverview(
-                  showSidebarButton: !sidebarVisible,
-                  onShowSidebar: () =>
-                      ref.read(sidebarVisibleProvider.notifier).set(true),
-                )
-              : ListContentPane(
-                  list: current,
-                  onSelectItem: onSelectItem,
-                  listTitles: {for (final l in lists) l.id: l.title},
-                  leading: sidebarVisible
-                      ? null
-                      : IconButton(
-                          key: const ValueKey('show_sidebar'),
-                          tooltip: '显示侧栏',
-                          onPressed: () => ref
-                              .read(sidebarVisibleProvider.notifier)
-                              .set(true),
-                          icon: const Icon(Icons.view_sidebar_outlined),
-                        ),
                 ),
-        ),
-      ],
+              ),
+              const _VerticalHairline(),
+            ],
+            Expanded(
+              child: current == null
+                  ? _EmptyOverview(
+                      showSidebarButton: !sidebarVisible,
+                      onShowSidebar: () =>
+                          ref.read(sidebarVisibleProvider.notifier).set(true),
+                    )
+                  : ListContentPane(
+                      list: current,
+                      onSelectItem: onSelectItem,
+                      listTitles: {for (final l in lists) l.id: l.title},
+                      leading: sidebarVisible
+                          ? null
+                          : Semantics(
+                              label: '显示侧栏',
+                              button: true,
+                              child: CupertinoButton(
+                                key: const ValueKey('show_sidebar'),
+                                minimumSize: Size.zero,
+                                padding: const EdgeInsets.all(6),
+                                onPressed: () => ref
+                                    .read(sidebarVisibleProvider.notifier)
+                                    .set(true),
+                                child: const Icon(
+                                  CupertinoIcons.sidebar_left,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                    ),
+            ),
+          ],
         );
       },
     );
@@ -572,8 +579,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
     final current = lists.where((e) => e.id == openListId).firstOrNull;
     final itemsAsync = ref.watch(itemsForListProvider(openListId));
     final selected = itemsAsync.maybeWhen(
-      data: (items) =>
-          items.where((e) => e.id == _selectedId).firstOrNull,
+      data: (items) => items.where((e) => e.id == _selectedId).firstOrNull,
       orElse: () => null,
     );
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
@@ -587,65 +593,73 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
               SizedBox(
                 width: sidebarWidth,
                 child: TaskSidebar(
-              lists: lists,
-              selectedListId: openListId,
-              onSelect: (l) => widget.onOpenList?.call(l.id),
-              onAddList: () => showNewListDialog(
-                context,
-                onCreate: (list) =>
-                    ref.read(reminderRepositoryProvider).upsertList(list),
-              ),
-              onToggleSidebar: () =>
-                  ref.read(sidebarVisibleProvider.notifier).toggle(),
-              onOpenSettings: () => showTaskSettingsSheet(
+                  lists: lists,
+                  selectedListId: openListId,
+                  onSelect: (l) => widget.onOpenList?.call(l.id),
+                  onAddList: () => showNewListDialog(
+                    context,
+                    onCreate: (list) =>
+                        ref.read(reminderRepositoryProvider).upsertList(list),
+                  ),
+                  onToggleSidebar: () =>
+                      ref.read(sidebarVisibleProvider.notifier).toggle(),
+                  onOpenSettings: () => showTaskSettingsSheet(
                     context,
                     onOpenCloudLogin: widget.onOpenCloudLogin == null
                         ? null
                         : (_) => widget.onOpenCloudLogin!.call(),
                   ),
-            ),
-          ),
-          const VerticalDivider(width: 1, color: ReminderTokens.separator),
-        ],
-        Expanded(
-          child: current == null
-              ? _EmptyOverview(
-                  showSidebarButton: !sidebarVisible,
-                  onShowSidebar: () =>
-                      ref.read(sidebarVisibleProvider.notifier).set(true),
-                )
-              : ListContentPane(
-                  list: current,
-                  onSelectItem: _handleSelect,
-                  listTitles: {for (final l in lists) l.id: l.title},
-                  leading: sidebarVisible
-                      ? null
-                      : IconButton(
-                          key: const ValueKey('show_sidebar'),
-                          tooltip: '显示侧栏',
-                          onPressed: () => ref
-                              .read(sidebarVisibleProvider.notifier)
-                              .set(true),
-                          icon: const Icon(Icons.view_sidebar_outlined),
-                        ),
                 ),
-        ),
-        if (selected != null) ...[
-          const VerticalDivider(width: 1, color: ReminderTokens.separator),
-          SizedBox(
-            width: 320,
-            child: KeyedSubtree(
-              key: ValueKey('inspector_${selected.id}'),
-              child: ReminderDetailPane(
-              item: selected,
-                  onSaved: (updated) =>
-                      ref.read(reminderRepositoryProvider)
-                          .upsertItem(updated),
               ),
+              const _VerticalHairline(),
+            ],
+            Expanded(
+              child: current == null
+                  ? _EmptyOverview(
+                      showSidebarButton: !sidebarVisible,
+                      onShowSidebar: () =>
+                          ref.read(sidebarVisibleProvider.notifier).set(true),
+                    )
+                  : ListContentPane(
+                      list: current,
+                      onSelectItem: _handleSelect,
+                      listTitles: {for (final l in lists) l.id: l.title},
+                      leading: sidebarVisible
+                          ? null
+                          : Semantics(
+                              label: '显示侧栏',
+                              button: true,
+                              child: CupertinoButton(
+                                key: const ValueKey('show_sidebar'),
+                                minimumSize: Size.zero,
+                                padding: const EdgeInsets.all(6),
+                                onPressed: () => ref
+                                    .read(sidebarVisibleProvider.notifier)
+                                    .set(true),
+                                child: const Icon(
+                                  CupertinoIcons.sidebar_left,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                    ),
             ),
-          ),
-        ],
-      ],
+            if (selected != null) ...[
+              const _VerticalHairline(),
+              SizedBox(
+                width: 320,
+                child: KeyedSubtree(
+                  key: ValueKey('inspector_${selected.id}'),
+                  child: ReminderDetailPane(
+                    item: selected,
+                    onSaved: (updated) => ref
+                        .read(reminderRepositoryProvider)
+                        .upsertItem(updated),
+                  ),
+                ),
+              ),
+            ],
+          ],
         );
       },
     );
@@ -653,29 +667,32 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
 }
 
 class _EmptyOverview extends StatelessWidget {
-  const _EmptyOverview({
-    this.showSidebarButton = false,
-    this.onShowSidebar,
-  });
+  const _EmptyOverview({this.showSidebarButton = false, this.onShowSidebar});
 
   final bool showSidebarButton;
   final VoidCallback? onShowSidebar;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: showSidebarButton
-          ? AppBar(
-              leading: IconButton(
-                key: const ValueKey('show_sidebar'),
-                tooltip: '显示侧栏',
-                onPressed: onShowSidebar,
-                icon: const Icon(Icons.view_sidebar_outlined),
+    return CupertinoPageScaffold(
+      backgroundColor: CupertinoColors.white,
+      navigationBar: showSidebarButton
+          ? CupertinoNavigationBar(
+              automaticallyImplyLeading: false,
+              leading: Semantics(
+                label: '显示侧栏',
+                button: true,
+                child: CupertinoButton(
+                  key: const ValueKey('show_sidebar'),
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.all(6),
+                  onPressed: onShowSidebar,
+                  child: const Icon(CupertinoIcons.sidebar_left, size: 20),
+                ),
               ),
             )
           : null,
-      body: const Center(child: Text('选择一个列表')),
+      child: const Center(child: Text('选择一个列表')),
     );
   }
 }
@@ -713,7 +730,6 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   TaskShortcutsController? _shortcuts;
   int _lastNewTicket = 0;
   int _lastSearchTicket = 0;
-  final _collapsedSections = <String>{};
 
   @override
   void initState() {
@@ -759,23 +775,17 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// sectionId 挂靠 + 未分区兜底；TC-KR-118 互斥契约——一列表一种分组模式）；
   /// 无分区元数据回退 dueAt 日桶，无日期单独一区。
   /// 保序：手动分区按元数据 sortOrder asc, id asc；日桶沿用 items 排序。
-  Map<String, List<ReminderItem>> _buildSections(
-    List<ReminderItem> topLevel,
-  ) {
+  Map<String, List<ReminderItem>> _buildSections(List<ReminderItem> topLevel) {
     final manual = widget.list.sections;
     if (manual.isNotEmpty) {
-      final byId = {
-        for (final s in manual) s.id: s,
-      };
+      final byId = {for (final s in manual) s.id: s};
       final sections = <String, List<ReminderItem>>{};
       // 元数据序建桶（空分区也显示头，Apple 同款）
       for (final s in manual) {
         sections.putIfAbsent(s.title, () => []);
       }
       for (final item in topLevel) {
-        final sec = item.sectionId == null
-            ? null
-            : byId[item.sectionId];
+        final sec = item.sectionId == null ? null : byId[item.sectionId];
         final key = sec?.title ?? '未分区';
         sections.putIfAbsent(key, () => []).add(item);
       }
@@ -823,21 +833,19 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     final now = DateTime.now();
     final sections = <String, List<ReminderItem>>{};
     for (final item in topLevel) {
-      final key = item.dueAt == null
-          ? '无日期'
-          : _sectionLabel(item.dueAt!, now);
+      final key = item.dueAt == null ? '无日期' : _sectionLabel(item.dueAt!, now);
       sections.putIfAbsent(key, () => []).add(item);
     }
     return sections;
   }
 
   static String _sectionLabel(DateTime due, DateTime now) {
-    final isToday = due.year == now.year &&
-        due.month == now.month &&
-        due.day == now.day;
+    final isToday =
+        due.year == now.year && due.month == now.month && due.day == now.day;
     if (isToday) return '今天';
     if (due.isBefore(now)) return '已过期';
-    final isTomorrow = due.year == now.year &&
+    final isTomorrow =
+        due.year == now.year &&
         due.month == now.month &&
         due.day == now.day + 1;
     if (isTomorrow) return '明天';
@@ -845,12 +853,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   }
 
   void _toggleSection(String key) {
-    setState(() {
-      if (!_collapsedSections.remove(key)) {
-        _collapsedSections.add(key);
-      }
-    });
+    ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
   }
+
+  /// 折叠态落在本地偏好行里（TC-UI-309，flutter#124 卡 4b）：
+  /// 键带列表前缀，切列表/重开后各列表的折叠互不串味。
+  String _collapsedKey(String title) => '${widget.list.id}|$title';
+
+  bool _isCollapsed(Set<String> keys, String title) =>
+      keys.contains(_collapsedKey(title));
 
   /// 列表内排序（TC-UI-111）：manual=仓库契约序；其余视图序即时生效、
   /// 不写回 sortOrder（线框「排序 ▾」语义）。
@@ -861,11 +872,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       case ListSortMode.manual:
         return items;
       case ListSortMode.dueDate:
-        sorted.sort((a, b) => (a.dueAt ?? DateTime(2999, 1, 1))
-            .compareTo(b.dueAt ?? DateTime(2999, 1, 1)));
+        sorted.sort(
+          (a, b) => (a.dueAt ?? DateTime(2999, 1, 1)).compareTo(
+            b.dueAt ?? DateTime(2999, 1, 1),
+          ),
+        );
       case ListSortMode.title:
         sorted.sort(
-            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
       case ListSortMode.priority:
         sorted.sort((a, b) => b.priority.compareTo(a.priority));
     }
@@ -900,11 +915,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         ? Row(
             children: [
               Expanded(child: row),
-              TextButton(
+              CupertinoButton(
                 key: ValueKey('restore_${item.id}'),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 onPressed: () => repo.restoreItem(item.id),
-                child: const Text('恢复',
-                    style: TextStyle(color: Color(0xFF007AFF))),
+                child: const Text(
+                  '恢复',
+                  style: TextStyle(color: Color(0xFF007AFF)),
+                ),
               ),
             ],
           )
@@ -913,8 +932,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       mainAxisSize: MainAxisSize.min,
       children: [
         trashRow,
-        for (final sub in subtasksByParent[item.id] ??
-            const <ReminderItem>[])
+        for (final sub in subtasksByParent[item.id] ?? const <ReminderItem>[])
           Padding(
             padding: const EdgeInsets.only(left: 40),
             child: ReminderRow(
@@ -945,7 +963,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         title: title,
         // 从「今天」/「计划」视图新建 → dueAt = 今天（命中 today 同日过滤 + scheduled 非空过滤）；
         // 从「全部/旗标/已完成」视图新建 → 不设 dueAt（归入个人列表，全部视图可见）
-        dueAt: (widget.list.id == 'smart.today' ||
+        dueAt:
+            (widget.list.id == 'smart.today' ||
                 widget.list.id == 'smart.scheduled')
             ? now
             : null,
@@ -962,8 +981,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   @override
   Widget build(BuildContext context) {
-    final itemsAsync =
-        ref.watch(filteredItemsForListProvider(widget.list.id));
+    final itemsAsync = ref.watch(filteredItemsForListProvider(widget.list.id));
     // 计数用未过滤流（已完成默认隐藏后，头部仍要能报「N 项完成」）
     final allItemsAsync = ref.watch(itemsForListProvider(widget.list.id));
     final query = ref.watch(searchQueryProvider);
@@ -973,264 +991,270 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       MediaQuery.of(context).size.width,
     ).isPaneLayout;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return CupertinoPageScaffold(
+      backgroundColor: CupertinoColors.white,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: CupertinoColors.white,
         // 桌面三栏不显示返回箭头（参考图主区直接是标题/工具条）。
         automaticallyImplyLeading: !isPane && widget.leading == null,
         leading: widget.leading,
-        leadingWidth: widget.leading == null ? null : 96,
-        // macOS 大标题口径（图2）：宽屏 AppBar 不放标题，标题进内容区（列表色大字）
-        title: isPane ? null : Text(widget.list.title),
-        actions: [
-          if (isPane)
-            SizedBox(
-              width: 220,
-              child: TextField(
-                key: const ValueKey('toolbar_search'),
-                focusNode: _searchFocus,
-                onChanged: (v) =>
-                    ref.read(searchQueryProvider.notifier).set(v),
-                decoration: InputDecoration(
-                  hintText: '搜索',
-                  prefixIcon: const Icon(CupertinoIcons.search,
-                      size: 16, color: Color(0xFF8E8E93)),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                        width: 0.5, color: Color(0xFFD1D1D6)),
+        // macOS 大标题口径（图2）：宽屏不放标题，标题进内容区（列表色大字）
+        middle: isPane ? null : Text(widget.list.title),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isPane)
+              SizedBox(
+                width: 220,
+                child: CupertinoTextField(
+                  key: const ValueKey('toolbar_search'),
+                  focusNode: _searchFocus,
+                  onChanged: (v) =>
+                      ref.read(searchQueryProvider.notifier).set(v),
+                  placeholder: '搜索',
+                  prefix: const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(
+                      CupertinoIcons.search,
+                      size: 16,
+                      color: Color(0xFF8E8E93),
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
+                  style: const TextStyle(fontSize: 13),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFFFF),
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                        width: 0.5, color: Color(0xFFD1D1D6)),
+                    border: Border.all(
+                      width: 0.5,
+                      color: const Color(0xFFD1D1D6),
+                    ),
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                        width: 1, color: Color(0xFF007AFF)),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 6,
                   ),
-                  filled: true,
-                  fillColor: const Color(0xFFFFFFFF),
                 ),
-                style: const TextStyle(fontSize: 13),
               ),
-            ),
-          // 顶栏 ＋（图2 工具行；与 ⌘N 同构→草稿行）
-          if (isPane)
-            IconButton(
-              key: const ValueKey('toolbar_new_item'),
-              tooltip: '新提醒（⌘N）',
-              onPressed: _openNewItemDialog,
-              icon: const Icon(CupertinoIcons.add),
-            ),
-          PopupMenuButton<String>(
-            key: const ValueKey('list_more_menu'),
-            tooltip: '更多',
-            onSelected: (v) {
-              if (v == 'toggle-completed') {
+            // 顶栏 ＋（图2 工具行；与 ⌘N 同构→草稿行）
+            if (isPane)
+              Semantics(
+                label: '新提醒（⌘N）',
+                button: true,
+                child: CupertinoButton(
+                  key: const ValueKey('toolbar_new_item'),
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.all(6),
+                  onPressed: _openNewItemDialog,
+                  child: const Icon(CupertinoIcons.add),
+                ),
+              ),
+            _MoreMenu(
+              onToggleCompleted: () {
                 final cur = ref.read(showCompletedProvider);
                 ref.read(showCompletedProvider.notifier).set(!cur);
-              }
-            },
-            itemBuilder: (_) => [
-              CheckedPopupMenuItem(
-                value: 'toggle-completed',
-                checked: ref.read(showCompletedProvider),
-                child: const Text('显示已完成'),
-              ),
-              const PopupMenuItem(
-                value: 'clear-sections',
-                enabled: false,
-                child: Text('按分区整理（规划）'),
-              ),
-            ],
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: Icon(Icons.more_horiz),
+              },
+              showCompleted: ref.watch(showCompletedProvider),
             ),
-          ),
-        ],
-      ),
-      body: itemsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('加载失败：$e')),
-        data: (items) {
-          final isSearchEmpty = query.trim().isNotEmpty && items.isEmpty;
-          final isListEmpty = items.isEmpty && !_isTrashView && !isSearchEmpty && !_showDraft;
-          if (isSearchEmpty) {
-            return const Center(
-              key: Key('search_empty'),
-              child: Text('无匹配结果'),
-            );
-          }
-          // 顶层与子任务分组（watchItems 返回全层级；孤儿/环按顶层兜底）
-          final itemsById = {
-            for (final e in items) e.id: e,
-          };
-          final topLevel = _sortTopLevel(
-            items.where((e) {
-              if (e.parentId == null) return true;
-              // 孤儿（父不在结果集）或自环 → 按顶层渲染
-              return !itemsById.containsKey(e.parentId) || e.parentId == e.id;
-            }).toList(growable: false),
-          );
-          final subtasksByParent = <String, List<ReminderItem>>{};
-          for (final e in items) {
-            if (e.parentId != null &&
-                itemsById.containsKey(e.parentId) &&
-                e.parentId != e.id) {
-              subtasksByParent.putIfAbsent(e.parentId!, () => []).add(e);
-            }
-          }
-
-          // 头部计数走未过滤流（已完成可能被视图偏好隐藏）
-          final all = allItemsAsync.asData?.value ?? const <ReminderItem>[];
-          final doneCount =
-              all.where((e) => e.isCompleted && e.parentId == null).length;
-          final remainingCount =
-              all.where((e) => !e.isCompleted && e.parentId == null).length;
-
-          // 分区（线框客户端「分区一 ∨」）：带 dueAt 的顶层条目按日桶折叠；
-          // 无日期条目单独一区。折叠为内存态（P1 不持久化）。
-          // smart.today/smart.scheduled 视图：分区头与列表标题重复 → 跳过
-          final skipSectionHeader = widget.list.id == 'smart.today' ||
-              widget.list.id == 'smart.scheduled';
-          final sections = _buildSections(topLevel);
-          final draftRow = _DraftRow(
-            controller: _draftController,
-            onSubmit: _submitDraft,
-            onCancel: () {
-              _draftController.clear();
-              setState(() => _showDraft = false);
-            },
-          );
-          final rows = <Widget>[
-            // 桌面/两栏：参考图首行「新提醒事项」幽灵行；草稿态原位替换。
-            if (isPane && !_isTrashView)
-              _showDraft
-                  ? draftRow
-                  : _GhostNewRow(
-                      onTap: () => setState(() => _showDraft = true),
-                    ),
-            for (final entry in sections.entries) ...[
-              if (!skipSectionHeader || entry.key != widget.list.title)
-                _SectionHeader(
-                  title: entry.key,
-                  collapsed: _collapsedSections.contains(entry.key),
-                  onToggle: () => _toggleSection(entry.key),
-                ),
-              if (!_collapsedSections.contains(entry.key))
-                for (final item in entry.value)
-                  _buildItemRow(
-                    item,
-                    subtasksByParent: subtasksByParent,
-                  ),
-            ],
-            // 紧凑端保留底部工具条入口，草稿行仍落在列表体末尾。
-            if (!isPane && _showDraft) draftRow,
-          ];
-
-          return Column(
-            children: [
-              if (!_isTrashView)
-                _ListHeaderToolbar(
-                  list: widget.list,
-                  isPane: isPane,
-                  remainingCount: remainingCount,
-                  doneCount: doneCount,
-                  onClearCompleted: doneCount == 0
-                      ? null
-                      : () => _clearCompleted(
-                            all
-                                .where(
-                                    (e) => e.isCompleted && e.parentId == null)
-                                .map((e) => e.id)
-                                .toList(growable: false),
-                          ),
-                ),
-              // 主体：空列表 = 空态引导（可点新建）；_showDraft 时草稿行进列表体
-              Expanded(
-                child: isListEmpty
-                    ? Column(
-                        children: [
-                          if (isPane && !_isTrashView)
-                            _GhostNewRow(
-                              onTap: () =>
-                                  setState(() => _showDraft = true),
-                            ),
-                          Expanded(
-                            child: GestureDetector(
-                              key: const ValueKey('empty_new_hint'),
-                              behavior: HitTestBehavior.opaque,
-                              onTap: _openNewItemDialog,
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(CupertinoIcons.plus_circle,
-                                        size: 40,
-                                        color: Color(widget.list.colorArgb)
-                                            .withValues(alpha: 0.5)),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      '没有提醒',
-                                      style: TextStyle(
-                                          fontSize: 17,
-                                          color: Color(0xFF8E8E93)),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    const Text(
-                                      '点按此处或「＋ 新提醒事项」添加',
-                                      style: TextStyle(
-                                          fontSize: 13,
-                                          color: Color(0xFFC7C7CC)),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : ListView(children: rows),
-              ),
-            ],
-          );
-        },
-      ),
-
-      // 桌面/两栏用首行幽灵行；紧凑端保留底部工具条。最近删除无入口。
-      bottomNavigationBar: _isTrashView || isPane
-          ? null
-          : GestureDetector(
-        key: const ValueKey('bottom_new_item'),
-        onTap: _openNewItemDialog,
-        child: const BottomAppBar(
-          elevation: 0,
-          padding: EdgeInsets.zero,
-          child: SizedBox(
-            width: double.infinity,
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(CupertinoIcons.plus_circle_fill,
-                      size: 22, color: Color(0xFF007AFF)),
-                  SizedBox(width: 6),
-                  Text('新提醒事项',
-                      style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF007AFF),
-                          fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-          ),
+          ],
         ),
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: itemsAsync.when(
+              loading: () => const Center(child: CupertinoActivityIndicator()),
+              error: (e, _) => Center(child: Text('加载失败：$e')),
+              data: (items) {
+                final isSearchEmpty = query.trim().isNotEmpty && items.isEmpty;
+                final isListEmpty =
+                    items.isEmpty &&
+                    !_isTrashView &&
+                    !isSearchEmpty &&
+                    !_showDraft;
+                if (isSearchEmpty) {
+                  return const Center(
+                    key: Key('search_empty'),
+                    child: Text('无匹配结果'),
+                  );
+                }
+                // 顶层与子任务分组（watchItems 返回全层级；孤儿/环按顶层兜底）
+                final itemsById = {for (final e in items) e.id: e};
+                final topLevel = _sortTopLevel(
+                  items
+                      .where((e) {
+                        if (e.parentId == null) return true;
+                        // 孤儿（父不在结果集）或自环 → 按顶层渲染
+                        return !itemsById.containsKey(e.parentId) ||
+                            e.parentId == e.id;
+                      })
+                      .toList(growable: false),
+                );
+                final subtasksByParent = <String, List<ReminderItem>>{};
+                for (final e in items) {
+                  if (e.parentId != null &&
+                      itemsById.containsKey(e.parentId) &&
+                      e.parentId != e.id) {
+                    subtasksByParent.putIfAbsent(e.parentId!, () => []).add(e);
+                  }
+                }
+
+                // 头部计数走未过滤流（已完成可能被视图偏好隐藏）
+                final all =
+                    allItemsAsync.asData?.value ?? const <ReminderItem>[];
+                final doneCount = all
+                    .where((e) => e.isCompleted && e.parentId == null)
+                    .length;
+                final remainingCount = all
+                    .where((e) => !e.isCompleted && e.parentId == null)
+                    .length;
+
+                // 分区（线框客户端「分区一 ∨」）：带 dueAt 的顶层条目按日桶折叠；
+                // 无日期条目单独一区。折叠为内存态（P1 不持久化）。
+                // smart.today/smart.scheduled 视图：分区头与列表标题重复 → 跳过
+                final skipSectionHeader =
+                    widget.list.id == 'smart.today' ||
+                    widget.list.id == 'smart.scheduled';
+                final sections = _buildSections(topLevel);
+                final draftRow = _DraftRow(
+                  controller: _draftController,
+                  onSubmit: _submitDraft,
+                  onCancel: () {
+                    _draftController.clear();
+                    setState(() => _showDraft = false);
+                  },
+                );
+                final rows = <Widget>[
+                  // 桌面/两栏：参考图首行「新提醒事项」幽灵行；草稿态原位替换。
+                  if (isPane && !_isTrashView)
+                    _showDraft
+                        ? draftRow
+                        : _GhostNewRow(
+                            onTap: () => setState(() => _showDraft = true),
+                          ),
+                  for (final entry in sections.entries) ...[
+                    if (!skipSectionHeader || entry.key != widget.list.title)
+                      _SectionHeader(
+                        title: entry.key,
+                        collapsed: _isCollapsed(
+                            ref.watch(collapsedKeysProvider), entry.key),
+                        onToggle: () => _toggleSection(entry.key),
+                      ),
+                    if (!_isCollapsed(
+                        ref.watch(collapsedKeysProvider), entry.key))
+                      for (final item in entry.value)
+                        _buildItemRow(item, subtasksByParent: subtasksByParent),
+                  ],
+                  // 紧凑端保留底部工具条入口，草稿行仍落在列表体末尾。
+                  if (!isPane && _showDraft) draftRow,
+                ];
+
+                return Column(
+                  children: [
+                    if (!_isTrashView)
+                      _ListHeaderToolbar(
+                        list: widget.list,
+                        isPane: isPane,
+                        remainingCount: remainingCount,
+                        doneCount: doneCount,
+                        onClearCompleted: doneCount == 0
+                            ? null
+                            : () => _clearCompleted(
+                                all
+                                    .where(
+                                      (e) =>
+                                          e.isCompleted && e.parentId == null,
+                                    )
+                                    .map((e) => e.id)
+                                    .toList(growable: false),
+                              ),
+                      ),
+                    // 主体：空列表 = 空态引导（可点新建）；_showDraft 时草稿行进列表体
+                    Expanded(
+                      child: isListEmpty
+                          ? Column(
+                              children: [
+                                if (isPane && !_isTrashView)
+                                  _GhostNewRow(
+                                    onTap: () =>
+                                        setState(() => _showDraft = true),
+                                  ),
+                                Expanded(
+                                  child: GestureDetector(
+                                    key: const ValueKey('empty_new_hint'),
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: _openNewItemDialog,
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            CupertinoIcons.plus_circle,
+                                            size: 40,
+                                            color: Color(
+                                              widget.list.colorArgb,
+                                            ).withValues(alpha: 0.5),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            '没有提醒',
+                                            style: TextStyle(
+                                              fontSize: 17,
+                                              color: Color(0xFF8E8E93),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          const Text(
+                                            '点按此处或「＋ 新提醒事项」添加',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Color(0xFFC7C7CC),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView(children: rows),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          // 桌面/两栏用首行幽灵行；紧凑端保留底部工具条。最近删除无入口。
+          if (!_isTrashView && !isPane)
+            GestureDetector(
+              key: const ValueKey('bottom_new_item'),
+              onTap: _openNewItemDialog,
+              child: Container(
+                width: double.infinity,
+                color: CupertinoColors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      CupertinoIcons.plus_circle_fill,
+                      size: 22,
+                      color: Color(0xFF007AFF),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      '新提醒事项',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF007AFF),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -1244,24 +1268,29 @@ class _GhostNewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       key: const ValueKey('ghost_new_item'),
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
-            Icon(CupertinoIcons.add_circled,
-                color: ReminderTokens.labelTertiary, size: 22),
+            Icon(
+              CupertinoIcons.add_circled,
+              color: ReminderTokens.labelTertiary,
+              size: 22,
+            ),
             SizedBox(width: 14),
-            Icon(CupertinoIcons.add, color: ReminderTokens.systemBlue, size: 16),
+            Icon(
+              CupertinoIcons.add,
+              color: ReminderTokens.systemBlue,
+              size: 16,
+            ),
             SizedBox(width: 4),
             Text(
               '新提醒事项',
-              style: TextStyle(
-                fontSize: 15,
-                color: ReminderTokens.systemBlue,
-              ),
+              style: TextStyle(fontSize: 15, color: ReminderTokens.systemBlue),
             ),
           ],
         ),
@@ -1291,21 +1320,26 @@ class _DraftRow extends StatelessWidget {
           const Icon(CupertinoIcons.circle, color: Color(0xFFC7C7CC)),
           const SizedBox(width: 14),
           Expanded(
-            child: TextField(
+            child: CupertinoTextField(
+              key: const ValueKey('draft_field'),
               controller: controller,
               autofocus: true,
               onSubmitted: (_) => onSubmit(),
-              decoration: const InputDecoration(
-                hintText: '新提醒事项',
-                border: InputBorder.none,
-                isDense: true,
-              ),
+              placeholder: '新提醒事项',
+              decoration: const BoxDecoration(),
+              padding: const EdgeInsets.symmetric(vertical: 8),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.keyboard_return,
-                size: 20, color: Color(0xFF007AFF)),
+          CupertinoButton(
+            key: const ValueKey('draft_submit'),
+            minimumSize: Size.zero,
+            padding: const EdgeInsets.all(6),
             onPressed: onSubmit,
+            child: const Icon(
+              CupertinoIcons.arrow_up,
+              size: 20,
+              color: Color(0xFF007AFF),
+            ),
           ),
         ],
       ),
@@ -1385,16 +1419,12 @@ class _ListHeaderToolbar extends ConsumerWidget {
                         color: ReminderTokens.labelSecondary,
                       ),
                     ),
-                    TextButton(
+                    CupertinoButton(
                       key: const ValueKey('clear_completed'),
                       onPressed: doneCount == 0 ? null : onClearCompleted,
-                      style: TextButton.styleFrom(
-                        foregroundColor: ReminderTokens.systemBlue,
-                        disabledForegroundColor: ReminderTokens.labelTertiary,
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        minimumSize: const Size(0, 24),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
+                      minimumSize: Size.zero,
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      disabledColor: ReminderTokens.labelTertiary,
                       child: const Text('清除', style: TextStyle(fontSize: 13)),
                     ),
                   ],
@@ -1417,63 +1447,59 @@ class _ListHeaderToolbar extends ConsumerWidget {
               ),
             ),
           // 显示 ▾（TC-UI-108）
-          PopupMenuButton<bool>(
-            key: const ValueKey('toggle_show_completed'),
-            tooltip: '显示',
-            initialValue: showCompleted,
-            onSelected: (v) =>
-                ref.read(showCompletedProvider.notifier).set(v),
-            itemBuilder: (_) => const [
-              CheckedPopupMenuItem(
-                value: true,
-                child: Text('显示已完成'),
-              ),
-              CheckedPopupMenuItem(
-                value: false,
-                child: Text('隐藏已完成'),
-              ),
+          _CupertinoMenu<bool>(
+            anchorKey: const ValueKey('toggle_show_completed'),
+            semanticsLabel: '显示',
+            items: const [
+              _MenuItem(value: true, label: '显示已完成'),
+              _MenuItem(value: false, label: '隐藏已完成'),
             ],
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(showCompleted ? '显示 ✓' : '显示',
-                      style: const TextStyle(
-                          fontSize: 13, color: ReminderTokens.systemBlue)),
-                  const Icon(Icons.arrow_drop_down,
-                      size: 16, color: ReminderTokens.systemBlue),
-                ],
-              ),
+            current: showCompleted,
+            onSelected: (v) => ref.read(showCompletedProvider.notifier).set(v),
+            anchor: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  showCompleted ? '显示 ✓' : '显示',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: ReminderTokens.systemBlue,
+                  ),
+                ),
+                const Icon(
+                  CupertinoIcons.chevron_down,
+                  size: 12,
+                  color: ReminderTokens.systemBlue,
+                ),
+              ],
             ),
           ),
           // 排序 ▾（TC-UI-111）
-          PopupMenuButton<ListSortMode>(
-            key: const ValueKey('sort_menu'),
-            tooltip: '排序',
-            initialValue: sortMode,
-            onSelected: (m) =>
-                ref.read(listSortModeProvider.notifier).set(m),
-            itemBuilder: (_) => [
+          _CupertinoMenu<ListSortMode>(
+            anchorKey: const ValueKey('sort_menu'),
+            semanticsLabel: '排序',
+            items: [
               for (final e in ListSortMode.values)
-                CheckedPopupMenuItem(
-                  value: e,
-                  checked: e == sortMode,
-                  child: Text(_sortLabels[e]!),
-                ),
+                _MenuItem(value: e, label: _sortLabels[e]!),
             ],
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 5),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('排序',
-                      style: TextStyle(
-                          fontSize: 13, color: ReminderTokens.systemBlue)),
-                  Icon(Icons.arrow_drop_down,
-                      size: 16, color: ReminderTokens.systemBlue),
-                ],
-              ),
+            current: sortMode,
+            onSelected: (m) => ref.read(listSortModeProvider.notifier).set(m),
+            anchor: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '排序',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: ReminderTokens.systemBlue,
+                  ),
+                ),
+                Icon(
+                  CupertinoIcons.chevron_down,
+                  size: 12,
+                  color: ReminderTokens.systemBlue,
+                ),
+              ],
             ),
           ),
         ],
@@ -1496,8 +1522,9 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       key: ValueKey('section_$title'),
+      behavior: HitTestBehavior.opaque,
       onTap: onToggle,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
@@ -1522,6 +1549,183 @@ class _SectionHeader extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 0.5px 发丝分隔线。
+class _Hairline extends StatelessWidget {
+  const _Hairline({this.indent = 0});
+
+  final double indent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 0.5,
+      margin: EdgeInsets.only(left: indent),
+      color: ReminderTokens.separator,
+    );
+  }
+}
+
+class _VerticalHairline extends StatelessWidget {
+  const _VerticalHairline();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: ReminderTokens.separator,
+      child: SizedBox(width: 0.5),
+    );
+  }
+}
+
+/// 紧凑首页「我的列表」行：24px 彩色圆角图标 + 标题 + 计数 + 指示箭头。
+class _HomeListRow extends StatelessWidget {
+  const _HomeListRow({
+    required this.list,
+    required this.onTap,
+    this.isTrash = false,
+  });
+
+  final ReminderList list;
+  final VoidCallback onTap;
+  final bool isTrash;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isTrash
+        ? ReminderTokens.labelSecondary
+        : Color(list.colorArgb);
+    final icon = isTrash
+        ? CupertinoIcons.trash
+        : list.listType == ReminderListType.grocery
+        ? CupertinoIcons.cart
+        : CupertinoIcons.list_bullet;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(icon, color: CupertinoColors.white, size: 15),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(list.title, style: const TextStyle(fontSize: 16)),
+            ),
+            Text(
+              '${list.itemCount}',
+              style: const TextStyle(color: Color(0xFF8E8E93)),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              CupertinoIcons.chevron_forward,
+              size: 16,
+              color: Color(0xFFC7C7CC),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 弹出菜单条目（value 为 null = 置灰不可选）。
+class _MenuItem<T> {
+  const _MenuItem({this.value, required this.label});
+
+  final T? value;
+  final String label;
+}
+
+/// iOS 风格弹出菜单（替换 Material PopupMenuButton）：锚点按钮 +
+/// [CupertinoMenuAnchor] 浮层；当前值带 ✓。
+class _CupertinoMenu<T> extends StatelessWidget {
+  const _CupertinoMenu({
+    required this.anchorKey,
+    required this.anchor,
+    required this.items,
+    required this.current,
+    required this.onSelected,
+    this.semanticsLabel,
+  });
+
+  final Key anchorKey;
+  final Widget anchor;
+  final List<_MenuItem<T>> items;
+  final T? current;
+  final ValueChanged<T> onSelected;
+  final String? semanticsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoMenuAnchor(
+      menuChildren: [
+        for (final item in items)
+          CupertinoMenuItem(
+            onPressed: item.value == null
+                ? null
+                : () => onSelected(item.value as T),
+            trailing: item.value != null && item.value == current
+                ? const Icon(CupertinoIcons.checkmark, size: 14)
+                : null,
+            child: Text(item.label),
+          ),
+      ],
+      builder: (context, controller, child) {
+        final button = CupertinoButton(
+          key: anchorKey,
+          minimumSize: Size.zero,
+          padding: const EdgeInsets.symmetric(horizontal: 5),
+          onPressed: () => controller.open(),
+          child: anchor,
+        );
+        if (semanticsLabel == null) return button;
+        return Semantics(label: semanticsLabel, button: true, child: button);
+      },
+    );
+  }
+}
+
+/// 列表「更多」菜单（⋯）：显示已完成开关 + 规划占位（置灰）。
+class _MoreMenu extends StatelessWidget {
+  const _MoreMenu({
+    required this.onToggleCompleted,
+    required this.showCompleted,
+  });
+
+  final VoidCallback onToggleCompleted;
+  final bool showCompleted;
+
+  @override
+  Widget build(BuildContext context) {
+    return _CupertinoMenu<String>(
+      anchorKey: const ValueKey('list_more_menu'),
+      semanticsLabel: '更多',
+      items: [
+        _MenuItem(
+          value: showCompleted ? 'hide-completed' : 'toggle-completed',
+          label: showCompleted ? '隐藏已完成' : '显示已完成',
+        ),
+        const _MenuItem(value: null, label: '按分区整理（规划）'),
+      ],
+      current: 'toggle-completed',
+      onSelected: (v) {
+        if (v == 'toggle-completed' || v == 'hide-completed') {
+          onToggleCompleted();
+        }
+      },
+      anchor: const Icon(CupertinoIcons.ellipsis_circle),
     );
   }
 }

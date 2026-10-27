@@ -1,6 +1,5 @@
 import 'package:app_core/app_core.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:flutter/material.dart';
 
 import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_note/feature_note.dart';
@@ -50,15 +49,12 @@ GoRouter buildLifeRouter(WidgetRef ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/',
-              builder: (context, state) =>
-                  const LifeMaterialIsland(child: TaskTabEntry()),
+              builder: (context, state) => const TaskTabEntry(),
               routes: [
                 GoRoute(
                   path: 'list/:listId',
-                  builder: (context, state) => LifeMaterialIsland(
-                    child: TaskTabEntry(
-                      listId: state.pathParameters['listId'],
-                    ),
+                  builder: (context, state) => TaskTabEntry(
+                    listId: state.pathParameters['listId'],
                   ),
                 ),
               ],
@@ -121,10 +117,8 @@ class _TaskTabEntryState extends ConsumerState<TaskTabEntry> {
       return;
     }
     // 紧凑端：模态详细信息（不盖掉壳应用栏）
-    await showModalBottomSheet<void>(
+    await showCupertinoModalPopup<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
       builder: (sheetContext) {
         return DraggableScrollableSheet(
           expand: false,

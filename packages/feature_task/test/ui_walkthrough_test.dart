@@ -6,11 +6,14 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'support/life_test_app.dart';
+
 /// 实机走查模拟：按 testcases 的 TC-UI 用例模拟用户操作流程。
 /// 每个测试 = 一条完整用户链路。
 void main() {
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
@@ -18,15 +21,24 @@ void main() {
   // ── TC-UI-201: 新建提醒草稿行 ──
   testWidgets('TC-UI-201 新建提醒草稿行：点＋→输入→Enter→落库', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(375, 812);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 空态 → 点底栏新建
@@ -35,7 +47,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 草稿行出现
-    final textField = find.byType(TextField).first;
+    final textField = find.byKey(const ValueKey('draft_field'));
     expect(textField, findsOneWidget);
     await tester.enterText(textField, '买牛奶');
     await tester.testTextInput.receiveAction(TextInputAction.done);
@@ -53,18 +65,31 @@ void main() {
   // ── TC-UI-202/203: 搜索链路与空态 ──
   testWidgets('TC-UI-202/203 搜索链路：命中 + 空态', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
     final now = DateTime.now();
-    await repo.upsertItem(ReminderItem(id: 'i1', listId: 'list.personal', title: '买牛奶', dueAt: now));
-    await repo.upsertItem(ReminderItem(id: 'i2', listId: 'list.personal', title: '写报告', dueAt: now));
+    await repo.upsertItem(
+      ReminderItem(id: 'i1', listId: 'list.personal', title: '买牛奶', dueAt: now),
+    );
+    await repo.upsertItem(
+      ReminderItem(id: 'i2', listId: 'list.personal', title: '写报告', dueAt: now),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1366, 1024);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 初始两条可见
@@ -78,7 +103,10 @@ void main() {
     expect(find.text('写报告'), findsNothing);
 
     // 搜索无关词 → 空态
-    await tester.enterText(find.byKey(const ValueKey('toolbar_search')), '不存在的词');
+    await tester.enterText(
+      find.byKey(const ValueKey('toolbar_search')),
+      '不存在的词',
+    );
     await tester.pumpAndSettle();
     expect(find.text('无匹配结果'), findsOneWidget, reason: 'TC-UI-203: 搜索空态');
   });
@@ -86,20 +114,57 @@ void main() {
   // ── TC-UI-204: 智能列表语义（today = 同日 + 过期未完成） ──
   testWidgets('TC-UI-204 智能列表语义：今天=同日+过期未完成', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
     final now = DateTime.now();
-    await repo.upsertItem(ReminderItem(id: 'i0', listId: 'list.personal', title: '过期任务', dueAt: now.subtract(const Duration(days: 1))));
-    await repo.upsertItem(ReminderItem(id: 'i1', listId: 'list.personal', title: '今天任务A', dueAt: now));
-    await repo.upsertItem(ReminderItem(id: 'i2', listId: 'list.personal', title: '今天任务B', dueAt: now));
-    await repo.upsertItem(ReminderItem(id: 'i3', listId: 'list.personal', title: '明天任务', dueAt: now.add(const Duration(days: 1))));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i0',
+        listId: 'list.personal',
+        title: '过期任务',
+        dueAt: now.subtract(const Duration(days: 1)),
+      ),
+    );
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i1',
+        listId: 'list.personal',
+        title: '今天任务A',
+        dueAt: now,
+      ),
+    );
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i2',
+        listId: 'list.personal',
+        title: '今天任务B',
+        dueAt: now,
+      ),
+    );
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i3',
+        listId: 'list.personal',
+        title: '明天任务',
+        dueAt: now.add(const Duration(days: 1)),
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(375, 812);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'smart.today')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'smart.today')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('过期任务'), findsOneWidget, reason: '今天包含过期任务');
@@ -111,15 +176,24 @@ void main() {
   // ── TC-UI-206: 添加列表 ──
   testWidgets('TC-UI-206 添加列表：新建列表入首页', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(375, 812);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: null)),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: null)),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 首页有「添加列表」入口
@@ -128,8 +202,12 @@ void main() {
     await tester.pumpAndSettle();
 
     // 新建列表对话框
-    expect(find.text('新建列表').evaluate().isNotEmpty || find.text('添加列表').evaluate().isNotEmpty, isTrue);
-    await tester.enterText(find.byType(TextField).first, '工作');
+    expect(
+      find.text('新建列表').evaluate().isNotEmpty ||
+          find.text('添加列表').evaluate().isNotEmpty,
+      isTrue,
+    );
+    await tester.enterText(find.byKey(const ValueKey('new_list_name')), '工作');
     // 找确认按钮
     await tester.tap(find.byKey(const ValueKey('new_list_submit')));
     await tester.pumpAndSettle();
@@ -141,17 +219,33 @@ void main() {
   // ── TC-UI-109: 最近删除回收窗 ──
   testWidgets('TC-UI-109 最近删除：删除后入回收窗', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
     final now = DateTime.now();
-    await repo.upsertItem(ReminderItem(id: 'i1', listId: 'list.personal', title: '待删条目', dueAt: now));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i1',
+        listId: 'list.personal',
+        title: '待删条目',
+        dueAt: now,
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(375, 812);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('待删条目'), findsOneWidget);
@@ -164,10 +258,12 @@ void main() {
     expect(find.text('待删条目'), findsNothing, reason: '删除后不在列表');
 
     // 开回收窗视图验证
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'smart.trash')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'smart.trash')),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('待删条目'), findsOneWidget, reason: 'TC-UI-109: 删除后入回收窗');
   });
@@ -175,18 +271,41 @@ void main() {
   // ── TC-UI-110: 分区折叠 ──
   testWidgets('TC-UI-110 分区折叠：点分区头折叠/展开', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
     final now = DateTime.now();
-    await repo.upsertItem(ReminderItem(id: 'i1', listId: 'list.personal', title: '今天分区A', dueAt: now));
-    await repo.upsertItem(ReminderItem(id: 'i2', listId: 'list.personal', title: '今天分区B', dueAt: now.add(const Duration(hours: 1))));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i1',
+        listId: 'list.personal',
+        title: '今天分区A',
+        dueAt: now,
+      ),
+    );
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i2',
+        listId: 'list.personal',
+        title: '今天分区B',
+        dueAt: now.add(const Duration(hours: 1)),
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1366, 1024);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 有分区头
@@ -206,17 +325,33 @@ void main() {
   // ── TC-UI-113: 备注编辑 ──
   testWidgets('TC-UI-113 备注编辑：详情输入备注→保存→搜索命中', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
     final now = DateTime.now();
-    await repo.upsertItem(ReminderItem(id: 'i1', listId: 'list.personal', title: '有备注的条目', dueAt: now));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i1',
+        listId: 'list.personal',
+        title: '有备注的条目',
+        dueAt: now,
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1366, 1024);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 点行开详情（宽屏 inspector）
@@ -225,45 +360,42 @@ void main() {
     expect(find.text('详细信息'), findsOneWidget, reason: '详情面板已打开');
 
     // 详情面板备注输入框（hint=备注；原软断言用了不存在的 detail_notes key）
-    final notesField = find.widgetWithText(TextField, '备注');
+    final notesField = find.byKey(const ValueKey('detail_notes'));
     expect(notesField, findsOneWidget, reason: '详情面板必须有备注输入框');
     await tester.enterText(notesField, '重要会议备注');
     await tester.pumpAndSettle();
 
     // AppBar 上「完成」保存
-    await tester.tap(find.descendant(
-      of: find.byType(AppBar),
-      matching: find.widgetWithText(TextButton, '完成'),
-    ));
+    await tester.tap(find.byKey(const ValueKey('detail_save')));
     await tester.pumpAndSettle();
 
     // 仓库已回写
-    final saved =
-        (await repo.watchItems().first).singleWhere((e) => e.id == 'i1');
+    final saved = (await repo.watchItems().first).singleWhere(
+      (e) => e.id == 'i1',
+    );
     expect(saved.notes, '重要会议备注', reason: 'TC-UI-113: 备注已回写仓库');
 
     // 搜索备注
-    await tester.enterText(
-      find.byKey(const ValueKey('toolbar_search')),
-      '会议',
-    );
+    await tester.enterText(find.byKey(const ValueKey('toolbar_search')), '会议');
     await tester.pumpAndSettle();
     // inspector 仍开着（标题 TextField 同文案），故 findsWidgets
-    expect(find.text('有备注的条目'), findsWidgets,
-        reason: 'TC-UI-113: 备注可被搜索命中');
+    expect(find.text('有备注的条目'), findsWidgets, reason: 'TC-UI-113: 备注可被搜索命中');
   });
 
   // ── TC-UI-118: 分组折叠（负向门禁） ──
   testWidgets('TC-UI-118 分组折叠：分组头折叠/展开 + 负向门禁', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: true);
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1366, 1024);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 负向门禁：无 iCloud/Outlook/账户字样
@@ -277,18 +409,36 @@ void main() {
   // ── TC-UI-119: 移动提醒到其他列表 ──
   testWidgets('TC-UI-119 移动提醒：条目离开原列表出现在目标列表', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
-    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作', colorArgb: 0xFF007AFF));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
+    await repo.upsertList(
+      const ReminderList(id: 'list.work', title: '工作', colorArgb: 0xFF007AFF),
+    );
     final now = DateTime.now();
-    await repo.upsertItem(ReminderItem(id: 'i1', listId: 'list.personal', title: '移动条目', dueAt: now));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i1',
+        listId: 'list.personal',
+        title: '移动条目',
+        dueAt: now,
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1366, 1024);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('移动条目'), findsOneWidget);
@@ -302,27 +452,49 @@ void main() {
 
     // 目标列表出现（仓库层验证）
     final workItems = await repo.watchItems(listId: 'list.work').first;
-    expect(workItems.any((e) => e.title == '移动条目'), isTrue, reason: 'TC-UI-119: 出现在目标列表');
+    expect(
+      workItems.any((e) => e.title == '移动条目'),
+      isTrue,
+      reason: 'TC-UI-119: 出现在目标列表',
+    );
   });
 
   // ── TC-UI-122: 撤销/重做（撤销半） ──
   testWidgets('TC-UI-122 撤销完成：完成→撤销→恢复未完成', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
     final now = DateTime.now();
-    await repo.upsertItem(ReminderItem(id: 'i1', listId: 'list.personal', title: '可撤销条目', dueAt: now));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i1',
+        listId: 'list.personal',
+        title: '可撤销条目',
+        dueAt: now,
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1366, 1024);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 完成
-    await tester.tapAt(tester.getCenter(find.byIcon(CupertinoIcons.circle).first));
+    await tester.tapAt(
+      tester.getCenter(find.byIcon(CupertinoIcons.circle).first),
+    );
     await tester.pumpAndSettle();
 
     // 撤销按钮出现
@@ -339,19 +511,34 @@ void main() {
   // ── TC-UI-319: 重复结束日期（详情 UI） ──
   testWidgets('TC-UI-319 重复结束日期：详情重复区出现结束日期行', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
     final now = DateTime.now();
-    await repo.upsertItem(ReminderItem(
-      id: 'i1', listId: 'list.personal', title: '重复条目', dueAt: now, recurrence: 'daily',
-    ));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'i1',
+        listId: 'list.personal',
+        title: '重复条目',
+        dueAt: now,
+        recurrence: 'daily',
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1366, 1024);
     view.devicePixelRatio = 1.0;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // 点行开详情
@@ -367,17 +554,26 @@ void main() {
   // ── TC-REG-107: 负向门禁全量 ──
   testWidgets('TC-REG-107 负向门禁：紧凑+宽屏无泄漏', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
+    await repo.upsertList(
+      const ReminderList(
+        id: 'list.personal',
+        title: '提醒事项',
+        colorArgb: 0xFFFF9500,
+      ),
+    );
 
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
 
     for (final size in [const Size(375, 812), const Size(1366, 1024)]) {
       view.physicalSize = size;
       view.devicePixelRatio = 1.0;
-      await tester.pumpWidget(ProviderScope(
-        overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: TaskScaffold(openListId: 'list.personal')),
-      ));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+          child: lifeTestHost(const TaskScaffold(openListId: 'list.personal')),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.textContaining('iCloud'), findsNothing);
