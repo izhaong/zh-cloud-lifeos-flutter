@@ -276,13 +276,26 @@ class TaskOutboxRows extends Table {
   Set<Column> get primaryKey => {entityType, entityId};
 }
 
+/// 任务域增量游标（flutter#124 卡 3 / TC-SYNC-107「游标前进」的本地半边）。
+///
+/// 一个域一行：只有「落库成功」的游标才写回，重启后从上次的位置续拉，
+/// 而不是每次从头（游标写坏=重复物化或对不齐）。
+class SyncCursorRows extends Table {
+  TextColumn get domain => text()();
+  TextColumn get cursor => text().nullable()();
+  IntColumn get updatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {domain};
+}
+
 @DriftDatabase(
-    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows])
+    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows, SyncCursorRows])
 class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -372,6 +385,10 @@ class LifeProductivityDb extends _$LifeProductivityDb {
                   'CREATE INDEX IF NOT EXISTS idx_task_outbox_due '
                   'ON task_outbox_rows (client_updated_at, entity_id)'),
             );
+          }
+          if (from < 12) {
+            // V12（flutter#124 卡 3 / TC-SYNC-106、107）：增量游标持久化
+            await m.createTable(syncCursorRows);
           }
         },
       );

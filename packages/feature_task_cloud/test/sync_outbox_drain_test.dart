@@ -8,13 +8,16 @@ import 'package:app_core/app_core.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task_cloud/feature_task_cloud.dart';
 
-/// TC-SYNC-107/112 客户端半边：发件箱 → push 装载 → 回执驱动清队与回填
-/// （flutter#124 卡 2；网络层用假 adapter，属契约级、未触网）。
+/// TC-SYNC-107/108/112/113/114（卡 2）与 TC-SYNC-106/107/109 的 pull 落库半边（卡 3）：
+/// 发件箱 → push 装载 → 回执驱动清队与回填；pull 带游标 → 落库 → 游标前进。
+/// 网络层用假 adapter，属契约级、未触网。
 void main() {
   late _FakeStore store;
   late _SeqAdapter adapter;
   late Dio dio;
   late _RecordingOutbox outbox;
+  late _RecordingApplier applier;
+  late _FakeCursors cursors;
   late RestSyncPort port;
   late TaskSyncCoordinator coordinator;
 
@@ -25,7 +28,14 @@ void main() {
       ..httpClientAdapter = adapter;
     port = RestSyncPort(dio: dio, store: store);
     outbox = _RecordingOutbox();
-    coordinator = TaskSyncCoordinator(outbox: outbox, syncPort: port);
+    applier = _RecordingApplier();
+    cursors = _FakeCursors();
+    coordinator = TaskSyncCoordinator(
+      outbox: outbox,
+      syncPort: port,
+      applier: applier,
+      cursors: cursors,
+    );
   });
 
   SyncOutboxEntry entry(String id, {String operation = 'upsert'}) =>
@@ -139,6 +149,155 @@ void main() {
     expect(await coordinator.pushPending(), 0);
     expect(adapter.sentBodies, isEmpty);
   });
+
+  // ---- 卡 3：pull 带游标 → 落库 → 游标前进 ----
+
+  test('TC-SYNC-106/107 pull 带上次游标，变更交给落库侧', () async {
+    await store.write(const MemberSession(
+        userId: '1', accessToken: 'tok', tenantId: '1', refreshToken: 'r'));
+    cursors.cursor = 'c-5';
+    adapter.enqueue({
+      'code': 0,
+      'data': {
+        'nextCursor': 'c-6',
+        'changes': [
+          {
+            'entityType': 'task',
+            'entityId': 'srv-1',
+            'operation': 'upsert',
+            'revision': 4,
+            'payload': {'title': '写周报'},
+          },
+          {
+            'entityType': 'task',
+            'entityId': 'srv-2',
+            'operation': 'delete',
+            'payload': {},
+          },
+        ],
+      },
+    });
+
+    await coordinator.pullAndApply();
+
+    final body = jsonDecode(adapter.sentBodies.single) as Map<String, dynamic>;
+    expect(body['cursor'], 'c-5', reason: '增量拉取要带自己的游标，否则每次从头');
+    expect(applier.batches.single.map((c) => c.entityId), ['srv-1', 'srv-2']);
+    expect(applier.batches.single.map((c) => c.operation), ['upsert', 'delete']);
+    expect(applier.batches.single.first.payload['title'], '写周报');
+  });
+
+  test('TC-SYNC-107 游标前进：nextCursor 落到持久化侧', () async {
+    await store.write(const MemberSession(
+        userId: '1', accessToken: 'tok', tenantId: '1', refreshToken: 'r'));
+    cursors.cursor = 'c-5';
+    adapter.enqueue({
+      'code': 0,
+      'data': {
+        'nextCursor': 'c-6',
+        'changes': [
+          {'entityType': 'task', 'entityId': 'srv-1', 'operation': 'upsert'},
+        ],
+      },
+    });
+
+    await coordinator.pullAndApply();
+
+    expect(cursors.written, ['c-6']);
+  });
+
+  test('落库失败不得前进游标：applyAll 抛错时不写游标', () async {
+    await store.write(const MemberSession(
+        userId: '1', accessToken: 'tok', tenantId: '1', refreshToken: 'r'));
+    adapter.enqueue({
+      'code': 0,
+      'data': {
+        'nextCursor': 'c-7',
+        'changes': [
+          {'entityType': 'task', 'entityId': 'srv-1', 'operation': 'upsert'},
+        ],
+      },
+    });
+    applier.onError = StateError('载荷损坏');
+
+    await expectLater(coordinator.pullAndApply(), throwsA(isA<StateError>()));
+    expect(cursors.written, isEmpty, reason: '没落库就前进游标＝这批变更永久丢失');
+  });
+
+  test('未登录：pull 不发请求、不落库、不动游标', () async {
+    cursors.cursor = 'c-5';
+
+    await coordinator.pullAndApply();
+
+    expect(adapter.sentBodies, isEmpty);
+    expect(applier.batches, isEmpty);
+    expect(cursors.written, isEmpty);
+  });
+
+  test('syncOnce 顺序：先推本地（新者胜由服务端裁），再拉增量落库', () async {
+    await store.write(const MemberSession(
+        userId: '1', accessToken: 'tok', tenantId: '1', refreshToken: 'r'));
+    outbox.seed([entry('a')]);
+    adapter.enqueue({'code': 0, 'data': []}); // push
+    adapter.enqueue({
+      // pull
+      'code': 0,
+      'data': {
+        'nextCursor': 'c-2',
+        'changes': [
+          {'entityType': 'task', 'entityId': 'srv-1', 'operation': 'upsert'},
+        ],
+      },
+    });
+
+    await coordinator.syncOnce();
+
+    expect(adapter.calls, ['push', 'pull'],
+        reason: '先推后拉：本地变更先让服务端按 baseRevision 裁，再把裁决结果拉回来');
+    expect(applier.batches.single.single.entityId, 'srv-1');
+    expect(cursors.written, ['c-2']);
+  });
+
+  test('TC-SYNC-114 pull 也走 refresh 通道：一次 401 后换新 token 重发', () async {
+    await store.write(const MemberSession(
+        userId: '1', accessToken: 'tok', tenantId: '1', refreshToken: 'r'));
+    var refreshed = false;
+    port = RestSyncPort(
+      dio: dio,
+      store: store,
+      refreshSession: () async {
+        refreshed = true;
+        await store.write(const MemberSession(
+            userId: '1',
+            accessToken: 'tok-new',
+            tenantId: '1',
+            refreshToken: 'r2'));
+        return true;
+      },
+    );
+    coordinator = TaskSyncCoordinator(
+      outbox: outbox,
+      syncPort: port,
+      applier: applier,
+      cursors: cursors,
+    );
+    adapter.enqueue401();
+    adapter.enqueue({
+      'code': 0,
+      'data': {
+        'nextCursor': 'c-3',
+        'changes': [
+          {'entityType': 'task', 'entityId': 'srv-1', 'operation': 'upsert'},
+        ],
+      },
+    });
+
+    await coordinator.pullAndApply();
+
+    expect(refreshed, isTrue);
+    expect(adapter.sentAuth[1], 'Bearer tok-new', reason: '重发用新 token');
+    expect(applier.batches.single, hasLength(1), reason: '重试成功后照常落库');
+  });
 }
 
 class _FakeStore implements SessionStore {
@@ -187,10 +346,42 @@ class _AckCall {
   final String? serverId;
 }
 
+/// 记录型落库侧：只验协调器交下来的批次（真落 Drift 的断言在 drift 包里测）。
+class _RecordingApplier implements SyncApplier {
+  final batches = <List<SyncIncomingChange>>[];
+
+  /// 注入落库异常：验「没落库就不前进游标」。
+  Object? onError;
+
+  @override
+  Future<void> applyAll(Iterable<SyncIncomingChange> changes) async {
+    if (onError != null) throw onError!;
+    batches.add(List.of(changes));
+  }
+}
+
+class _FakeCursors implements SyncCursorStore {
+  String? cursor;
+  final written = <String>[];
+
+  @override
+  Future<String?> read() async => cursor;
+
+  @override
+  Future<void> write(String value) async {
+    written.add(value);
+    cursor = value;
+  }
+}
+
 class _SeqAdapter implements HttpClientAdapter {
   final _queue = <dynamic>[];
   final _statuses = <int>[];
   final sentBodies = <String>[];
+  final sentAuth = <String?>[];
+
+  /// 每个请求打的是哪个端点（'push' / 'pull'），按 URL 尾段判定。
+  final calls = <String>[];
 
   void enqueue(dynamic response) {
     _queue.add(response);
@@ -211,6 +402,8 @@ class _SeqAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    calls.add(options.path.endsWith('/pull') ? 'pull' : 'push');
+    sentAuth.add(options.headers['Authorization']?.toString());
     if (requestStream != null) {
       final b = await requestStream.fold(
         BytesBuilder(),

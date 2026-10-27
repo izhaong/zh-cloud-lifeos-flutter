@@ -17,7 +17,8 @@ import 'drift_sync_outbox.dart';
 ///   toggle 留仓库层（防读改写丢更新 + 重复滚动）；删除为级联语义动作
 /// - 智能列表语义过滤与 InMemory 实现一致；排序契约 `sortOrder asc, id asc`
 /// - UI 不接触 drift 类型：本包只向端口吐 kernel 实体
-class DriftReminderRepository implements kernel.ReminderRepository {
+class DriftReminderRepository
+    implements kernel.ReminderRepository, kernel.SyncApplier {
   DriftReminderRepository(this._db);
 
   final LifeProductivityDb _db;
@@ -360,6 +361,81 @@ class DriftReminderRepository implements kernel.ReminderRepository {
         clientUpdatedAt: at.millisecondsSinceEpoch,
       ));
     }
+  }
+
+  // ---- 入站落库（flutter#124 卡 3 / TC-SYNC-106、109、112）----
+
+  /// 落一批服务端下推的变更。
+  ///
+  /// 关键约束：**入站落库不进发件箱**——否则 pull 写一次就顺手 enqueue 一条
+  /// 出站变更，push 再推回服务端，两端自己造出无限往返。所以这里绕开
+  /// [upsertItem]/[deleteItem] 直接写行。
+  /// 同事务：一条不落完就不落，调用方（协调器）据此决定游标要不要前进。
+  @override
+  Future<void> applyAll(Iterable<kernel.SyncIncomingChange> changes) async {
+    if (changes.isEmpty) return;
+    await _db.transaction(() async {
+      for (final c in changes) {
+        // 列表/分区/标签实体在本地没有 remoteId 列，本卡只落 task
+        if (c.entityType != 'task') continue;
+        if (c.operation == 'delete') {
+          await _applyInboundDelete(c);
+        } else {
+          await _applyInboundUpsert(c);
+        }
+      }
+    });
+  }
+
+  Future<void> _applyInboundUpsert(kernel.SyncIncomingChange c) async {
+    final existing = await _findByServerId(c.entityId);
+    final listId = c.payload['listId']?.toString() ??
+        (existing?.listId ?? await _firstOwnListId());
+    if (listId == null) return; // 无处安放（既没载荷 listId、本地也没自有列表）
+    final model = kernel.reminderItemFromSyncPayload(
+      c.payload,
+      entityId: c.entityId,
+      listId: listId,
+      existing: existing == null ? null : _toModel(existing),
+    );
+    await _db
+        .into(_db.reminderItems)
+        .insertOnConflictUpdate(_companionFrom(model));
+  }
+
+  Future<void> _applyInboundDelete(kernel.SyncIncomingChange c) async {
+    final target = await _findByServerId(c.entityId);
+    if (target == null) return; // 本地没有这条：幂等跳过
+    final at = c.payload['deletedAt'] is num
+        ? DateTime.fromMillisecondsSinceEpoch(
+            (c.payload['deletedAt'] as num).toInt())
+        : _now;
+    // 与服务端 applier 同口径：软删入 30 天回收窗，且删父级联整树入窗
+    final cascade = await _cascadeFrom(target.id);
+    await (_db.update(_db.reminderItems)
+          ..where((t) => t.id.isIn(cascade)))
+        .write(ReminderItemsCompanion(deletedAt: Value(at)));
+  }
+
+  /// 临时 ID 映射的另一半：对端把同一条任务改了几次，落到本地只能更新原行。
+  /// 先按 remoteId（服务端 id）找——离线建的行本地 id 是 UUID，回填后 remoteId
+  /// 才是服务端 id；找不到再按 id 相等兜底（历史数据把服务端 id 直接当本地 id 用）。
+  Future<ReminderItem?> _findByServerId(String entityId) async {
+    final byRemote = await (_db.select(_db.reminderItems)
+          ..where((t) => t.remoteId.equals(entityId)))
+        .get();
+    if (byRemote.isNotEmpty) return byRemote.first;
+    return (_db.select(_db.reminderItems)
+          ..where((t) => t.id.equals(entityId)))
+        .getSingleOrNull();
+  }
+
+  Future<String?> _firstOwnListId() async {
+    final lists = await _db.select(_db.reminderLists).get();
+    for (final l in lists) {
+      if (!l.isSmart) return l.id;
+    }
+    return null;
   }
 
   @override

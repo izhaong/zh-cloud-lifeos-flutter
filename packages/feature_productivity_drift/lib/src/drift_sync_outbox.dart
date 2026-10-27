@@ -94,3 +94,32 @@ class DriftSyncOutbox implements kernel.SyncOutbox {
     return {};
   }
 }
+
+/// [kernel.SyncCursorStore] 的 Drift 实现（flutter#124 卡 3 / TC-SYNC-107）。
+///
+/// 任务域一个域一行；只有落库成功的游标才写回，重启后从原位续拉。
+class DriftSyncCursorStore implements kernel.SyncCursorStore {
+  DriftSyncCursorStore(this._db);
+
+  final LifeProductivityDb _db;
+
+  static const domain = 'task';
+
+  @override
+  Future<String?> read() async {
+    final row = await (_db.select(_db.syncCursorRows)
+          ..where((t) => t.domain.equals(domain)))
+        .getSingleOrNull();
+    return row?.cursor;
+  }
+
+  @override
+  Future<void> write(String cursor) =>
+      _db.into(_db.syncCursorRows).insertOnConflictUpdate(
+            SyncCursorRowsCompanion(
+              domain: const Value(domain),
+              cursor: Value(cursor),
+              updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
+            ),
+          );
+}

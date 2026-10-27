@@ -61,15 +61,7 @@ class RestSyncPort implements SyncPort {
     if (session == null) {
       return const PullResult(cursor: null, changes: []);
     }
-    final resp = await _dio.post<Map<String, dynamic>>(
-      '/app-api/lifeos/task/sync/pull',
-      data: {'deviceId': session.userId, 'cursor': cursor},
-      options: _authed(session),
-    );
-    final body = resp.data;
-    if (body == null || body['code'] != 0) {
-      throw SyncFailureException(body?['msg']?.toString() ?? '拉取失败');
-    }
+    final body = await _postPullWithRetry(session, cursor);
     final data = body['data'];
     if (data is! Map<String, dynamic>) {
       return const PullResult(cursor: null, changes: []);
@@ -290,6 +282,37 @@ class RestSyncPort implements SyncPort {
         throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
       }
       return body;
+    }
+  }
+
+  /// TC-SYNC-114（pull 半边）：401 与 push 同走 refresh 通道——
+  /// 之前只有 push 有，pull 撞上过期令牌就直接炸，冷启动同步等于没接。
+  Future<Map<String, dynamic>> _postPullWithRetry(
+    MemberSession session,
+    String? cursor,
+  ) async {
+    Future<Response<Map<String, dynamic>>> sendWith(MemberSession s) =>
+        _dio.post<Map<String, dynamic>>(
+          '/app-api/lifeos/task/sync/pull',
+          data: {'deviceId': s.userId, 'cursor': cursor},
+          options: _authed(s),
+        );
+    Map<String, dynamic> unwrap(Response<Map<String, dynamic>> resp) {
+      final body = resp.data;
+      if (body == null || body['code'] != 0) {
+        throw SyncFailureException(body?['msg']?.toString() ?? '拉取失败');
+      }
+      return body;
+    }
+
+    try {
+      return unwrap(await sendWith(session));
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 401) rethrow;
+      final refreshed = await _tryRefresh();
+      final retrySession =
+          refreshed ? (await _currentSession() ?? session) : session;
+      return unwrap(await sendWith(retrySession));
     }
   }
 

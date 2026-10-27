@@ -43,10 +43,13 @@ Future<void> main() async {
     refreshSession: () async => await authPort.refresh() != null,
   );
   // 卡 2（flutter#124）：注入壳层的 SyncPort 是协调器——push() 从 Drift 发件箱
-  // 真装载变更，回执带 serverId 时同事务回填 reminder_items.remote_id。
+  // 真装载变更，回执带 serverId 时同事务回填 reminder_items.remote_id；
+  // 卡 3：pull() 带上次游标拉增量，交仓库落 Drift（delete 进回收窗）后才前进游标。
   final taskSyncCoordinator = TaskSyncCoordinator(
     outbox: DriftSyncOutbox(db),
     syncPort: syncPort,
+    applier: repository,
+    cursors: DriftSyncCursorStore(db),
   );
   // F-11：真实本地通知调度（开源包只声明接口）
   final calendarAlertScheduler =
@@ -68,6 +71,14 @@ Future<void> main() async {
       await calendarSyncCoordinator.syncOnce();
     } catch (_) {
       // 离线优先：启动同步失败不影响本地可用
+    }
+  });
+  // TC-SYNC-106/107：任务域冷启动也补一轮（先推本地、再拉增量落库）
+  Future<void>(() async {
+    try {
+      await taskSyncCoordinator.syncOnce();
+    } catch (_) {
+      // 离线优先：未登录/断网都不挡本地能力
     }
   });
 
@@ -133,12 +144,13 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     ref.read(reminderRepositoryProvider).checkDayRollover();
-    // 回前台续推发件箱（TC-SYNC-107「离线改 → 联网推」的触发点）：
+    // 回前台续一轮（TC-SYNC-107「离线改 → 联网推」的触发点）：
     // 未登录/队空内部直接返回，失败不清队也不打扰用户。
     final port = ref.read(syncPortProvider);
     Future<void>(() async {
       try {
         await port.push();
+        await port.pull();
       } catch (_) {
         // 离线优先：续推失败不影响本地可用
       }
