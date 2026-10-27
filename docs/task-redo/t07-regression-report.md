@@ -35,6 +35,8 @@
 ## 遗留（非阻塞，后续批次）
 
 - 服务端 `/lifeos/task/page`、`/lifeos/list/simple-list` 端点（T-06 ADR）
-- outbox 落库与 push 真装载已随 flutter#124 卡 2 落地（Drift V11 `task_outbox_rows` +
-  `TaskSyncCoordinator`，回执 serverId 回填 `remoteId`）；仍缺 **pull 落库/游标持久化**（卡 3，TC-SYNC-106 完整化）
+- outbox 与 pull 落库都已随 flutter#124 落地：卡 2 = Drift V11 `task_outbox_rows` +
+  `TaskSyncCoordinator` push 真装载、回执 serverId 回填 `remoteId`；卡 3 = Drift V12 游标表 +
+  入站变更落库（delete 进 30 天回收窗、同 `remoteId` 不重复物化）。
+  仍缺 **任务偏好持久**（卡 4）与三条纯断言缺口（卡 5）
 - TC-UI-122 重做（后置裁定）
