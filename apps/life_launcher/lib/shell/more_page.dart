@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../shell_providers.dart';
 import 'app_registry.dart';
+import 'shell_badge.dart';
 
 /// 「更多」面板：全部已装应用 + 就地编辑（§1.4）。
 ///
@@ -34,14 +35,20 @@ class _MoreViewState extends ConsumerState<_MoreView> {
     ref.read(pinnedTabsServiceProvider).write(
           cur.where((e) => e != id).toList(growable: false),
         );
-    setState(() {}); // 触发依赖偏好流的重绘
+    setState(() {});
   }
 
   void _add(String id) {
     final cur = ref.read(pinnedTabsServiceProvider).read();
-    ref
-        .read(pinnedTabsServiceProvider)
-        .write([...cur, id]);
+    ref.read(pinnedTabsServiceProvider).write([...cur, id]);
+    setState(() {});
+  }
+
+  void _reorder(int oldIndex, int newIndex) {
+    final cur = [...ref.read(pinnedTabsServiceProvider).read()];
+    final moved = cur.removeAt(oldIndex);
+    cur.insert(newIndex.clamp(0, cur.length), moved);
+    ref.read(pinnedTabsServiceProvider).write(cur);
     setState(() {});
   }
 
@@ -52,106 +59,136 @@ class _MoreViewState extends ConsumerState<_MoreView> {
     final pinnedSet = pinnedIds.toSet();
     final badges = ref.watch(shellBadgeCountsProvider);
 
-    final pinned =
-        pinnedIds.map(appById).toList(growable: false);
+    final pinned = pinnedIds.map(appById).toList(growable: false);
     final unpinned = installedApps
         .where((e) => !pinnedSet.contains(e.id))
         .toList(growable: false);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('更多'),
-        actions: [
-          TextButton(
-            onPressed: () => setState(() => _editing = !_editing),
-            child: Text(_editing ? '完成' : '编辑'),
-          ),
-        ],
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('更多'),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          onPressed: () => setState(() => _editing = !_editing),
+          child: Text(_editing ? '完成' : '编辑'),
+        ),
       ),
-      body: ListView(
-        children: [
-          if (_editing) ...[
-            const _SectionLabel('已固定到 Tab（拖拽排序）'),
-            // 拖拽仅作用于固定区；「更多」不在此区（恒最右，不可编辑）
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              buildDefaultDragHandles: false,
-              itemCount: pinned.length,
-              // onReorderItem 已为调用方调整 newIndex（移除项偏移）
-              onReorderItem: (oldIndex, newIndex) {
-                final cur = [...ref
-                    .read(pinnedTabsServiceProvider)
-                    .read()];
-                final moved = cur.removeAt(oldIndex);
-                cur.insert(newIndex.clamp(0, cur.length), moved);
-                ref.read(pinnedTabsServiceProvider).write(cur);
-                setState(() {});
-              },
-              itemBuilder: (context, index) {
-                final app = pinned[index];
-                return ListTile(
-                  key: ValueKey('pinned_${app.id}'),
-                  leading: Icon(app.icon),
-                  title: Text(app.title),
-                  subtitle: app.isPlaceholder
-                      ? const Text('占位 · feature_* 待拆入')
-                      : null,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+      child: SafeArea(
+        bottom: false,
+        child: CustomScrollView(
+          slivers: [
+            if (_editing) ...[
+              const SliverToBoxAdapter(
+                child: _SectionLabel('已固定到 Tab（拖拽排序）'),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                sliver: SliverReorderableList(
+                  itemCount: pinned.length,
+                  onReorderItem: _reorder,
+                  itemBuilder: (context, index) {
+                    final app = pinned[index];
+                    return _PinnedRow(
+                      key: ValueKey('pinned_${app.id}'),
+                      app: app,
+                      index: index,
+                      isFirst: index == 0,
+                      isLast: index == pinned.length - 1,
+                      onRemove: _remove,
+                    );
+                  },
+                ),
+              ),
+              if (unpinned.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Column(
                     children: [
-                      ReorderableDragStartListener(
-                        index: index,
-                        child: const Icon(Icons.drag_handle),
-                      ),
-                      IconButton(
-                        key: ValueKey('unpin_${app.id}'),
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: () => _remove(app.id),
+                      const _SectionLabel('未固定（＋ 加回 Tab）'),
+                      CupertinoListSection.insetGrouped(
+                        children: [
+                          for (final app in unpinned)
+                            CupertinoListTile(
+                              key: ValueKey('unpinned_${app.id}'),
+                              leading: Icon(app.icon),
+                              title: Text(app.title),
+                              subtitle: app.isPlaceholder
+                                  ? const Text('占位 · feature_* 待拆入')
+                                  : null,
+                              trailing: CupertinoButton(
+                                key: ValueKey('pin_${app.id}'),
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                onPressed: () => _add(app.id),
+                                child: const Icon(
+                                  CupertinoIcons.plus_circle,
+                                  color: CupertinoColors.systemBlue,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
-                );
-              },
-            ),
-            if (unpinned.isNotEmpty) ...[
-              const _SectionLabel('未固定（＋ 加回 Tab）'),
-              for (final app in unpinned)
-                ListTile(
-                  key: ValueKey('unpinned_${app.id}'),
-                  leading: Icon(app.icon),
-                  title: Text(app.title),
-                  subtitle: app.isPlaceholder
-                      ? const Text('占位 · feature_* 待拆入')
-                      : null,
-                  trailing: IconButton(
-                    key: ValueKey('pin_${app.id}'),
-                    icon: const Icon(Icons.add_circle_outline),
-                    onPressed: () => _add(app.id),
-                  ),
                 ),
-            ],
-          ] else ...[
-            const _SectionLabel('全部已装应用'),
-            // 展示态：已固定应用无角标（其未读在 Tab 上），未固定显示角标
-            for (final app in installedApps)
-              _AppRow(
-                app: app,
-                badgeCount: pinnedSet.contains(app.id)
-                    ? 0
-                    : (badges[app.id] ?? 0),
+            ] else
+              SliverToBoxAdapter(
+                child: CupertinoListSection.insetGrouped(
+                  header: const Text('全部已装应用'),
+                  children: [
+                    for (final app in installedApps)
+                      CupertinoListTile(
+                        key: ValueKey('app_${app.id}'),
+                        leading: Icon(app.icon),
+                        title: Text(app.title),
+                        subtitle: Text(
+                          app.isPlaceholder ? '占位 · feature_* 待拆入' : '已安装',
+                        ),
+                        trailing: !pinnedSet.contains(app.id) &&
+                                (badges[app.id] ?? 0) > 0
+                            ? ShellBadge(
+                                key: ValueKey('shell_badge_${app.id}'),
+                                count: badges[app.id]!,
+                              )
+                            : null,
+                      ),
+                  ],
+                ),
               ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: CupertinoListSection.insetGrouped(
+                  children: [
+                    CupertinoListTile(
+                      key: const ValueKey('add_more_apps'),
+                      leading: const Icon(CupertinoIcons.plus_circle),
+                      title: const Text('添加更多应用'),
+                      subtitle: const Text('打开 LifeOS App Store（H1 目录）'),
+                      onTap: () => _showCatalogPlaceholder(context),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ],
-          const Divider(),
-          ListTile(
-            leading: const Icon(Icons.add_circle_outline),
-            title: const Text('添加更多应用'),
-            subtitle: const Text('打开 LifeOS App Store（H1 目录）'),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('目录客户端 Phase 5')),
-              );
-            },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCatalogPlaceholder(BuildContext context) {
+    return showCupertinoDialog<void>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('LifeOS App Store'),
+        content: const Text('目录客户端 Phase 5'),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('好'),
           ),
         ],
       ),
@@ -159,23 +196,72 @@ class _MoreViewState extends ConsumerState<_MoreView> {
   }
 }
 
-class _AppRow extends StatelessWidget {
-  const _AppRow({required this.app, this.badgeCount = 0});
+class _PinnedRow extends StatelessWidget {
+  const _PinnedRow({
+    super.key,
+    required this.app,
+    required this.index,
+    required this.isFirst,
+    required this.isLast,
+    required this.onRemove,
+  });
 
   final AppEntry app;
-  final int badgeCount;
+  final int index;
+  final bool isFirst;
+  final bool isLast;
+  final ValueChanged<String> onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final icon = Icon(app.icon);
-    return ListTile(
-      leading: badgeCount > 0
-          ? Badge.count(count: badgeCount, child: icon)
-          : icon,
-      title: Text(app.title),
-      subtitle: app.isPlaceholder
-          ? const Text('占位 · feature_* 待拆入')
-          : const Text('已安装'),
+    final background = CupertinoColors.secondarySystemGroupedBackground
+        .resolveFrom(context);
+    final separator = CupertinoColors.separator.resolveFrom(context);
+    const radius = Radius.circular(10);
+    return ClipRRect(
+      borderRadius: BorderRadius.vertical(
+        top: isFirst ? radius : Radius.zero,
+        bottom: isLast ? radius : Radius.zero,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: background,
+          border: isFirst
+              ? null
+              : Border(top: BorderSide(color: separator, width: 0.5)),
+        ),
+        child: CupertinoListTile(
+          backgroundColor: background,
+          leading: Icon(app.icon),
+          title: Text(app.title),
+          subtitle: app.isPlaceholder
+              ? const Text('占位 · feature_* 待拆入')
+              : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ReorderableDragStartListener(
+                index: index,
+                child: const Icon(
+                  CupertinoIcons.line_horizontal_3,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              CupertinoButton(
+                key: ValueKey('unpin_${app.id}'),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                onPressed: () => onRemove(app.id),
+                child: const Icon(
+                  CupertinoIcons.minus_circle,
+                  color: CupertinoColors.systemRed,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -188,13 +274,13 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(32, 12, 32, 4),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF8E8E93),
+          color: CupertinoColors.secondaryLabel.resolveFrom(context),
         ),
       ),
     );

@@ -5,5 +5,6 @@ export 'src/auth/auth_port.dart';
 export 'src/auth/member_session.dart';
 export 'src/network/api_client.dart';
 export 'src/sync/sync_port.dart';
+export 'src/theme/life_material_island.dart';
 export 'src/theme/life_tokens.dart';
 export 'src/providers.dart';

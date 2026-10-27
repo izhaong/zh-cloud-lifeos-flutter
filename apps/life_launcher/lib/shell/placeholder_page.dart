@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
-/// 占位 Tab 页（feature_calendar / feature_habit 待拆入）。
+/// 占位 Tab 页（feature_habit 待拆入）。
 class PlaceholderPage extends StatelessWidget {
   const PlaceholderPage({
     super.key,
@@ -13,10 +13,19 @@ class PlaceholderPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(subtitle, style: Theme.of(context).textTheme.titleMedium),
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(middle: Text(title)),
+      child: Center(
+        child: Text(
+          subtitle,
+          style: CupertinoTheme.of(context)
+              .textTheme
+              .navTitleTextStyle
+              .copyWith(
+                fontSize: 16,
+                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+              ),
+        ),
       ),
     );
   }

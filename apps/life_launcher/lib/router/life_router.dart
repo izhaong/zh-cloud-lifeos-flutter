@@ -1,4 +1,5 @@
-import 'package:flutter/cupertino.dart';
+import 'package:app_core/app_core.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/material.dart';
 
 import 'package:feature_calendar/feature_calendar.dart';
@@ -49,12 +50,15 @@ GoRouter buildLifeRouter(WidgetRef ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/',
-              builder: (context, state) => const TaskTabEntry(),
+              builder: (context, state) =>
+                  const LifeMaterialIsland(child: TaskTabEntry()),
               routes: [
                 GoRoute(
                   path: 'list/:listId',
-                  builder: (context, state) => TaskTabEntry(
-                    listId: state.pathParameters['listId'],
+                  builder: (context, state) => LifeMaterialIsland(
+                    child: TaskTabEntry(
+                      listId: state.pathParameters['listId'],
+                    ),
                   ),
                 ),
               ],
@@ -63,13 +67,15 @@ GoRouter buildLifeRouter(WidgetRef ref) {
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/calendar',
-              builder: (context, state) => const CalendarTabEntry(),
+              builder: (context, state) =>
+                  const LifeMaterialIsland(child: CalendarTabEntry()),
             ),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/note',
-              builder: (context, state) => const NoteTabEntry(),
+              builder: (context, state) =>
+                  const LifeMaterialIsland(child: NoteTabEntry()),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -154,7 +160,7 @@ class _TaskTabEntryState extends ConsumerState<TaskTabEntry> {
       onOpenCloudLogin: () => Navigator.of(context, rootNavigator: true).push(
         CupertinoPageRoute<bool>(
           fullscreenDialog: true,
-          builder: (_) => const CloudLoginPage(),
+          builder: (_) => const LifeMaterialIsland(child: CloudLoginPage()),
         ),
       ),
       onOpenList: (id) {

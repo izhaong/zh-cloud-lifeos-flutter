@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 /// 壳层「已安装应用」静态注册表（§1.4：首期第一方应用）。
 ///
@@ -35,30 +35,30 @@ const List<AppEntry> installedApps = [
   AppEntry(
     id: 'task',
     title: '任务',
-    icon: Icons.check_circle_outline,
-    selectedIcon: Icons.check_circle,
+    icon: CupertinoIcons.checkmark_circle,
+    selectedIcon: CupertinoIcons.checkmark_circle_fill,
     branchPath: '/',
   ),
   AppEntry(
     id: 'calendar',
     title: '日历',
-    icon: Icons.calendar_today_outlined,
-    selectedIcon: Icons.calendar_today,
+    icon: CupertinoIcons.calendar,
+    selectedIcon: CupertinoIcons.calendar,
     branchPath: '/calendar',
     isPlaceholder: false,
   ),
   AppEntry(
     id: 'note',
     title: '记录',
-    icon: Icons.sticky_note_2_outlined,
-    selectedIcon: Icons.sticky_note_2,
+    icon: CupertinoIcons.doc_text,
+    selectedIcon: CupertinoIcons.doc_text_fill,
     branchPath: '/note',
   ),
   AppEntry(
     id: 'habit',
     title: '习惯',
-    icon: Icons.spa_outlined,
-    selectedIcon: Icons.spa,
+    icon: CupertinoIcons.heart,
+    selectedIcon: CupertinoIcons.heart_fill,
     branchPath: '/habits',
     isPlaceholder: true,
   ),

@@ -32,6 +32,9 @@ melos:
     test:
       run: dart run melos exec --dir-exists=test -- flutter test
       description: 全仓单元/Widget 测试
+    ui-boundary:
+      run: dart run scripts/check_ui_boundary.dart
+      description: UI 边界检查（Material 仅限白名单）
     gen:
       run: dart run melos exec --depends-on=build_runner -- dart run build_runner build
       description: freezed / drift / riverpod_generator 代码生成

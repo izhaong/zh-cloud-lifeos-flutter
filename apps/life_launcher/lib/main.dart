@@ -1,4 +1,5 @@
 import 'package:app_core/app_core.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:dio/dio.dart';
 import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_calendar_cloud/feature_calendar_cloud.dart';
@@ -6,8 +7,9 @@ import 'package:feature_note/feature_note.dart';
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:feature_task_cloud/feature_task_cloud.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/material.dart' show ScaffoldMessenger;
+import 'package:flutter_localizations/flutter_localizations.dart'
+    show GlobalMaterialLocalizations, GlobalWidgetsLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -74,7 +76,11 @@ Future<void> main() async {
             }),
         calendarInboxOpenerProvider.overrideWith(
           (ref) => (context) => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CalendarCloudPage()),
+            CupertinoPageRoute<void>(
+              builder: (_) => const LifeMaterialIsland(
+                child: CalendarCloudPage(),
+              ),
+            ),
           ),
         ),
         pinnedTabsServiceProvider.overrideWithValue(
@@ -121,20 +127,23 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
   @override
   Widget build(BuildContext context) {
     final router = buildLifeRouter(ref);
-    return MaterialApp.router(
+    return CupertinoApp.router(
       title: 'LifeOS 生活台',
       debugShowCheckedModeBanner: false,
-      theme: LifeTokens.light(),
+      theme: LifeTokens.cupertino(),
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [
         Locale('zh', 'CN'),
         Locale('en', 'US'),
       ],
       localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
       ],
+      builder: (context, child) => ScaffoldMessenger(
+        child: child ?? const SizedBox.shrink(),
+      ),
       routerConfig: router,
     );
   }
