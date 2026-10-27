@@ -7,6 +7,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import 'note_editor_page.dart';
 import 'note_recycle_page.dart';
+import 'note_settings_page.dart';
 import 'note_sidebar.dart';
 import 'providers.dart';
 
@@ -30,6 +31,18 @@ class NoteScaffold extends ConsumerWidget {
     final folders =
         ref.watch(noteFoldersProvider).value ?? const <NoteFolder>[];
     final gallery = ref.watch(noteGalleryModeProvider);
+    final settings = ref.watch(noteSettingsProvider);
+    // 排序（F-13）：custom 保持仓库序（置顶优先），title/updated 为本地偏好
+    final sortedNotes = List<Note>.of(notes);
+    switch (settings.sortMode) {
+      case NoteSortMode.custom:
+        break;
+      case NoteSortMode.title:
+        sortedNotes.sort((a, b) => a.title.compareTo(b.title));
+      case NoteSortMode.updated:
+        sortedNotes.sort(
+            (a, b) => b.clientUpdatedAt.compareTo(a.clientUpdatedAt));
+    }
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= wideBreakpoint;
@@ -37,6 +50,16 @@ class NoteScaffold extends ConsumerWidget {
           appBar: AppBar(
             title: const Text('记录'),
             actions: [
+              IconButton(
+                key: const ValueKey('note_settings'),
+                tooltip: '记录设置',
+                icon: const Icon(Icons.settings_outlined),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const NoteSettingsPage(),
+                  ),
+                ),
+              ),
               IconButton(
                 key: const ValueKey('note_quick_capture'),
                 tooltip: '快速记录',
@@ -85,7 +108,7 @@ class NoteScaffold extends ConsumerWidget {
                           onSearch: (value) => ref
                               .read(noteSearchQueryProvider.notifier)
                               .setQuery(value),
-                          notes: notes,
+                          notes: sortedNotes,
                           onTap: (note) =>
                               _openEditor(context, ref, note, folders),
                           onPin: (note) => _togglePin(ref, note),
@@ -102,7 +125,7 @@ class NoteScaffold extends ConsumerWidget {
                   onSearch: (value) => ref
                       .read(noteSearchQueryProvider.notifier)
                       .setQuery(value),
-                  notes: notes,
+                  notes: sortedNotes,
                   onTap: (note) => _openEditor(context, ref, note, folders),
                   onPin: (note) => _togglePin(ref, note),
                   onDelete: (note) =>
@@ -116,9 +139,16 @@ class NoteScaffold extends ConsumerWidget {
   Future<void> _quickCapture(
       BuildContext context, WidgetRef ref, List<NoteFolder> folders) async {
     NoteFolder? target;
+    final settings = ref.read(noteSettingsProvider);
     final selectedId = ref.read(selectedNoteFolderIdProvider);
     for (final folder in folders) {
-      if (!folder.smart && folder.id == selectedId) {
+      if (!folder.smart && folder.id == settings.defaultFolderId) {
+        target = folder;
+        break;
+      }
+    }
+    for (final folder in folders) {
+      if (target == null && !folder.smart && folder.id == selectedId) {
         target = folder;
         break;
       }
@@ -270,7 +300,16 @@ class NoteScaffold extends ConsumerWidget {
       }
     }
     // 智能文件夹不是容器：新建笔记必须落在真实文件夹
+    final settings = ref.read(noteSettingsProvider);
+    String? defaultFolderId;
+    for (final folder in folders) {
+      if (!folder.smart && folder.id == settings.defaultFolderId) {
+        defaultFolderId = folder.id;
+        break;
+      }
+    }
     final folderId = note?.folderId ??
+        defaultFolderId ??
         (selected != null && !selected.smart ? selected.id : firstReal?.id);
     if (folderId == null) {
       ScaffoldMessenger.of(context).showSnackBar(

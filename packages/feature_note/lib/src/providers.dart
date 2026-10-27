@@ -92,3 +92,38 @@ class NoteGalleryModeNotifier extends Notifier<bool> {
 final noteGalleryModeProvider =
     NotifierProvider<NoteGalleryModeNotifier, bool>(
         NoteGalleryModeNotifier.new);
+
+
+/// 列表排序方式（F-13 本地偏好）。
+enum NoteSortMode { custom, title, updated }
+
+/// 记录设置（默认文件夹 + 排序；本地偏好，不落服务端）。
+class NoteSettings {
+  const NoteSettings({this.defaultFolderId, this.sortMode = NoteSortMode.custom});
+
+  final String? defaultFolderId;
+  final NoteSortMode sortMode;
+}
+
+class NoteSettingsNotifier extends Notifier<NoteSettings> {
+  @override
+  NoteSettings build() => const NoteSettings();
+
+  void setDefaultFolder(String? folderId) {
+    state = NoteSettings(
+      defaultFolderId: folderId,
+      sortMode: state.sortMode,
+    );
+  }
+
+  void setSortMode(NoteSortMode mode) {
+    state = NoteSettings(
+      defaultFolderId: state.defaultFolderId,
+      sortMode: mode,
+    );
+  }
+}
+
+final noteSettingsProvider =
+    NotifierProvider<NoteSettingsNotifier, NoteSettings>(
+        NoteSettingsNotifier.new);
