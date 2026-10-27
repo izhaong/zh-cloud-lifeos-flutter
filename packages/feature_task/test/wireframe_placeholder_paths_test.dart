@@ -1,5 +1,4 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -80,8 +79,8 @@ void main() {
     await tester.tap(find.byType(CupertinoSwitch).first);
     await tester.pumpAndSettle();
 
-    // 关闭：点 sheet 外（顶部留白）
-    await tester.tapAt(const Offset(10, 20));
+    // 关闭：点导航栏「完成」
+    await tester.tap(find.byKey(const ValueKey('settings_done')));
     await tester.pumpAndSettle();
     expect(find.text('默认列表'), findsNothing);
   });

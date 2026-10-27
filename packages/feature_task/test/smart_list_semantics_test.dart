@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter/material.dart';
@@ -75,7 +76,7 @@ void main() {
     Finder cardCount(String title, String count) {
       final card = find.ancestor(
         of: find.text(title),
-        matching: find.byType(InkWell),
+        matching: find.byType(CupertinoButton),
       );
       return find.descendant(of: card, matching: find.text(count));
     }
