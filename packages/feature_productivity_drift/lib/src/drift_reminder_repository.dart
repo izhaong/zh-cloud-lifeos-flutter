@@ -33,7 +33,7 @@ class DriftReminderRepository
     kernel.ReminderList(id: 'smart.today', title: '今天', isSmart: true),
     kernel.ReminderList(id: 'smart.scheduled', title: '计划', isSmart: true),
     kernel.ReminderList(id: 'smart.all', title: '全部', isSmart: true),
-    kernel.ReminderList(id: 'smart.flagged', title: '已旗标', isSmart: true),
+    kernel.ReminderList(id: 'smart.flagged', title: '旗标', isSmart: true),
     kernel.ReminderList(id: 'smart.urgent', title: '紧急', isSmart: true),
     kernel.ReminderList(id: 'smart.completed', title: '完成', isSmart: true),
     kernel.ReminderList(id: 'smart.assigned', title: '分配事项', isSmart: true),
