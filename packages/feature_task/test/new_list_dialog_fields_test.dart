@@ -5,6 +5,8 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'support/life_test_app.dart';
+
 /// TC-UI-115/316：新建列表对话框图4 全字段（名称/颜色/图标/类型）；
 /// TC-UI-313：类型下拉（标准/日常采购）；grocery 预置 8 分区。
 Future<void> _pump(
@@ -14,8 +16,8 @@ Future<void> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: MaterialApp(
-        home: Scaffold(
+      child: lifeTestHost(
+        Scaffold(
           body: Builder(
             builder: (context) => Center(
               child: FilledButton(
@@ -44,7 +46,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 图4 四字段齐备
-    expect(find.byType(TextField), findsOneWidget); // 名称
+    expect(find.byKey(const ValueKey('new_list_name')), findsOneWidget);
     expect(find.byKey(const ValueKey('color_4281648985')), findsOneWidget);
     expect(find.byKey(const ValueKey('icon_cart')), findsOneWidget);
     expect(find.byKey(const ValueKey('list_type')), findsOneWidget);
@@ -67,11 +69,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('open_dialog')));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), '周采购');
+    await tester.enterText(
+      find.byKey(const ValueKey('new_list_name')),
+      '周采购',
+    );
     // 选采购类型
-    await tester.tap(find.byKey(const ValueKey('list_type')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('日常采购（预置分区）').last);
+    await tester.tap(find.text('日常采购'));
     await tester.pumpAndSettle();
 
     // 选购物车图标
@@ -96,7 +99,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('open_dialog')));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), '普通清单');
+    await tester.enterText(
+      find.byKey(const ValueKey('new_list_name')),
+      '普通清单',
+    );
     await tester.tap(find.byKey(const ValueKey('new_list_submit')));
     await tester.pumpAndSettle();
 

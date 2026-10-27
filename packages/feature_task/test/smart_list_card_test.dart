@@ -34,10 +34,10 @@ void main() {
     expect(find.text('今天'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
 
-    final ink = tester.widget<Ink>(
-      find.descendant(of: find.byKey(key), matching: find.byType(Ink)),
+    final container = tester.widget<Container>(
+      find.byKey(const ValueKey('smart_card_surface_smart.today')),
     );
-    final decoration = ink.decoration as BoxDecoration;
+    final decoration = container.decoration as BoxDecoration;
     expect(decoration.gradient, isNotNull);
 
     await tester.tap(find.byKey(key));
@@ -68,13 +68,10 @@ void main() {
       ),
     );
 
-    final ink = tester.widget<Ink>(
-      find.descendant(
-        of: find.byKey(const ValueKey('smart_card_smart.flagged')),
-        matching: find.byType(Ink),
-      ),
+    final container = tester.widget<Container>(
+      find.byKey(const ValueKey('smart_card_surface_smart.flagged')),
     );
-    final decoration = ink.decoration as BoxDecoration;
+    final decoration = container.decoration as BoxDecoration;
     expect(decoration.border, isNotNull);
   });
 }

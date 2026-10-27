@@ -1,7 +1,6 @@
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:intl/intl.dart';
 
 import '../design/reminder_tokens.dart';
 
@@ -60,81 +59,98 @@ class ReminderRow extends StatelessWidget {
       spans.add(TextSpan(text: m));
     }
 
-    final tile = ListTile(
-      dense: dense,
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: dense ? 0 : 2,
-      ),
-      leading: GestureDetector(
-        onTap: onToggleCompleted,
-        behavior: HitTestBehavior.opaque,
-        child: Icon(
-          item.isCompleted
-              ? CupertinoIcons.check_mark_circled_solid
-              : CupertinoIcons.circle,
-          color: item.isCompleted
-              ? const Color(0xFF007AFF)
-              : const Color(0xFFC7C7CC),
-          size: dense ? 18 : 22,
+    final tile = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        constraints: BoxConstraints(minHeight: dense ? 36 : 48),
+        padding: EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: dense ? 4 : 6,
         ),
-      ),
-      title: Text(
-        item.title,
-        style: TextStyle(
-          decoration: item.isCompleted ? TextDecoration.lineThrough : null,
-          color: item.isCompleted ? const Color(0xFF8E8E93) : null,
-          fontSize: dense ? 14 : 16,
-        ),
-      ),
-      subtitle: spans.isEmpty
-          ? null
-          : Text.rich(
-              TextSpan(children: spans),
-              style: const TextStyle(
-                color: ReminderTokens.labelSecondary,
-                fontSize: 12,
-              ),
-            ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (item.priority > 0)
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Text(
-                _priorityMark(item.priority),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: _priorityColor(item.priority),
-                ),
-              ),
-            ),
-          if (onToggleFlagged != null)
+        child: Row(
+          children: [
             GestureDetector(
-              key: ValueKey('row_flag_${item.id}'),
-              onTap: onToggleFlagged,
+              onTap: onToggleCompleted,
               behavior: HitTestBehavior.opaque,
               child: Icon(
-                item.isFlagged
-                    ? CupertinoIcons.flag_fill
-                    : CupertinoIcons.flag,
-                color:
-                    item.isFlagged ? const Color(0xFFFF9500) : const Color(
-                        0xFFC7C7CC),
-                size: 18,
+                item.isCompleted
+                    ? CupertinoIcons.check_mark_circled_solid
+                    : CupertinoIcons.circle,
+                color: item.isCompleted
+                    ? const Color(0xFF007AFF)
+                    : const Color(0xFFC7C7CC),
+                size: dense ? 18 : 22,
               ),
             ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    item.title,
+                    style: TextStyle(
+                      decoration:
+                          item.isCompleted ? TextDecoration.lineThrough : null,
+                      color: item.isCompleted
+                          ? CupertinoColors.secondaryLabel.resolveFrom(context)
+                          : CupertinoColors.label.resolveFrom(context),
+                      fontSize: dense ? 14 : 16,
+                    ),
+                  ),
+                  if (spans.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text.rich(
+                      TextSpan(children: spans),
+                      style: const TextStyle(
+                        color: ReminderTokens.labelSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (item.priority > 0)
+              Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: Text(
+                  _priorityMark(item.priority),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: _priorityColor(item.priority),
+                  ),
+                ),
+              ),
+            if (onToggleFlagged != null)
+              GestureDetector(
+                key: ValueKey('row_flag_${item.id}'),
+                onTap: onToggleFlagged,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Icon(
+                    item.isFlagged
+                        ? CupertinoIcons.flag_fill
+                        : CupertinoIcons.flag,
+                    color: item.isFlagged
+                        ? const Color(0xFFFF9500)
+                        : const Color(0xFFC7C7CC),
+                    size: 18,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
-      onTap: onTap,
     );
     if (onDelete == null) return tile;
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onSecondaryTapDown: (details) =>
-          _showDeleteMenu(context, details.globalPosition),
+      onSecondaryTap: () => _showDeleteMenu(context),
       child: Dismissible(
         key: ValueKey('dismiss_${item.id}'),
         direction: DismissDirection.endToStart,
@@ -142,7 +158,7 @@ class ReminderRow extends StatelessWidget {
           color: ReminderTokens.systemRed,
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 24),
-          child: const Icon(CupertinoIcons.delete, color: Colors.white),
+          child: const Icon(CupertinoIcons.delete, color: CupertinoColors.white),
         ),
         onDismissed: (_) => onDelete!(),
         child: tile,
@@ -150,22 +166,23 @@ class ReminderRow extends StatelessWidget {
     );
   }
 
-  Future<void> _showDeleteMenu(
-    BuildContext context,
-    Offset position,
-  ) async {
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
-    if (overlay == null) return;
-    final selected = await showMenu<String>(
+  Future<void> _showDeleteMenu(BuildContext context) async {
+    final selected = await showCupertinoModalPopup<String>(
       context: context,
-      position: RelativeRect.fromRect(
-        position & const Size(1, 1),
-        Offset.zero & overlay.size,
+      builder: (ctx) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(ctx).pop('delete'),
+            child: const Text('删除提醒'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('取消'),
+        ),
       ),
-      items: const [
-        PopupMenuItem(value: 'delete', child: Text('删除提醒')),
-      ],
     );
     if (selected == 'delete') onDelete?.call();
   }
@@ -175,11 +192,14 @@ class ReminderRow extends StatelessWidget {
     DateTime? dueAt,
   ) {
     if (dueAt == null) return null;
-    final material = MaterialLocalizations.of(context);
+    final locale = Localizations.localeOf(context).toString();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     if (dueAt.isBefore(today)) {
-      return (text: material.formatMediumDate(dueAt), overdue: true);
+      return (
+        text: DateFormat.MMMd(locale).format(dueAt),
+        overdue: true,
+      );
     }
     final isToday = dueAt.year == now.year &&
         dueAt.month == now.month &&
@@ -192,7 +212,7 @@ class ReminderRow extends StatelessWidget {
       }
       return (text: '今天', overdue: false);
     }
-    return (text: material.formatMediumDate(dueAt), overdue: false);
+    return (text: DateFormat.MMMd(locale).format(dueAt), overdue: false);
   }
 
   static String _recurrenceLabel(String id) {

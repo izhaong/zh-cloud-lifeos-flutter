@@ -14,7 +14,8 @@ Future<void> _pump(
     selectedItemId: '1',
   ),
 }) async {
-  final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+  final view =
+      TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
   view
     ..physicalSize = size
     ..devicePixelRatio = 1.0;
@@ -29,14 +30,14 @@ Future<void> _pump(
 
 void main() {
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views
-        .first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
 
   // TC-UI-114
-    testWidgets('详情面板：添加子任务 → 列表行呈现缩进子任务', (tester) async {
+  testWidgets('详情面板：添加子任务 → 列表行呈现缩进子任务', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(1366, 1024), repo: repo);
 
@@ -44,7 +45,10 @@ void main() {
     await tester.tap(find.text('添加子任务'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextField, '子任务'), '准备购物清单');
+    await tester.enterText(
+      find.byKey(const ValueKey('detail_subtask')),
+      '准备购物清单',
+    );
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
 
@@ -59,7 +63,7 @@ void main() {
   });
 
   // TC-UI-114
-    testWidgets('详情面板：勾选子任务即时完成', (tester) async {
+  testWidgets('详情面板：勾选子任务即时完成', (tester) async {
     final repo = InMemoryReminderRepository();
     // 预置一条子任务
     await repo.upsertItem(
@@ -86,7 +90,7 @@ void main() {
   });
 
   // TC-UI-114
-    testWidgets('详情面板：滑删子任务级联不伤父条目', (tester) async {
+  testWidgets('详情面板：滑删子任务级联不伤父条目', (tester) async {
     final repo = InMemoryReminderRepository();
     await repo.upsertItem(
       const ReminderItem(
@@ -98,10 +102,7 @@ void main() {
     );
     await _pump(tester, size: const Size(1366, 1024), repo: repo);
 
-    await tester.drag(
-      find.text('待删子任务').last,
-      const Offset(-400, 0),
-    );
+    await tester.drag(find.text('待删子任务').last, const Offset(-400, 0));
     await tester.pumpAndSettle();
 
     final items = await repo.watchItems(listId: 'list.personal').first;
@@ -111,5 +112,8 @@ void main() {
 }
 
 // CupertinoIcons.circle 的 IconData 常量在 material 命名空间外，直接引用：
-const _circleIcon = IconData(0xF401,
-    fontFamily: 'CupertinoIcons', fontPackage: 'cupertino_icons');
+const _circleIcon = IconData(
+  0xF401,
+  fontFamily: 'CupertinoIcons',
+  fontPackage: 'cupertino_icons',
+);
