@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import 'note_editor_page.dart';
 import 'note_sidebar.dart';
 import 'providers.dart';
 
@@ -19,12 +20,20 @@ class NoteScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notes = ref.watch(visibleNotesProvider).value ?? const <Note>[];
+    final folders =
+        ref.watch(noteFoldersProvider).value ?? const <NoteFolder>[];
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= wideBreakpoint;
         return Scaffold(
           appBar: AppBar(title: const Text('记录')),
           drawer: wide ? null : const Drawer(child: SafeArea(child: NoteSidebar())),
+          floatingActionButton: FloatingActionButton(
+            key: const ValueKey('note_new'),
+            tooltip: '新建备忘录',
+            onPressed: () => _openEditor(context, ref, null, folders),
+            child: const Icon(Icons.add),
+          ),
           body: wide
               ? SafeArea(
                   child: Row(
@@ -34,21 +43,50 @@ class NoteScaffold extends ConsumerWidget {
                         child: NoteSidebar(),
                       ),
                       const VerticalDivider(width: 1),
-                      Expanded(child: _NoteList(notes: notes)),
+                      Expanded(
+                        child: _NoteList(
+                          notes: notes,
+                          onTap: (note) =>
+                              _openEditor(context, ref, note, folders),
+                        ),
+                      ),
                     ],
                   ),
                 )
-              : _NoteList(notes: notes),
+              : _NoteList(
+                  notes: notes,
+                  onTap: (note) => _openEditor(context, ref, note, folders),
+                ),
         );
       },
+    );
+  }
+
+  void _openEditor(BuildContext context, WidgetRef ref, Note? note,
+      List<NoteFolder> folders) {
+    final selectedId = ref.read(selectedNoteFolderIdProvider);
+    final folderId = note?.folderId ??
+        selectedId ??
+        (folders.isEmpty ? null : folders.first.id);
+    if (folderId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('先新建一个文件夹')),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NoteEditorPage(note: note, folderId: folderId),
+      ),
     );
   }
 }
 
 class _NoteList extends StatelessWidget {
-  const _NoteList({required this.notes});
+  const _NoteList({required this.notes, required this.onTap});
 
   final List<Note> notes;
+  final ValueChanged<Note> onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +98,7 @@ class _NoteList extends StatelessWidget {
       itemBuilder: (_, i) {
         final note = notes[i];
         return ListTile(
+          onTap: () => onTap(note),
           title: Text(
             note.title,
             maxLines: 1,
