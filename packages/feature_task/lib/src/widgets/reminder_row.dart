@@ -16,6 +16,7 @@ class ReminderRow extends StatelessWidget {
     required this.onToggleCompleted,
     this.onToggleFlagged,
     this.onTap,
+    this.onDelete,
     this.dense = false,
     this.listName,
   });
@@ -25,6 +26,7 @@ class ReminderRow extends StatelessWidget {
   final VoidCallback onToggleCompleted;
   final VoidCallback? onToggleFlagged;
   final VoidCallback? onTap;
+  final VoidCallback? onDelete;
 
   /// 子任务行的紧凑变体（缩进由外层控制）。
   final bool dense;
@@ -58,7 +60,7 @@ class ReminderRow extends StatelessWidget {
       spans.add(TextSpan(text: m));
     }
 
-    return ListTile(
+    final tile = ListTile(
       dense: dense,
       contentPadding: EdgeInsets.symmetric(
         horizontal: 16,
@@ -128,6 +130,44 @@ class ReminderRow extends StatelessWidget {
       ),
       onTap: onTap,
     );
+    if (onDelete == null) return tile;
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onSecondaryTapDown: (details) =>
+          _showDeleteMenu(context, details.globalPosition),
+      child: Dismissible(
+        key: ValueKey('dismiss_${item.id}'),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          color: ReminderTokens.systemRed,
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 24),
+          child: const Icon(CupertinoIcons.delete, color: Colors.white),
+        ),
+        onDismissed: (_) => onDelete!(),
+        child: tile,
+      ),
+    );
+  }
+
+  Future<void> _showDeleteMenu(
+    BuildContext context,
+    Offset position,
+  ) async {
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (overlay == null) return;
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        position & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: const [
+        PopupMenuItem(value: 'delete', child: Text('删除提醒')),
+      ],
+    );
+    if (selected == 'delete') onDelete?.call();
   }
 
   ({String text, bool overdue})? _dueText(

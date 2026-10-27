@@ -790,6 +790,36 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       return ordered;
     }
 
+    if (widget.list.id == 'smart.today') {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final buckets = <String, List<ReminderItem>>{
+        '已过期': [],
+        '今天': [],
+        '上午': [],
+        '下午': [],
+        '今晚': [],
+      };
+      for (final item in topLevel) {
+        final due = item.dueAt;
+        if (due == null || (due.hour == 0 && due.minute == 0)) {
+          buckets['今天']!.add(item);
+        } else if (DateTime(due.year, due.month, due.day).isBefore(today)) {
+          buckets['已过期']!.add(item);
+        } else if (due.hour < 12) {
+          buckets['上午']!.add(item);
+        } else if (due.hour < 18) {
+          buckets['下午']!.add(item);
+        } else {
+          buckets['今晚']!.add(item);
+        }
+      }
+      return {
+        for (final key in buckets.keys)
+          if (buckets[key]!.isNotEmpty) key: buckets[key]!,
+      };
+    }
+
     final now = DateTime.now();
     final sections = <String, List<ReminderItem>>{};
     for (final item in topLevel) {
@@ -863,6 +893,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       onToggleCompleted: () => completeReminder(ref, item),
       onToggleFlagged: () => repo.toggleFlagged(item.id),
       onTap: () => widget.onSelectItem?.call(item),
+      onDelete: _isTrashView ? null : () => repo.deleteItem(item.id),
     );
     // 最近删除视图：行尾「恢复」（TC-UI-109；对齐 Apple Recently Deleted）
     final trashRow = _isTrashView
@@ -892,6 +923,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               dense: true,
               onToggleCompleted: () => completeReminder(ref, sub),
               onToggleFlagged: () => repo.toggleFlagged(sub.id),
+              onDelete: _isTrashView ? null : () => repo.deleteItem(sub.id),
             ),
           ),
       ],

@@ -40,6 +40,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   late int _priority;
   late String? _recurrence;
   DateTime? _recurrenceUntil;
+  DateTime? _dueAt;
   bool _showSubtaskDraft = false;
 
   @override
@@ -67,6 +68,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     _priority = widget.item.priority;
     _recurrence = widget.item.recurrence;
     _recurrenceUntil = widget.item.recurrenceUntil;
+    _dueAt = widget.item.dueAt;
     _showSubtaskDraft = false;
   }
 
@@ -92,6 +94,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
       notes: _notes.text.isEmpty ? ReminderItem.clear : _notes.text,
       isFlagged: _isFlagged,
       priority: _priority,
+      dueAt: _dueAt ?? ReminderItem.clear,
       recurrence: _recurrence ?? ReminderItem.clear,
       // cursor T-04 R2：规则清空（永不）时结束日一并清——防旧结束日被静默沿用
       recurrenceUntil: _recurrence == null
@@ -100,6 +103,12 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
       tags: tagList,
     );
     widget.onSaved(updated);
+  }
+
+  Future<void> _delete() async {
+    await _repo.deleteItem(widget.item.id);
+    if (!mounted) return;
+    widget.onClose?.call();
   }
 
   Future<void> _submitSubtask() async {
@@ -216,6 +225,114 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     }
   }
 
+  String _dueLabel() {
+    final d = _dueAt;
+    if (d == null) return '无';
+    final date = _fmtDate(d);
+    if (d.hour == 0 && d.minute == 0) return date;
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    return '$date $hh:$mm';
+  }
+
+  Future<void> _pickDueAt() async {
+    var picked = _dueAt ?? DateTime.now().add(const Duration(hours: 1));
+    picked = DateTime(
+      picked.year,
+      picked.month,
+      picked.day,
+      picked.hour,
+      picked.minute - picked.minute % 5,
+    );
+    var allDay = _dueAt != null && picked.hour == 0 && picked.minute == 0;
+    final result = await showCupertinoModalPopup<Object?>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) => Container(
+            key: const ValueKey('due_at_editor'),
+            height: 380,
+            color: ReminderTokens.windowBg,
+            child: Column(
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      CupertinoButton(
+                        key: const ValueKey('due_at_cancel'),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('取消'),
+                      ),
+                      CupertinoButton(
+                        key: const ValueKey('due_at_clear'),
+                        onPressed: () =>
+                            Navigator.of(ctx).pop(ReminderItem.clear),
+                        child: const Text(
+                          '清除',
+                          style: TextStyle(color: ReminderTokens.systemRed),
+                        ),
+                      ),
+                      CupertinoButton(
+                        key: const ValueKey('due_at_confirm'),
+                        onPressed: () => Navigator.of(ctx).pop(picked),
+                        child: const Text('好'),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      const Text('全天', style: TextStyle(fontSize: 15)),
+                      const Spacer(),
+                      CupertinoSwitch(
+                        key: const ValueKey('due_at_all_day'),
+                        value: allDay,
+                        onChanged: (v) => setSheetState(() {
+                          allDay = v;
+                          picked = v
+                              ? DateTime(picked.year, picked.month, picked.day)
+                              : DateTime(picked.year, picked.month, picked.day,
+                                  9, 0);
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: CupertinoDatePicker(
+                    key: ValueKey('due_at_picker_$allDay'),
+                    initialDateTime: picked,
+                    mode: CupertinoDatePickerMode.dateAndTime,
+                    minuteInterval: 5,
+                    use24hFormat: true,
+                    onDateTimeChanged: (d) {
+                      picked = allDay
+                          ? DateTime(d.year, d.month, d.day)
+                          : d;
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (result == null) return;
+    if (identical(result, ReminderItem.clear)) {
+      setState(() => _dueAt = null);
+      return;
+    }
+    if (result is DateTime) {
+      setState(() => _dueAt = result);
+    }
+  }
+
   Widget _groupedRows(List<Widget> rows) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -301,14 +418,13 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
           const SizedBox(height: 20),
 
           _groupedRows([
-            // 日期与时间（展示；编辑入口 Phase 4 完整日历选择）
             _Row(
+              key: const ValueKey('due_at_row'),
               icon: CupertinoIcons.calendar,
-            label: '日期与时间',
-            trailing: Text(widget.item.dueAt == null
-                ? '无'
-                : _fmtDate(widget.item.dueAt!)),
-          ),
+              label: '日期与时间',
+              onTap: _pickDueAt,
+              trailing: Text(_dueLabel()),
+            ),
           _Row(
             icon: CupertinoIcons.arrow_2_circlepath,
             label: '重复',
@@ -488,6 +604,19 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                   onTap: () => setState(() => _showSubtaskDraft = true),
                 ),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Center(
+              child: TextButton(
+                key: const ValueKey('detail_delete'),
+                onPressed: _delete,
+                style: TextButton.styleFrom(
+                  foregroundColor: ReminderTokens.systemRed,
+                ),
+                child: const Text('删除提醒'),
+              ),
             ),
           ),
         ],

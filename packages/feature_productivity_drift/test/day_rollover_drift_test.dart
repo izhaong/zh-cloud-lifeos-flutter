@@ -20,13 +20,19 @@ void main() {
 
   tearDown(() async => db.close());
 
-  test('drift 跨日：今天视图清空、计划视图保留', () async {
+  test('drift 跨日：今天保留过期项并纳入次日项', () async {
     repo.nowForTest = DateTime(2026, 10, 25, 9, 0);
     await repo.upsertItem(ReminderItem(
       id: 'i1',
       listId: 'list.personal',
       title: '当天项',
       dueAt: DateTime(2026, 10, 25, 9, 0),
+    ));
+    await repo.upsertItem(ReminderItem(
+      id: 'i2',
+      listId: 'list.personal',
+      title: '次日项',
+      dueAt: DateTime(2026, 10, 26, 9, 0),
     ));
 
     // 订阅「今天」并等首帧
@@ -44,15 +50,16 @@ void main() {
       const Duration(seconds: 5),
       onTimeout: () => <ReminderItem>[],
     );
-    expect(todayAfter, isEmpty, reason: '跨日后「今天」不再含 i1');
+    expect(todayAfter.map((e) => e.id), ['i1', 'i2'],
+        reason: '跨日后 i1 转过期仍在「今天」，i2 进入「今天」');
 
     final scheduled =
         await repo.watchItems(listId: 'smart.scheduled').first;
-    expect(scheduled.map((e) => e.id), ['i1'],
+    expect(scheduled.map((e) => e.id), ['i1', 'i2'],
         reason: '「计划」= dueAt 非空（含过期）');
   });
 
-  test('drift 跨日：侧栏「今天」计数归零', () async {
+  test('drift 跨日：侧栏「今天」保留过期项计数', () async {
     repo.nowForTest = DateTime(2026, 10, 25, 9, 0);
     await repo.upsertItem(ReminderItem(
       id: 'i1',
@@ -66,7 +73,7 @@ void main() {
 
     repo.nowForTest = DateTime(2026, 10, 26, 0, 1);
     lists = await repo.watchLists().first;
-    expect(lists.singleWhere((l) => l.id == 'smart.today').itemCount, 0,
-        reason: '跨日后「今天」计数归零（now 不得在建流时冻结）');
+    expect(lists.singleWhere((l) => l.id == 'smart.today').itemCount, 1,
+        reason: '跨日后 i1 转过期，仍计入「今天」');
   });
 }

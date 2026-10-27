@@ -563,7 +563,8 @@ final class InMemoryReminderRepository implements ReminderRepository {
     final now = _now;
     for (var i = 0; i < _lists.length; i++) {
       final list = _lists[i];
-      final count = list.id == 'smart.completed'
+      // 完成/最近删除都按整表计数（回收站里的已完成项也要显示）。
+      final count = list.id == 'smart.completed' || list.id == 'smart.trash'
           ? _filter(list.id, now).length
           : _filter(list.id, now).where((e) => !e.isCompleted).length;
       _lists[i] = list.copyWith(itemCount: count);
@@ -609,18 +610,18 @@ final class InMemoryReminderRepository implements ReminderRepository {
       'smart.trash' => _items.where((e) =>
           e.deletedAt != null &&
           e.deletedAt!.isAfter(now.subtract(recycleWindow))),
+      // 今天 = 今天到期 + 已过期未完成（Apple 口径，TC-UI-101）。
       'smart.today' => alive.where(
-          (e) => !e.isCompleted && _isSameLocalDay(e.dueAt, now)),
+          (e) => !e.isCompleted && _isTodayOrOverdue(e.dueAt, now)),
       'smart.scheduled' =>
           alive.where((e) => !e.isCompleted && e.dueAt != null),
       'smart.all' => alive.where((e) => !e.isCompleted),
       'smart.flagged' => alive.where((e) => !e.isCompleted && e.isFlagged),
+      // 紧急 = 已过期未完成或高优先级（含今天已过时）。
       'smart.urgent' => alive.where((e) =>
           !e.isCompleted &&
           (e.priority >= 9 ||
-              (e.dueAt != null &&
-                  !e.dueAt!.isAfter(now) &&
-                  _isSameLocalDay(e.dueAt, now)))),
+              (e.dueAt != null && e.dueAt!.isBefore(now)))),
       'smart.completed' => alive.where((e) => e.isCompleted),
       // 分配事项：本地没有 assignee 字段，协作（M4）接入前恒为空。
       'smart.assigned' => const <ReminderItem>[],
@@ -628,9 +629,11 @@ final class InMemoryReminderRepository implements ReminderRepository {
     };
   }
 
-  bool _isSameLocalDay(DateTime? a, DateTime b) {
+  bool _isTodayOrOverdue(DateTime? a, DateTime b) {
     if (a == null) return false;
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    final day = DateTime(a.year, a.month, a.day);
+    final today = DateTime(b.year, b.month, b.day);
+    return !day.isAfter(today);
   }
 }
 

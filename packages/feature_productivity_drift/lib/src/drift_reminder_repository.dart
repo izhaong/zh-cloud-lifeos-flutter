@@ -601,7 +601,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   }
 
   int _count(List<ReminderItem> rows, String listId, DateTime now) {
-    if (listId == 'smart.completed') {
+    if (listId == 'smart.completed' || listId == 'smart.trash') {
       return rows.where((row) => _matches(row, listId, now)).length;
     }
     return rows
@@ -618,17 +618,17 @@ class DriftReminderRepository implements kernel.ReminderRepository {
         row.deletedAt != null &&
             row.deletedAt!.isAfter(now.subtract(
                 kernel.InMemoryReminderRepository.recycleWindow)),
+      // 今天 = 今天到期 + 已过期未完成（Apple 口径，TC-UI-101）。
       'smart.today' =>
-        alive && !row.isCompleted && _isSameLocalDay(row.dueAt, now),
+        alive && !row.isCompleted && _isTodayOrOverdue(row.dueAt, now),
       'smart.scheduled' => alive && !row.isCompleted && row.dueAt != null,
       'smart.all' => alive && !row.isCompleted,
       'smart.flagged' => alive && !row.isCompleted && row.isFlagged,
+      // 紧急 = 已过期未完成或高优先级（含今天已过时）。
       'smart.urgent' => alive &&
           !row.isCompleted &&
           (row.priority >= 9 ||
-              (row.dueAt != null &&
-                  !row.dueAt!.isAfter(now) &&
-                  _isSameLocalDay(row.dueAt, now))),
+              (row.dueAt != null && row.dueAt!.isBefore(now))),
       'smart.completed' => alive && row.isCompleted,
       // 分配事项：本地没有 assignee 字段，协作（M4）接入前恒为空。
       'smart.assigned' => false,
@@ -636,9 +636,11 @@ class DriftReminderRepository implements kernel.ReminderRepository {
     };
   }
 
-  bool _isSameLocalDay(DateTime? a, DateTime b) {
+  bool _isTodayOrOverdue(DateTime? a, DateTime b) {
     if (a == null) return false;
-    return a.year == b.year && a.month == b.month && a.day == b.day;
+    final day = DateTime(a.year, a.month, a.day);
+    final today = DateTime(b.year, b.month, b.day);
+    return !day.isAfter(today);
   }
 
   kernel.ReminderItem _toModel(ReminderItem row) {

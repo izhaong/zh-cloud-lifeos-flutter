@@ -83,11 +83,12 @@ void main() {
     expect(find.text('无匹配结果'), findsOneWidget, reason: 'TC-UI-203: 搜索空态');
   });
 
-  // ── TC-UI-204: 智能列表语义（today = 同日未完成） ──
-  testWidgets('TC-UI-204 智能列表语义：今天=同日未完成', (tester) async {
+  // ── TC-UI-204: 智能列表语义（today = 同日 + 过期未完成） ──
+  testWidgets('TC-UI-204 智能列表语义：今天=同日+过期未完成', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(const ReminderList(id: 'list.personal', title: '提醒事项', colorArgb: 0xFFFF9500));
     final now = DateTime.now();
+    await repo.upsertItem(ReminderItem(id: 'i0', listId: 'list.personal', title: '过期任务', dueAt: now.subtract(const Duration(days: 1))));
     await repo.upsertItem(ReminderItem(id: 'i1', listId: 'list.personal', title: '今天任务A', dueAt: now));
     await repo.upsertItem(ReminderItem(id: 'i2', listId: 'list.personal', title: '今天任务B', dueAt: now));
     await repo.upsertItem(ReminderItem(id: 'i3', listId: 'list.personal', title: '明天任务', dueAt: now.add(const Duration(days: 1))));
@@ -101,6 +102,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
+    expect(find.text('过期任务'), findsOneWidget, reason: '今天包含过期任务');
     expect(find.text('今天任务A'), findsOneWidget);
     expect(find.text('今天任务B'), findsOneWidget);
     expect(find.text('明天任务'), findsNothing, reason: '明天任务不在今天视图');
