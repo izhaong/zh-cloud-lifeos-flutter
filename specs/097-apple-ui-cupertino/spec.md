@@ -45,6 +45,11 @@
 3. `cupertino_ui 1.1.0` 已被 pub 撤回；`1.1.1+` 要求 Flutter >= 3.47。本机与仓库工具链已升到 Flutter 3.47.5 / Dart 3.13.4（#128 的 `09a89dd`，移除 `intl` / `hooks` 钉版），因此直接使用 `1.1.4`。
 4. 本地探针已验证：`cupertino_ui` + SDK Material 岛 + `GlobalMaterialLocalizations` 可编译、测试通过；3.47.5 下四个包 analyze 绿。
 
+### 3.1 交叉评审记录
+
+- **cursor-agent**：参与。支持 `cupertino_ui` 方向，并指出三个真实断点——弃用桥不能冒充完整 `ThemeData`、`CupertinoApp` 缺 `ScaffoldMessenger` / `GlobalMaterialLocalizations`、残留 `MaterialPageRoute` / `showModalBottomSheet` 与 Cupertino 返回手势冲突。本 spec 的「显式 Material 岛 + 根 ScaffoldMessenger + 各 App PR 清零 Material 路由」按这三条落地。
+- **claude CLI**：两次（本会话与并行会话）均 0 字节输出、20+ 分钟无结论，已停止。按长目标提示词 F.10 降级为本地独立评审（只读对照设计稿 + 父仓规则）并继续，额度恢复后可对争议点补一轮。
+
 否掉的替代：
 
 - **SDK `flutter/cupertino.dart` 根**：go_router 不识别，页面转场退化为 `NoTransitionPage`。
