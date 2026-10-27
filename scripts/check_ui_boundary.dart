@@ -5,7 +5,7 @@ import 'dart:io';
 /// 用法：
 ///   dart run scripts/check_ui_boundary.dart
 ///   dart run scripts/check_ui_boundary.dart --strict   # 迁移收口后：不再跳过 pending 包
-///   dart run scripts/check_ui_boundary.dart --root <dir> --strict
+///   dart run scripts/check_ui_boundary.dart --root `<dir>` --strict
 ///
 /// 白名单逐文件写明原因与移除条件。
 
@@ -17,9 +17,8 @@ const _scanRoots = <String>[
   'packages/feature_note/lib',
 ];
 
-/// 迁移中的包：本轮 PR 只收口壳层，其余三包在各自 PR 内逐步从 pending 移除。
+/// 迁移中的包：feature_task 已收口（#129），日历/记录在各自 PR 内逐步从 pending 移除。
 const _pendingPackages = <String>{
-  'packages/feature_task',
   'packages/feature_calendar',
   'packages/feature_note',
 };
@@ -32,7 +31,7 @@ const _materialAllowed = <String>{
   'packages/app_core/lib/src/theme/life_material_island.dart',
   // 根 ScaffoldMessenger（过渡期，feature_note 迁移完成后移除）。
   'apps/life_launcher/lib/main.dart',
-  // 未迁移 feature 的过渡岛 + 任务详情底部弹层（#129/#131 完成后移除）。
+  // 未迁移 feature 的过渡岛 + 云登录页岛（#130/#131 完成后收窄）。
   'apps/life_launcher/lib/router/life_router.dart',
 };
 
@@ -44,9 +43,7 @@ const _materialMarkers = <String>[
   'showDialog',
 ];
 
-const _cupertinoMarkers = <String>[
-  'package:flutter/cupertino.dart',
-];
+const _cupertinoMarkers = <String>['package:flutter/cupertino.dart'];
 
 String? _argValue(List<String> args, String name) {
   final i = args.indexOf(name);
@@ -62,8 +59,9 @@ void main(List<String> args) {
   final pending = <String>[];
 
   for (final rel in _scanRoots) {
-    final isPending =
-        _pendingPackages.any((p) => rel == '$p/lib' || rel.startsWith('$p/'));
+    final isPending = _pendingPackages.any(
+      (p) => rel == '$p/lib' || rel.startsWith('$p/'),
+    );
     if (isPending && !strict) {
       pending.add(rel);
       continue;
@@ -82,7 +80,9 @@ void main(List<String> args) {
         final line = lines[i];
         for (final marker in _cupertinoMarkers) {
           if (line.contains(marker)) {
-            violations.add('$relPath:${i + 1}  SDK Cupertino（改 cupertino_ui）: $marker');
+            violations.add(
+              '$relPath:${i + 1}  SDK Cupertino（改 cupertino_ui）: $marker',
+            );
           }
         }
         if (allowMaterial) continue;
@@ -98,7 +98,9 @@ void main(List<String> args) {
   for (final p in pending) {
     stdout.writeln('PENDING  $p（迁移中，暂不检查）');
   }
-  stdout.writeln('scanned=$scanned  pending=${pending.length}  violations=${violations.length}');
+  stdout.writeln(
+    'scanned=$scanned  pending=${pending.length}  violations=${violations.length}',
+  );
   if (violations.isEmpty) {
     stdout.writeln('UI boundary OK');
     return;

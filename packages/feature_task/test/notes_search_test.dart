@@ -16,11 +16,9 @@ void main() {
   testWidgets('TC-UI-113 备注保存后可被搜索命中', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(const ReminderList(id: 'list.a', title: '甲'));
-    await repo.upsertItem(const ReminderItem(
-      id: 'n1',
-      listId: 'list.a',
-      title: '交报告',
-    ));
+    await repo.upsertItem(
+      const ReminderItem(id: 'n1', listId: 'list.a', title: '交报告'),
+    );
 
     final view =
         TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
@@ -31,26 +29,16 @@ void main() {
       ProviderScope(
         overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
         child: const MaterialApp(
-          home: TaskScaffold(
-            openListId: 'list.a',
-            selectedItemId: 'n1',
-          ),
+          home: TaskScaffold(openListId: 'list.a', selectedItemId: 'n1'),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    final notesField = find.byWidgetPredicate(
-      (w) => w is TextField && w.decoration?.hintText == '备注',
-    );
+    final notesField = find.byKey(const ValueKey('detail_notes'));
     expect(notesField, findsOneWidget);
     await tester.enterText(notesField, '对齐备注文案');
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AppBar),
-        matching: find.widgetWithText(TextButton, '完成'),
-      ),
-    );
+    await tester.tap(find.byKey(const ValueKey('detail_save')));
     await tester.pumpAndSettle();
 
     final saved = await repo.watchItems(listId: 'list.a').first;

@@ -3,27 +3,29 @@ import 'package:feature_task/feature_task.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/life_test_app.dart';
 
 /// Issue #2 · M2 第二批：列表头工具行（线框图2）
 /// TC-UI-108 显示已完成开关；TC-UI-111 列表内排序；
 /// 清除已完成（图2「N 项完成 · 清除」）；TC-UI-119 移动提醒到其他列表（清分区）。
 void main() {
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
 
   Future<InMemoryReminderRepository> seed() async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
-    await repo.upsertList(
-        const ReminderList(id: 'list.a', title: '列表A'));
-    await repo.upsertList(
-        const ReminderList(id: 'list.b', title: '列表B'));
-    await repo.upsertItem(const ReminderItem(
-        id: 'open1', listId: 'list.a', title: '香蕉'));
-    await repo.upsertItem(const ReminderItem(
-        id: 'open2', listId: 'list.a', title: '苹果'));
+    await repo.upsertList(const ReminderList(id: 'list.a', title: '列表A'));
+    await repo.upsertList(const ReminderList(id: 'list.b', title: '列表B'));
+    await repo.upsertItem(
+      const ReminderItem(id: 'open1', listId: 'list.a', title: '香蕉'),
+    );
+    await repo.upsertItem(
+      const ReminderItem(id: 'open2', listId: 'list.a', title: '苹果'),
+    );
     // 完成一条（走仓库以联动 completedAt）
     await repo.toggleCompleted('open2');
     return repo;
@@ -35,14 +37,15 @@ void main() {
     Size size = const Size(1366, 1024),
     String openListId = 'list.a',
   }) async {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view
       ..physicalSize = size
       ..devicePixelRatio = 1.0;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-        child: MaterialApp(home: TaskScaffold(openListId: openListId)),
+        child: lifeTestHost(TaskScaffold(openListId: openListId)),
       ),
     );
     await tester.pumpAndSettle();
@@ -115,8 +118,9 @@ void main() {
   testWidgets('TC-UI-119 详情「移动到列表」：条目换列表且分区清空', (tester) async {
     final repo = await seed();
     // 给 open1 一个分区再移动，验证 sectionId 被清（TC-API-118 同口径）
-    final open1 =
-        (await repo.watchItems(listId: 'list.a').first).firstWhere((e) => e.id == 'open1');
+    final open1 = (await repo.watchItems(listId: 'list.a').first).firstWhere(
+      (e) => e.id == 'open1',
+    );
     await repo.upsertItem(open1.copyWith(sectionId: 'sec-x'));
 
     // 宽屏三栏：选中 open1 → inspector

@@ -27,14 +27,14 @@
 
 ## #129 任务
 
-- [ ] 骨架：`Scaffold` / `AppBar` 换 Cupertino
-- [ ] 列表与行：`ListTile` / `Divider` / `Card` / `InkWell` 换 Cupertino
-- [ ] 表单：`TextField` / `DropdownButton` 换 Cupertino
-- [ ] 菜单与弹层：`PopupMenuButton` / `AlertDialog` / `showModalBottomSheet` 换 Cupertino
-- [ ] 路由：`MaterialPageRoute` 清零
-- [ ] `life_router.dart` 移除任务过渡岛
-- [ ] 受影响测试改语义 / key 断言
-- [ ] `feature_task` analyze/test 绿
+- [x] 骨架：`Scaffold` / `AppBar` 换 Cupertino
+- [x] 列表与行：`ListTile` / `Divider` / `Card` / `InkWell` 换 Cupertino
+- [x] 表单：`TextField` / `DropdownButton` 换 Cupertino
+- [x] 菜单与弹层：`PopupMenuButton` / `AlertDialog` / `showModalBottomSheet` 换 Cupertino
+- [x] 路由：`MaterialPageRoute` 清零
+- [x] `life_router.dart` 移除任务过渡岛
+- [x] 受影响测试改语义 / key 断言
+- [x] `feature_task` analyze/test 绿
 - [ ] macOS 截图人工验收
 - [ ] PR 已合并进 `develop`
 

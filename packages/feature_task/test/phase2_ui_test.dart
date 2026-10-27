@@ -13,7 +13,8 @@ Future<void> _pump(
   Widget child = const TaskScaffold(openListId: 'list.personal'),
   required ReminderRepository repo,
 }) async {
-  final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+  final view =
+      TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
   view
     ..physicalSize = size
     ..devicePixelRatio = 1.0;
@@ -28,14 +29,14 @@ Future<void> _pump(
 
 void main() {
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views
-        .first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
 
   // TC-UI-201
-    testWidgets('底部工具条「新提醒」出现于三档宽度', (tester) async {
+  testWidgets('底部工具条「新提醒」出现于三档宽度', (tester) async {
     for (final size in [
       const Size(375, 812),
       const Size(834, 1112),
@@ -48,7 +49,7 @@ void main() {
   });
 
   // TC-UI-201
-    testWidgets('草稿行提交后恰好一次落库；空标题零写入', (tester) async {
+  testWidgets('草稿行提交后恰好一次落库；空标题零写入', (tester) async {
     final repo = _CountingRepo(InMemoryReminderRepository());
     await _pump(
       tester,
@@ -60,7 +61,7 @@ void main() {
     await tester.tap(find.text('新提醒事项'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.widgetWithText(TextField, '新提醒事项'), '买菜');
+    await tester.enterText(find.byKey(const ValueKey('draft_field')), '买菜');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
 
@@ -71,14 +72,14 @@ void main() {
     // 空标题：不落库
     await tester.tap(find.text('新提醒事项'));
     await tester.pumpAndSettle();
-    await tester.enterText(find.widgetWithText(TextField, '新提醒事项'), '   ');
+    await tester.enterText(find.byKey(const ValueKey('draft_field')), '   ');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     expect(repo.upsertCount, 1); // 未增加
   });
 
   // TC-UI-106
-    testWidgets('旗标点击即时切换并从 smart.flagged 流出', (tester) async {
+  testWidgets('旗标点击即时切换并从 smart.flagged 流出', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(
       tester,
@@ -99,7 +100,7 @@ void main() {
   });
 
   // TC-UI-113
-    testWidgets('详情面板编辑备注/旗标/优先级/标签 → upsertItem 全量回写', (tester) async {
+  testWidgets('详情面板编辑备注/旗标/优先级/标签 → upsertItem 全量回写', (tester) async {
     final repo = _CountingRepo(InMemoryReminderRepository());
     await _pump(
       tester,
@@ -114,16 +115,11 @@ void main() {
     expect(find.text('详细信息'), findsOneWidget);
 
     await tester.enterText(
-      find.widgetWithText(TextField, '').first,
+      find.byKey(const ValueKey('detail_title')),
       '对齐 Reminders 交互',
     );
-    // 避开「完成」智能卡文本：点详情面板 AppBar 上的 TextButton
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AppBar),
-        matching: find.widgetWithText(TextButton, '完成'),
-      ),
-    );
+    // 避开「完成」智能卡文本：点详情面板导航栏上的「完成」
+    await tester.tap(find.byKey(const ValueKey('detail_save')));
     await tester.pumpAndSettle();
 
     expect(repo.upsertCount, 1);
@@ -131,7 +127,7 @@ void main() {
   });
 
   // TC-UI-206
-    testWidgets('添加列表弹窗：提交后首页即时出现新列表', (tester) async {
+  testWidgets('添加列表弹窗：提交后首页即时出现新列表', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(
       tester,
@@ -144,10 +140,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 弹窗输入框（避开首页搜索框；弹窗字段 key）
-    await tester.enterText(
-      find.byKey(const ValueKey('new_list_name')),
-      '购物',
-    );
+    await tester.enterText(find.byKey(const ValueKey('new_list_name')), '购物');
     await tester.tap(find.text('完成').last);
     await tester.pumpAndSettle();
 
@@ -157,7 +150,7 @@ void main() {
   });
 
   // TC-UI-N1 负向门禁
-    testWidgets('全仓无 FloatingActionButton（Reminders IA 门禁）', (tester) async {
+  testWidgets('全仓无 FloatingActionButton（Reminders IA 门禁）', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(375, 812), repo: repo);
     expect(find.byType(FloatingActionButton), findsNothing);
@@ -190,8 +183,7 @@ class _CountingRepo implements ReminderRepository {
   }
 
   @override
-  Future<void> toggleCompleted(String itemId) =>
-      _inner.toggleCompleted(itemId);
+  Future<void> toggleCompleted(String itemId) => _inner.toggleCompleted(itemId);
 
   @override
   Future<void> toggleFlagged(String itemId) => _inner.toggleFlagged(itemId);
@@ -219,20 +211,17 @@ class _CountingRepo implements ReminderRepository {
   Future<void> upsertSection({
     required String listId,
     required ReminderSection section,
-  }) =>
-      _inner.upsertSection(listId: listId, section: section);
+  }) => _inner.upsertSection(listId: listId, section: section);
 
   @override
   Future<void> reorderSection({
     required String listId,
     required List<String> sectionIds,
-  }) =>
-      _inner.reorderSection(listId: listId, sectionIds: sectionIds);
+  }) => _inner.reorderSection(listId: listId, sectionIds: sectionIds);
 
   @override
   Future<void> deleteSection({
     required String listId,
     required String sectionId,
-  }) =>
-      _inner.deleteSection(listId: listId, sectionId: sectionId);
+  }) => _inner.deleteSection(listId: listId, sectionId: sectionId);
 }
