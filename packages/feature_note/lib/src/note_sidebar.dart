@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -23,37 +23,83 @@ class NoteSidebar extends ConsumerWidget {
     return ListView(
       key: const ValueKey('note_sidebar'),
       children: [
-        ListTile(
+        _folderTile(
+          context,
+          ref,
           key: const ValueKey('note_sidebar_all'),
-          leading: const Icon(Icons.all_inbox_outlined),
-          title: const Text('所有备忘录'),
+          name: '所有备忘录',
+          smart: false,
           selected: selectedId == null,
+          depth: 0,
           onTap: () =>
               ref.read(selectedNoteFolderIdProvider.notifier).select(null),
         ),
         for (final root in roots) ...[
-          _folderTile(context, ref, root, selectedId, 0),
+          _folderTile(
+            context,
+            ref,
+            key: ValueKey('note_sidebar_${root.id}'),
+            name: root.name,
+            smart: root.smart,
+            selected: selectedId == root.id,
+            depth: 0,
+            onTap: () =>
+                ref.read(selectedNoteFolderIdProvider.notifier).select(root.id),
+          ),
           for (final child in folders
               .where((f) => f.parentId == root.id)
               .toList()
             ..sort(_compareFolders))
-            _folderTile(context, ref, child, selectedId, 1),
+            _folderTile(
+              context,
+              ref,
+              key: ValueKey('note_sidebar_${child.id}'),
+              name: child.name,
+              smart: child.smart,
+              selected: selectedId == child.id,
+              depth: 1,
+              onTap: () => ref
+                  .read(selectedNoteFolderIdProvider.notifier)
+                  .select(child.id),
+            ),
         ],
       ],
     );
   }
 
-  Widget _folderTile(BuildContext context, WidgetRef ref, NoteFolder folder,
-      String? selectedId, int depth) {
-    return ListTile(
-      key: ValueKey('note_sidebar_${folder.id}'),
-      contentPadding: EdgeInsetsDirectional.only(start: 16.0 + depth * 16, end: 16),
-      leading: Icon(folder.smart ? Icons.filter_list : Icons.folder_outlined),
-      title: Text(folder.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-      selected: selectedId == folder.id,
-      onTap: () => ref
-          .read(selectedNoteFolderIdProvider.notifier)
-          .select(folder.id),
+  Widget _folderTile(
+    BuildContext context,
+    WidgetRef ref, {
+    required Key key,
+    required String name,
+    required bool smart,
+    required bool selected,
+    required int depth,
+    required VoidCallback onTap,
+  }) {
+    final color = CupertinoDynamicColor.withBrightness(
+      color: CupertinoColors.label.color,
+      darkColor: CupertinoColors.label.darkColor,
+    );
+    return CupertinoListTile(
+      key: key,
+      padding: EdgeInsetsDirectional.only(start: 16.0 + depth * 16, end: 16),
+      leading: Icon(
+        smart ? CupertinoIcons.slider_horizontal_3 : CupertinoIcons.folder,
+        size: 20,
+        color: selected ? CupertinoColors.systemBlue : null,
+      ),
+      title: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          color: selected ? CupertinoColors.systemBlue : color,
+        ),
+      ),
+      onTap: onTap,
     );
   }
 
