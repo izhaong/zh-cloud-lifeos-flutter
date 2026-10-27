@@ -730,7 +730,6 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   TaskShortcutsController? _shortcuts;
   int _lastNewTicket = 0;
   int _lastSearchTicket = 0;
-  final _collapsedSections = <String>{};
 
   @override
   void initState() {
@@ -854,12 +853,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   }
 
   void _toggleSection(String key) {
-    setState(() {
-      if (!_collapsedSections.remove(key)) {
-        _collapsedSections.add(key);
-      }
-    });
+    ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
   }
+
+  /// 折叠态落在本地偏好行里（TC-UI-309，flutter#124 卡 4b）：
+  /// 键带列表前缀，切列表/重开后各列表的折叠互不串味。
+  String _collapsedKey(String title) => '${widget.list.id}|$title';
+
+  bool _isCollapsed(Set<String> keys, String title) =>
+      keys.contains(_collapsedKey(title));
 
   /// 列表内排序（TC-UI-111）：manual=仓库契约序；其余视图序即时生效、
   /// 不写回 sortOrder（线框「排序 ▾」语义）。
@@ -1133,10 +1135,12 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                     if (!skipSectionHeader || entry.key != widget.list.title)
                       _SectionHeader(
                         title: entry.key,
-                        collapsed: _collapsedSections.contains(entry.key),
+                        collapsed: _isCollapsed(
+                            ref.watch(collapsedKeysProvider), entry.key),
                         onToggle: () => _toggleSection(entry.key),
                       ),
-                    if (!_collapsedSections.contains(entry.key))
+                    if (!_isCollapsed(
+                        ref.watch(collapsedKeysProvider), entry.key))
                       for (final item in entry.value)
                         _buildItemRow(item, subtasksByParent: subtasksByParent),
                   ],

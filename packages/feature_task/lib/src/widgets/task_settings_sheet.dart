@@ -1,10 +1,17 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../design/reminder_tokens.dart';
+import '../providers.dart';
+import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 /// 「设置」弹窗（图1 对齐）：默认列表 / 全天提醒时点 / 标记完成开关 /
-/// 建议列表开关 / 采购清单语言 / 还原默认（TC-UI-120 UI 真身——偏好持久
-/// 接线属 P3，当前开关状态为会话级）。
+/// 建议列表开关 / 采购清单语言 / 还原默认。
+///
+/// TC-UI-120 持久半边（flutter#124 卡 4）：四档都写进 [TaskPreferenceRepository]，
+/// 重开与冷启动读回同一行；「还原」= 写回契约默认（含默认列表清回未设置）。
+/// 默认列表用就地展开的候选区（不额外推一层路由）：少一套导航假设，
+/// 测试与真机走的是同一条路径。
 Future<void> showTaskSettingsSheet(
   BuildContext context, {
   void Function(BuildContext sheetContext)? onOpenCloudLogin,
@@ -19,7 +26,7 @@ Future<void> showTaskSettingsSheet(
   );
 }
 
-class _TaskSettingsSheet extends StatefulWidget {
+class _TaskSettingsSheet extends ConsumerStatefulWidget {
   const _TaskSettingsSheet({
     required this.scrollController,
     this.onOpenCloudLogin,
@@ -29,17 +36,49 @@ class _TaskSettingsSheet extends StatefulWidget {
   final void Function(BuildContext sheetContext)? onOpenCloudLogin;
 
   @override
-  State<_TaskSettingsSheet> createState() => _TaskSettingsSheetState();
+  ConsumerState<_TaskSettingsSheet> createState() =>
+      _TaskSettingsSheetState();
 }
 
-class _TaskSettingsSheetState extends State<_TaskSettingsSheet> {
-  bool _allDayNotify = true;
-  bool _markComplete = false;
-  bool _suggestLists = true;
+class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
+  /// 写后回声：落库与流广播之间有一帧，先用本地值渲染，避免开关「点下去又弹回去」。
+  TaskPreference? _local;
+  bool _pickingDefaultList = false;
+
+  TaskPreference get _pref =>
+      _local ??
+      ref.watch(taskPreferenceProvider).value ??
+      TaskPreference.defaults;
+
+  void _save(TaskPreference next) {
+    setState(() => _local = next);
+    ref.read(taskPreferenceRepositoryProvider).savePreference(next);
+  }
+
+  /// 自有列表（默认列表候选；智能列表不是用户数据，不能当默认列表）。
+  List<ReminderList> get _ownLists =>
+      (ref.watch(reminderListsProvider).value ?? const <ReminderList>[])
+          .where((l) => !l.isSmart)
+          .toList(growable: false);
+
+  String get _defaultListLabel {
+    final id = _pref.defaultListId;
+    if (id == null) return '未设置';
+    final hit = _ownLists.where((l) => l.id == id);
+    return hit.isEmpty ? '未设置' : hit.first.title;
+  }
+
+  void _chooseDefaultList(String? id) {
+    setState(() => _pickingDefaultList = false);
+    _save(id == null
+        ? _pref.copyWith(clearDefaultListId: true)
+        : _pref.copyWith(defaultListId: id));
+  }
 
   @override
   Widget build(BuildContext context) {
     final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    final p = _pref;
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
         leading: CupertinoButton(
@@ -62,32 +101,54 @@ class _TaskSettingsSheetState extends State<_TaskSettingsSheet> {
                 _row(
                   icon: CupertinoIcons.list_bullet,
                   label: '默认列表',
+                  rowKey: 'settings_default_list',
+                  onTap: () =>
+                      setState(() => _pickingDefaultList = !_pickingDefaultList),
                   trailing: Text(
-                    '提醒事项',
+                    _defaultListLabel,
                     style: TextStyle(color: secondary),
                   ),
                 ),
+                if (_pickingDefaultList)
+                  _optionRow(
+                    key: 'default_list_none',
+                    title: '无',
+                    selected: p.defaultListId == null,
+                    onTap: () => _chooseDefaultList(null),
+                  ),
+                if (_pickingDefaultList)
+                  for (final l in _ownLists)
+                    _optionRow(
+                      key: 'default_list_${l.id}',
+                      title: l.title,
+                      selected: p.defaultListId == l.id,
+                      onTap: () => _chooseDefaultList(l.id),
+                    ),
                 _switchRow(
                   icon: CupertinoIcons.clock,
                   label: '全天提醒时点',
-                  value: _allDayNotify,
-                  onChanged: (v) => setState(() => _allDayNotify = v),
+                  rowKey: 'settings_all_day_notify',
+                  value: p.allDayNotify,
+                  onChanged: (v) => _save(p.copyWith(allDayNotify: v)),
                 ),
                 _switchRow(
                   icon: CupertinoIcons.checkmark_circle,
                   label: '完成时标记为已完成',
-                  value: _markComplete,
-                  onChanged: (v) => setState(() => _markComplete = v),
+                  rowKey: 'settings_mark_complete',
+                  value: p.markComplete,
+                  onChanged: (v) => _save(p.copyWith(markComplete: v)),
                 ),
                 _switchRow(
                   icon: CupertinoIcons.sparkles,
                   label: '建议列表',
-                  value: _suggestLists,
-                  onChanged: (v) => setState(() => _suggestLists = v),
+                  rowKey: 'settings_suggest_lists',
+                  value: p.suggestLists,
+                  onChanged: (v) => _save(p.copyWith(suggestLists: v)),
                 ),
                 _row(
                   icon: CupertinoIcons.cart,
                   label: '采购清单语言',
+                  rowKey: 'settings_grocery_language',
                   trailing: Text(
                     '简体中文',
                     style: TextStyle(color: secondary),
@@ -105,11 +166,7 @@ class _TaskSettingsSheetState extends State<_TaskSettingsSheet> {
                     color: ReminderTokens.systemBlue,
                   ),
                   title: const Text('还原默认设置'),
-                  onTap: () => setState(() {
-                    _allDayNotify = true;
-                    _markComplete = false;
-                    _suggestLists = true;
-                  }),
+                  onTap: () => _save(TaskPreference.defaults),
                 ),
                 CupertinoListTile(
                   key: const ValueKey('settings_cloud_login'),
@@ -138,25 +195,55 @@ class _TaskSettingsSheetState extends State<_TaskSettingsSheet> {
   Widget _row({
     required IconData icon,
     required String label,
+    required String rowKey,
     required Widget trailing,
+    VoidCallback? onTap,
   }) {
-    return CupertinoListTile(
-      leading: Icon(icon, color: ReminderTokens.systemBlue),
-      title: Text(label),
-      trailing: trailing,
+    // 键挂在外壳上而不是 CupertinoListTile 上：直接把 key 给 tile，
+    // find.descendant(of: byKey, matching: CupertinoSwitch) 会找不到
+    // （trailing 不在那个被键住的子树里），断言就退化成「只能证明这行存在」。
+    return KeyedSubtree(
+      key: ValueKey<String>(rowKey),
+      child: CupertinoListTile(
+        leading: Icon(icon, color: ReminderTokens.systemBlue),
+        title: Text(label),
+        trailing: trailing,
+        onTap: onTap,
+      ),
     );
   }
 
   Widget _switchRow({
     required IconData icon,
     required String label,
+    required String rowKey,
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
     return _row(
       icon: icon,
       label: label,
+      rowKey: rowKey,
       trailing: CupertinoSwitch(value: value, onChanged: onChanged),
+    );
+  }
+
+  /// 默认列表候选行（就地展开，不推一层路由）。
+  Widget _optionRow({
+    required String key,
+    required String title,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return CupertinoListTile(
+      key: ValueKey(key),
+      padding: const EdgeInsets.only(left: 40),
+      title: Text(title),
+      trailing: selected
+          ? const Icon(CupertinoIcons.checkmark,
+              color: ReminderTokens.systemBlue)
+          : null,
+      onTap: onTap,
     );
   }
 }

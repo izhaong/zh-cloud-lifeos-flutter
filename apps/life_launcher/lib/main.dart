@@ -27,6 +27,8 @@ Future<void> main() async {
   final db = await openDefaultDatabase();
   final repository = DriftReminderRepository(db);
   final calendarRepository = openDefaultDriftCalendarRepository(db);
+  // TC-UI-120（flutter#124 卡 4）：设置弹层四档落 Drift，重启后读回同一行
+  final taskPreferenceRepository = DriftTaskPreferenceRepository(db);
   // F-03：记录仓库（Drift 实现随 F-04 落地前先 InMemory；组合根单点切换）
   final noteRepository = InMemoryNoteRepository();
   final prefs = await SharedPreferences.getInstance();
@@ -86,6 +88,7 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         reminderRepositoryProvider.overrideWithValue(repository),
+        taskPreferenceRepositoryProvider.overrideWithValue(taskPreferenceRepository),
         calendarRepositoryProvider.overrideWithValue(calendarRepository),
         noteRepositoryProvider.overrideWithValue(noteRepository),
         calendarReminderRepositoryProvider.overrideWithValue(repository),
