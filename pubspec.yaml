@@ -16,6 +16,7 @@ workspace:
   - packages/feature_task_cloud
   - packages/feature_calendar
   - packages/feature_calendar_cloud
+  - packages/feature_note
 
 dev_dependencies:
   melos: ^8.9.0
