@@ -188,6 +188,47 @@ class NoteScaffold extends ConsumerWidget {
     );
   }
 
+  Future<void> _promptUnlock(
+      BuildContext context, WidgetRef ref, Note note) async {
+    final passwordController = TextEditingController();
+    final unlocked = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('解锁备忘录'),
+        content: TextField(
+          key: const ValueKey('note_unlock_password'),
+          controller: passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: '输入密码'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            key: const ValueKey('note_unlock_confirm'),
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(passwordController.text.trim().isNotEmpty),
+            child: const Text('解锁'),
+          ),
+        ],
+      ),
+    );
+    if (unlocked != true || !context.mounted) {
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NoteEditorPage(
+          note: note,
+          folderId: note.folderId,
+          unlockedInitial: true,
+        ),
+      ),
+    );
+  }
+
   void _togglePin(WidgetRef ref, Note note) {
     ref.read(noteRepositoryProvider).upsertNote(Note(
           id: note.id,
@@ -210,9 +251,7 @@ class NoteScaffold extends ConsumerWidget {
   void _openEditor(BuildContext context, WidgetRef ref, Note? note,
       List<NoteFolder> folders) {
     if (note != null && note.locked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已锁定，解锁后可编辑')),
-      );
+      _promptUnlock(context, ref, note);
       return;
     }
     final selectedId = ref.read(selectedNoteFolderIdProvider);
