@@ -46,10 +46,9 @@ class NoteSidebar extends ConsumerWidget {
             onTap: () =>
                 ref.read(selectedNoteFolderIdProvider.notifier).select(root.id),
           ),
-          for (final child in folders
-              .where((f) => f.parentId == root.id)
-              .toList()
-            ..sort(_compareFolders))
+          for (final child
+              in folders.where((f) => f.parentId == root.id).toList()
+                ..sort(_compareFolders))
             _folderTile(
               context,
               ref,

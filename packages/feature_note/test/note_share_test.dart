@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,12 +9,14 @@ void main() {
   testWidgets('共享提交到注入端口，口径为用户 id + 可写', (tester) async {
     final repo = InMemoryNoteRepository();
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '工作'));
-    await repo.upsertNote(const Note(
-      id: 'n1',
-      folderId: 'f1',
-      title: '共享我',
-      bodyDelta: '{"ops":[{"insert":"x\\n"}]}',
-    ));
+    await repo.upsertNote(
+      const Note(
+        id: 'n1',
+        folderId: 'f1',
+        title: '共享我',
+        bodyDelta: '{"ops":[{"insert":"x\\n"}]}',
+      ),
+    );
 
     String? sharedNote;
     String? sharedUser;
@@ -30,7 +33,10 @@ void main() {
           noteRepositoryProvider.overrideWithValue(repo),
           noteSharePortProvider.overrideWithValue(fakePort),
         ],
-        child: MaterialApp(home: NoteEditorPage(folderId: 'f1', note: _note())),
+        child: MaterialApp(
+          localizationsDelegates: const [GlobalCupertinoLocalizations.delegate],
+          home: NoteEditorPage(folderId: 'f1', note: _note()),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -41,7 +47,9 @@ void main() {
     expect(find.textContaining('iCloud'), findsNothing);
 
     await tester.enterText(
-        find.byKey(const ValueKey('note_share_user_id')), '42');
+      find.byKey(const ValueKey('note_share_user_id')),
+      '42',
+    );
     await tester.tap(find.byKey(const ValueKey('note_share_write')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('note_share_submit')));
@@ -55,11 +63,11 @@ void main() {
 }
 
 Note _note() => const Note(
-      id: 'n1',
-      folderId: 'f1',
-      title: '共享我',
-      bodyDelta: '{"ops":[{"insert":"x\\n"}]}',
-    );
+  id: 'n1',
+  folderId: 'f1',
+  title: '共享我',
+  bodyDelta: '{"ops":[{"insert":"x\\n"}]}',
+);
 
 class _FakeSharePort implements NoteSharePort {
   _FakeSharePort(this._onShare);

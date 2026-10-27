@@ -7,7 +7,6 @@ import 'package:feature_note/feature_note.dart';
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:feature_task_cloud/feature_task_cloud.dart';
-import 'package:flutter/material.dart' show ScaffoldMessenger, Theme;
 import 'package:flutter_localizations/flutter_localizations.dart'
     show GlobalMaterialLocalizations, GlobalWidgetsLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -171,8 +170,8 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
     });
   }
 
-  /// 系统亮/暗切换要重建主题：令牌是 Apple 动态色，但根主题的 `brightness`
-  /// 与 Material 岛的静态 `ColorScheme` 都得按当前档位重新解算。
+  /// 系统亮/暗切换要重建主题：令牌是 Apple 动态色，Material 岛的静态
+  /// `ColorScheme` 也要按当前档位重新解算。
   @override
   void didChangePlatformBrightness() => setState(() {});
 
@@ -192,10 +191,6 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
         GlobalWidgetsLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
       ],
-      builder: (context, child) => Theme(
-        data: LifeTokens.materialIsland(brightness),
-        child: ScaffoldMessenger(child: child ?? const SizedBox.shrink()),
-      ),
       routerConfig: router,
     );
   }

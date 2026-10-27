@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,18 +16,23 @@ void main() {
     final repo = InMemoryNoteRepository();
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '工作'));
     for (final id in ['n1', 'n2']) {
-      await repo.upsertNote(Note(
-        id: id,
-        folderId: 'f1',
-        title: '笔记$id',
-        bodyDelta: '{"ops":[{"insert":"内容$id\\n"}]}',
-      ));
+      await repo.upsertNote(
+        Note(
+          id: id,
+          folderId: 'f1',
+          title: '笔记$id',
+          bodyDelta: '{"ops":[{"insert":"内容$id\\n"}]}',
+        ),
+      );
     }
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();

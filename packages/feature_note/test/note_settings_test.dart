@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,25 +15,32 @@ void main() {
 
     final repo = InMemoryNoteRepository();
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '工作'));
-    await repo.upsertNote(const Note(
-      id: 'n1',
-      folderId: 'f1',
-      title: 'Beta',
-      bodyDelta: '{"ops":[{"insert":"b\\n"}]}',
-      clientUpdatedAt: 2000,
-    ));
-    await repo.upsertNote(const Note(
-      id: 'n2',
-      folderId: 'f1',
-      title: 'Alpha',
-      bodyDelta: '{"ops":[{"insert":"a\\n"}]}',
-      clientUpdatedAt: 1000,
-    ));
+    await repo.upsertNote(
+      const Note(
+        id: 'n1',
+        folderId: 'f1',
+        title: 'Beta',
+        bodyDelta: '{"ops":[{"insert":"b\\n"}]}',
+        clientUpdatedAt: 2000,
+      ),
+    );
+    await repo.upsertNote(
+      const Note(
+        id: 'n2',
+        folderId: 'f1',
+        title: 'Alpha',
+        bodyDelta: '{"ops":[{"insert":"a\\n"}]}',
+        clientUpdatedAt: 1000,
+      ),
+    );
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -48,7 +56,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('note_sort_title')));
     await tester.pumpAndSettle();
-    await tester.pageBack();
+    // cupertino_ui 包自带同名 BackButton 类，tester.pageBack 只认 SDK 类，改为显式点返回键
+    await tester.tap(find.byType(CupertinoNavigationBarBackButton));
     await tester.pumpAndSettle();
     expect(
       tester.getTopLeft(find.text('Alpha')).dy,
@@ -60,7 +69,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('note_sort_updated')));
     await tester.pumpAndSettle();
-    await tester.pageBack();
+    await tester.tap(find.byType(CupertinoNavigationBarBackButton));
     await tester.pumpAndSettle();
     expect(
       tester.getTopLeft(find.text('Beta')).dy,
@@ -82,7 +91,10 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -93,13 +105,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('生活').last);
     await tester.pumpAndSettle();
-    await tester.pageBack();
+    await tester.tap(find.byType(CupertinoNavigationBarBackButton));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('note_quick_capture')));
     await tester.pumpAndSettle();
     await tester.enterText(
-        find.byKey(const ValueKey('note_quick_title')), '默认目录');
+      find.byKey(const ValueKey('note_quick_title')),
+      '默认目录',
+    );
     await tester.tap(find.byKey(const ValueKey('note_quick_save')));
     await tester.pumpAndSettle();
 

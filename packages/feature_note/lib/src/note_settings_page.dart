@@ -75,7 +75,7 @@ class NoteSettingsPage extends ConsumerWidget {
               title: const Text('新备忘录保存到'),
               trailing: CupertinoButton(
                 key: const ValueKey('note_default_folder'),
-                minSize: 0,
+                minimumSize: Size.zero,
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 onPressed: pickDefaultFolder,
                 child: Row(
@@ -135,9 +135,6 @@ class _SectionSeparator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 0.5,
-      color: CupertinoColors.separator,
-    );
+    return Container(height: 0.5, color: CupertinoColors.separator);
   }
 }

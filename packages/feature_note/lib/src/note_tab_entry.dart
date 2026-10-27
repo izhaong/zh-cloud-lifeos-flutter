@@ -1,3 +1,5 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
+
 import 'note_scaffold.dart';
 
 /// 壳接入点（契约 §5：/note 分支入口）。

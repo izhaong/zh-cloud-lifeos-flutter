@@ -58,7 +58,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       final decoded = jsonDecode(deltaJson);
       if (decoded is Map && decoded['ops'] is List) {
         return quill.Document.fromJson(
-            List<dynamic>.from(decoded['ops'] as List));
+          List<dynamic>.from(decoded['ops'] as List),
+        );
       }
     } catch (_) {
       // 锁定密文或损坏内容：不解析，按空文档打开由上层锁定页拦截
@@ -112,10 +113,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('导出 Markdown'),
         content: SingleChildScrollView(
-          child: SelectableText(
-            markdown,
-            key: const ValueKey('note_export_text'),
-          ),
+          child: Text(markdown, key: const ValueKey('note_export_text')),
         ),
         actions: [
           CupertinoDialogAction(
@@ -158,13 +156,17 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       return;
     }
     final parsed = NoteMarkdownCodec.fromMarkdown(controller.text);
-    await ref.read(noteRepositoryProvider).upsertNote(Note(
-          id: 'note-${DateTime.now().millisecondsSinceEpoch}',
-          folderId: widget.note?.folderId ?? widget.folderId,
-          title: parsed.title,
-          bodyDelta: parsed.deltaJson,
-          clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
+    await ref
+        .read(noteRepositoryProvider)
+        .upsertNote(
+          Note(
+            id: 'note-${DateTime.now().millisecondsSinceEpoch}',
+            folderId: widget.note?.folderId ?? widget.folderId,
+            title: parsed.title,
+            bodyDelta: parsed.deltaJson,
+            clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
     if (mounted) {
       await _infoDialog('已导入为新备忘录');
     }
@@ -201,13 +203,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 children: const <int, Widget>{
                   0: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('只读',
-                        key: ValueKey('note_share_read')),
+                    child: Text('只读', key: ValueKey('note_share_read')),
                   ),
                   1: Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('可写',
-                        key: ValueKey('note_share_write')),
+                    child: Text('可写', key: ValueKey('note_share_write')),
                   ),
                 },
               ),
@@ -235,7 +235,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     if (targetUserId.isEmpty) {
       return;
     }
-    await ref.read(noteSharePortProvider).share(
+    await ref
+        .read(noteSharePortProvider)
+        .share(
           noteId: existing.id,
           targetUserId: targetUserId,
           writable: writable,
@@ -269,8 +271,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
           CupertinoDialogAction(
             key: const ValueKey('note_lock_confirm'),
             isDefaultAction: true,
-            onPressed: () => Navigator.of(dialogContext)
-                .pop(passwordController.text.trim().isNotEmpty),
+            onPressed: () => Navigator.of(
+              dialogContext,
+            ).pop(passwordController.text.trim().isNotEmpty),
             child: const Text('锁定'),
           ),
         ],
@@ -280,18 +283,24 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       return;
     }
     final delta = jsonEncode({'ops': _body.document.toDelta().toJson()});
-    await ref.read(noteRepositoryProvider).upsertNote(Note(
-          id: existing.id,
-          folderId: existing.folderId,
-          title: _title.text.trim().isEmpty ? existing.title : _title.text.trim(),
-          bodyDelta: delta,
-          pinned: existing.pinned,
-          locked: true,
-          tagNames: List<String>.unmodifiable(_tags),
-          sortOrder: existing.sortOrder,
-          revision: existing.revision + 1,
-          clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
+    await ref
+        .read(noteRepositoryProvider)
+        .upsertNote(
+          Note(
+            id: existing.id,
+            folderId: existing.folderId,
+            title: _title.text.trim().isEmpty
+                ? existing.title
+                : _title.text.trim(),
+            bodyDelta: delta,
+            pinned: existing.pinned,
+            locked: true,
+            tagNames: List<String>.unmodifiable(_tags),
+            sortOrder: existing.sortOrder,
+            revision: existing.revision + 1,
+            clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
     if (mounted) {
       Navigator.of(context).pop();
     }
@@ -319,8 +328,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     }
     final delta = jsonEncode({'ops': _body.document.toDelta().toJson()});
     final note = Note(
-      id: existing?.id ??
-          'note-${DateTime.now().millisecondsSinceEpoch}',
+      id: existing?.id ?? 'note-${DateTime.now().millisecondsSinceEpoch}',
       folderId: existing?.folderId ?? widget.folderId,
       title: _title.text.trim().isEmpty ? '新建备忘录' : _title.text.trim(),
       bodyDelta: delta,
@@ -415,7 +423,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ),
             CupertinoButton(
               key: const ValueKey('note_editor_save'),
-              minSize: 0,
+              minimumSize: Size.zero,
               padding: const EdgeInsets.symmetric(horizontal: 6),
               onPressed: _save,
               child: const Text(
@@ -437,8 +445,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               controller: _title,
               placeholder: '标题',
               decoration: null,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
             Padding(
@@ -456,7 +463,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   ),
                   CupertinoButton(
                     key: const ValueKey('note_editor_tag_add'),
-                    minSize: 0,
+                    minimumSize: Size.zero,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     onPressed: _addTag,
                     child: const Icon(
@@ -477,9 +484,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                   children: [
                     for (final tag in _tags)
                       DecoratedBox(
+                        key: ValueKey('note_editor_tag_$tag'),
                         decoration: BoxDecoration(
-                          color: CupertinoColors.tertiarySystemFill
-                              .resolveFrom(context),
+                          color: CupertinoColors.tertiarySystemFill.resolveFrom(
+                            context,
+                          ),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Padding(
@@ -487,10 +496,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                tag,
-                                style: const TextStyle(fontSize: 13),
-                              ),
+                              Text(tag, style: const TextStyle(fontSize: 13)),
                               GestureDetector(
                                 onTap: () => setState(() => _tags.remove(tag)),
                                 child: const Padding(
@@ -548,7 +554,7 @@ class _EditorAction extends StatelessWidget {
       label: semanticLabel,
       button: true,
       child: CupertinoButton(
-        minSize: 0,
+        minimumSize: Size.zero,
         padding: const EdgeInsets.symmetric(horizontal: 4),
         onPressed: onPressed,
         child: Icon(icon, size: 22),
@@ -640,12 +646,14 @@ class _ChecklistPanel extends StatelessWidget {
       final attrs = op['attributes'];
       final list = attrs is Map ? attrs['list'] : null;
       if (list is String && list.isNotEmpty) {
-        items.add(_ChecklistItem(
-          start: offset,
-          length: insert.length,
-          text: insert.trim(),
-          done: list == 'checked',
-        ));
+        items.add(
+          _ChecklistItem(
+            start: offset,
+            length: insert.length,
+            text: insert.trim(),
+            done: list == 'checked',
+          ),
+        );
       }
       offset += insert.length;
     }

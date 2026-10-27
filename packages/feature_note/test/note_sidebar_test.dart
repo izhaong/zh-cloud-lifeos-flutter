@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,22 +18,29 @@ void main() {
     final repo = InMemoryNoteRepository();
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '工作'));
     await repo.upsertFolder(const NoteFolder(id: 'f2', name: '生活'));
-    await repo.upsertNote(const Note(
-      id: 'n1',
-      folderId: 'f1',
-      title: '周报',
-      bodyDelta: '{"ops":[{"insert":"周报正文"}]}',
-    ));
-    await repo.upsertNote(const Note(
-      id: 'n2',
-      folderId: 'f2',
-      title: '购物',
-      bodyDelta: '{"ops":[{"insert":"买菜"}]}',
-    ));
+    await repo.upsertNote(
+      const Note(
+        id: 'n1',
+        folderId: 'f1',
+        title: '周报',
+        bodyDelta: '{"ops":[{"insert":"周报正文"}]}',
+      ),
+    );
+    await repo.upsertNote(
+      const Note(
+        id: 'n2',
+        folderId: 'f2',
+        title: '购物',
+        bodyDelta: '{"ops":[{"insert":"买菜"}]}',
+      ),
+    );
     return repo;
   }
 
-  Future<void> pumpWide(WidgetTester tester, InMemoryNoteRepository repo) async {
+  Future<void> pumpWide(
+    WidgetTester tester,
+    InMemoryNoteRepository repo,
+  ) async {
     final view =
         TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view
@@ -41,14 +49,16 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('侧栏列出文件夹；点选后主区只显示该文件夹的笔记',
-      (tester) async {
+  testWidgets('侧栏列出文件夹；点选后主区只显示该文件夹的笔记', (tester) async {
     final repo = await seededRepo();
     await pumpWide(tester, repo);
 
@@ -83,14 +93,17 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
 
-    // 侧栏不常显；打开抽屉后可见文件夹
+    // 侧栏不常显；打开侧栏弹层后可见文件夹
     expect(find.text('所有备忘录'), findsNothing);
-    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.tap(find.byKey(const ValueKey('note_sidebar_open')));
     await tester.pumpAndSettle();
     expect(find.text('所有备忘录'), findsOneWidget);
     expect(find.text('工作'), findsOneWidget);

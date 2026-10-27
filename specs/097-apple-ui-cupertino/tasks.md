@@ -53,13 +53,13 @@
 
 ## #131 记录
 
-- [ ] `NoteScaffold` / `NoteEditorPage` / `NoteSettingsPage` / `NoteRecyclePage` / `NoteSidebar` Cupertino 化
-- [ ] `flutter_quill` 进 `LifeMaterialIsland`
-- [ ] `Drawer` / `SnackBar` / `FloatingActionButton` 换 Cupertino
-- [ ] 路由与弹窗换 Cupertino
-- [ ] `life_router.dart` 移除记录过渡岛；`main.dart` 移除根 `ScaffoldMessenger`
-- [ ] 受影响测试更新
-- [ ] `feature_note` analyze/test 绿
+- [x] `NoteScaffold` / `NoteEditorPage` / `NoteSettingsPage` / `NoteRecyclePage` / `NoteSidebar` Cupertino 化
+- [x] `flutter_quill` 进 `LifeMaterialIsland`
+- [x] `Drawer` / `SnackBar` / `FloatingActionButton` 换 Cupertino（Drawer→底部弹层、SnackBar→`CupertinoAlertDialog`、FAB→导航栏「新建」钮）
+- [x] 路由与弹窗换 Cupertino（`CupertinoPageRoute` / `showCupertinoDialog` / `CupertinoActionSheet`）
+- [x] `life_router.dart` 移除记录过渡岛；`main.dart` 移除根 `ScaffoldMessenger`
+- [x] 受影响测试更新（harness 补 `GlobalCupertinoLocalizations`；`pageBack` 换显式点包内返回键——cupertino_ui 的同名 BackButton 类与 SDK 类不同源）
+- [x] `feature_note` analyze/test 绿（0 issues / 25 passed）；全仓 11 包 analyze 绿；launcher 13/13 绿
 - [ ] macOS 截图人工验收
-- [ ] 边界脚本最终白名单收口
+- [x] 边界脚本最终白名单收口（`scanned=119 pending=0 violations=0`，`--strict` 同绿；豁免仅剩 app_core 两个主题文件）
 - [ ] PR 已合并进 `develop`

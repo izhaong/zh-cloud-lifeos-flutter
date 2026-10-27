@@ -41,7 +41,8 @@ class NoteScaffold extends ConsumerWidget {
         sortedNotes.sort((a, b) => a.title.compareTo(b.title));
       case NoteSortMode.updated:
         sortedNotes.sort(
-            (a, b) => b.clientUpdatedAt.compareTo(a.clientUpdatedAt));
+          (a, b) => b.clientUpdatedAt.compareTo(a.clientUpdatedAt),
+        );
     }
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -54,7 +55,7 @@ class NoteScaffold extends ConsumerWidget {
                 ? null
                 : CupertinoButton(
                     key: const ValueKey('note_sidebar_open'),
-                    minSize: 0,
+                    minimumSize: Size.zero,
                     padding: EdgeInsets.zero,
                     onPressed: () => _showSidebarSheet(context),
                     child: const Icon(CupertinoIcons.sidebar_left),
@@ -102,10 +103,7 @@ class NoteScaffold extends ConsumerWidget {
             child: wide
                 ? Row(
                     children: [
-                      const SizedBox(
-                        width: sidebarWidth,
-                        child: NoteSidebar(),
-                      ),
+                      const SizedBox(width: sidebarWidth, child: NoteSidebar()),
                       const _Separator(),
                       Expanded(
                         child: _NoteList(
@@ -128,8 +126,9 @@ class NoteScaffold extends ConsumerWidget {
                 : _NoteList(
                     gallery: gallery,
                     emptyLabel: searching ? '无匹配结果' : '没有备忘录',
-                    onSearch: (value) =>
-                        ref.read(noteSearchQueryProvider.notifier).setQuery(value),
+                    onSearch: (value) => ref
+                        .read(noteSearchQueryProvider.notifier)
+                        .setQuery(value),
                     notes: sortedNotes,
                     onTap: (note) => _openEditor(context, ref, note, folders),
                     onPin: (note) => _togglePin(ref, note),
@@ -156,12 +155,9 @@ class NoteScaffold extends ConsumerWidget {
             CupertinoColors.systemBackground,
             context,
           ),
-          child: SizedBox(
+          child: const SizedBox(
             height: 420,
-            child: SafeArea(
-              top: false,
-              child: NoteSidebar(),
-            ),
+            child: SafeArea(top: false, child: NoteSidebar()),
           ),
         ),
       ),
@@ -169,7 +165,10 @@ class NoteScaffold extends ConsumerWidget {
   }
 
   Future<void> _quickCapture(
-      BuildContext context, WidgetRef ref, List<NoteFolder> folders) async {
+    BuildContext context,
+    WidgetRef ref,
+    List<NoteFolder> folders,
+  ) async {
     NoteFolder? target;
     final settings = ref.read(noteSettingsProvider);
     final selectedId = ref.read(selectedNoteFolderIdProvider);
@@ -227,17 +226,21 @@ class NoteScaffold extends ConsumerWidget {
             onPressed: () async {
               final title = titleController.text.trim();
               final body = bodyController.text;
-              await ref.read(noteRepositoryProvider).upsertNote(Note(
-                    id: 'note-${DateTime.now().millisecondsSinceEpoch}',
-                    folderId: target!.id,
-                    title: title.isEmpty ? '快速记录' : title,
-                    bodyDelta: jsonEncode({
-                      'ops': [
-                        {'insert': '$body\n'},
-                      ],
-                    }),
-                    clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-                  }));
+              await ref
+                  .read(noteRepositoryProvider)
+                  .upsertNote(
+                    Note(
+                      id: 'note-${DateTime.now().millisecondsSinceEpoch}',
+                      folderId: target!.id,
+                      title: title.isEmpty ? '快速记录' : title,
+                      bodyDelta: jsonEncode({
+                        'ops': [
+                          {'insert': '$body\n'},
+                        ],
+                      }),
+                      clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+                    ),
+                  );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
               }
@@ -250,7 +253,10 @@ class NoteScaffold extends ConsumerWidget {
   }
 
   Future<void> _promptUnlock(
-      BuildContext context, WidgetRef ref, Note note) async {
+    BuildContext context,
+    WidgetRef ref,
+    Note note,
+  ) async {
     final passwordController = TextEditingController();
     final unlocked = await showCupertinoDialog<bool>(
       context: context,
@@ -269,8 +275,9 @@ class NoteScaffold extends ConsumerWidget {
           ),
           CupertinoDialogAction(
             key: const ValueKey('note_unlock_confirm'),
-            onPressed: () => Navigator.of(dialogContext)
-                .pop(passwordController.text.trim().isNotEmpty),
+            onPressed: () => Navigator.of(
+              dialogContext,
+            ).pop(passwordController.text.trim().isNotEmpty),
             child: const Text('解锁'),
           ),
         ],
@@ -291,26 +298,34 @@ class NoteScaffold extends ConsumerWidget {
   }
 
   void _togglePin(WidgetRef ref, Note note) {
-    ref.read(noteRepositoryProvider).upsertNote(Note(
-          id: note.id,
-          folderId: note.folderId,
-          title: note.title,
-          bodyDelta: note.bodyDelta,
-          bodyText: note.bodyText,
-          pinned: !note.pinned,
-          locked: note.locked,
-          checklistTotal: note.checklistTotal,
-          checklistDone: note.checklistDone,
-          tagNames: note.tagNames,
-          sortOrder: note.sortOrder,
-          deletedAt: note.deletedAt,
-          revision: note.revision + 1,
-          clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
+    ref
+        .read(noteRepositoryProvider)
+        .upsertNote(
+          Note(
+            id: note.id,
+            folderId: note.folderId,
+            title: note.title,
+            bodyDelta: note.bodyDelta,
+            bodyText: note.bodyText,
+            pinned: !note.pinned,
+            locked: note.locked,
+            checklistTotal: note.checklistTotal,
+            checklistDone: note.checklistDone,
+            tagNames: note.tagNames,
+            sortOrder: note.sortOrder,
+            deletedAt: note.deletedAt,
+            revision: note.revision + 1,
+            clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
   }
 
-  void _openEditor(BuildContext context, WidgetRef ref, Note? note,
-      List<NoteFolder> folders) {
+  void _openEditor(
+    BuildContext context,
+    WidgetRef ref,
+    Note? note,
+    List<NoteFolder> folders,
+  ) {
     if (note != null && note.locked) {
       _promptUnlock(context, ref, note);
       return;
@@ -339,7 +354,8 @@ class NoteScaffold extends ConsumerWidget {
         break;
       }
     }
-    final folderId = note?.folderId ??
+    final folderId =
+        note?.folderId ??
         defaultFolderId ??
         (selected != null && !selected.smart ? selected.id : firstReal?.id);
     if (folderId == null) {
@@ -388,7 +404,7 @@ class _NavBarIcon extends StatelessWidget {
       label: semanticLabel,
       button: true,
       child: CupertinoButton(
-        minSize: 0,
+        minimumSize: Size.zero,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         onPressed: onPressed,
         child: Icon(icon, size: 22),
@@ -555,7 +571,7 @@ class _NoteList extends StatelessWidget {
                   ),
                   CupertinoButton(
                     key: ValueKey('note_pin_${note.id}'),
-                    minSize: 0,
+                    minimumSize: Size.zero,
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     onPressed: () => onPin(note),
                     child: Icon(
@@ -570,7 +586,7 @@ class _NoteList extends StatelessWidget {
                   ),
                   CupertinoButton(
                     key: ValueKey('note_delete_${note.id}'),
-                    minSize: 0,
+                    minimumSize: Size.zero,
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     onPressed: () => onDelete(note),
                     child: const Icon(

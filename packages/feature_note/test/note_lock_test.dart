@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,7 +22,10 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -30,12 +34,14 @@ void main() {
   testWidgets('编辑器锁定后列表只显示已锁定', (tester) async {
     final repo = InMemoryNoteRepository();
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '工作'));
-    await repo.upsertNote(const Note(
-      id: 'n1',
-      folderId: 'f1',
-      title: '日记',
-      bodyDelta: '{"ops":[{"insert":"秘密正文\\n"}]}',
-    ));
+    await repo.upsertNote(
+      const Note(
+        id: 'n1',
+        folderId: 'f1',
+        title: '日记',
+        bodyDelta: '{"ops":[{"insert":"秘密正文\\n"}]}',
+      ),
+    );
     await pump(tester, repo);
     expect(find.textContaining('秘密正文'), findsOneWidget);
 
@@ -44,7 +50,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('note_editor_lock')));
     await tester.pumpAndSettle();
     await tester.enterText(
-        find.byKey(const ValueKey('note_lock_password')), '1234');
+      find.byKey(const ValueKey('note_lock_password')),
+      '1234',
+    );
     await tester.tap(find.byKey(const ValueKey('note_lock_confirm')));
     await tester.pumpAndSettle();
 
@@ -57,13 +65,15 @@ void main() {
   testWidgets('锁定笔记需解锁后才能编辑', (tester) async {
     final repo = InMemoryNoteRepository();
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '工作'));
-    await repo.upsertNote(const Note(
-      id: 'n1',
-      folderId: 'f1',
-      title: '日记',
-      bodyDelta: '{"ops":[{"insert":"秘密正文\\n"}]}',
-      locked: true,
-    ));
+    await repo.upsertNote(
+      const Note(
+        id: 'n1',
+        folderId: 'f1',
+        title: '日记',
+        bodyDelta: '{"ops":[{"insert":"秘密正文\\n"}]}',
+        locked: true,
+      ),
+    );
     await pump(tester, repo);
     expect(find.text('已锁定'), findsOneWidget);
     expect(find.textContaining('秘密正文'), findsNothing);
@@ -72,13 +82,17 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('解锁备忘录'), findsOneWidget);
     await tester.enterText(
-        find.byKey(const ValueKey('note_unlock_password')), '1234');
+      find.byKey(const ValueKey('note_unlock_password')),
+      '1234',
+    );
     await tester.tap(find.byKey(const ValueKey('note_unlock_confirm')));
     await tester.pumpAndSettle();
 
     expect(find.text('编辑备忘录'), findsOneWidget);
     await tester.enterText(
-        find.byKey(const ValueKey('note_editor_title')), '已解锁');
+      find.byKey(const ValueKey('note_editor_title')),
+      '已解锁',
+    );
     await tester.tap(find.byKey(const ValueKey('note_editor_save')));
     await tester.pumpAndSettle();
 

@@ -36,7 +36,7 @@ class NoteRecyclePage extends ConsumerWidget {
                     ),
                     trailing: CupertinoButton(
                       key: ValueKey('note_restore_${note.id}'),
-                      minSize: 0,
+                      minimumSize: Size.zero,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       onPressed: () =>
                           ref.read(noteRepositoryProvider).restore(note.id),
