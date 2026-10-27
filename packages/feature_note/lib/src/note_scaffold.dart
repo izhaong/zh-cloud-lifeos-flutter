@@ -27,6 +27,7 @@ class NoteScaffold extends ConsumerWidget {
         : (ref.watch(visibleNotesProvider).value ?? const <Note>[]);
     final folders =
         ref.watch(noteFoldersProvider).value ?? const <NoteFolder>[];
+    final gallery = ref.watch(noteGalleryModeProvider);
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= wideBreakpoint;
@@ -34,6 +35,13 @@ class NoteScaffold extends ConsumerWidget {
           appBar: AppBar(
             title: const Text('记录'),
             actions: [
+              IconButton(
+                key: const ValueKey('note_view_toggle'),
+                tooltip: gallery ? '列表视图' : '画廊视图',
+                icon: Icon(gallery ? Icons.view_list : Icons.grid_view),
+                onPressed: () =>
+                    ref.read(noteGalleryModeProvider.notifier).toggle(),
+              ),
               IconButton(
                 key: const ValueKey('note_recycle'),
                 tooltip: '最近删除',
@@ -64,6 +72,7 @@ class NoteScaffold extends ConsumerWidget {
                       const VerticalDivider(width: 1),
                       Expanded(
                         child: _NoteList(
+                          gallery: gallery,
                           emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                           onSearch: (value) => ref
                               .read(noteSearchQueryProvider.notifier)
@@ -80,6 +89,7 @@ class NoteScaffold extends ConsumerWidget {
                   ),
                 )
               : _NoteList(
+                  gallery: gallery,
                   emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                   onSearch: (value) => ref
                       .read(noteSearchQueryProvider.notifier)
@@ -162,6 +172,7 @@ class _NoteList extends StatelessWidget {
     required this.onDelete,
     required this.onSearch,
     required this.emptyLabel,
+    required this.gallery,
   });
 
   final List<Note> notes;
@@ -170,6 +181,7 @@ class _NoteList extends StatelessWidget {
   final ValueChanged<Note> onDelete;
   final ValueChanged<String> onSearch;
   final String emptyLabel;
+  final bool gallery;
 
   @override
   Widget build(BuildContext context) {
@@ -188,14 +200,58 @@ class _NoteList extends StatelessWidget {
             ),
           ),
         ),
-        Expanded(child: _body()),
+        Expanded(child: _body(context)),
       ],
     );
   }
 
-  Widget _body() {
+  Widget _body(BuildContext context) {
     if (notes.isEmpty) {
       return _EmptyHint(label: emptyLabel);
+    }
+    if (gallery) {
+      return GridView.builder(
+        key: const ValueKey('note_gallery_grid'),
+        padding: const EdgeInsets.all(8),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 220,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          childAspectRatio: 1.1,
+        ),
+        itemCount: notes.length,
+        itemBuilder: (_, i) {
+          final note = notes[i];
+          return Card(
+            child: InkWell(
+              onTap: () => onTap(note),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      note.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 6),
+                    Expanded(
+                      child: Text(
+                        note.locked ? '已锁定' : note.bodyText,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
     }
     return ListView.builder(
       itemCount: notes.length,

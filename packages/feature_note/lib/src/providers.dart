@@ -79,3 +79,16 @@ final noteImagePickerProvider = Provider<Future<String?> Function()>((ref) {
     return file?.path;
   };
 });
+
+
+/// 列表 / 画廊视图（F-10）；false = 列表。
+class NoteGalleryModeNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void toggle() => state = !state;
+}
+
+final noteGalleryModeProvider =
+    NotifierProvider<NoteGalleryModeNotifier, bool>(
+        NoteGalleryModeNotifier.new);
