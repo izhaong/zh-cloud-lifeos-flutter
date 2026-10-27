@@ -14,7 +14,7 @@ import 'providers.dart';
 /// 记录主脚手架（F-03 骨架 / F-04 侧栏；编辑器随 F-05）。
 ///
 /// 宽屏左右分栏（侧栏 + 列表）；窄屏侧栏收进 Drawer。
-/// 不出现 iCloud/Siri 等生态文案（契约 §9）。
+/// 不出现生态绑定文案（契约 §9）。
 class NoteScaffold extends ConsumerWidget {
   const NoteScaffold({super.key});
 
