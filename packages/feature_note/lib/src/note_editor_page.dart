@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import 'note_markdown.dart';
 import 'providers.dart';
 
 /// 记录编辑器（F-05；契约 §5、§8：flutter_quill 11.6.0）。
@@ -60,6 +61,81 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       // 锁定密文或损坏内容：不解析，按空文档打开由上层锁定页拦截
     }
     return quill.Document();
+  }
+
+  Future<void> _exportMarkdown() async {
+    final existing = widget.note;
+    if (existing == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('先保存备忘录再导出')),
+      );
+      return;
+    }
+    final markdown = NoteMarkdownCodec.toMarkdown(
+      _title.text,
+      jsonEncode({'ops': _body.document.toDelta().toJson()}),
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('导出 Markdown'),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            markdown,
+            key: const ValueKey('note_export_text'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importMarkdown() async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('导入 Markdown'),
+        content: TextField(
+          key: const ValueKey('note_import_text'),
+          controller: controller,
+          maxLines: 6,
+          decoration: const InputDecoration(hintText: '# 标题\n正文'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            key: const ValueKey('note_import_submit'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('导入'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || controller.text.trim().isEmpty) {
+      return;
+    }
+    final parsed = NoteMarkdownCodec.fromMarkdown(controller.text);
+    await ref.read(noteRepositoryProvider).upsertNote(Note(
+          id: 'note-${DateTime.now().millisecondsSinceEpoch}',
+          folderId: widget.note?.folderId ?? widget.folderId,
+          title: parsed.title,
+          bodyDelta: parsed.deltaJson,
+          clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+        ));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已导入为新备忘录')),
+      );
+    }
   }
 
   Future<void> _share() async {
@@ -257,6 +333,29 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       appBar: AppBar(
         title: Text(widget.note == null ? '新建备忘录' : '编辑备忘录'),
         actions: [
+          PopupMenuButton<String>(
+            key: const ValueKey('note_editor_more'),
+            tooltip: '更多',
+            onSelected: (value) {
+              if (value == 'export') {
+                _exportMarkdown();
+              } else if (value == 'import') {
+                _importMarkdown();
+              }
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                key: ValueKey('note_export_markdown'),
+                value: 'export',
+                child: Text('导出 Markdown'),
+              ),
+              PopupMenuItem(
+                key: ValueKey('note_import_markdown'),
+                value: 'import',
+                child: Text('导入 Markdown'),
+              ),
+            ],
+          ),
           IconButton(
             key: const ValueKey('note_editor_share'),
             tooltip: '共享',
