@@ -13,10 +13,18 @@ import 'providers.dart';
 /// 新建/编辑标题与富文本正文；保存写回 [NoteRepository]，正文序列化为
 /// Quill Delta JSON（bodyDelta），纯文本与清单计数由仓库归一。
 class NoteEditorPage extends ConsumerStatefulWidget {
-  const NoteEditorPage({super.key, this.note, required this.folderId});
+  const NoteEditorPage({
+    super.key,
+    this.note,
+    required this.folderId,
+    this.unlockedInitial = false,
+  });
 
   final Note? note;
   final String folderId;
+
+  /// 已通过解锁口令进入（F-12）：允许把 locked 写回 false。
+  final bool unlockedInitial;
 
   @override
   ConsumerState<NoteEditorPage> createState() => _NoteEditorPageState();
@@ -54,6 +62,57 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     return quill.Document();
   }
 
+  Future<void> _lock() async {
+    final existing = widget.note;
+    if (existing == null || existing.locked) {
+      return;
+    }
+    final passwordController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('锁定备忘录'),
+        content: TextField(
+          key: const ValueKey('note_lock_password'),
+          controller: passwordController,
+          obscureText: true,
+          decoration: const InputDecoration(hintText: '设置密码'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            key: const ValueKey('note_lock_confirm'),
+            onPressed: () => Navigator.of(dialogContext)
+                .pop(passwordController.text.trim().isNotEmpty),
+            child: const Text('锁定'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    final delta = jsonEncode({'ops': _body.document.toDelta().toJson()});
+    await ref.read(noteRepositoryProvider).upsertNote(Note(
+          id: existing.id,
+          folderId: existing.folderId,
+          title: _title.text.trim().isEmpty ? existing.title : _title.text.trim(),
+          bodyDelta: delta,
+          pinned: existing.pinned,
+          locked: true,
+          tagNames: List<String>.unmodifiable(_tags),
+          sortOrder: existing.sortOrder,
+          revision: existing.revision + 1,
+          clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+        ));
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
   Future<void> _insertImage() async {
     final path = await ref.read(noteImagePickerProvider)();
     if (path == null) {
@@ -71,8 +130,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
 
   Future<void> _save() async {
     final existing = widget.note;
-    if (existing != null && existing.locked) {
-      return; // 锁定笔记不允许用编辑器覆盖密文（解锁归 F-12）
+    if (existing != null && existing.locked && !widget.unlockedInitial) {
+      return; // 未解锁不允许覆盖密文（F-12）
     }
     final delta = jsonEncode({'ops': _body.document.toDelta().toJson()});
     final note = Note(
@@ -82,7 +141,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       title: _title.text.trim().isEmpty ? '新建备忘录' : _title.text.trim(),
       bodyDelta: delta,
       pinned: existing?.pinned ?? false,
-      locked: existing?.locked ?? false,
+      locked: existing != null && existing.locked
+          ? !widget.unlockedInitial
+          : false,
       tagNames: List<String>.unmodifiable(_tags),
       sortOrder: existing?.sortOrder ?? 0,
       revision: (existing?.revision ?? 0) + 1,
@@ -119,6 +180,12 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       appBar: AppBar(
         title: Text(widget.note == null ? '新建备忘录' : '编辑备忘录'),
         actions: [
+          IconButton(
+            key: const ValueKey('note_editor_lock'),
+            tooltip: '锁定',
+            icon: const Icon(Icons.lock_outline),
+            onPressed: _lock,
+          ),
           IconButton(
             key: const ValueKey('note_editor_image'),
             tooltip: '插入图片',
