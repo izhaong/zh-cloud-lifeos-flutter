@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import 'note_editor_page.dart';
+import 'note_recycle_page.dart';
 import 'note_sidebar.dart';
 import 'providers.dart';
 
@@ -26,7 +27,21 @@ class NoteScaffold extends ConsumerWidget {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= wideBreakpoint;
         return Scaffold(
-          appBar: AppBar(title: const Text('记录')),
+          appBar: AppBar(
+            title: const Text('记录'),
+            actions: [
+              IconButton(
+                key: const ValueKey('note_recycle'),
+                tooltip: '最近删除',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const NoteRecyclePage(),
+                  ),
+                ),
+              ),
+            ],
+          ),
           drawer: wide ? null : const Drawer(child: SafeArea(child: NoteSidebar())),
           floatingActionButton: FloatingActionButton(
             key: const ValueKey('note_new'),
@@ -48,6 +63,9 @@ class NoteScaffold extends ConsumerWidget {
                           notes: notes,
                           onTap: (note) =>
                               _openEditor(context, ref, note, folders),
+                          onPin: (note) => _togglePin(ref, note),
+                          onDelete: (note) =>
+                              ref.read(noteRepositoryProvider).softDelete(note.id),
                         ),
                       ),
                     ],
@@ -56,18 +74,60 @@ class NoteScaffold extends ConsumerWidget {
               : _NoteList(
                   notes: notes,
                   onTap: (note) => _openEditor(context, ref, note, folders),
+                  onPin: (note) => _togglePin(ref, note),
+                  onDelete: (note) =>
+                      ref.read(noteRepositoryProvider).softDelete(note.id),
                 ),
         );
       },
     );
   }
 
+  void _togglePin(WidgetRef ref, Note note) {
+    ref.read(noteRepositoryProvider).upsertNote(Note(
+          id: note.id,
+          folderId: note.folderId,
+          title: note.title,
+          bodyDelta: note.bodyDelta,
+          bodyText: note.bodyText,
+          pinned: !note.pinned,
+          locked: note.locked,
+          checklistTotal: note.checklistTotal,
+          checklistDone: note.checklistDone,
+          tagNames: note.tagNames,
+          sortOrder: note.sortOrder,
+          deletedAt: note.deletedAt,
+          revision: note.revision + 1,
+          clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+        ));
+  }
+
   void _openEditor(BuildContext context, WidgetRef ref, Note? note,
       List<NoteFolder> folders) {
+    if (note != null && note.locked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已锁定，解锁后可编辑')),
+      );
+      return;
+    }
     final selectedId = ref.read(selectedNoteFolderIdProvider);
+    NoteFolder? selected;
+    for (final folder in folders) {
+      if (folder.id == selectedId) {
+        selected = folder;
+        break;
+      }
+    }
+    NoteFolder? firstReal;
+    for (final folder in folders) {
+      if (!folder.smart) {
+        firstReal = folder;
+        break;
+      }
+    }
+    // 智能文件夹不是容器：新建笔记必须落在真实文件夹
     final folderId = note?.folderId ??
-        selectedId ??
-        (folders.isEmpty ? null : folders.first.id);
+        (selected != null && !selected.smart ? selected.id : firstReal?.id);
     if (folderId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('先新建一个文件夹')),
@@ -83,10 +143,17 @@ class NoteScaffold extends ConsumerWidget {
 }
 
 class _NoteList extends StatelessWidget {
-  const _NoteList({required this.notes, required this.onTap});
+  const _NoteList({
+    required this.notes,
+    required this.onTap,
+    required this.onPin,
+    required this.onDelete,
+  });
 
   final List<Note> notes;
   final ValueChanged<Note> onTap;
+  final ValueChanged<Note> onPin;
+  final ValueChanged<Note> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +178,25 @@ class _NoteList extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                key: ValueKey('note_pin_${note.id}'),
+                tooltip: note.pinned ? '取消置顶' : '置顶',
+                icon: Icon(
+                  note.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+                ),
+                onPressed: () => onPin(note),
+              ),
+              IconButton(
+                key: ValueKey('note_delete_${note.id}'),
+                tooltip: '删除',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => onDelete(note),
+              ),
+            ],
+          ),
         );
       },
     );

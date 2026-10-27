@@ -19,6 +19,9 @@ abstract interface class NoteRepository {
   /// updatedWithinDays），空 = 全部未删除笔记。
   Stream<List<Note>> watchNotes({String? folderId});
 
+  /// 「最近删除」：全部软删笔记（按删除时间倒序；F-06 恢复入口）。
+  Stream<List<Note>> watchDeleted();
+
   /// 全部标签。
   Stream<List<NoteTag>> watchTags();
 
@@ -72,6 +75,13 @@ final class InMemoryNoteRepository implements NoteRepository {
   @override
   Stream<List<Note>> watchNotes({String? folderId}) =>
       _watch(() => _notesSnapshot(folderId));
+
+  @override
+  Stream<List<Note>> watchDeleted() => _watch(() {
+        final deleted = _notes.where((n) => n.deletedAt != null).toList()
+          ..sort((a, b) => b.deletedAt!.compareTo(a.deletedAt!));
+        return List<Note>.unmodifiable(deleted);
+      });
 
   @override
   Stream<List<NoteTag>> watchTags() =>
@@ -321,20 +331,36 @@ final class InMemoryNoteRepository implements NoteRepository {
   }
 
   /// attributes.list 非空计 total、checked 计 done（TC-NOTE-KR-105）。
+  ///
+  /// 兼容两种落点：Quill 行属性在行尾 `\n` op 上；内核夹具把 list 挂在文本 op 上。
+  /// 同一行两处都带相同 list 时只计一次（以 `\n` 为准）。
   static List<int> countChecklist(String bodyDelta) {
     final ops = _parseOps(bodyDelta);
     if (ops == null) return const [0, 0];
     var total = 0;
     var done = 0;
-    for (final op in ops) {
-      final insert = op['insert'];
-      final attrs = op['attributes'];
-      if (insert is! String || attrs is! Map) continue;
-      final list = attrs['list'];
-      if (list is String && list.isNotEmpty) {
-        total++;
-        if (list == 'checked') done++;
+    for (var i = 0; i < ops.length; i++) {
+      final insert = ops[i]['insert'];
+      if (insert is! String) continue;
+      final attrs = ops[i]['attributes'];
+      final list = attrs is Map ? attrs['list'] : null;
+      if (list is! String || list.isEmpty) continue;
+      final isLineEnd = insert.endsWith('\n');
+      if (!isLineEnd) {
+        // 下一 op 是带同一 list 的行尾 → 由行尾计数，跳过避免重复
+        final nextInsert =
+            i + 1 < ops.length ? ops[i + 1]['insert'] : null;
+        final nextAttrs =
+            i + 1 < ops.length ? ops[i + 1]['attributes'] : null;
+        final nextList = nextAttrs is Map ? nextAttrs['list'] : null;
+        if (nextInsert is String &&
+            nextInsert.endsWith('\n') &&
+            nextList != null) {
+          continue;
+        }
       }
+      total++;
+      if (list == 'checked') done++;
     }
     return [total, done];
   }
