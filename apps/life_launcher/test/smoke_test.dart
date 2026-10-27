@@ -1,6 +1,6 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:life_launcher/main.dart';
@@ -77,9 +77,8 @@ void main() {
 
     // 底栏顺序：任务 日历 记录 习惯 更多（F-03 增记录）
     final labels = tester
-        .widgetList<NavigationDestination>(
-          find.byType(NavigationDestination),
-        )
+        .widget<CupertinoTabBar>(find.byType(CupertinoTabBar))
+        .items
         .map((d) => d.label)
         .toList();
     expect(labels, ['任务', '日历', '记录', '习惯', '更多']);
@@ -118,9 +117,8 @@ void main() {
 
     // 「编辑」期间底栏实时变化：任务 Tab 暂时消失时加回后回来
     final labels = tester
-        .widgetList<NavigationDestination>(
-          find.byType(NavigationDestination),
-        )
+        .widget<CupertinoTabBar>(find.byType(CupertinoTabBar))
+        .items
         .map((d) => d.label)
         .toList();
     expect(labels, ['日历', '记录', '习惯', '任务', '更多']);
@@ -145,14 +143,14 @@ void main() {
   testWidgets('徽标：override {task:3} → Tab 角标显示', (tester) async {
     await _pump(tester, badges: const {'task': 3});
 
-    // Tab 上有徽标（Badge widget 内文本 3；智能卡片计数也是 3 但不在 Badge 内）
-    expect(find.byType(Badge), findsOneWidget);
+    // Tab 上有徽标（ShellBadge 内文本 3；智能卡片计数也是 3 但不在徽标内）
+    expect(find.byKey(const ValueKey('shell_badge_task')), findsOneWidget);
     expect(find.text('3'), findsWidgets);
   });
 
-  testWidgets('默认无徽标渲染（findsNothing Badge）', (tester) async {
+  testWidgets('默认无徽标渲染（findsNothing ShellBadge）', (tester) async {
     await _pump(tester);
-    expect(find.byType(Badge), findsNothing);
+    expect(find.byKey(const ValueKey('shell_badge_task')), findsNothing);
   });
 
   testWidgets('占位应用可固定/打开与正式应用一致', (tester) async {
@@ -180,19 +178,19 @@ void main() {
     await tester.tap(find.text('个人'));
     await tester.pumpAndSettle();
 
-    // compact 竖屏：底 NavigationBar 常显（不再全屏盖掉）
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byType(NavigationRail), findsNothing);
+    // compact 竖屏：底 CupertinoTabBar 常显（不再全屏盖掉）
+    expect(find.byType(CupertinoTabBar), findsOneWidget);
+    expect(find.byKey(const ValueKey('shell_sidebar')), findsNothing);
     expect(find.text('列表'), findsWidgets); // AppBar「‹ 列表」的 label
     expect(find.text('买牛奶'), findsOneWidget);
   });
 
-  testWidgets('Pad 宽屏：左侧 NavigationRail，无底栏', (tester) async {
+  testWidgets('Pad 宽屏：左侧 Apple 式侧栏，无底栏', (tester) async {
     // iPad 横屏量级（medium），应走左轨
     await _pump(tester, size: const Size(1024, 768));
 
-    expect(find.byType(NavigationRail), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.byKey(const ValueKey('shell_sidebar')), findsOneWidget);
+    expect(find.byType(CupertinoTabBar), findsNothing);
     expect(find.text('任务'), findsWidgets);
     expect(find.text('更多'), findsWidgets);
   });

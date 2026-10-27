@@ -19,7 +19,7 @@ packages/
 
 ## 环境
 
-- Flutter **3.44.x** / Dart **3.12.2**（本机当前 SDK）
+- Flutter **3.47.5** / Dart **3.13.4**（本机当前 SDK）；根 `environment.sdk: ^3.13.0` 是下限——低于它时 `cupertino_ui` 会**静默**解析到 1.0.2（不报错，只是拿到旧实现），故显式钉住
 - 依赖取 pub.dev **最新可解析正式版**；受 SDK 钉死版本限制的包见下方「钉版说明」
 
 ```bash
@@ -45,15 +45,14 @@ dart run melos run gen    # build_runner（feature_productivity_drift 的 drift 
 
 | 包 | 本仓 | 原因 |
 |----|------|------|
-| `google_fonts` | ^8.2.1 | 9.x 需 Dart ^3.13 |
-| `table_calendar` | ^3.2.1 | 3.3 需 intl≥0.20.3；Flutter 钉 intl 0.20.2 |
-| `cached_network_image` | ^3.4.1 | 4.x→material_ui 需 Dart 3.13 |
-| `sqlite3` | ≥3.4 <3.6 | 3.7→hooks→meta^1.19；Flutter 钉 meta 1.18 |
-| `hooks`（override） | 2.0.0 | 同上 |
-| `drift_dev` | ^2.35.1 | 2.35.2 约束在 Dart 3.12.2 不可解析（实测降 2.35.1 通过） |
-| `freezed` / `riverpod_generator` | 暂未引入 | freezed 4 需 Dart ≥3.13，与 generator 注解链冲突 |
+| `google_fonts` | ^8.2.1 | 9.0.0 在 Dart 3.13.4 已可解析；本次未升（属依赖升级，另议） |
+| `table_calendar` | `feature_calendar` ^3.3.0、launcher ^3.2.1 | 两处约束不一致但同解 3.3.0；未收敛 |
+| `cached_network_image` | ^3.4.1 | 4.0.4 已可解析；本次未升 |
+| `sqlite3` | ≥3.4.0 <3.6.0 | 上限原为绕 3.7→hooks→meta 冲突；现解 3.5.2，上限可解除但本次未动 |
+| `drift_dev` | ^2.35.1 | 2.35.2+ 现已可解析；本次未动 |
+| `freezed` / `riverpod_generator` | 暂未引入 | Dart ≥3.13 已满足，可按需引入 |
 
-**升级 Flutter 到 Dart ≥3.13 后**可去掉 `dependency_overrides`，并加回 freezed 4 + riverpod_generator 4 + google_fonts 9 等。
+`dependency_overrides`（`hooks: 2.0.0`、`intl: 0.20.2`）已随 Flutter 3.47.5 升级删除；`intl` 现解 0.20.3，`hooks` 自然解 2.2.0。
 
 ## 平台矩阵与多端降级
 

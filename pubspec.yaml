@@ -4,7 +4,7 @@ publish_to: none
 version: 0.1.0+1
 
 environment:
-  sdk: ^3.12.2
+  sdk: ^3.13.0
 
 workspace:
   - apps/life_launcher
@@ -23,13 +23,6 @@ dev_dependencies:
   melos: ^8.9.0
   flutter_lints: ^6.0.0
 
-# Flutter 3.44 / Dart 3.12.2 与 sqlite3→hooks 传递依赖临时对齐；升级 Flutter 后删除
-dependency_overrides:
-  hooks: 2.0.0
-  # table_calendar(^0.20.3) 与 cupertino_calendar_picker 2.x(经 flutter_localizations 钉 0.20.2)
-  # 冲突；SDK 自带 flutter_localizations 即 0.20.2，钉齐（F-03 ADR，见 #21）
-  intl: 0.20.2
-
 # Melos 8 脚本（melos.yaml 已不被 8.9 读取，脚本必须在此处）
 melos:
   scripts:
@@ -39,6 +32,9 @@ melos:
     test:
       run: dart run melos exec --dir-exists=test -- flutter test
       description: 全仓单元/Widget 测试
+    ui-boundary:
+      run: dart run scripts/check_ui_boundary.dart
+      description: UI 边界检查（Material 仅限白名单）
     gen:
       run: dart run melos exec --depends-on=build_runner -- dart run build_runner build
       description: freezed / drift / riverpod_generator 代码生成
