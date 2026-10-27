@@ -27,8 +27,20 @@ final itemsForListProvider =
   return ref.watch(reminderRepositoryProvider).watchItems(listId: listId);
 });
 
-/// 全局搜索词（macOS 工具栏搜索 / ⌘F 聚焦；空串 = 不过滤）。
+/// 任务偏好端口（TC-UI-120 的持久半边，flutter#124 卡 4）。
 ///
+/// 与其它仓库 Provider 不同，这里给的是**内存默认值**：开源包要能单独跑 UI 冒烟，
+/// 偏好缺失不该让界面崩。真实组合根必须 override 成 Drift 实现
+/// （`DriftTaskPreferenceRepository`），否则改动只在内存里、重启即丢。
+final taskPreferenceRepositoryProvider = Provider<TaskPreferenceRepository>(
+    (ref) => InMemoryTaskPreferenceRepository(),
+    name: 'taskPreferenceRepositoryProvider');
+
+/// 当前任务偏好（无行回契约默认；`.value` 在首帧即可读，UI 不等流）。
+final taskPreferenceProvider = StreamProvider<TaskPreference>(
+    (ref) => ref.watch(taskPreferenceRepositoryProvider).watchPreference());
+
+/// 全局搜索词（macOS 工具栏搜索 / ⌘F 聚焦；空串 = 不过滤）。
 /// Riverpod 3 无 StateProvider，用最小 Notifier 承载可变搜索态。
 final searchQueryProvider =
     NotifierProvider<SearchQueryNotifier, String>(SearchQueryNotifier.new);
@@ -41,16 +53,26 @@ class SearchQueryNotifier extends Notifier<String> {
 }
 
 /// Pad/客户端提醒侧栏显隐（线框：隐藏后主区铺满，可再显示）。
+///
+/// 卡 4b（TC-UI-304/308/309）：视图态写进本地偏好行，冷启动/重开后读回。
 final sidebarVisibleProvider =
     NotifierProvider<SidebarVisibleNotifier, bool>(SidebarVisibleNotifier.new);
 
-class SidebarVisibleNotifier extends Notifier<bool> {
+class SidebarVisibleNotifier extends Notifier<bool>
+    with _PreferenceBacked<bool> {
   @override
-  bool build() => true;
+  bool get fallback => true;
 
-  void set(bool value) => state = value;
+  @override
+  bool decode(TaskPreference p) => p.sidebarVisible;
 
-  void toggle() => state = !state;
+  @override
+  TaskPreference encode(TaskPreference base, bool value) =>
+      base.copyWith(sidebarVisible: value);
+
+  void set(bool value) => write(value);
+
+  void toggle() => write(!state);
 }
 
 /// 过滤后的条目流：在仓库语义过滤之上叠加本地文本匹配
@@ -151,31 +173,123 @@ final filteredItemsForListProvider =
 });
 
 /// 「显示已完成」列表内开关（线框图2 工具行「显示」；TC-UI-108）。
+/// 卡 4b：视图态持久（TC-UI-308），默认仍 false——`list_toolbar_test.dart` 钉的就是默认隐藏。
 final showCompletedProvider =
     NotifierProvider<ShowCompletedNotifier, bool>(ShowCompletedNotifier.new);
 
-class ShowCompletedNotifier extends Notifier<bool> {
+class ShowCompletedNotifier extends Notifier<bool>
+    with _PreferenceBacked<bool> {
   @override
-  bool build() => false;
+  bool get fallback => false;
 
-  void set(bool value) => state = value;
+  @override
+  bool decode(TaskPreference p) => p.showCompleted;
 
-  void toggle() => state = !state;
+  @override
+  TaskPreference encode(TaskPreference base, bool value) =>
+      base.copyWith(showCompleted: value);
+
+  void set(bool value) => write(value);
+
+  void toggle() => write(!state);
 }
 
 /// 列表内排序模式（线框图2 工具行「排序」；TC-UI-111。
 /// manual = 仓库排序契约 `sortOrder asc, id asc`）。
 enum ListSortMode { manual, dueDate, title, priority }
 
+/// 卡 4b：排序模式持久（TC-UI-308）。未知存量串按 manual 处理，不炸界面。
+ListSortMode listSortModeFromId(String? id) => ListSortMode.values.firstWhere(
+      (m) => m.name == id,
+      orElse: () => ListSortMode.manual,
+    );
+
 final listSortModeProvider =
     NotifierProvider<ListSortModeNotifier, ListSortMode>(
         ListSortModeNotifier.new);
 
-class ListSortModeNotifier extends Notifier<ListSortMode> {
+class ListSortModeNotifier extends Notifier<ListSortMode>
+    with _PreferenceBacked<ListSortMode> {
   @override
-  ListSortMode build() => ListSortMode.manual;
+  ListSortMode get fallback => ListSortMode.manual;
 
-  void set(ListSortMode mode) => state = mode;
+  @override
+  ListSortMode decode(TaskPreference p) => listSortModeFromId(p.sortMode);
+
+  @override
+  TaskPreference encode(TaskPreference base, ListSortMode value) =>
+      base.copyWith(sortMode: value.name);
+
+  void set(ListSortMode mode) => write(mode);
+}
+
+/// 折叠态键（TC-UI-309，flutter#124 卡 4b）：分区头与侧栏分组共用一张键集。
+///
+/// 键域：`'<listId>|<分区标题>'`（分区随列表，切列表不串味）与
+/// `'group:<分组名>'`。日期桶标题（今天/明天/已过期）是**相对**标签，
+/// 按标签折叠正是用户点的那一下语义，隔天仍折叠同一个桶。
+final collapsedKeysProvider =
+    NotifierProvider<CollapsedKeysNotifier, Set<String>>(
+        CollapsedKeysNotifier.new);
+
+class CollapsedKeysNotifier extends Notifier<Set<String>>
+    with _PreferenceBacked<Set<String>> {
+  @override
+  Set<String> get fallback => const {};
+
+  @override
+  Set<String> decode(TaskPreference p) => {...p.collapsedKeys};
+
+  @override
+  TaskPreference encode(TaskPreference base, Set<String> value) =>
+      base.copyWith(collapsedKeys: value.toList());
+
+  bool contains(String key) => state.contains(key);
+
+  void toggle(String key) {
+    final next = {...state};
+    if (!next.remove(key)) next.add(key);
+    write(next);
+  }
+}
+
+/// 视图态 ↔ 本地偏好行的读写桥（flutter#124 卡 4b）。
+///
+/// `build()` 里必须 **listen** 偏好流：`taskPreferenceProvider` 首帧是
+/// `AsyncLoading`，只 `read` 一次会把状态永久钉在默认值上——
+/// 「硬编码默认值」那种探针因此测不出红（本卡实测就绿成了假象），
+/// 真机上表现为冷启动不读回上次的显示已完成/排序/折叠/侧栏。
+mixin _PreferenceBacked<T> on Notifier<T> {
+  /// 偏好未落库时的默认值——要与改造前的硬编码默认逐字一致，
+  /// 否则 `list_toolbar_test.dart` 那类「默认隐藏已完成」的断言会漂。
+  T get fallback;
+
+  /// 偏好行 → 本状态。
+  T decode(TaskPreference p);
+
+  /// 本状态 → 偏好行的那一格（其余列从当前行 copyWith，不整体覆盖成默认）。
+  TaskPreference encode(TaskPreference base, T value);
+
+  @override
+  T build() {
+    // ref.listen 的回调参数是 AsyncValue（Riverpod 3），不是裸值——
+    // 直接把它喂给 decode 会编译成 Object?，泛型状态就漂了。
+    ref.listen(taskPreferenceProvider, (_, next) {
+      final p = next.value;
+      state = p == null ? fallback : decode(p);
+    });
+    final p = ref.read(taskPreferenceProvider).value;
+    return p == null ? fallback : decode(p);
+  }
+
+  void write(T value) {
+    state = value;
+    final base =
+        ref.read(taskPreferenceProvider).value ?? TaskPreference.defaults;
+    ref
+        .read(taskPreferenceRepositoryProvider)
+        .savePreference(encode(base, value));
+  }
 }
 
 /// 最近一次「完成」前的条目快照，供一步撤销（TC-UI-122）。重做不做。

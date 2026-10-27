@@ -44,10 +44,10 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
     'smart.completed',
     'smart.assigned',
   };
-  final _collapsedGroups = <String>{};
-
   @override
   Widget build(BuildContext context) {
+    final collapsedGroups = ref.watch(collapsedKeysProvider);
+    bool isGroupCollapsed(String g) => collapsedGroups.contains('group:$g');
     final allSmart =
         widget.lists.where((e) => e.isSmart).toList(growable: false);
     final smart =
@@ -91,14 +91,11 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
         key: ValueKey('group_$g'),
         title: g,
         count: groupCount,
-        collapsed: _collapsedGroups.contains(g),
-        onToggle: () => setState(() {
-          if (!_collapsedGroups.remove(g)) {
-            _collapsedGroups.add(g);
-          }
-        }),
+        collapsed: isGroupCollapsed(g),
+        onToggle: () =>
+            ref.read(collapsedKeysProvider.notifier).toggle('group:$g'),
       ));
-      if (!_collapsedGroups.contains(g)) {
+      if (!isGroupCollapsed(g)) {
         for (final list in listsInGroup) {
           groupedEntries.add(_MyListRow(
             list: list,
