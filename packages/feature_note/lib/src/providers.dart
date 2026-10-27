@@ -1,0 +1,45 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+
+/// 仓库契约 Provider：feature_note 内定义与消费，组合根（life_launcher）注入实现。
+///
+/// 默认抛错：未注入即显式失败（照 reminderRepositoryProvider 口径，契约 §5）。
+/// 组合根用 ProviderScope.overrides 注入 InMemoryNoteRepository（F-03）或
+/// DriftNoteRepository（F-02 之后的 Drift 实现随 F-04 接线）。
+final noteRepositoryProvider = Provider<NoteRepository>((ref) {
+  throw StateError(
+    'NoteRepository 未注入：请在组合根 ProviderScope.overrides '
+    '中 overrideWith 提供 NoteRepository 实现。',
+  );
+}, name: 'noteRepositoryProvider');
+
+/// 全部文件夹（侧栏树数据；UI 按 parentId 还原层级）。
+final noteFoldersProvider = StreamProvider<List<NoteFolder>>((ref) {
+  return ref.watch(noteRepositoryProvider).watchFolders();
+});
+
+/// 全部标签。
+final noteTagsProvider = StreamProvider<List<NoteTag>>((ref) {
+  return ref.watch(noteRepositoryProvider).watchTags();
+});
+
+/// 当前选中文件夹（null = 全部未删除笔记）。Riverpod 3 无 StateProvider，
+/// 用 Notifier 承载（照日历 anchorDateProvider 口径）。
+class SelectedNoteFolderNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String? folderId) => state = folderId;
+}
+
+final selectedNoteFolderIdProvider =
+    NotifierProvider<SelectedNoteFolderNotifier, String?>(
+        SelectedNoteFolderNotifier.new);
+
+/// 当前文件夹的笔记列表（folderId 为智能文件夹 id 时按条件求值；
+/// 排序由仓库保证：pinned 前、sortOrder asc、id asc）。
+final visibleNotesProvider = StreamProvider<List<Note>>((ref) {
+  final folderId = ref.watch(selectedNoteFolderIdProvider);
+  return ref.watch(noteRepositoryProvider).watchNotes(folderId: folderId);
+});

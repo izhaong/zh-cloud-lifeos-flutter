@@ -75,23 +75,28 @@ void main() {
   testWidgets('缺省偏好 = 全固定（注册表序）+ 更多恒最右', (tester) async {
     await _pump(tester);
 
-    // 底栏顺序：任务 日历 习惯 更多
+    // 底栏顺序：任务 日历 记录 习惯 更多（F-03 增记录）
     final labels = tester
         .widgetList<NavigationDestination>(
           find.byType(NavigationDestination),
         )
         .map((d) => d.label)
         .toList();
-    expect(labels, ['任务', '日历', '习惯', '更多']);
+    expect(labels, ['任务', '日历', '记录', '习惯', '更多']);
     expect(labels.last, '更多'); // 恒最右
   });
 
   testWidgets('编辑态：−移出/＋加回 写即生效落 mock 偏好', (tester) async {
     await _pump(tester);
 
-    // 进更多分支 → 点编辑
+    // 进更多分支 → 点编辑（F-03 后应用行变多，先滚到可见再点）
     await tester.tap(find.text('更多'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('编辑'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('编辑'));
     await tester.pumpAndSettle();
 
@@ -100,14 +105,15 @@ void main() {
     await tester.pumpAndSettle();
 
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getStringList('shell.pinned_tab_ids'), ['calendar', 'habit']);
+    expect(prefs.getStringList('shell.pinned_tab_ids'),
+        ['calendar', 'note', 'habit']);
 
     // 加回「任务」（追加到末位）
     await tester.tap(find.byKey(const ValueKey('pin_task')));
     await tester.pumpAndSettle();
     expect(
       prefs.getStringList('shell.pinned_tab_ids'),
-      ['calendar', 'habit', 'task'],
+      ['calendar', 'note', 'habit', 'task'],
     );
 
     // 「编辑」期间底栏实时变化：任务 Tab 暂时消失时加回后回来
@@ -117,13 +123,18 @@ void main() {
         )
         .map((d) => d.label)
         .toList();
-    expect(labels, ['日历', '习惯', '任务', '更多']);
+    expect(labels, ['日历', '记录', '习惯', '任务', '更多']);
   });
 
   testWidgets('编辑态更多行无 −/手柄（不可移除）', (tester) async {
     await _pump(tester);
     await tester.tap(find.text('更多'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('编辑'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('编辑'));
     await tester.pumpAndSettle();
 
