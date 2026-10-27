@@ -194,7 +194,7 @@ final class ReminderItem extends Equatable {
       ];
 }
 
-/// FL ↔ 服务端优先级映射编解码（Issue #3 / TC-KR-110）。
+/// FL ↔ 服务端优先级映射编解码（Issue #3 / TC-KR-CF-104）。
 ///
 /// FL 本地档位 0/1/5/9（none/low/medium/high，对齐 Apple UI 习惯）；
 /// 服务端 M1 冻结 0/1/2/3（`TodoTaskBaseVO.priority` @Min(0)@Max(3)）。
