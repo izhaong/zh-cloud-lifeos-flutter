@@ -27,6 +27,7 @@ export 'src/db.dart'
 export 'src/drift_calendar_repository.dart';
 export 'src/drift_reminder_repository.dart';
 export 'src/drift_sync_outbox.dart';
+export 'src/drift_task_preference_repository.dart';
 
 /// 打开默认位置的 Drift 库（提醒与日历仓库共用同一句柄）。
 ///

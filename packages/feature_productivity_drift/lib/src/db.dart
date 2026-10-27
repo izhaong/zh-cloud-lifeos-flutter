@@ -289,13 +289,38 @@ class SyncCursorRows extends Table {
   Set<Column> get primaryKey => {domain};
 }
 
+/// 任务侧本地偏好（flutter#124 卡 4 / TC-UI-120）。
+///
+/// 照 `CalendarPreferences` 先例：本地单用户一行（`userKey='local'`），
+/// `revision` 每次保存 +1；无行时仓库回契约默认且不建行。
+class TaskPreferences extends Table {
+  TextColumn get userKey => text()();
+  TextColumn get defaultListId => text().nullable()();
+  BoolColumn get allDayNotify => boolean().withDefault(const Constant(true))();
+  BoolColumn get markComplete => boolean().withDefault(const Constant(false))();
+  BoolColumn get suggestLists => boolean().withDefault(const Constant(true))();
+
+  /// 视图态（卡 4b）：显示已完成 / 排序模式 / 侧栏显隐 / 折叠键 JSON 数组。
+  BoolColumn get showCompleted =>
+      boolean().withDefault(const Constant(false))();
+  TextColumn get sortMode => text().withDefault(const Constant('manual'))();
+  BoolColumn get sidebarVisible => boolean().withDefault(const Constant(true))();
+  TextColumn get collapsedKeysJson =>
+      text().withDefault(const Constant('[]'))();
+
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {userKey};
+}
+
 @DriftDatabase(
-    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows, SyncCursorRows])
+    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows, SyncCursorRows, TaskPreferences])
 class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -389,6 +414,10 @@ class LifeProductivityDb extends _$LifeProductivityDb {
           if (from < 12) {
             // V12（flutter#124 卡 3 / TC-SYNC-106、107）：增量游标持久化
             await m.createTable(syncCursorRows);
+          }
+          if (from < 13) {
+            // V13（flutter#124 卡 4 / TC-UI-120）：任务侧本地偏好
+            await m.createTable(taskPreferences);
           }
         },
       );
