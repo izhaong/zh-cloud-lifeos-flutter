@@ -125,11 +125,17 @@ class _TaskTabEntryState extends ConsumerState<TaskTabEntry> {
     final sizeClass = WindowSizeClass.fromWidth(
       MediaQuery.sizeOf(context).width,
     );
-    if (sizeClass.isPaneLayout) {
+    // 只有 expanded（≥1200，三栏）才渲染 inspector：`_ThreePane` 是唯一接收
+    // `selectedItemId` 的布局，`_TwoPane` 收到 id 也不画任何东西。此前这里判
+    // `isPaneLayout`（medium + expanded 都算），于是 600–1199 二栏档点行只改了
+    // 一个没人读的字段 —— 详情/编辑入口整档不可达（flutter#159，P0）。
+    // 二栏与紧凑端走同一条模态详情：Apple 在 iPad 分栏与 Mac 窄窗下点提醒
+    // 同样能进详情，编辑入口不因窗宽落在中间档而消失。
+    if (sizeClass == WindowSizeClass.expanded) {
       setState(() => _selectedItemId = item.id);
       return;
     }
-    // 紧凑端：模态详细信息（不盖掉壳应用栏）
+    // 紧凑端与二栏端：模态详细信息（不盖掉壳应用栏）
     await showCupertinoModalPopup<void>(
       context: context,
       builder: (sheetContext) {
