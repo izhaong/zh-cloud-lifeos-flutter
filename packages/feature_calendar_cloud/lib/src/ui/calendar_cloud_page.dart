@@ -1,15 +1,15 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../collab/rest_calendar_collab_port.dart';
 import '../sync/calendar_sync_coordinator.dart';
 
 /// 组合根注入（未登录/未配置时为 null）。
-final calendarCollabPortProvider =
-    Provider<CalendarCollabPort?>((ref) => null);
+final calendarCollabPortProvider = Provider<CalendarCollabPort?>((ref) => null);
 
-final calendarSyncCoordinatorProvider =
-    Provider<CalendarSyncCoordinator?>((ref) => null);
+final calendarSyncCoordinatorProvider = Provider<CalendarSyncCoordinator?>(
+  (ref) => null,
+);
 
 /// 日历云侧页面：收件箱 / 共享日历 / 导入导出（F-17；TC-CAL-UI-180～182）。
 class CalendarCloudPage extends ConsumerStatefulWidget {
@@ -22,6 +22,7 @@ class CalendarCloudPage extends ConsumerStatefulWidget {
 }
 
 class _CalendarCloudPageState extends ConsumerState<CalendarCloudPage> {
+  late int _tab = widget.initialTab;
   String? _message;
   final _icsController = TextEditingController();
 
@@ -35,40 +36,59 @@ class _CalendarCloudPageState extends ConsumerState<CalendarCloudPage> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      initialIndex: widget.initialTab,
-      child: Scaffold(
-        key: const Key('calendar_cloud_page'),
-        appBar: AppBar(
-          title: const Text('日历云服务'),
-          bottom: const TabBar(tabs: [
-            Tab(text: '收件箱'),
-            Tab(text: '共享日历'),
-            Tab(text: '导入导出'),
-          ]),
-        ),
-        body: Column(
+    return CupertinoPageScaffold(
+      key: const Key('calendar_cloud_page'),
+      navigationBar: const CupertinoNavigationBar(middle: Text('日历云服务')),
+      child: SafeArea(
+        child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: SizedBox(
+                width: double.infinity,
+                child: CupertinoSlidingSegmentedControl<int>(
+                  groupValue: _tab,
+                  onValueChanged: (v) {
+                    if (v != null) {
+                      setState(() => _tab = v);
+                    }
+                  },
+                  children: const {
+                    0: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text('收件箱'),
+                    ),
+                    1: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text('共享日历'),
+                    ),
+                    2: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: Text('导入导出'),
+                    ),
+                  },
+                ),
+              ),
+            ),
             if (_message != null)
               Padding(
                 padding: const EdgeInsets.all(8),
-                child: Text(_message!,
-                    key: const Key('calendar_cloud_message'),
-                    style: const TextStyle(color: Color(0xFF8E8E93))),
+                child: Text(
+                  _message!,
+                  key: const Key('calendar_cloud_message'),
+                  style: const TextStyle(color: CupertinoColors.systemGrey),
+                ),
               ),
             Expanded(
-              child: TabBarView(
-                children: [
-                  _InboxTab(port: _port, onMessage: _setMessage),
-                  _SharedTab(port: _port, onMessage: _setMessage),
-                  _ImportExportTab(
-                    port: _port,
-                    controller: _icsController,
-                    onMessage: _setMessage,
-                  ),
-                ],
-              ),
+              child: switch (_tab) {
+                1 => _SharedTab(port: _port, onMessage: _setMessage),
+                2 => _ImportExportTab(
+                  port: _port,
+                  controller: _icsController,
+                  onMessage: _setMessage,
+                ),
+                _ => _InboxTab(port: _port, onMessage: _setMessage),
+              },
             ),
           ],
         ),
@@ -110,37 +130,43 @@ class _InboxTabState extends State<_InboxTab> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CupertinoActivityIndicator());
         }
         if (snapshot.hasError) {
           return Center(child: Text('收件箱加载失败：${snapshot.error}'));
         }
         final rows = snapshot.data ?? const [];
         if (rows.isEmpty) {
-          return const Center(
-              child: Text('暂无收件箱消息', key: Key('inbox_empty')));
+          return const Center(child: Text('暂无收件箱消息', key: Key('inbox_empty')));
         }
         return ListView(
           key: const Key('inbox_list'),
           children: [
             for (final row in rows)
-              ListTile(
-                key: Key('inbox_item_${row['id']}'),
-                title: Text(row['type']?.toString() ?? ''),
-                subtitle: Text(row['payload']?.toString() ?? ''),
+              _CloudRow(
+                rowKey: Key('inbox_item_${row['id']}'),
+                title: row['type']?.toString() ?? '',
+                subtitle: row['payload']?.toString() ?? '',
                 trailing: row['type'] == 'SHARE_INVITATION'
-                    ? Row(mainAxisSize: MainAxisSize.min, children: [
-                        TextButton(
-                          key: Key('inbox_accept_${row['id']}'),
-                          onPressed: () => _respond(row, true),
-                          child: const Text('接受'),
-                        ),
-                        TextButton(
-                          key: Key('inbox_decline_${row['id']}'),
-                          onPressed: () => _respond(row, false),
-                          child: const Text('拒绝'),
-                        ),
-                      ])
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CupertinoButton(
+                            key: Key('inbox_accept_${row['id']}'),
+                            minimumSize: Size.zero,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            onPressed: () => _respond(row, true),
+                            child: const Text('接受'),
+                          ),
+                          CupertinoButton(
+                            key: Key('inbox_decline_${row['id']}'),
+                            minimumSize: Size.zero,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            onPressed: () => _respond(row, false),
+                            child: const Text('拒绝'),
+                          ),
+                        ],
+                      )
                     : null,
               ),
           ],
@@ -151,7 +177,8 @@ class _InboxTabState extends State<_InboxTab> {
 
   Future<void> _respond(Map<String, dynamic> row, bool accept) async {
     final port = widget.port;
-    final shareId = (row['shareId'] as num?)?.toInt() ??
+    final shareId =
+        (row['shareId'] as num?)?.toInt() ??
         (row['calendarShareId'] as num?)?.toInt();
     if (port == null || shareId == null) {
       return;
@@ -188,7 +215,7 @@ class _SharedTabState extends State<_SharedTab> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CupertinoActivityIndicator());
         }
         if (snapshot.hasError) {
           return Center(child: Text('共享日历加载失败：${snapshot.error}'));
@@ -197,17 +224,16 @@ class _SharedTabState extends State<_SharedTab> {
             .where((c) => c['kind']?.toString() == 'SHARED')
             .toList();
         if (rows.isEmpty) {
-          return const Center(
-              child: Text('暂无共享日历', key: Key('shared_empty')));
+          return const Center(child: Text('暂无共享日历', key: Key('shared_empty')));
         }
         return ListView(
           key: const Key('shared_list'),
           children: [
             for (final row in rows)
-              ListTile(
-                key: Key('shared_item_${row['id']}'),
-                title: Text(row['title']?.toString() ?? '共享日历'),
-                subtitle: Text(row['permission']?.toString() ?? ''),
+              _CloudRow(
+                rowKey: Key('shared_item_${row['id']}'),
+                title: row['title']?.toString() ?? '共享日历',
+                subtitle: row['permission']?.toString() ?? '',
               ),
           ],
         );
@@ -232,8 +258,9 @@ class _ImportExportTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        FilledButton(
+        CupertinoButton(
           key: const Key('export_feed_button'),
+          color: CupertinoColors.systemBlue,
           onPressed: () async {
             final url = await port?.exportFeedUrl(null);
             onMessage(url == null ? '导出链接不可用' : '导出链接：$url');
@@ -241,18 +268,17 @@ class _ImportExportTab extends StatelessWidget {
           child: const Text('生成公开导出链接'),
         ),
         const SizedBox(height: 16),
-        TextField(
+        CupertinoTextField(
           key: const Key('import_ics_input'),
           controller: controller,
           maxLines: 6,
-          decoration: const InputDecoration(
-            labelText: '粘贴 ICS 内容',
-            border: OutlineInputBorder(),
-          ),
+          minLines: 6,
+          placeholder: '粘贴 ICS 内容',
         ),
         const SizedBox(height: 8),
-        FilledButton(
+        CupertinoButton(
           key: const Key('import_ics_button'),
+          color: CupertinoColors.systemBlue,
           onPressed: () async {
             final text = controller.text;
             if (text.trim().isEmpty) {
@@ -269,6 +295,59 @@ class _ImportExportTab extends StatelessWidget {
           child: const Text('导入到日历'),
         ),
       ],
+    );
+  }
+}
+
+/// 列表行：0.5px 分隔线 + 主/副标题（Apple 列表风格）。
+class _CloudRow extends StatelessWidget {
+  const _CloudRow({
+    required this.rowKey,
+    required this.title,
+    required this.subtitle,
+    this.trailing,
+  });
+
+  final Key rowKey;
+  final String title;
+  final String subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
+        ),
+      ),
+      child: Padding(
+        key: rowKey,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+      ),
     );
   }
 }
