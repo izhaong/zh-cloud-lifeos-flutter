@@ -54,6 +54,21 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     return quill.Document();
   }
 
+  Future<void> _insertImage() async {
+    final path = await ref.read(noteImagePickerProvider)();
+    if (path == null) {
+      return;
+    }
+    final index = _body.selection.baseOffset < 0
+        ? _body.document.length - 1
+        : _body.selection.baseOffset;
+    _body.document.insert(index, quill.Embeddable('noteImage', {'path': path}));
+    _body.updateSelection(
+      TextSelection.collapsed(offset: index + 1),
+      quill.ChangeSource.local,
+    );
+  }
+
   Future<void> _save() async {
     final existing = widget.note;
     if (existing != null && existing.locked) {
@@ -104,6 +119,12 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       appBar: AppBar(
         title: Text(widget.note == null ? '新建备忘录' : '编辑备忘录'),
         actions: [
+          IconButton(
+            key: const ValueKey('note_editor_image'),
+            tooltip: '插入图片',
+            icon: const Icon(Icons.image_outlined),
+            onPressed: _insertImage,
+          ),
           IconButton(
             key: const ValueKey('note_editor_bold'),
             tooltip: '加粗',
@@ -176,6 +197,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 config: const quill.QuillEditorConfig(
                   placeholder: '开始记录…',
                   padding: EdgeInsets.all(16),
+                  embedBuilders: [NoteImageEmbedBuilder()],
                 ),
               ),
             ),
@@ -267,5 +289,33 @@ class _ChecklistPanel extends StatelessWidget {
       offset += insert.length;
     }
     return items;
+  }
+}
+
+
+/// 图片 embed（F-09）：Delta 里存 {noteImage: {path}}，开源包只渲染占位与文件名；
+/// 上传 infra 换 fileId 在 cloud 包（F-16）。
+class NoteImageEmbedBuilder extends quill.EmbedBuilder {
+  const NoteImageEmbedBuilder();
+
+  @override
+  String get key => 'noteImage';
+
+  @override
+  bool get expanded => false;
+
+  @override
+  Widget build(BuildContext context, quill.EmbedContext embedContext) {
+    final data = embedContext.node.value.data;
+    final path = data is Map ? '${data['path'] ?? ''}' : '$data';
+    final name = path.split('/').last;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.image_outlined, size: 16),
+        const SizedBox(width: 4),
+        Text(name, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
   }
 }
