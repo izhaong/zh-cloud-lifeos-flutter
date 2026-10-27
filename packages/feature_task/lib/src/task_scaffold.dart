@@ -157,7 +157,12 @@ class _CompactPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final smart = lists
-        .where((e) => e.isSmart && e.id != 'smart.trash')
+        .where((e) =>
+            e.isSmart &&
+            e.id != 'smart.trash' &&
+            // 分配事项按批次裁定不出现在任务 UI（TC-API-121 降级口径；
+            // 负向断言见 compact_home_visual_test / wireframe_gaps_test）
+            e.id != 'smart.assigned')
         .toList(growable: false);
     final mine = lists.where((e) => !e.isSmart).toList(growable: false);
     final trash = lists.where((e) => e.id == 'smart.trash').firstOrNull;

@@ -27,7 +27,10 @@ void main() {
 
     expect(find.byKey(const ValueKey('smart_card_smart.today')), findsOneWidget);
     expect(
-        find.byKey(const ValueKey('smart_card_smart.assigned')), findsOneWidget);
+        find.byKey(const ValueKey('smart_card_smart.assigned')), findsNothing,
+        reason: '分配事项按裁定不出现在任务 UI（TC-API-121 降级口径）');
+    expect(find.text('分配事项'), findsNothing,
+        reason: '任务 UI 无「分配事项」文案（负向门禁）');
     expect(find.byKey(const ValueKey('smart_card_smart.trash')), findsNothing,
         reason: '最近删除是列表行，不是智能卡');
     expect(find.text('个人'), findsWidgets);
