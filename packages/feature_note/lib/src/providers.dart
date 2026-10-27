@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
@@ -68,4 +69,13 @@ final noteSearchResultsProvider = FutureProvider<List<Note>>((ref) async {
 final visibleNotesProvider = StreamProvider<List<Note>>((ref) {
   final folderId = ref.watch(selectedNoteFolderIdProvider);
   return ref.watch(noteRepositoryProvider).watchNotes(folderId: folderId);
+});
+
+
+/// 选图端口（F-09）：返回本地文件路径；测试注入假实现，不触盘。
+final noteImagePickerProvider = Provider<Future<String?> Function()>((ref) {
+  return () async {
+    final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+    return file?.path;
+  };
 });
