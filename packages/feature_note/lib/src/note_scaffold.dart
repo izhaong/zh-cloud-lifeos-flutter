@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,6 +37,12 @@ class NoteScaffold extends ConsumerWidget {
           appBar: AppBar(
             title: const Text('记录'),
             actions: [
+              IconButton(
+                key: const ValueKey('note_quick_capture'),
+                tooltip: '快速记录',
+                icon: const Icon(Icons.bolt_outlined),
+                onPressed: () => _quickCapture(context, ref, folders),
+              ),
               IconButton(
                 key: const ValueKey('note_view_toggle'),
                 tooltip: gallery ? '列表视图' : '画廊视图',
@@ -102,6 +110,81 @@ class NoteScaffold extends ConsumerWidget {
                 ),
         );
       },
+    );
+  }
+
+  Future<void> _quickCapture(
+      BuildContext context, WidgetRef ref, List<NoteFolder> folders) async {
+    NoteFolder? target;
+    final selectedId = ref.read(selectedNoteFolderIdProvider);
+    for (final folder in folders) {
+      if (!folder.smart && folder.id == selectedId) {
+        target = folder;
+        break;
+      }
+    }
+    for (final folder in folders) {
+      if (target == null && !folder.smart) {
+        target = folder;
+      }
+    }
+    if (target == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('先新建一个文件夹')),
+      );
+      return;
+    }
+    final titleController = TextEditingController();
+    final bodyController = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('快速记录'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              key: const ValueKey('note_quick_title'),
+              controller: titleController,
+              decoration: const InputDecoration(hintText: '标题'),
+            ),
+            TextField(
+              key: const ValueKey('note_quick_body'),
+              controller: bodyController,
+              maxLines: 4,
+              decoration: const InputDecoration(hintText: '正文'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            key: const ValueKey('note_quick_save'),
+            onPressed: () async {
+              final title = titleController.text.trim();
+              final body = bodyController.text;
+              await ref.read(noteRepositoryProvider).upsertNote(Note(
+                    id: 'note-${DateTime.now().millisecondsSinceEpoch}',
+                    folderId: target!.id,
+                    title: title.isEmpty ? '快速记录' : title,
+                    bodyDelta: jsonEncode({
+                      'ops': [
+                        {'insert': '$body\n'},
+                      ],
+                    }),
+                    clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+                  ));
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop();
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
     );
   }
 
