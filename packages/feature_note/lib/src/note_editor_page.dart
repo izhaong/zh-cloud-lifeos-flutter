@@ -24,12 +24,15 @@ class NoteEditorPage extends ConsumerStatefulWidget {
 
 class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   late final TextEditingController _title;
+  late final TextEditingController _tagInput;
   late final quill.QuillController _body;
+  late final List<String> _tags = [...?widget.note?.tagNames];
 
   @override
   void initState() {
     super.initState();
     _title = TextEditingController(text: widget.note?.title ?? '');
+    _tagInput = TextEditingController();
     _body = quill.QuillController(
       document: _loadDocument(widget.note?.bodyDelta),
       selection: const TextSelection.collapsed(offset: 0),
@@ -65,7 +68,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       bodyDelta: delta,
       pinned: existing?.pinned ?? false,
       locked: existing?.locked ?? false,
-      tagNames: existing?.tagNames ?? const [],
+      tagNames: List<String>.unmodifiable(_tags),
       sortOrder: existing?.sortOrder ?? 0,
       revision: (existing?.revision ?? 0) + 1,
       clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
@@ -76,9 +79,21 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     }
   }
 
+  void _addTag() {
+    final name = _tagInput.text.trim();
+    if (name.isEmpty || _tags.contains(name) || _tags.length >= 32) {
+      return;
+    }
+    setState(() {
+      _tags.add(name);
+      _tagInput.clear();
+    });
+  }
+
   @override
   void dispose() {
     _title.dispose();
+    _tagInput.dispose();
     _body.dispose();
     super.dispose();
   }
@@ -114,6 +129,45 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 contentPadding: EdgeInsets.symmetric(horizontal: 16),
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('note_editor_tag_input'),
+                      controller: _tagInput,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        hintText: '添加标签',
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    key: const ValueKey('note_editor_tag_add'),
+                    tooltip: '添加标签',
+                    icon: const Icon(Icons.add),
+                    onPressed: _addTag,
+                  ),
+                ],
+              ),
+            ),
+            if (_tags.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final tag in _tags)
+                      InputChip(
+                        key: ValueKey('note_editor_tag_$tag'),
+                        label: Text(tag),
+                        onDeleted: () => setState(() => _tags.remove(tag)),
+                      ),
+                  ],
+                ),
+              ),
             const Divider(height: 1),
             _ChecklistPanel(controller: _body),
             Expanded(
