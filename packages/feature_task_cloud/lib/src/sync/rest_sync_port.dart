@@ -27,15 +27,20 @@ class RestSyncPort implements SyncPort {
     await pullChanges();
   }
 
-  /// 增量拉取（T-05 TC-SYNC-106）：返回游标+变更批；未登录空结果。
+  /// 增量拉取（T-05 TC-SYNC-106/107）：返回游标+变更批；未登录空结果。
+  ///
+  /// **契约 §3.9 两端都是 POST**（`AppLifeosTaskSyncController`），body 需带 `deviceId`
+  /// 与 `cursor`——游标按设备隔离，不带 `deviceId` 就等于每次从头。响应字段是 `nextCursor`，
+  /// 不是 `cursor`（服务端 `PullRespVO.setNextCursor`）；读错字段名会「永远拉同一批」但
+  /// 不抛异常，是最难查的一种漂移。
   Future<PullResult> pullChanges({String? cursor}) async {
     final session = await _store.read();
     if (session == null) {
       return const PullResult(cursor: null, changes: []);
     }
-    final resp = await _dio.get<Map<String, dynamic>>(
+    final resp = await _dio.post<Map<String, dynamic>>(
       '/app-api/lifeos/task/sync/pull',
-      queryParameters: {'cursor': cursor},
+      data: {'deviceId': session.userId, 'cursor': cursor},
       options: _authed(session),
     );
     final body = resp.data;
@@ -47,7 +52,7 @@ class RestSyncPort implements SyncPort {
       return const PullResult(cursor: null, changes: []);
     }
     return PullResult(
-      cursor: data['cursor']?.toString(),
+      cursor: data['nextCursor']?.toString(),
       changes: _parsePullChanges(data['changes']),
     );
   }

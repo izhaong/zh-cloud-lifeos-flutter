@@ -34,7 +34,7 @@ void main() {
     adapter.enqueue({
       'code': 0,
       'data': {
-        'cursor': 'c-2',
+        'nextCursor': 'c-2',
         'changes': [
           {
             'changeId': 101,
@@ -58,6 +58,30 @@ void main() {
     expect(c.operation, 'upsert');
     expect(c.baseRevision, 3, reason: '服务端下推 revision 即客户端基线版本');
     expect(c.payload['title'], '买牛奶');
+  });
+
+  /// TC-SYNC-107 客户端半边：契约 §3.9 两端都是 POST（`AppLifeosTaskSyncController`），
+  /// 客户端此前 pull 用 GET 且把游标塞进 query——本用例把方法、body 形态与游标字段名钉死，
+  /// 免得再漂回 GET/`cursor`（服务端 `PullRespVO` 用 `nextCursor`，读错就是永远拉从头）。
+  test('TC-SYNC-107 pull 走 POST：body 带 deviceId/cursor，游标读 nextCursor', () async {
+    await store.write(session());
+    adapter.enqueue({
+      'code': 0,
+      'data': {'nextCursor': 'c-9', 'changes': <Object>[]},
+    });
+
+    final result = await port().pullChanges(cursor: 'c-8');
+
+    expect(result.cursor, 'c-9');
+    expect(adapter.lastMethod, 'POST', reason: '契约 §3.9：两端都是 POST');
+    final body = jsonDecode(adapter.lastBody!) as Map<String, dynamic>;
+    expect(body['deviceId'], '1', reason: '游标按 deviceId 隔离，不带上就是每次从头');
+    expect(body['cursor'], 'c-8');
+    expect(
+      body.containsKey('queryParameters'),
+      isFalse,
+      reason: '参数不再走 query（GET 时代遗留），全部塞 body',
+    );
   });
 
   test('TC-SYNC-108 幂等键不换：同 clientMutationId 连推两次，第二次请求体同键',
@@ -167,6 +191,10 @@ class _SeqAdapter implements HttpClientAdapter {
   final _statuses = <int>[];
   final sentBodies = <String>[];
 
+  /// 最近一次请求的 method 与 body——TC-SYNC-107 用它钉住 pull 走 POST 与 body 形态。
+  String lastMethod = '';
+  String? lastBody;
+
   void enqueue(dynamic response) {
     _queue.add(response);
     _statuses.add(200);
@@ -186,12 +214,16 @@ class _SeqAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
+    lastMethod = options.method;
+    lastBody = null;
     if (requestStream != null) {
       final b = await requestStream.fold(
         BytesBuilder(),
         (BytesBuilder bb, List<int> d) => bb..add(d),
       );
-      sentBodies.add(utf8.decode(b.takeBytes()));
+      final decoded = utf8.decode(b.takeBytes());
+      sentBodies.add(decoded);
+      lastBody = decoded;
     }
     final status = _statuses.isEmpty ? 200 : _statuses.removeAt(0);
     final body = _queue.isEmpty ? {'code': 0, 'data': []} : _queue.removeAt(0);
