@@ -42,6 +42,27 @@ final selectedNoteFolderIdProvider =
     NotifierProvider<SelectedNoteFolderNotifier, String?>(
         SelectedNoteFolderNotifier.new);
 
+/// 搜索词（空 = 不搜索；F-07）。
+class NoteSearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void setQuery(String value) => state = value;
+}
+
+final noteSearchQueryProvider =
+    NotifierProvider<NoteSearchQueryNotifier, String>(
+        NoteSearchQueryNotifier.new);
+
+/// 搜索结果（标题或 bodyText；跳过锁定笔记）。
+final noteSearchResultsProvider = FutureProvider<List<Note>>((ref) async {
+  final query = ref.watch(noteSearchQueryProvider).trim();
+  if (query.isEmpty) {
+    return const <Note>[];
+  }
+  return ref.watch(noteRepositoryProvider).search(query);
+});
+
 /// 当前文件夹的笔记列表（folderId 为智能文件夹 id 时按条件求值；
 /// 排序由仓库保证：pinned 前、sortOrder asc、id asc）。
 final visibleNotesProvider = StreamProvider<List<Note>>((ref) {

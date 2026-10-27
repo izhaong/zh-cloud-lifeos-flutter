@@ -20,7 +20,11 @@ class NoteScaffold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notes = ref.watch(visibleNotesProvider).value ?? const <Note>[];
+    final query = ref.watch(noteSearchQueryProvider).trim();
+    final searching = query.isNotEmpty;
+    final notes = searching
+        ? (ref.watch(noteSearchResultsProvider).value ?? const <Note>[])
+        : (ref.watch(visibleNotesProvider).value ?? const <Note>[]);
     final folders =
         ref.watch(noteFoldersProvider).value ?? const <NoteFolder>[];
     return LayoutBuilder(
@@ -60,6 +64,10 @@ class NoteScaffold extends ConsumerWidget {
                       const VerticalDivider(width: 1),
                       Expanded(
                         child: _NoteList(
+                          emptyLabel: searching ? '无匹配结果' : '没有备忘录',
+                          onSearch: (value) => ref
+                              .read(noteSearchQueryProvider.notifier)
+                              .setQuery(value),
                           notes: notes,
                           onTap: (note) =>
                               _openEditor(context, ref, note, folders),
@@ -72,6 +80,10 @@ class NoteScaffold extends ConsumerWidget {
                   ),
                 )
               : _NoteList(
+                  emptyLabel: searching ? '无匹配结果' : '没有备忘录',
+                  onSearch: (value) => ref
+                      .read(noteSearchQueryProvider.notifier)
+                      .setQuery(value),
                   notes: notes,
                   onTap: (note) => _openEditor(context, ref, note, folders),
                   onPin: (note) => _togglePin(ref, note),
@@ -148,17 +160,42 @@ class _NoteList extends StatelessWidget {
     required this.onTap,
     required this.onPin,
     required this.onDelete,
+    required this.onSearch,
+    required this.emptyLabel,
   });
 
   final List<Note> notes;
   final ValueChanged<Note> onTap;
   final ValueChanged<Note> onPin;
   final ValueChanged<Note> onDelete;
+  final ValueChanged<String> onSearch;
+  final String emptyLabel;
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: TextField(
+            key: const ValueKey('note_search_field'),
+            onChanged: onSearch,
+            decoration: const InputDecoration(
+              isDense: true,
+              prefixIcon: Icon(Icons.search),
+              hintText: '搜索',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        Expanded(child: _body()),
+      ],
+    );
+  }
+
+  Widget _body() {
     if (notes.isEmpty) {
-      return const _EmptyHint();
+      return _EmptyHint(label: emptyLabel);
     }
     return ListView.builder(
       itemCount: notes.length,
@@ -204,17 +241,19 @@ class _NoteList extends StatelessWidget {
 }
 
 class _EmptyHint extends StatelessWidget {
-  const _EmptyHint();
+  const _EmptyHint({required this.label});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.note_outlined, size: 48),
-          SizedBox(height: 8),
-          Text('没有备忘录'),
+          const Icon(Icons.note_outlined, size: 48),
+          const SizedBox(height: 8),
+          Text(label),
         ],
       ),
     );
