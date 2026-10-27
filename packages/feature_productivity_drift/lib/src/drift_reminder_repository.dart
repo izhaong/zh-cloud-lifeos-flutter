@@ -8,6 +8,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart'
     as kernel;
 
 import 'db.dart';
+import 'drift_sync_outbox.dart';
 
 /// [kernel.ReminderRepository] 的 Drift 实现（离线持久化）。
 ///
@@ -136,22 +137,25 @@ class DriftReminderRepository implements kernel.ReminderRepository {
     if (item.id.startsWith('smart.')) {
       throw ArgumentError('smart. 前缀保留给智能列表派生，禁止作为条目 id');
     }
-    // 防复活（cursor PR#12）：软删行只经 restoreItem 恢复；
-    // 对已删条目的全量回写（deletedAt 丢失）保留回收窗标记
-    final existing = await (_db.select(_db.reminderItems)
-          ..where((t) => t.id.equals(item.id)))
-        .getSingleOrNull();
-    await _db.into(_db.reminderItems).insertOnConflictUpdate(
-          _companionFrom(item),
-        );
-    if (existing != null &&
-        existing.deletedAt != null &&
-        item.deletedAt == null) {
-      await (_db.update(_db.reminderItems)
+    await _db.transaction(() async {
+      // 防复活（cursor PR#12）：软删行只经 restoreItem 恢复；
+      // 对已删条目的全量回写（deletedAt 丢失）保留回收窗标记
+      final existing = await (_db.select(_db.reminderItems)
             ..where((t) => t.id.equals(item.id)))
-          .write(
-              ReminderItemsCompanion(deletedAt: Value(existing.deletedAt)));
-    }
+          .getSingleOrNull();
+      await _db.into(_db.reminderItems).insertOnConflictUpdate(
+            _companionFrom(item),
+          );
+      if (existing != null &&
+          existing.deletedAt != null &&
+          item.deletedAt == null) {
+        await (_db.update(_db.reminderItems)
+              ..where((t) => t.id.equals(item.id)))
+            .write(
+                ReminderItemsCompanion(deletedAt: Value(existing.deletedAt)));
+      }
+      await _enqueueOutbox([item.id]);
+    });
   }
 
   @override
@@ -197,6 +201,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
               Value(!cur.isCompleted ? _now : null),
         ));
       }
+      await _enqueueOutbox([itemId]);
     });
   }
 
@@ -211,6 +216,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             ..where((t) => t.id.equals(itemId)))
           .write(
               ReminderItemsCompanion(isFlagged: Value(!row.isFlagged)));
+      await _enqueueOutbox([itemId]);
     });
   }
 
@@ -244,6 +250,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             listId: Value(targetListId),
             sectionId: const Value(null), // 分区随列表（TC-API-118）
           ));
+          await _enqueueOutbox([r.id]);
         }
       }
     });
@@ -253,9 +260,12 @@ class DriftReminderRepository implements kernel.ReminderRepository {
   Future<void> deleteItem(String itemId) async {
     // 软删级联（TC-UI-109）：本条 + 后代进 30 天回收窗（与 InMemory 同语义）
     final cascade = await _cascadeFrom(itemId);
-    await (_db.update(_db.reminderItems)
-          ..where((t) => t.id.isIn(cascade)))
-        .write(ReminderItemsCompanion(deletedAt: Value(_now)));
+    await _db.transaction(() async {
+      await (_db.update(_db.reminderItems)
+            ..where((t) => t.id.isIn(cascade)))
+          .write(ReminderItemsCompanion(deletedAt: Value(_now)));
+      await _enqueueOutbox(cascade);
+    });
   }
 
   @override
@@ -289,6 +299,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
             .write(
                 const ReminderItemsCompanion(deletedAt: Value(null)));
       }
+      await _enqueueOutbox(cascade);
     });
   }
 
@@ -325,6 +336,30 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       }
     }
     return removed;
+  }
+
+  /// 把受影响条目登记进同步发件箱（flutter#124 卡 2 / TC-SYNC-107）。
+  ///
+  /// 与业务写表同事务调用：写库成功而队列丢失=变更永不上传，故必须在事务内。
+  /// 载荷取**写库后**的行快照；`deletedAt` 非空记 delete（覆盖此前未推的 upsert，
+  /// 幂等键由 [DriftSyncOutbox] 保留首条）。
+  Future<void> _enqueueOutbox(Iterable<String> itemIds) async {
+    final outbox = DriftSyncOutbox(_db);
+    for (final id in itemIds) {
+      final row = await (_db.select(_db.reminderItems)
+            ..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (row == null) continue;
+      final at = _now;
+      await outbox.enqueue(kernel.SyncOutboxEntry(
+        entityType: 'task',
+        entityId: id,
+        operation: row.deletedAt != null ? 'delete' : 'upsert',
+        payload: kernel.taskSyncPayload(_toModel(row)),
+        clientMutationId: 'task-$id-${at.microsecondsSinceEpoch}',
+        clientUpdatedAt: at.millisecondsSinceEpoch,
+      ));
+    }
   }
 
   @override
@@ -495,6 +530,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       await (_db.update(_db.reminderItems)
             ..where((t) => t.id.equals(r.id)))
           .write(const ReminderItemsCompanion(sectionId: Value(null)));
+      await _enqueueOutbox([r.id]);
     }
     await _writeSections(listId, sections);
   }
@@ -505,6 +541,9 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       throw ArgumentError('智能列表不可删除');
     }
     await _db.transaction(() async {
+      final doomed = await (_db.select(_db.reminderItems)
+            ..where((t) => t.listId.equals(listId)))
+          .get();
       // 条目随列表进回收窗（软删；TC-UI-109），与 InMemory 同语义
       await (_db.update(_db.reminderItems)
             ..where((t) => t.listId.equals(listId)))
@@ -512,6 +551,7 @@ class DriftReminderRepository implements kernel.ReminderRepository {
       await (_db.delete(_db.reminderLists)
             ..where((t) => t.id.equals(listId)))
           .go();
+      await _enqueueOutbox([for (final r in doomed) r.id]);
     });
   }
 

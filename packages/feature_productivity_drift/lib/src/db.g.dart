@@ -6600,6 +6600,446 @@ class NotesCompanion extends UpdateCompanion<Note> {
   }
 }
 
+class $TaskOutboxRowsTable extends TaskOutboxRows
+    with TableInfo<$TaskOutboxRowsTable, TaskOutboxRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskOutboxRowsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _operationMeta = const VerificationMeta(
+    'operation',
+  );
+  @override
+  late final GeneratedColumn<String> operation = GeneratedColumn<String>(
+    'operation',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadJsonMeta = const VerificationMeta(
+    'payloadJson',
+  );
+  @override
+  late final GeneratedColumn<String> payloadJson = GeneratedColumn<String>(
+    'payload_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _clientMutationIdMeta = const VerificationMeta(
+    'clientMutationId',
+  );
+  @override
+  late final GeneratedColumn<String> clientMutationId = GeneratedColumn<String>(
+    'client_mutation_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _clientUpdatedAtMeta = const VerificationMeta(
+    'clientUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> clientUpdatedAt = GeneratedColumn<int>(
+    'client_updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    entityType,
+    entityId,
+    operation,
+    payloadJson,
+    clientMutationId,
+    clientUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_outbox_rows';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskOutboxRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('operation')) {
+      context.handle(
+        _operationMeta,
+        operation.isAcceptableOrUnknown(data['operation']!, _operationMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_operationMeta);
+    }
+    if (data.containsKey('payload_json')) {
+      context.handle(
+        _payloadJsonMeta,
+        payloadJson.isAcceptableOrUnknown(
+          data['payload_json']!,
+          _payloadJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadJsonMeta);
+    }
+    if (data.containsKey('client_mutation_id')) {
+      context.handle(
+        _clientMutationIdMeta,
+        clientMutationId.isAcceptableOrUnknown(
+          data['client_mutation_id']!,
+          _clientMutationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_clientMutationIdMeta);
+    }
+    if (data.containsKey('client_updated_at')) {
+      context.handle(
+        _clientUpdatedAtMeta,
+        clientUpdatedAt.isAcceptableOrUnknown(
+          data['client_updated_at']!,
+          _clientUpdatedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_clientUpdatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {entityType, entityId};
+  @override
+  TaskOutboxRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskOutboxRow(
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      operation: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}operation'],
+      )!,
+      payloadJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload_json'],
+      )!,
+      clientMutationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_mutation_id'],
+      )!,
+      clientUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}client_updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskOutboxRowsTable createAlias(String alias) {
+    return $TaskOutboxRowsTable(attachedDatabase, alias);
+  }
+}
+
+class TaskOutboxRow extends DataClass implements Insertable<TaskOutboxRow> {
+  final String entityType;
+  final String entityId;
+  final String operation;
+
+  /// 变更时刻的实体快照 JSON。
+  final String payloadJson;
+  final String clientMutationId;
+  final int clientUpdatedAt;
+  const TaskOutboxRow({
+    required this.entityType,
+    required this.entityId,
+    required this.operation,
+    required this.payloadJson,
+    required this.clientMutationId,
+    required this.clientUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    map['operation'] = Variable<String>(operation);
+    map['payload_json'] = Variable<String>(payloadJson);
+    map['client_mutation_id'] = Variable<String>(clientMutationId);
+    map['client_updated_at'] = Variable<int>(clientUpdatedAt);
+    return map;
+  }
+
+  TaskOutboxRowsCompanion toCompanion(bool nullToAbsent) {
+    return TaskOutboxRowsCompanion(
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      operation: Value(operation),
+      payloadJson: Value(payloadJson),
+      clientMutationId: Value(clientMutationId),
+      clientUpdatedAt: Value(clientUpdatedAt),
+    );
+  }
+
+  factory TaskOutboxRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskOutboxRow(
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      operation: serializer.fromJson<String>(json['operation']),
+      payloadJson: serializer.fromJson<String>(json['payloadJson']),
+      clientMutationId: serializer.fromJson<String>(json['clientMutationId']),
+      clientUpdatedAt: serializer.fromJson<int>(json['clientUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'operation': serializer.toJson<String>(operation),
+      'payloadJson': serializer.toJson<String>(payloadJson),
+      'clientMutationId': serializer.toJson<String>(clientMutationId),
+      'clientUpdatedAt': serializer.toJson<int>(clientUpdatedAt),
+    };
+  }
+
+  TaskOutboxRow copyWith({
+    String? entityType,
+    String? entityId,
+    String? operation,
+    String? payloadJson,
+    String? clientMutationId,
+    int? clientUpdatedAt,
+  }) => TaskOutboxRow(
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    operation: operation ?? this.operation,
+    payloadJson: payloadJson ?? this.payloadJson,
+    clientMutationId: clientMutationId ?? this.clientMutationId,
+    clientUpdatedAt: clientUpdatedAt ?? this.clientUpdatedAt,
+  );
+  TaskOutboxRow copyWithCompanion(TaskOutboxRowsCompanion data) {
+    return TaskOutboxRow(
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      operation: data.operation.present ? data.operation.value : this.operation,
+      payloadJson: data.payloadJson.present
+          ? data.payloadJson.value
+          : this.payloadJson,
+      clientMutationId: data.clientMutationId.present
+          ? data.clientMutationId.value
+          : this.clientMutationId,
+      clientUpdatedAt: data.clientUpdatedAt.present
+          ? data.clientUpdatedAt.value
+          : this.clientUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskOutboxRow(')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('operation: $operation, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('clientMutationId: $clientMutationId, ')
+          ..write('clientUpdatedAt: $clientUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    entityType,
+    entityId,
+    operation,
+    payloadJson,
+    clientMutationId,
+    clientUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskOutboxRow &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.operation == this.operation &&
+          other.payloadJson == this.payloadJson &&
+          other.clientMutationId == this.clientMutationId &&
+          other.clientUpdatedAt == this.clientUpdatedAt);
+}
+
+class TaskOutboxRowsCompanion extends UpdateCompanion<TaskOutboxRow> {
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<String> operation;
+  final Value<String> payloadJson;
+  final Value<String> clientMutationId;
+  final Value<int> clientUpdatedAt;
+  final Value<int> rowid;
+  const TaskOutboxRowsCompanion({
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.operation = const Value.absent(),
+    this.payloadJson = const Value.absent(),
+    this.clientMutationId = const Value.absent(),
+    this.clientUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskOutboxRowsCompanion.insert({
+    required String entityType,
+    required String entityId,
+    required String operation,
+    required String payloadJson,
+    required String clientMutationId,
+    required int clientUpdatedAt,
+    this.rowid = const Value.absent(),
+  }) : entityType = Value(entityType),
+       entityId = Value(entityId),
+       operation = Value(operation),
+       payloadJson = Value(payloadJson),
+       clientMutationId = Value(clientMutationId),
+       clientUpdatedAt = Value(clientUpdatedAt);
+  static Insertable<TaskOutboxRow> custom({
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? operation,
+    Expression<String>? payloadJson,
+    Expression<String>? clientMutationId,
+    Expression<int>? clientUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (operation != null) 'operation': operation,
+      if (payloadJson != null) 'payload_json': payloadJson,
+      if (clientMutationId != null) 'client_mutation_id': clientMutationId,
+      if (clientUpdatedAt != null) 'client_updated_at': clientUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskOutboxRowsCompanion copyWith({
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<String>? operation,
+    Value<String>? payloadJson,
+    Value<String>? clientMutationId,
+    Value<int>? clientUpdatedAt,
+    Value<int>? rowid,
+  }) {
+    return TaskOutboxRowsCompanion(
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      operation: operation ?? this.operation,
+      payloadJson: payloadJson ?? this.payloadJson,
+      clientMutationId: clientMutationId ?? this.clientMutationId,
+      clientUpdatedAt: clientUpdatedAt ?? this.clientUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (operation.present) {
+      map['operation'] = Variable<String>(operation.value);
+    }
+    if (payloadJson.present) {
+      map['payload_json'] = Variable<String>(payloadJson.value);
+    }
+    if (clientMutationId.present) {
+      map['client_mutation_id'] = Variable<String>(clientMutationId.value);
+    }
+    if (clientUpdatedAt.present) {
+      map['client_updated_at'] = Variable<int>(clientUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskOutboxRowsCompanion(')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('operation: $operation, ')
+          ..write('payloadJson: $payloadJson, ')
+          ..write('clientMutationId: $clientMutationId, ')
+          ..write('clientUpdatedAt: $clientUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LifeProductivityDb extends GeneratedDatabase {
   _$LifeProductivityDb(QueryExecutor e) : super(e);
   $LifeProductivityDbManager get managers => $LifeProductivityDbManager(this);
@@ -6611,6 +7051,7 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
       $CalendarPreferencesTable(this);
   late final $NoteFoldersTable noteFolders = $NoteFoldersTable(this);
   late final $NotesTable notes = $NotesTable(this);
+  late final $TaskOutboxRowsTable taskOutboxRows = $TaskOutboxRowsTable(this);
   late final Index idxCalendarEventsCalStart = Index(
     'idx_calendar_events_cal_start',
     'CREATE INDEX idx_calendar_events_cal_start ON calendar_events (calendar_id, start_at)',
@@ -6627,6 +7068,7 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
     calendarPreferences,
     noteFolders,
     notes,
+    taskOutboxRows,
     idxCalendarEventsCalStart,
   ];
 }
@@ -9696,6 +10138,252 @@ typedef $$NotesTableProcessedTableManager =
       Note,
       PrefetchHooks Function()
     >;
+typedef $$TaskOutboxRowsTableCreateCompanionBuilder =
+    TaskOutboxRowsCompanion Function({
+      required String entityType,
+      required String entityId,
+      required String operation,
+      required String payloadJson,
+      required String clientMutationId,
+      required int clientUpdatedAt,
+      Value<int> rowid,
+    });
+typedef $$TaskOutboxRowsTableUpdateCompanionBuilder =
+    TaskOutboxRowsCompanion Function({
+      Value<String> entityType,
+      Value<String> entityId,
+      Value<String> operation,
+      Value<String> payloadJson,
+      Value<String> clientMutationId,
+      Value<int> clientUpdatedAt,
+      Value<int> rowid,
+    });
+
+class $$TaskOutboxRowsTableFilterComposer
+    extends Composer<_$LifeProductivityDb, $TaskOutboxRowsTable> {
+  $$TaskOutboxRowsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get operation => $composableBuilder(
+    column: $table.operation,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientMutationId => $composableBuilder(
+    column: $table.clientMutationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get clientUpdatedAt => $composableBuilder(
+    column: $table.clientUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TaskOutboxRowsTableOrderingComposer
+    extends Composer<_$LifeProductivityDb, $TaskOutboxRowsTable> {
+  $$TaskOutboxRowsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get operation => $composableBuilder(
+    column: $table.operation,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get clientMutationId => $composableBuilder(
+    column: $table.clientMutationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get clientUpdatedAt => $composableBuilder(
+    column: $table.clientUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TaskOutboxRowsTableAnnotationComposer
+    extends Composer<_$LifeProductivityDb, $TaskOutboxRowsTable> {
+  $$TaskOutboxRowsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get operation =>
+      $composableBuilder(column: $table.operation, builder: (column) => column);
+
+  GeneratedColumn<String> get payloadJson => $composableBuilder(
+    column: $table.payloadJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get clientMutationId => $composableBuilder(
+    column: $table.clientMutationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get clientUpdatedAt => $composableBuilder(
+    column: $table.clientUpdatedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$TaskOutboxRowsTableTableManager
+    extends
+        RootTableManager<
+          _$LifeProductivityDb,
+          $TaskOutboxRowsTable,
+          TaskOutboxRow,
+          $$TaskOutboxRowsTableFilterComposer,
+          $$TaskOutboxRowsTableOrderingComposer,
+          $$TaskOutboxRowsTableAnnotationComposer,
+          $$TaskOutboxRowsTableCreateCompanionBuilder,
+          $$TaskOutboxRowsTableUpdateCompanionBuilder,
+          (
+            TaskOutboxRow,
+            BaseReferences<
+              _$LifeProductivityDb,
+              $TaskOutboxRowsTable,
+              TaskOutboxRow
+            >,
+          ),
+          TaskOutboxRow,
+          PrefetchHooks Function()
+        > {
+  $$TaskOutboxRowsTableTableManager(
+    _$LifeProductivityDb db,
+    $TaskOutboxRowsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskOutboxRowsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskOutboxRowsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskOutboxRowsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String> operation = const Value.absent(),
+                Value<String> payloadJson = const Value.absent(),
+                Value<String> clientMutationId = const Value.absent(),
+                Value<int> clientUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskOutboxRowsCompanion(
+                entityType: entityType,
+                entityId: entityId,
+                operation: operation,
+                payloadJson: payloadJson,
+                clientMutationId: clientMutationId,
+                clientUpdatedAt: clientUpdatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String entityType,
+                required String entityId,
+                required String operation,
+                required String payloadJson,
+                required String clientMutationId,
+                required int clientUpdatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TaskOutboxRowsCompanion.insert(
+                entityType: entityType,
+                entityId: entityId,
+                operation: operation,
+                payloadJson: payloadJson,
+                clientMutationId: clientMutationId,
+                clientUpdatedAt: clientUpdatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TaskOutboxRowsTable, TaskOutboxRow>(table),
+                  BaseReferences<
+                    _$LifeProductivityDb,
+                    $TaskOutboxRowsTable,
+                    TaskOutboxRow
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TaskOutboxRowsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LifeProductivityDb,
+      $TaskOutboxRowsTable,
+      TaskOutboxRow,
+      $$TaskOutboxRowsTableFilterComposer,
+      $$TaskOutboxRowsTableOrderingComposer,
+      $$TaskOutboxRowsTableAnnotationComposer,
+      $$TaskOutboxRowsTableCreateCompanionBuilder,
+      $$TaskOutboxRowsTableUpdateCompanionBuilder,
+      (
+        TaskOutboxRow,
+        BaseReferences<
+          _$LifeProductivityDb,
+          $TaskOutboxRowsTable,
+          TaskOutboxRow
+        >,
+      ),
+      TaskOutboxRow,
+      PrefetchHooks Function()
+    >;
 
 class $LifeProductivityDbManager {
   final _$LifeProductivityDb _db;
@@ -9714,4 +10402,6 @@ class $LifeProductivityDbManager {
       $$NoteFoldersTableTableManager(_db, _db.noteFolders);
   $$NotesTableTableManager get notes =>
       $$NotesTableTableManager(_db, _db.notes);
+  $$TaskOutboxRowsTableTableManager get taskOutboxRows =>
+      $$TaskOutboxRowsTableTableManager(_db, _db.taskOutboxRows);
 }

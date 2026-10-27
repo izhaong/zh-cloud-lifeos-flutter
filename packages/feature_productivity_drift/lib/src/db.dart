@@ -257,13 +257,32 @@ class Notes extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// 同步发件箱（flutter#124 卡 2 / TC-SYNC-107、112）。
+///
+/// 主键取 (entity_type, entity_id)：同一实体的多次编辑合并成一条待推，
+/// 幂等键首次入队生成后不再换（服务端按 clientMutationId 去重）。
+class TaskOutboxRows extends Table {
+  TextColumn get entityType => text()();
+  TextColumn get entityId => text()();
+  TextColumn get operation => text()();
+
+  /// 变更时刻的实体快照 JSON。
+  TextColumn get payloadJson => text()();
+
+  TextColumn get clientMutationId => text()();
+  IntColumn get clientUpdatedAt => integer()();
+
+  @override
+  Set<Column> get primaryKey => {entityType, entityId};
+}
+
 @DriftDatabase(
-    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes])
+    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows])
 class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -344,6 +363,15 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // V10（lifeos/calendar F-16 / TC-CAL-UI-125）：订阅上次刷新失败信息
             // 从 <7 升级时 calendars 表由上面 createTable 建成，已含该列，故不重复加。
             await m.addColumn(calendars, calendars.lastRefreshError);
+          }
+          if (from < 11) {
+            // V11（flutter#124 卡 2 / TC-SYNC-107、112）：同步发件箱
+            await m.createTable(taskOutboxRows);
+            await m.createIndex(
+              Index('idx_task_outbox_due',
+                  'CREATE INDEX IF NOT EXISTS idx_task_outbox_due '
+                  'ON task_outbox_rows (client_updated_at, entity_id)'),
+            );
           }
         },
       );

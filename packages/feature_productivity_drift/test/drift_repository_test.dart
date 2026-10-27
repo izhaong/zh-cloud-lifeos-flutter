@@ -381,7 +381,7 @@ void main() {
     final back = (await db8.select(db8.reminderItems).get())
         .singleWhere((e) => e.id == 'v6row');
     expect(back.recurrenceUntil, DateTime(2026, 12, 31));
-    expect(db8.schemaVersion, 10); // V9（lifeos/note F-02）建记录两表；V10（calendar F-16）补订阅刷新列
+    expect(db8.schemaVersion, 11); // V9（note）建记录两表；V10（calendar F-16）补刷新列；V11（flutter#124 卡 2）建发件箱
     await db8.close();
   });
 
