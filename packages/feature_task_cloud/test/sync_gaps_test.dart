@@ -171,6 +171,78 @@ void main() {
     );
     expect(adapter.sentBodies, hasLength(2), reason: '试满两次');
   });
+
+  /// TC-SYNC-114 正题：401 后必须走 **refresh 换 token 再重发**，
+  /// 而不是拿同一张过期 token 空转重试。断言不是「重发过几次」而是
+  /// 「第二次请求的 Authorization 头是**新** token」——只数次数会把
+  /// 老实现（同 token 重发）也判成绿。
+  test('TC-SYNC-114 401 走 refresh 通道：重发用的是新 token', () async {
+    await store.write(session());
+    adapter.enqueue401();
+    adapter.enqueue({'code': 0, 'data': []});
+    var refreshCalled = 0;
+    final port = RestSyncPort(
+      dio: dio,
+      store: store,
+      refreshSession: () async {
+        refreshCalled++;
+        // 模拟 RestAuthPort.refresh()：写新会话进 store，返回 true 让上层重发
+        await store.write(const MemberSession(
+          userId: '1',
+          tenantId: '1',
+          accessToken: 'tok-new',
+        ));
+        return true;
+      },
+    );
+
+    await port.pushChanges([
+      const SyncChange(
+        entityType: 'task',
+        entityId: 'e-refresh',
+        operation: 'upsert',
+        clientMutationId: 'cmid-rf',
+      ),
+    ]);
+
+    expect(refreshCalled, 1, reason: '401 时 refresh 恰好调一次（不许循环刷）');
+    expect(adapter.sentAuth, hasLength(2));
+    expect(adapter.sentAuth[0], 'Bearer tok', reason: '第一次仍是旧 token');
+    expect(adapter.sentAuth[1], 'Bearer tok-new',
+        reason: '重发必须读 store 里的**新**会话；同 token 重发=本用例要防的老路径');
+  });
+
+  /// 反向：refresh 返回 false（无 refreshToken / 换 token 失败清会话）⇒
+  /// 退回同 token 重试一次的老行为，向后兼容不炸既有 TC-SYNC-114 用例。
+  test('TC-SYNC-114 refresh 不 ok：走老路（同 token 重发一次）', () async {
+    await store.write(session());
+    adapter.enqueue401();
+    adapter.enqueue({'code': 0, 'data': []});
+    var refreshCalled = 0;
+    final port = RestSyncPort(
+      dio: dio,
+      store: store,
+      refreshSession: () async {
+        refreshCalled++;
+        return false;
+      },
+    );
+
+    await port.pushChanges([
+      const SyncChange(
+        entityType: 'task',
+        entityId: 'e-nofresh',
+        operation: 'upsert',
+        clientMutationId: 'cmid-nf',
+      ),
+    ]);
+
+    expect(refreshCalled, 1);
+    expect(adapter.sentAuth, hasLength(2));
+    expect(adapter.sentAuth[0], 'Bearer tok');
+    expect(adapter.sentAuth[1], 'Bearer tok',
+        reason: 'refresh 不 ok 就沿用老 token——不引入新逻辑，只多一个可插钩子');
+  });
 }
 
 class _FakeStore implements SessionStore {
@@ -195,6 +267,10 @@ class _SeqAdapter implements HttpClientAdapter {
   String lastMethod = '';
   String? lastBody;
 
+  /// TC-SYNC-114：每次请求的 Authorization 头（含 Bearer 前缀，原样存），
+  /// 用它断「401 后重发用的是**新** token」而不是"重发过一次"。
+  final sentAuth = <String?>[];
+
   void enqueue(dynamic response) {
     _queue.add(response);
     _statuses.add(200);
@@ -216,6 +292,7 @@ class _SeqAdapter implements HttpClientAdapter {
   ) async {
     lastMethod = options.method;
     lastBody = null;
+    sentAuth.add(options.headers['Authorization']?.toString());
     if (requestStream != null) {
       final b = await requestStream.fold(
         BytesBuilder(),

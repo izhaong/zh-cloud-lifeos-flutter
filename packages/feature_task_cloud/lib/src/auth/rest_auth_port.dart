@@ -49,6 +49,7 @@ class RestAuthPort implements AuthPort {
       userId: data['userId'].toString(),
       tenantId: _tenantId,
       accessToken: data['accessToken'].toString(),
+      refreshToken: data['refreshToken']?.toString(),
       displayName: data['nickname']?.toString(),
     );
     await _store.write(session);
@@ -59,6 +60,45 @@ class RestAuthPort implements AuthPort {
   Future<void> logout() async {
     // 只清会话；本地提醒事项数据不动（离线优先）
     await _store.clear();
+  }
+
+  /// TC-SYNC-114：401 后走这条换新 token（`POST /app-api/member/auth/refresh-token?refreshToken=...`）。
+  ///
+  /// 语义边界：**成功才写回 store**；失败或没有 refreshToken 时**清会话**（下次 pull/push 直接
+  /// 走未登录旁路，不再对着已过期的 token 反复撞 401）。刷新端点是 `@PermitAll`——
+  /// 不带 Authorization 头也能调，所以不套 `_authed()`。
+  @override
+  Future<MemberSession?> refresh() async {
+    final current = await _store.read();
+    final refreshToken = current?.refreshToken;
+    if (current == null || refreshToken == null || refreshToken.isEmpty) {
+      return null;
+    }
+    try {
+      final resp = await _dio.post<Map<String, dynamic>>(
+        '/app-api/member/auth/refresh-token',
+        queryParameters: {'refreshToken': refreshToken},
+        options: Options(headers: {'tenant-id': _tenantId}),
+      );
+      final body = resp.data;
+      if (body == null || body['code'] != 0 || body['data'] == null) {
+        await _store.clear();
+        return null;
+      }
+      final data = body['data'] as Map<String, dynamic>;
+      final next = MemberSession(
+        userId: (data['userId'] ?? current.userId).toString(),
+        tenantId: _tenantId,
+        accessToken: data['accessToken'].toString(),
+        refreshToken: data['refreshToken']?.toString() ?? refreshToken,
+        displayName: data['nickname']?.toString() ?? current.displayName,
+      );
+      await _store.write(next);
+      return next;
+    } on DioException {
+      await _store.clear();
+      return null;
+    }
   }
 }
 

@@ -14,13 +14,32 @@ import 'sync_models.dart';
 ///   （反对字段级合流；人工弹窗后置）
 /// - 未登录：push/pull 直接跳过（TC-SYNC-105 不挡本地）
 class RestSyncPort implements SyncPort {
-  RestSyncPort({required this._dio, required this._store});
+  RestSyncPort({
+    required this._dio,
+    required this._store,
+    Future<bool> Function()? refreshSession,
+  }) : _refreshSession = refreshSession;
 
   final Dio _dio;
   final SessionStore _store;
 
+  /// TC-SYNC-114：401 时先走这条换 token（返回 true=刷新成功，可重试）。
+  /// 组合根注入 `RestAuthPort::refresh`；未注入（如离线单测）时 401 走老路径重试一次同 token，
+  /// 保持向后兼容不炸旧用例。
+  final Future<bool> Function()? _refreshSession;
+
   /// 冲突重推次数上限（防服务端时钟异常死循环）。
   static const maxConflictRetries = 3;
+
+  /// 用当前 store 里的会话（refresh 之后已换新 token）；未登录返回 null。
+  Future<MemberSession?> _currentSession() => _store.read();
+
+  /// 401 分支共用：先尝试 refresh，成功返回 true 让上层重发（重发时读**新**会话即可拿到新 token）。
+  Future<bool> _tryRefresh() async {
+    final hook = _refreshSession;
+    if (hook == null) return false;
+    return await hook();
+  }
 
   @override
   Future<void> pull() async {
@@ -236,37 +255,39 @@ class RestSyncPort implements SyncPort {
     return 0;
   }
 
-  /// TC-SYNC-114：401 → 静默重试一次原请求；再 401 上抛（本地载荷不清空）。
+  /// TC-SYNC-114：401 → 先走 refreshSession 回调换 accessToken，再拿**新会话**重发一次；
+  /// 没注入回调（离线单测/未接 AuthPort）时退回"同 token 再发一次"的老路径，保持向后兼容。
+  /// 载荷不清空（无论刷新成功与否都保留原 changes 与幂等键）——下次同步还会带上。
   Future<Map<String, dynamic>?> _postPushWithRetry(
     MemberSession session,
     List<SyncChange> changes,
   ) async {
-    Future<Response<Map<String, dynamic>?>> send() =>
+    Future<Response<Map<String, dynamic>?>> sendWith(MemberSession s) =>
         _dio.post<Map<String, dynamic>>(
           '/app-api/lifeos/task/sync/push',
           data: {
-            'deviceId': session.userId,
+            'deviceId': s.userId,
             'changes': [for (final c in changes) c.toJson()],
           },
-          options: _authed(session),
+          options: _authed(s),
         );
     try {
-      final resp = await send();
+      final resp = await sendWith(session);
       final body = resp.data;
       if (body == null || body['code'] != 0) {
         throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
       }
       return body;
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        final resp = await send();
-        final body = resp.data;
-        if (body == null || body['code'] != 0) {
-          throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
-        }
-        return body;
+      if (e.response?.statusCode != 401) rethrow;
+      final refreshed = await _tryRefresh();
+      final retrySession = refreshed ? (await _currentSession() ?? session) : session;
+      final resp = await sendWith(retrySession);
+      final body = resp.data;
+      if (body == null || body['code'] != 0) {
+        throw SyncFailureException(body?['msg']?.toString() ?? '同步失败');
       }
-      rethrow;
+      return body;
     }
   }
 

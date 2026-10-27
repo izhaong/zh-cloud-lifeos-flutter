@@ -41,6 +41,9 @@ final class SecureSessionStore implements SessionStore {
         userId: userId,
         tenantId: tenantId,
         accessToken: accessToken,
+        refreshToken: map['refreshToken'] is String
+            ? map['refreshToken'] as String
+            : null,
         displayName: map['displayName'] is String
             ? map['displayName'] as String
             : null,
@@ -58,6 +61,7 @@ final class SecureSessionStore implements SessionStore {
         'userId': session.userId,
         'tenantId': session.tenantId,
         'accessToken': session.accessToken,
+        if (session.refreshToken != null) 'refreshToken': session.refreshToken,
         'displayName': session.displayName,
       }),
     );
