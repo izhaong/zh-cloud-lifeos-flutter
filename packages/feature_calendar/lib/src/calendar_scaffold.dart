@@ -1,8 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 
 import 'providers.dart';
 import 'calendar_view_callbacks.dart';
@@ -43,15 +42,20 @@ class CalendarScaffold extends ConsumerWidget {
       ref.read(draftEventProvider.notifier).clear();
       ref.read(draftOccurrenceStartProvider.notifier).set(null);
     }
+
     void saveAndClose() {
       clearDraft();
       Navigator.of(context).pop(); // 唯一 pop：保存路径
     }
+
     // 草稿落位 + 三档呈现（F-08）。断点口径与内容区一致：由 LayoutBuilder
     // 传入内容宽（compact 全屏 / medium sheet / expanded 第三栏）。
     // F-10：occurrence 打开时带上该次原始开始（重复事件作用域）
     void openDraft(
-        CalendarEvent draft, DateTime? occurrenceStart, double contentWidth) {
+      CalendarEvent draft,
+      DateTime? occurrenceStart,
+      double contentWidth,
+    ) {
       ref.read(draftOccurrenceStartProvider.notifier).set(occurrenceStart);
       ref.read(draftEventProvider.notifier).setDraft(draft);
       if (contentWidth >= 1200) {
@@ -67,12 +71,23 @@ class CalendarScaffold extends ConsumerWidget {
         ref.read(inspectorRouteActiveProvider.notifier).set(false);
         clearDraft();
       }
+
       if (contentWidth < 600) {
-        EventInspectorHost.openFullScreen(context, draft, saveAndClose,
-            occurrenceStart: occurrenceStart, onDismissed: routeDone);
+        EventInspectorHost.openFullScreen(
+          context,
+          draft,
+          saveAndClose,
+          occurrenceStart: occurrenceStart,
+          onDismissed: routeDone,
+        );
       } else {
-        EventInspectorHost.openSheet(context, draft, saveAndClose,
-            occurrenceStart: occurrenceStart, onDismissed: routeDone);
+        EventInspectorHost.openSheet(
+          context,
+          draft,
+          saveAndClose,
+          occurrenceStart: occurrenceStart,
+          onDismissed: routeDone,
+        );
       }
     }
 
@@ -116,7 +131,8 @@ class CalendarScaffold extends ConsumerWidget {
     Future<void> openQuickReminder() async {
       final reminderRepo = ref.read(calendarReminderRepositoryProvider);
       final lists =
-          ref.read(reminderListsForCalendarProvider).value ?? const <ReminderList>[];
+          ref.read(reminderListsForCalendarProvider).value ??
+          const <ReminderList>[];
       final targets = lists.where((l) => !l.isSmart).toList();
       if (reminderRepo == null || targets.isEmpty) {
         return;
@@ -133,17 +149,19 @@ class CalendarScaffold extends ConsumerWidget {
       final dueAt = quick.allDay
           ? DateTime(local.year, local.month, local.day)
           : local;
-      await reminderRepo.upsertItem(ReminderItem(
-        id: newReminderId(),
-        listId: targets.first.id,
-        title: quick.title,
-        dueAt: dueAt,
-      ));
+      await reminderRepo.upsertItem(
+        ReminderItem(
+          id: newReminderId(),
+          listId: targets.first.id,
+          title: quick.title,
+          dueAt: dueAt,
+        ),
+      );
     }
 
-    final scaffold = Scaffold(
+    final scaffold = CupertinoPageScaffold(
       backgroundColor: const Color(0xFFF2F2F7),
-      body: SafeArea(
+      child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
@@ -153,13 +171,18 @@ class CalendarScaffold extends ConsumerWidget {
             Widget content = Column(
               children: [
                 CalendarToolbar(
-                    compact: compact,
-                    onQuickCreate: openQuickEvent,
-                    onQuickCreateReminder: openQuickReminder),
-                const Divider(height: 1),
-                Expanded(child: _MainView(
-                    mode: mode, viewCallbacks: viewCallbacks,
-                    eventsController: eventsController)),
+                  compact: compact,
+                  onQuickCreate: openQuickEvent,
+                  onQuickCreateReminder: openQuickReminder,
+                ),
+                const _Hairline(),
+                Expanded(
+                  child: _MainView(
+                    mode: mode,
+                    viewCallbacks: viewCallbacks,
+                    eventsController: eventsController,
+                  ),
+                ),
               ],
             );
             if (!compact && sidebarVisible) {
@@ -167,7 +190,7 @@ class CalendarScaffold extends ConsumerWidget {
               content = Row(
                 children: [
                   CalendarSidebar(width: expanded ? 280 : 240),
-                  const VerticalDivider(width: 1),
+                  const _VerticalHairline(),
                   Expanded(child: content),
                 ],
               );
@@ -182,13 +205,12 @@ class CalendarScaffold extends ConsumerWidget {
               content = Row(
                 children: [
                   content,
-                  const VerticalDivider(width: 1),
+                  const _VerticalHairline(),
                   SizedBox(
                     width: 320,
                     child: EventInspectorPane(
                       initialEvent: draft,
-                      occurrenceStart:
-                          ref.watch(draftOccurrenceStartProvider),
+                      occurrenceStart: ref.watch(draftOccurrenceStartProvider),
                       // 编辑回写 draftEventProvider：断点降档卸栏后未保存修改不丢
                       onDraftChanged: (next) =>
                           ref.read(draftEventProvider.notifier).setDraft(next),
@@ -214,13 +236,19 @@ class CalendarScaffold extends ConsumerWidget {
       final next = switch (mode) {
         CalendarViewMode.day ||
         CalendarViewMode.list ||
-        CalendarViewMode.week =>
-          anchor.add(Duration(
-              days: direction * (mode == CalendarViewMode.week ? 7 : 1))),
-        CalendarViewMode.month =>
-          DateTime(anchor.year, anchor.month + direction, anchor.day),
-        CalendarViewMode.year =>
-          DateTime(anchor.year + direction, anchor.month, anchor.day),
+        CalendarViewMode.week => anchor.add(
+          Duration(days: direction * (mode == CalendarViewMode.week ? 7 : 1)),
+        ),
+        CalendarViewMode.month => DateTime(
+          anchor.year,
+          anchor.month + direction,
+          anchor.day,
+        ),
+        CalendarViewMode.year => DateTime(
+          anchor.year + direction,
+          anchor.month,
+          anchor.day,
+        ),
       };
       ref.read(anchorDateProvider.notifier).set(next);
     }
@@ -240,7 +268,11 @@ class CalendarScaffold extends ConsumerWidget {
 }
 
 class _MainView extends ConsumerWidget {
-  const _MainView({required this.mode, required this.viewCallbacks, required this.eventsController});
+  const _MainView({
+    required this.mode,
+    required this.viewCallbacks,
+    required this.eventsController,
+  });
 
   final CalendarViewMode mode;
   final CalendarViewCallbacks viewCallbacks;
@@ -250,10 +282,18 @@ class _MainView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // F-05：日/周真视图；月/年/列表随 F-06/F-07/F-13 替换
     final view = switch (mode) {
-      CalendarViewMode.day => CalendarDayView(viewCallbacks: viewCallbacks, eventsController: eventsController),
-      CalendarViewMode.week => CalendarWeekView(viewCallbacks: viewCallbacks, eventsController: eventsController),
+      CalendarViewMode.day => CalendarDayView(
+        viewCallbacks: viewCallbacks,
+        eventsController: eventsController,
+      ),
+      CalendarViewMode.week => CalendarWeekView(
+        viewCallbacks: viewCallbacks,
+        eventsController: eventsController,
+      ),
       CalendarViewMode.month => CalendarMonthView(
-          viewCallbacks: viewCallbacks, eventsController: eventsController),
+        viewCallbacks: viewCallbacks,
+        eventsController: eventsController,
+      ),
       CalendarViewMode.year => const CalendarYearView(),
       CalendarViewMode.list => const Center(child: Text('列表')),
     };
@@ -261,6 +301,29 @@ class _MainView extends ConsumerWidget {
     return Shortcuts(
       shortcuts: calendarUnmodifiedShortcutBindings(),
       child: view,
+    );
+  }
+}
+
+/// Apple 式 0.5px 发丝分隔线。
+class _Hairline extends StatelessWidget {
+  const _Hairline();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(height: 0.5, color: CupertinoColors.separator);
+  }
+}
+
+/// 竖向发丝分隔线。
+class _VerticalHairline extends StatelessWidget {
+  const _VerticalHairline();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 0.5,
+      child: ColoredBox(color: CupertinoColors.separator),
     );
   }
 }

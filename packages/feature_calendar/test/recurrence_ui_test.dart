@@ -4,6 +4,7 @@ import 'package:feature_calendar/feature_calendar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/life_test_app.dart';
 
 /// F-10 重复 UI（TC-CAL-UI-150～152；契约 §3.2.1）。
 void main() {
@@ -12,33 +13,41 @@ void main() {
     DateTime? startAt,
     String title = '周会',
     String id = 'm1',
-  }) =>
-      CalendarEvent(
-        id: id,
-        calendarId: 'c1',
-        uid: 'u1',
-        title: title,
-        startAt: startAt ?? DateTime.utc(2026, 10, 24, 2),
-        endAt: (startAt ?? DateTime.utc(2026, 10, 24, 2))
-            .add(const Duration(hours: 1)),
-        timeZone: 'UTC',
-        rrule: rrule,
-        updatedAt: DateTime.utc(2026, 10, 24),
-      );
+  }) => CalendarEvent(
+    id: id,
+    calendarId: 'c1',
+    uid: 'u1',
+    title: title,
+    startAt: startAt ?? DateTime.utc(2026, 10, 24, 2),
+    endAt: (startAt ?? DateTime.utc(2026, 10, 24, 2)).add(
+      const Duration(hours: 1),
+    ),
+    timeZone: 'UTC',
+    rrule: rrule,
+    updatedAt: DateTime.utc(2026, 10, 24),
+  );
 
   group('RRULE 纯逻辑', () {
     test('预设生成与标签', () {
       final start = DateTime.utc(2026, 10, 24, 2); // 周六
-      expect(rruleForPreset(RecurrencePreset.weekly, start),
-          'FREQ=WEEKLY;BYDAY=SA');
-      expect(rruleForPreset(RecurrencePreset.biweekly, start),
-          'FREQ=WEEKLY;INTERVAL=2;BYDAY=SA');
-      expect(rruleForPreset(RecurrencePreset.monthly, start),
-          'FREQ=MONTHLY;BYMONTHDAY=24');
+      expect(
+        rruleForPreset(RecurrencePreset.weekly, start),
+        'FREQ=WEEKLY;BYDAY=SA',
+      );
+      expect(
+        rruleForPreset(RecurrencePreset.biweekly, start),
+        'FREQ=WEEKLY;INTERVAL=2;BYDAY=SA',
+      );
+      expect(
+        rruleForPreset(RecurrencePreset.monthly, start),
+        'FREQ=MONTHLY;BYMONTHDAY=24',
+      );
       expect(rruleForPreset(RecurrencePreset.none, start), isNull);
       expect(presetOf('FREQ=WEEKLY;BYDAY=SA'), RecurrencePreset.weekly);
-      expect(presetOf('FREQ=WEEKLY;INTERVAL=2;BYDAY=SA'),
-          RecurrencePreset.biweekly);
+      expect(
+        presetOf('FREQ=WEEKLY;INTERVAL=2;BYDAY=SA'),
+        RecurrencePreset.biweekly,
+      );
       expect(presetOf('FREQ=DAILY;COUNT=5'), RecurrencePreset.custom);
       expect(recurrenceLabel(null), '不重复');
     });
@@ -50,8 +59,10 @@ void main() {
         weekdays: {1, 3},
         count: 5,
       );
-      expect(buildRRule(config, DateTime.utc(2026, 10, 24)),
-          'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;COUNT=5');
+      expect(
+        buildRRule(config, DateTime.utc(2026, 10, 24)),
+        'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;COUNT=5',
+      );
     });
 
     test('自定义：每月第 N 个周 X', () {
@@ -61,14 +72,17 @@ void main() {
         ordinal: 2,
         ordinalWeekday: 2,
       );
-      expect(buildRRule(config, DateTime.utc(2026, 10, 24)),
-          'FREQ=MONTHLY;BYDAY=2TU');
+      expect(
+        buildRRule(config, DateTime.utc(2026, 10, 24)),
+        'FREQ=MONTHLY;BYDAY=2TU',
+      );
     });
 
     test('parseRRule 读回周几/结束', () {
       final config = parseRRule(
-          'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;UNTIL=20261231T000000Z',
-          DateTime.utc(2026, 10, 24));
+        'FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE;UNTIL=20261231T000000Z',
+        DateTime.utc(2026, 10, 24),
+      );
       expect(config.freq, kFreqWeekly);
       expect(config.interval, 2);
       expect(config.weekdays, {1, 3});
@@ -82,29 +96,37 @@ void main() {
 
     setUp(() {
       repo = _Repo();
-      container = ProviderContainer(overrides: [
-        calendarRepositoryProvider.overrideWithValue(repo),
-        sidebarPrefsProvider.overrideWith((ref) => null),
-      ]);
+      container = ProviderContainer(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(repo),
+          sidebarPrefsProvider.overrideWith((ref) => null),
+        ],
+      );
     });
 
     tearDown(() => container.dispose());
 
-    Future<void> pumpPane(WidgetTester tester, CalendarEvent initial,
-        {DateTime? occurrenceStart, VoidCallback? onSaved}) async {
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          home: Scaffold(
-            body: EventInspectorPane(
-              initialEvent: initial,
-              occurrenceStart: occurrenceStart,
-              onSaved: onSaved ?? () {},
-              onClose: () {},
+    Future<void> pumpPane(
+      WidgetTester tester,
+      CalendarEvent initial, {
+      DateTime? occurrenceStart,
+      VoidCallback? onSaved,
+    }) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: lifeTestHost(
+            Scaffold(
+              body: EventInspectorPane(
+                initialEvent: initial,
+                occurrenceStart: occurrenceStart,
+                onSaved: onSaved ?? () {},
+                onClose: () {},
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
     }
 
@@ -147,7 +169,9 @@ void main() {
       );
 
       await tester.enterText(
-          find.byKey(const Key('event_field_title')), '只改第二次');
+        find.byKey(const Key('event_field_title')),
+        '只改第二次',
+      );
       await tester.pump();
       await tester.tap(find.byKey(const Key('event_inspector_save')));
       await tester.pumpAndSettle();
@@ -207,10 +231,11 @@ class _Repo implements CalendarRepository {
   final _events = StreamController<List<CalendarEvent>>.broadcast();
 
   @override
-  Stream<List<CalendarEvent>> watchEvents(
-          {required DateTime from,
-          required DateTime to,
-          Set<String>? calendarIds}) async* {
+  Stream<List<CalendarEvent>> watchEvents({
+    required DateTime from,
+    required DateTime to,
+    Set<String>? calendarIds,
+  }) async* {
     yield List<CalendarEvent>.unmodifiable(events);
     yield* _events.stream;
   }
@@ -237,8 +262,11 @@ class _Repo implements CalendarRepository {
   }
 
   @override
-  Future<String> upsertEvent(CalendarEvent e,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {
+  Future<String> upsertEvent(
+    CalendarEvent e, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {
     upserts.add(_UpsertCall(e, scope, occurrenceStart));
     events.add(e);
     _events.add(List<CalendarEvent>.unmodifiable(events));
@@ -246,8 +274,11 @@ class _Repo implements CalendarRepository {
   }
 
   @override
-  Future<void> deleteEvent(String id,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {
+  Future<void> deleteEvent(
+    String id, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {
     deletes.add(_DeleteCall(id, scope, occurrenceStart));
   }
 

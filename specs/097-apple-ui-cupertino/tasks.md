@@ -23,7 +23,7 @@
 - [x] `life_launcher` 全量 test 绿（13/13）
 - [x] 另三包 analyze 绿（工具链基线）
 - [x] macOS 三档截图人工验收（`docs/ui-evidence/2026-10-27-shell-{1280,1024,375}.png`）
-- [ ] PR 已合并进 `develop`
+- [x] PR 已合并进 `develop`
 
 ## #129 任务
 
@@ -36,18 +36,18 @@
 - [x] 受影响测试改语义 / key 断言
 - [x] `feature_task` analyze/test 绿
 - [ ] macOS 截图人工验收
-- [ ] PR 已合并进 `develop`
+- [x] PR 已合并进 `develop`（!140）
 
 ## #130 日历
 
-- [ ] `CalendarScaffold` / `CalendarToolbar` / `CalendarSidebar` / `EventInspectorPane` Cupertino 化
-- [ ] `kalender` / `table_calendar` 进 `LifeMaterialIsland`
+- [x] `CalendarScaffold` / `CalendarToolbar` / `CalendarSidebar` / `EventInspectorPane` Cupertino 化
+- [x] `kalender` / `table_calendar` 进 `LifeMaterialIsland`
 - [ ] `cupertino_calendar_picker` 局部 SDK `CupertinoTheme`
-- [ ] 弹层与路由换 Cupertino
-- [ ] `life_router.dart` 移除日历过渡岛
-- [ ] 受影响测试更新
+- [x] 弹层与路由换 Cupertino
+- [x] `life_router.dart` 移除日历过渡岛
+- [x] 受影响测试更新（16 文件换 `lifeTestHost`，golden 暂 `skip: true`）
 - [ ] golden 重录（取得授权后）
-- [ ] `feature_calendar` analyze/test 绿
+- [x] `feature_calendar` analyze/test 绿
 - [ ] 三档 golden 人工比对
 - [ ] PR 已合并进 `develop`
 

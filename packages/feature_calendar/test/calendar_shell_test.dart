@@ -2,17 +2,22 @@ import 'package:feature_calendar/feature_calendar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/life_test_app.dart';
 
 /// F-03 壳骨架契约（TC-CAL-UI-001；契约 §5.4/§5.5/§8.5）。
 void main() {
   // TC-CAL-UI-001：进入日历 → 出现工具栏 Key calendar_toolbar；任务列表标题「列表」不可见
   testWidgets('TC-CAL-UI-001 进入日历出现工具栏', (tester) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        calendarRepositoryProvider.overrideWithValue(_FakeCalendarRepository()),
-      ],
-      child: const MaterialApp(home: CalendarTabEntry()),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(
+            _FakeCalendarRepository(),
+          ),
+        ],
+        child: lifeTestHost(const CalendarTabEntry()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('calendar_toolbar')), findsOneWidget);
@@ -63,8 +68,11 @@ class _FakeCalendarRepository implements CalendarRepository {
   Stream<List<Calendar>> watchCalendars() => Stream.value(const []);
 
   @override
-  Stream<List<CalendarEvent>> watchEvents(
-      {required DateTime from, required DateTime to, Set<String>? calendarIds}) {
+  Stream<List<CalendarEvent>> watchEvents({
+    required DateTime from,
+    required DateTime to,
+    Set<String>? calendarIds,
+  }) {
     return Stream.value(const []);
   }
 
@@ -84,25 +92,39 @@ class _FakeCalendarRepository implements CalendarRepository {
   Future<void> reorderCalendars(List<String> ids) async {}
 
   @override
-  Future<void> setVisibility(
-      {String? id, bool? visible, bool? allVisible, String? onlyId}) async {}
+  Future<void> setVisibility({
+    String? id,
+    bool? visible,
+    bool? allVisible,
+    String? onlyId,
+  }) async {}
 
   @override
-  Future<String> upsertEvent(CalendarEvent e,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {
+  Future<String> upsertEvent(
+    CalendarEvent e, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {
     return e.id;
   }
 
   @override
-  Future<void> deleteEvent(String id,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {}
+  Future<void> deleteEvent(
+    String id, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {}
 
   @override
   Future<void> moveEvent(String id, String targetCalendarId) async {}
 
   @override
-  Future<List<CalendarEvent>> search(String keyword,
-      {DateTime? from, DateTime? to, int limit = 50}) async {
+  Future<List<CalendarEvent>> search(
+    String keyword, {
+    DateTime? from,
+    DateTime? to,
+    int limit = 50,
+  }) async {
     return const [];
   }
 

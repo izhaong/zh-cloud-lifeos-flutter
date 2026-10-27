@@ -1,6 +1,5 @@
-
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
@@ -34,7 +33,7 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
       child: SizedBox(
         key: const Key('calendar_sidebar'),
         width: widget.width,
-        child: Material(
+        child: ColoredBox(
           color: const Color(0xFFF2F2F7),
           child: ListView(
             children: [
@@ -43,23 +42,24 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                 for (final c in entry.value) _CalendarRow(calendar: c),
               ],
               // F-15：「其他」组固定行——已安排的提醒事项（默认勾选）
-              CheckboxListTile(
-                key: const Key('sidebar_scheduled_reminders'),
-                dense: true,
-                controlAffinity: ListTileControlAffinity.leading,
-                secondary: const Icon(Icons.radio_button_unchecked, size: 18),
-                title: const Text('已安排的提醒事项'),
+              _SidebarToggleRow(
+                rowKey: const Key('sidebar_scheduled_reminders'),
+                leading: const Icon(
+                  CupertinoIcons.circle,
+                  size: 18,
+                  color: Color(0xFF8E8E93),
+                ),
+                title: '已安排的提醒事项',
                 value: ref.watch(scheduledRemindersVisibleProvider),
-                onChanged: (v) => ref
-                    .read(scheduledRemindersVisibleProvider.notifier)
-                    .set(v ?? true),
+                onChanged: (v) =>
+                    ref.read(scheduledRemindersVisibleProvider.notifier).set(v),
               ),
               // F-16：本地节假日开关（lunar 生成，可关）
-              SwitchListTile(
-                key: const Key('sidebar_holidays_toggle'),
-                dense: true,
-                title: const Text('中国大陆节假日'),
-                value: calendars
+              _SidebarToggleRow(
+                rowKey: const Key('sidebar_holidays_toggle'),
+                title: '中国大陆节假日',
+                value:
+                    calendars
                         .where((c) => c.id == kHolidayCalendarId)
                         .firstOrNull
                         ?.isVisible ??
@@ -67,28 +67,35 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                 onChanged: (v) async {
                   final repo = ref.read(calendarRepositoryProvider);
                   if (v) {
-                    await ensureLocalHolidayCalendar(repo,
-                        year: DateTime.now().year);
+                    await ensureLocalHolidayCalendar(
+                      repo,
+                      year: DateTime.now().year,
+                    );
                   } else {
                     await repo.setVisibility(
-                        id: kHolidayCalendarId, visible: false);
+                      id: kHolidayCalendarId,
+                      visible: false,
+                    );
                   }
                 },
+                useSwitch: true,
               ),
               // F-16：订阅占位（只存 URL，不发 HTTP）
-              TextButton.icon(
-                key: const Key('sidebar-add-subscription'),
-                onPressed: () => showLocalSubscriptionDialog(context,
-                    repository: ref.read(calendarRepositoryProvider)),
-                icon: const Icon(Icons.add_link),
-                label: const Text('添加订阅'),
+              _SidebarActionRow(
+                rowKey: const Key('sidebar-add-subscription'),
+                icon: CupertinoIcons.link,
+                label: '添加订阅',
+                onPressed: () => showLocalSubscriptionDialog(
+                  context,
+                  repository: ref.read(calendarRepositoryProvider),
+                ),
               ),
-              const Divider(height: 1),
-              TextButton.icon(
-                key: const Key('sidebar-add-calendar'),
+              const _Hairline(indent: 16),
+              _SidebarActionRow(
+                rowKey: const Key('sidebar-add-calendar'),
+                icon: CupertinoIcons.plus,
+                label: '添加日历',
                 onPressed: () => _openAddDialog(context),
-                icon: const Icon(Icons.add),
-                label: const Text('添加日历'),
               ),
             ],
           ),
@@ -128,7 +135,7 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
   }
 
   Future<void> _openAddDialog(BuildContext context) async {
-    final created = await showDialog<Calendar>(
+    final created = await showCupertinoDialog<Calendar>(
       context: context,
       builder: (_) => const _CalendarEditDialog(),
     );
@@ -147,11 +154,14 @@ class _GroupHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(title,
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(color: const Color(0xFF8E8E93))),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF8E8E93),
+        ),
+      ),
     );
   }
 }
@@ -178,10 +188,10 @@ class _CalendarRow extends ConsumerWidget {
             const SizedBox(width: 8),
             Icon(
               switch (calendar.kind) {
-                CalendarKind.subscription => Icons.rss_feed,
-                CalendarKind.shared => Icons.group_outlined,
-                CalendarKind.holiday => Icons.celebration_outlined,
-                CalendarKind.local => Icons.event_note_outlined,
+                CalendarKind.subscription => CupertinoIcons.globe,
+                CalendarKind.shared => CupertinoIcons.person_2,
+                CalendarKind.holiday => CupertinoIcons.gift,
+                CalendarKind.local => CupertinoIcons.calendar,
               },
               size: 16,
               color: const Color(0xFF8E8E93),
@@ -189,7 +199,7 @@ class _CalendarRow extends ConsumerWidget {
             if (calendar.lastRefreshError != null) ...[
               const SizedBox(width: 6),
               Icon(
-                Icons.error_outline,
+                CupertinoIcons.exclamationmark_circle,
                 key: Key('cal-refresh-error-${calendar.id}'),
                 semanticLabel: '刷新失败',
                 size: 14,
@@ -200,24 +210,27 @@ class _CalendarRow extends ConsumerWidget {
             Expanded(
               child: Text(calendar.title, overflow: TextOverflow.ellipsis),
             ),
-            IconButton(
+            CupertinoButton(
               key: Key('cal-info-${calendar.id}'),
-              tooltip: '日历详情',
-              constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+              minimumSize: Size.zero,
               padding: EdgeInsets.zero,
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.info_outline, size: 16),
               onPressed: () => _openDetail(context, ref),
+              child: const Icon(
+                CupertinoIcons.info,
+                size: 16,
+                color: Color(0xFF8E8E93),
+              ),
             ),
             SizedBox(
               width: 32,
               height: 32,
-              child: Checkbox(
-                visualDensity: VisualDensity.compact,
-                value: calendar.isVisible,
-                onChanged: (v) => ref
-                    .read(calendarRepositoryProvider)
-                    .setVisibility(id: calendar.id, visible: v ?? true),
+              child: Center(
+                child: CupertinoCheckbox(
+                  value: calendar.isVisible,
+                  onChanged: (v) => ref
+                      .read(calendarRepositoryProvider)
+                      .setVisibility(id: calendar.id, visible: v ?? true),
+                ),
               ),
             ),
           ],
@@ -228,9 +241,109 @@ class _CalendarRow extends ConsumerWidget {
 
   /// TC-CAL-UI-127：详情 ⓘ——改色、忽略提醒、删除。
   Future<void> _openDetail(BuildContext context, WidgetRef ref) async {
-    await showDialog<void>(
+    await showCupertinoDialog<void>(
       context: context,
       builder: (_) => _CalendarDetailDialog(calendar: calendar),
+    );
+  }
+}
+
+/// 侧栏开关行（复选/开关两形态）。
+class _SidebarToggleRow extends StatelessWidget {
+  const _SidebarToggleRow({
+    required this.rowKey,
+    required this.title,
+    required this.value,
+    required this.onChanged,
+    this.leading,
+    this.useSwitch = false,
+  });
+
+  final Key rowKey;
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final Widget? leading;
+  final bool useSwitch;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onChanged(!value),
+      child: Row(
+        children: [
+          if (leading != null) ...[const SizedBox(width: 12), leading!],
+          const SizedBox(width: 12),
+          Expanded(child: Text(title, style: const TextStyle(fontSize: 14))),
+          SizedBox(
+            height: 32,
+            child: Center(
+              child: useSwitch
+                  ? CupertinoSwitch(value: value, onChanged: onChanged)
+                  : CupertinoCheckbox(
+                      value: value,
+                      onChanged: (v) => onChanged(v ?? false),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+        ],
+      ),
+    );
+  }
+}
+
+/// 侧栏动作行（图标 + 文案）。
+class _SidebarActionRow extends StatelessWidget {
+  const _SidebarActionRow({
+    required this.rowKey,
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final Key rowKey;
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      key: rowKey,
+      minimumSize: Size.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      alignment: Alignment.centerLeft,
+      onPressed: onPressed,
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: CupertinoColors.systemBlue),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              color: CupertinoColors.systemBlue,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Apple 式 0.5px 发丝分隔线。
+class _Hairline extends StatelessWidget {
+  const _Hairline({this.indent = 0});
+
+  final double indent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(left: indent),
+      child: Container(height: 0.5, color: CupertinoColors.separator),
     );
   }
 }
@@ -242,12 +355,14 @@ class _CalendarEditDialog extends ConsumerStatefulWidget {
   final Calendar? calendar;
 
   @override
-  ConsumerState<_CalendarEditDialog> createState() => _CalendarEditDialogState();
+  ConsumerState<_CalendarEditDialog> createState() =>
+      _CalendarEditDialogState();
 }
 
 class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
-  late final TextEditingController _title =
-      TextEditingController(text: widget.calendar?.title ?? '');
+  late final TextEditingController _title = TextEditingController(
+    text: widget.calendar?.title ?? '',
+  );
   late int _colorArgb =
       widget.calendar?.colorArgb ?? kCalendarPresetColors[4].$2; // 默认蓝
   late bool _ignoreAlerts = widget.calendar?.ignoreAlerts ?? false;
@@ -257,102 +372,117 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
     if (existing == null) {
       return; // 新建态由「完成」统一提交
     }
-    ref.read(calendarRepositoryProvider).upsertCalendar(Calendar(
-          id: existing.id,
-          remoteId: existing.remoteId,
-          title: _title.text.trim().isEmpty ? existing.title : _title.text.trim(),
-          colorArgb: _colorArgb,
-          kind: existing.kind,
-          groupName: existing.groupName,
-          isVisible: existing.isVisible,
-          isDefault: existing.isDefault,
-          sortOrder: existing.sortOrder,
-          ignoreAlerts: _ignoreAlerts,
-          sourceUrl: existing.sourceUrl,
-          refreshMinutes: existing.refreshMinutes,
-          holidayRegion: existing.holidayRegion,
-          lastRefreshError: existing.lastRefreshError,
-          permission: existing.permission,
-          revision: existing.revision,
-          deletedAt: existing.deletedAt,
-        ));
+    ref
+        .read(calendarRepositoryProvider)
+        .upsertCalendar(
+          Calendar(
+            id: existing.id,
+            remoteId: existing.remoteId,
+            title: _title.text.trim().isEmpty
+                ? existing.title
+                : _title.text.trim(),
+            colorArgb: _colorArgb,
+            kind: existing.kind,
+            groupName: existing.groupName,
+            isVisible: existing.isVisible,
+            isDefault: existing.isDefault,
+            sortOrder: existing.sortOrder,
+            ignoreAlerts: _ignoreAlerts,
+            sourceUrl: existing.sourceUrl,
+            refreshMinutes: existing.refreshMinutes,
+            holidayRegion: existing.holidayRegion,
+            lastRefreshError: existing.lastRefreshError,
+            permission: existing.permission,
+            revision: existing.revision,
+            deletedAt: existing.deletedAt,
+          ),
+        );
   }
 
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.calendar != null;
-    return AlertDialog(
+    return CupertinoAlertDialog(
       title: Text(isEdit ? '编辑日历' : '添加日历'),
-      content: SizedBox(
-        width: 320,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _title,
-              decoration: const InputDecoration(labelText: '名称'),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final (_, argb) in kCalendarPresetColors)
-                  GestureDetector(
-                    key: Key('preset-color-0x${argb.toRadixString(16).toUpperCase()}'),
-                    onTap: () {
-                      setState(() => _colorArgb = argb);
-                      if (isEdit) {
-                        _persist(); // 改色即时生效（TC-CAL-UI-121）
-                      }
-                    },
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: Color(argb),
-                        shape: BoxShape.circle,
-                        border: _colorArgb == argb
-                            ? Border.all(width: 3, color: Colors.black87)
-                            : null,
-                      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          CupertinoTextField(
+            controller: _title,
+            placeholder: '名称',
+            style: const TextStyle(fontSize: 15),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final (_, argb) in kCalendarPresetColors)
+                GestureDetector(
+                  key: Key(
+                    'preset-color-0x${argb.toRadixString(16).toUpperCase()}',
+                  ),
+                  onTap: () {
+                    setState(() => _colorArgb = argb);
+                    if (isEdit) {
+                      _persist(); // 改色即时生效（TC-CAL-UI-121）
+                    }
+                  },
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Color(argb),
+                      shape: BoxShape.circle,
+                      border: _colorArgb == argb
+                          ? Border.all(width: 3, color: CupertinoColors.black)
+                          : null,
                     ),
                   ),
+                ),
+            ],
+          ),
+          if (isEdit) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('忽略提醒', style: TextStyle(fontSize: 14)),
+                ),
+                CupertinoSwitch(
+                  key: const Key('detail-ignore-alerts'),
+                  value: _ignoreAlerts,
+                  onChanged: (v) {
+                    setState(() => _ignoreAlerts = v);
+                    _persist(); // 侧栏编辑即时生效（TC-CAL-UI-127）
+                  },
+                ),
               ],
             ),
-            if (isEdit) ...[
-              const SizedBox(height: 8),
-              SwitchListTile(
-                key: const Key('detail-ignore-alerts'),
-                title: const Text('忽略提醒'),
-                value: _ignoreAlerts,
-                onChanged: (v) {
-                  setState(() => _ignoreAlerts = v);
-                  _persist(); // 侧栏编辑即时生效（TC-CAL-UI-127）
-                },
-              ),
-            ],
           ],
-        ),
+        ],
       ),
       actions: [
         if (isEdit)
-          TextButton(
+          CupertinoDialogAction(
             key: const Key('detail-delete'),
+            isDestructiveAction: true,
             onPressed: () async {
               await ref
                   .read(calendarRepositoryProvider)
                   .deleteCalendar(widget.calendar!.id);
               if (context.mounted) Navigator.of(context).pop();
             },
-            child: const Text('删除', style: TextStyle(color: Color(0xFFFF3B30))),
+            child: const Text('删除'),
           ),
-        TextButton(
+        CupertinoDialogAction(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        TextButton(
+        CupertinoDialogAction(
           key: const Key('dialog-done'),
+          isDefaultAction: true,
           onPressed: () async {
             if (_title.text.trim().isEmpty) {
               return; // 名称必填

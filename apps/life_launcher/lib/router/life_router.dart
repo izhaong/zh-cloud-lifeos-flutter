@@ -21,8 +21,11 @@ import '../shell_providers.dart';
 ///
 /// 分支序与 [installedApps] 注册表一致（「更多」恒最末 = [LifeShell.moreBranchIndex]）。
 GoRouter buildLifeRouter(WidgetRef ref) {
-  final pinned =
-      ref.read(pinnedTabsServiceProvider).read().map(appById).toList();
+  final pinned = ref
+      .read(pinnedTabsServiceProvider)
+      .read()
+      .map(appById)
+      .toList();
 
   return GoRouter(
     initialLocation: '/',
@@ -46,47 +49,57 @@ GoRouter buildLifeRouter(WidgetRef ref) {
           return LifeShell(navigationShell: navigationShell);
         },
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/',
-              builder: (context, state) => const TaskTabEntry(),
-              routes: [
-                GoRoute(
-                  path: 'list/:listId',
-                  builder: (context, state) => TaskTabEntry(
-                    listId: state.pathParameters['listId'],
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const TaskTabEntry(),
+                routes: [
+                  GoRoute(
+                    path: 'list/:listId',
+                    builder: (context, state) =>
+                        TaskTabEntry(listId: state.pathParameters['listId']),
                   ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/calendar',
+                builder: (context, state) => const CalendarTabEntry(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/note',
+                builder: (context, state) =>
+                    const LifeMaterialIsland(child: NoteTabEntry()),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/habits',
+                builder: (context, state) => const PlaceholderPage(
+                  title: '习惯',
+                  subtitle: '占位 · feature_habit 待拆入',
                 ),
-              ],
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/calendar',
-              builder: (context, state) =>
-                  const LifeMaterialIsland(child: CalendarTabEntry()),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/note',
-              builder: (context, state) =>
-                  const LifeMaterialIsland(child: NoteTabEntry()),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/habits',
-              builder: (context, state) => const PlaceholderPage(
-                  title: '习惯', subtitle: '占位 · feature_habit 待拆入'),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/more',
-              builder: (context, state) => const MorePage(),
-            ),
-          ]),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/more',
+                builder: (context, state) => const MorePage(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
@@ -110,8 +123,9 @@ class _TaskTabEntryState extends ConsumerState<TaskTabEntry> {
   String? _selectedItemId;
 
   Future<void> _openDetail(ReminderItem item) async {
-    final sizeClass =
-        WindowSizeClass.fromWidth(MediaQuery.sizeOf(context).width);
+    final sizeClass = WindowSizeClass.fromWidth(
+      MediaQuery.sizeOf(context).width,
+    );
     if (sizeClass.isPaneLayout) {
       setState(() => _selectedItemId = item.id);
       return;
@@ -141,11 +155,12 @@ class _TaskTabEntryState extends ConsumerState<TaskTabEntry> {
 
   @override
   Widget build(BuildContext context) {
-    final sizeClass =
-        WindowSizeClass.fromWidth(MediaQuery.sizeOf(context).width);
+    final sizeClass = WindowSizeClass.fromWidth(
+      MediaQuery.sizeOf(context).width,
+    );
     // 宽屏：默认落到「今天」，避免空「选择一个列表」（线框 Pad/客户端起点）
-    final openListId = widget.listId ??
-        (sizeClass.isPaneLayout ? 'smart.today' : null);
+    final openListId =
+        widget.listId ?? (sizeClass.isPaneLayout ? 'smart.today' : null);
 
     return TaskScaffold(
       openListId: openListId,

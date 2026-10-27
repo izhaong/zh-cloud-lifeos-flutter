@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -62,8 +62,8 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
   void didUpdateWidget(covariant EventInspectorPane oldWidget) {
     super.didUpdateWidget(oldWidget);
     // ③ 新建草稿 id 恒为 kDraftEventId——按「实例变化」重置（连续双击也刷新）
-    if (!identical(oldWidget.initialEvent, widget.initialEvent)
-        && oldWidget.initialEvent != widget.initialEvent) {
+    if (!identical(oldWidget.initialEvent, widget.initialEvent) &&
+        oldWidget.initialEvent != widget.initialEvent) {
       _draft = widget.initialEvent;
       _saveAttempted = false;
     }
@@ -81,24 +81,24 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
 
   /// 重复事件编辑/删除的作用域选择（F-10 TC-CAL-UI-151/152）。
   Future<EditScope?> _askScope(String title) {
-    return showDialog<EditScope>(
+    return showCupertinoDialog<EditScope>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => CupertinoAlertDialog(
         key: const Key('repeat_scope_dialog'),
         title: Text(title),
         content: const Text('此日程属于重复系列，请选择改动范围。'),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             key: const Key('scope_this'),
             onPressed: () => Navigator.of(ctx).pop(EditScope.thisOnly),
             child: const Text('仅此日程'),
           ),
-          TextButton(
+          CupertinoDialogAction(
             key: const Key('scope_future'),
             onPressed: () => Navigator.of(ctx).pop(EditScope.thisAndFuture),
             child: const Text('此日程及之后'),
           ),
-          TextButton(
+          CupertinoDialogAction(
             key: const Key('scope_all'),
             onPressed: () => Navigator.of(ctx).pop(EditScope.all),
             child: const Text('所有日程'),
@@ -123,11 +123,14 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     }
     setState(() => _saving = true);
     try {
-      await ref.read(calendarRepositoryProvider).deleteEvent(
+      await ref
+          .read(calendarRepositoryProvider)
+          .deleteEvent(
             _draft.id,
             scope: scope,
-            occurrenceStart:
-                scope == EditScope.all ? null : widget.occurrenceStart,
+            occurrenceStart: scope == EditScope.all
+                ? null
+                : widget.occurrenceStart,
           );
       await ref.read(calendarAlertSchedulerProvider).cancelEvent(_draft.id);
       if (mounted) {
@@ -211,8 +214,7 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
       await repo.upsertEvent(
         toSave,
         scope: scope,
-        occurrenceStart:
-            scope == EditScope.all ? null : widget.occurrenceStart,
+        occurrenceStart: scope == EditScope.all ? null : widget.occurrenceStart,
       );
       await ref.read(calendarAlertSchedulerProvider).scheduleEvent(toSave);
       // 面板已被关闭（sheet/route pop）则不再触发 onSaved（防二次 pop）
@@ -232,27 +234,12 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
       key: const Key('event_inspector_pane'),
       child: Column(
         children: [
-          AppBar(
-            title: Text(_draft.title.trim().isEmpty ? '新建日程' : _draft.title),
-            actions: [
-              if (!_isNewDraft)
-                IconButton(
-                  key: const Key('event_inspector_delete'),
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: _delete,
-                ),
-              TextButton(
-                key: const Key('event_inspector_save'),
-                onPressed: _save,
-                child: const Text('保存'),
-              ),
-              if (widget.onClose != null)
-                IconButton(
-                  key: const Key('event_inspector_close'),
-                  icon: const Icon(Icons.close),
-                  onPressed: widget.onClose,
-                ),
-            ],
+          _InspectorHeader(
+            title: _draft.title.trim().isEmpty ? '新建日程' : _draft.title,
+            showDelete: !_isNewDraft,
+            onDelete: _delete,
+            onSave: _save,
+            onClose: widget.onClose,
           ),
           Expanded(
             child: EventFormFields(
@@ -267,9 +254,10 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
             Padding(
               key: const Key('event_inspector_blocked_hint'),
               padding: const EdgeInsets.all(8),
-              child: Text(_blockedReason!,
-                  style:
-                      const TextStyle(color: Color(0xFFFF3B30), fontSize: 12)),
+              child: Text(
+                _blockedReason!,
+                style: const TextStyle(color: Color(0xFFFF3B30), fontSize: 12),
+              ),
             ),
         ],
       ),
@@ -281,45 +269,62 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
 ///
 /// compact <600 → 全屏 route；medium → bottom sheet；expanded ≥1200 → 第三栏 widget。
 class EventInspectorHost extends StatelessWidget {
-  const EventInspectorHost(
-      {super.key,
-      required this.event,
-      required this.onSaved,
-      this.occurrenceStart});
+  const EventInspectorHost({
+    super.key,
+    required this.event,
+    required this.onSaved,
+    this.occurrenceStart,
+  });
 
   final CalendarEvent event;
   final VoidCallback onSaved;
   final DateTime? occurrenceStart;
 
   /// compact 全屏（push 新路由；route 关闭即视为取消 → onDismissed）。
-  static Future<void> openFullScreen(BuildContext context, CalendarEvent event,
-      VoidCallback onSaved,
-      {VoidCallback? onDismissed, DateTime? occurrenceStart}) {
+  static Future<void> openFullScreen(
+    BuildContext context,
+    CalendarEvent event,
+    VoidCallback onSaved, {
+    VoidCallback? onDismissed,
+    DateTime? occurrenceStart,
+  }) {
     return Navigator.of(context)
-        .push(MaterialPageRoute(
-          builder: (_) => Scaffold(
-              body: EventInspectorPane(
+        .push(
+          CupertinoPageRoute<void>(
+            builder: (_) => CupertinoPageScaffold(
+              child: SafeArea(
+                child: EventInspectorPane(
                   initialEvent: event,
                   occurrenceStart: occurrenceStart,
-                  onSaved: onSaved)),
-        ))
+                  onSaved: onSaved,
+                ),
+              ),
+            ),
+          ),
+        )
         .then((_) => onDismissed?.call());
   }
 
   /// medium bottom sheet（sheet 关闭即视为取消 → onDismissed）。
-  static Future<void> openSheet(BuildContext context, CalendarEvent event,
-      VoidCallback onSaved,
-      {VoidCallback? onDismissed, DateTime? occurrenceStart}) {
-    return showModalBottomSheet(
+  static Future<void> openSheet(
+    BuildContext context,
+    CalendarEvent event,
+    VoidCallback onSaved, {
+    VoidCallback? onDismissed,
+    DateTime? occurrenceStart,
+  }) {
+    return showCupertinoModalPopup<void>(
       context: context,
-      isScrollControlled: true,
       builder: (_) => SizedBox(
         height: MediaQuery.of(context).size.height * 0.85,
-        child: EventInspectorPane(
-          initialEvent: event,
-          occurrenceStart: occurrenceStart,
-          onSaved: onSaved,
-          onClose: () => Navigator.of(context).pop(),
+        child: ColoredBox(
+          color: CupertinoColors.systemBackground,
+          child: EventInspectorPane(
+            initialEvent: event,
+            occurrenceStart: occurrenceStart,
+            onSaved: onSaved,
+            onClose: () => Navigator.of(context).pop(),
+          ),
         ),
       ),
     ).then((_) => onDismissed?.call());
@@ -337,7 +342,6 @@ class EventInspectorHost extends StatelessWidget {
   }
 }
 
-
 /// 日历事件 id 工厂（kernel 只提供 reminder/list 工厂；事件侧对齐命名）。
 String newCalendarEventId() =>
     'cal_${DateTime.now().microsecondsSinceEpoch}_'
@@ -349,34 +353,34 @@ String _shortRand() {
 }
 
 CalendarEvent _copyWithId(CalendarEvent e, String id) => CalendarEvent(
-      id: id,
-      remoteId: e.remoteId,
-      calendarId: e.calendarId,
-      uid: e.uid.isEmpty ? id : e.uid,
-      title: e.title,
-      location: e.location,
-      url: e.url,
-      notes: e.notes,
-      startAt: e.startAt,
-      endAt: e.endAt,
-      allDay: e.allDay,
-      timeZone: e.timeZone,
-      isFloating: e.isFloating,
-      rrule: e.rrule,
-      exdates: e.exdates,
-      parentEventId: e.parentEventId,
-      originalStartAt: e.originalStartAt,
-      status: e.status,
-      availability: e.availability,
-      travelMinutes: e.travelMinutes,
-      isPrivate: e.isPrivate,
-      alerts: e.alerts,
-      invitees: e.invitees,
-      sequence: e.sequence,
-      revision: e.revision,
-      deletedAt: e.deletedAt,
-      updatedAt: e.updatedAt,
-    );
+  id: id,
+  remoteId: e.remoteId,
+  calendarId: e.calendarId,
+  uid: e.uid.isEmpty ? id : e.uid,
+  title: e.title,
+  location: e.location,
+  url: e.url,
+  notes: e.notes,
+  startAt: e.startAt,
+  endAt: e.endAt,
+  allDay: e.allDay,
+  timeZone: e.timeZone,
+  isFloating: e.isFloating,
+  rrule: e.rrule,
+  exdates: e.exdates,
+  parentEventId: e.parentEventId,
+  originalStartAt: e.originalStartAt,
+  status: e.status,
+  availability: e.availability,
+  travelMinutes: e.travelMinutes,
+  isPrivate: e.isPrivate,
+  alerts: e.alerts,
+  invitees: e.invitees,
+  sequence: e.sequence,
+  revision: e.revision,
+  deletedAt: e.deletedAt,
+  updatedAt: e.updatedAt,
+);
 
 CalendarEvent _copyWithCalendar(CalendarEvent e, String calendarId) =>
     CalendarEvent(
@@ -408,3 +412,83 @@ CalendarEvent _copyWithCalendar(CalendarEvent e, String calendarId) =>
       deletedAt: e.deletedAt,
       updatedAt: e.updatedAt,
     );
+
+/// Inspector 导航头（Apple 式：左关闭/删除，右保存；无 Material AppBar）。
+class _InspectorHeader extends StatelessWidget {
+  const _InspectorHeader({
+    required this.title,
+    required this.showDelete,
+    required this.onDelete,
+    required this.onSave,
+    required this.onClose,
+  });
+
+  final String title;
+  final bool showDelete;
+  final VoidCallback onDelete;
+  final VoidCallback onSave;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: CupertinoColors.systemBackground,
+        border: Border(
+          bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
+        ),
+      ),
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          if (showDelete)
+            CupertinoButton(
+              key: const Key('event_inspector_delete'),
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: onDelete,
+              child: const Icon(
+                CupertinoIcons.delete,
+                size: 22,
+                color: CupertinoColors.systemRed,
+              ),
+            ),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+          ),
+          CupertinoButton(
+            key: const Key('event_inspector_save'),
+            minimumSize: Size.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            onPressed: onSave,
+            child: const Text(
+              '保存',
+              style: TextStyle(fontSize: 17, color: CupertinoColors.systemBlue),
+            ),
+          ),
+          if (onClose != null)
+            CupertinoButton(
+              key: const Key('event_inspector_close'),
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: onClose,
+              child: const Icon(
+                CupertinoIcons.xmark,
+                size: 22,
+                color: CupertinoColors.systemBlue,
+              ),
+            )
+          else
+            const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+}

@@ -4,6 +4,7 @@ import 'package:feature_calendar/feature_calendar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/life_test_app.dart';
 
 /// F-16 本地节假日与订阅占位（TC-CAL-UI-160/162）。
 void main() {
@@ -12,12 +13,17 @@ void main() {
     final calendar = await ensureLocalHolidayCalendar(repo, year: 2026);
 
     expect(calendar.kind, CalendarKind.holiday);
-    expect(repo.calendars.any((c) => c.id == kHolidayCalendarId), isTrue,
-        reason: '节假日日历已落库');
-    final newYear = repo.events.where((e) =>
-        e.startAt.microsecondsSinceEpoch ==
-            DateTime.utc(2026, 1, 1).microsecondsSinceEpoch &&
-        e.allDay);
+    expect(
+      repo.calendars.any((c) => c.id == kHolidayCalendarId),
+      isTrue,
+      reason: '节假日日历已落库',
+    );
+    final newYear = repo.events.where(
+      (e) =>
+          e.startAt.microsecondsSinceEpoch ==
+              DateTime.utc(2026, 1, 1).microsecondsSinceEpoch &&
+          e.allDay,
+    );
     expect(newYear, isNotEmpty, reason: '元旦当天有全天条');
   });
 
@@ -29,32 +35,35 @@ void main() {
 
   testWidgets('TC-CAL-UI-160 未登录订阅只存 URL 且提示登录后', (tester) async {
     final repo = _Repo();
-    final container = ProviderContainer(overrides: [
-      calendarRepositoryProvider.overrideWithValue(repo),
-    ]);
+    final container = ProviderContainer(
+      overrides: [calendarRepositoryProvider.overrideWithValue(repo)],
+    );
     addTearDown(container.dispose);
 
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => showLocalSubscriptionDialog(context,
-                  repository: repo),
-              child: const Text('open'),
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: lifeTestHost(
+          Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () =>
+                    showLocalSubscriptionDialog(context, repository: repo),
+                child: const Text('open'),
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('登录后'), findsOneWidget,
-        reason: '文案含登录后');
-    await tester.enterText(find.byKey(const Key('subscription_url')),
-        'https://example.com/feed.ics');
+    expect(find.textContaining('登录后'), findsOneWidget, reason: '文案含登录后');
+    await tester.enterText(
+      find.byKey(const Key('subscription_url')),
+      'https://example.com/feed.ics',
+    );
     await tester.tap(find.byKey(const Key('subscription_save')));
     await tester.pumpAndSettle();
 
@@ -88,16 +97,23 @@ class _Repo implements CalendarRepository {
   }
 
   @override
-  Future<void> setVisibility(
-      {String? id, bool? visible, bool? allVisible, String? onlyId}) async {
+  Future<void> setVisibility({
+    String? id,
+    bool? visible,
+    bool? allVisible,
+    String? onlyId,
+  }) async {
     if (id != null && visible != null) {
       visibility[id] = visible;
     }
   }
 
   @override
-  Future<String> upsertEvent(CalendarEvent e,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {
+  Future<String> upsertEvent(
+    CalendarEvent e, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {
     events.removeWhere((x) => x.id == e.id);
     events.add(e);
     return e.id;

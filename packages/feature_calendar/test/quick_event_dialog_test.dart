@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kalender/kalender.dart' as kalender;
+import 'support/life_test_app.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 /// F-12 快速事件输入框（TC-CAL-UI-170；契约 §6）。
 void main() {
@@ -12,24 +14,31 @@ void main() {
 
   testWidgets('TC-CAL-UI-170 明天下午3点开会', (tester) async {
     QuickEvent? result;
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              result = await showQuickEventDialog(context,
-                  now: now, timeZone: 'UTC');
-            },
-            child: const Text('open'),
+    await tester.pumpWidget(
+      lifeTestHost(
+        Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                result = await showQuickEventDialog(
+                  context,
+                  now: now,
+                  timeZone: 'UTC',
+                );
+              },
+              child: const Text('open'),
+            ),
           ),
         ),
       ),
-    ));
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
     await tester.enterText(
-        find.byKey(const Key('quick_event_input')), '明天下午3点开会');
+      find.byKey(const Key('quick_event_input')),
+      '明天下午3点开会',
+    );
     await tester.pump();
     await tester.tap(find.byKey(const Key('quick_event_create')));
     await tester.pumpAndSettle();
@@ -48,17 +57,21 @@ void main() {
 
     final repo = _Repo();
     final controller = kalender.DefaultEventsController();
-    final container = ProviderContainer(overrides: [
-      calendarRepositoryProvider.overrideWithValue(repo),
-      sidebarPrefsProvider.overrideWith((ref) => null),
-      kalenderEventsControllerProvider.overrideWithValue(controller),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        calendarRepositoryProvider.overrideWithValue(repo),
+        sidebarPrefsProvider.overrideWith((ref) => null),
+        kalenderEventsControllerProvider.overrideWithValue(controller),
+      ],
+    );
     addTearDown(container.dispose);
 
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: const MaterialApp(home: CalendarScaffold()),
-    ));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: lifeTestHost(const CalendarScaffold()),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('quick_create_menu')));
@@ -68,29 +81,39 @@ void main() {
     expect(find.byKey(const Key('quick_event_dialog')), findsOneWidget);
 
     await tester.enterText(
-        find.byKey(const Key('quick_event_input')), '明天下午3点开会');
+      find.byKey(const Key('quick_event_input')),
+      '明天下午3点开会',
+    );
     await tester.pump();
     await tester.tap(find.byKey(const Key('quick_event_create')));
     await tester.pumpAndSettle();
 
     // compact → 全屏 Inspector，标题字段带解析结果
     expect(find.byKey(const Key('event_inspector_pane')), findsOneWidget);
-    final field = tester.widget<TextField>(
-        find.byKey(const Key('event_field_title')));
+    final field = tester.widget<CupertinoTextField>(
+      find.byKey(const Key('event_field_title')),
+    );
     expect(field.controller!.text, '开会');
   });
 }
 
 class _Repo implements CalendarRepository {
-  final List<Calendar> calendars = [const Calendar(
-      id: 'c1', title: '工作', colorArgb: 0xFF007AFF, isDefault: true)];
+  final List<Calendar> calendars = [
+    const Calendar(
+      id: 'c1',
+      title: '工作',
+      colorArgb: 0xFF007AFF,
+      isDefault: true,
+    ),
+  ];
   final _events = StreamController<List<CalendarEvent>>.broadcast();
 
   @override
-  Stream<List<CalendarEvent>> watchEvents(
-          {required DateTime from,
-          required DateTime to,
-          Set<String>? calendarIds}) async* {
+  Stream<List<CalendarEvent>> watchEvents({
+    required DateTime from,
+    required DateTime to,
+    Set<String>? calendarIds,
+  }) async* {
     yield const <CalendarEvent>[];
     yield* _events.stream;
   }

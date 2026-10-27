@@ -1,18 +1,18 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 import '../nlp/quick_event_parser.dart';
 import '../logic/event_time.dart';
 
 /// 快速事件输入框（⌘N / 工具栏「＋」共用；契约 §6；F-12）。
 ///
-/// 返回解析结果（UTC）；空串/取消回 null。
+/// 返回解析结果（UTC）；空串/取消回 null。Cupertino 化（#130）。
 Future<QuickEvent?> showQuickEventDialog(
   BuildContext context, {
   DateTime? now,
   int defaultDurationMinutes = 60,
   String timeZone = 'UTC',
 }) {
-  return showDialog<QuickEvent>(
+  return showCupertinoDialog<QuickEvent>(
     context: context,
     builder: (_) => _QuickEventDialog(
       now: now ?? DateTime.now(),
@@ -47,53 +47,56 @@ class _QuickEventDialogState extends State<_QuickEventDialog> {
   }
 
   QuickEvent? _parse() => parseQuickEvent(
-        _controller.text,
-        now: widget.now,
-        defaultDurationMinutes: widget.defaultDurationMinutes,
-        timeZone: widget.timeZone,
-      );
+    _controller.text,
+    now: widget.now,
+    defaultDurationMinutes: widget.defaultDurationMinutes,
+    timeZone: widget.timeZone,
+  );
 
   @override
   Widget build(BuildContext context) {
     final parsed = _parse();
-    return AlertDialog(
+    return CupertinoAlertDialog(
       key: const Key('quick_event_dialog'),
       title: const Text('新建日程'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
+          const SizedBox(height: 4),
+          CupertinoTextField(
             key: const Key('quick_event_input'),
             controller: _controller,
             autofocus: true,
-            decoration: const InputDecoration(
-              hintText: '例如：明天下午3点开会',
+            placeholder: '例如：明天下午3点开会',
+            decoration: BoxDecoration(
+              color: const Color(0xFFE9E9EB),
+              borderRadius: BorderRadius.circular(8),
             ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             onChanged: (_) => setState(() {}),
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              parsed == null
-                  ? '输入内容后按「创建」'
-                  : '${parsed.title} · '
+          Text(
+            parsed == null
+                ? '输入内容后按「创建」'
+                : '${parsed.title} · '
                       '${formatEventWall(parsed.startAt, widget.timeZone, allDay: parsed.allDay)}',
-              key: const Key('quick_event_preview'),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
+            key: const Key('quick_event_preview'),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93)),
           ),
         ],
       ),
       actions: [
-        TextButton(
+        CupertinoDialogAction(
           key: const Key('quick_event_cancel'),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        FilledButton(
+        CupertinoDialogAction(
           key: const Key('quick_event_create'),
+          isDefaultAction: true,
           onPressed: _submit,
           child: const Text('创建'),
         ),

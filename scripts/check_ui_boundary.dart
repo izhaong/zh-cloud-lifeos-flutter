@@ -30,10 +30,10 @@ List<String> _discoverScanRoots(String root) {
 /// 迁移中的包：feature_task 已收口（#129），日历/记录/日历云在各自 PR 内逐步从 pending 移除。
 /// 记名豁免不等于收口：`--strict` 仍会全量列出，台账要引 `scanned/pending/violations` 三元组。
 const _pendingPackages = <String>{
-  'packages/feature_calendar',
+  // feature_calendar 已随 #130 Cupertino 化收口，移出 pending。
   'packages/feature_note',
   // 扫描根扩全后暴露（#135）。整页 Material（Scaffold/AppBar/ListTile×2/FilledButton×2/TextField），
-  // 归属 #130 日历迁移；#130 完成后删除本条。
+  // 待日历云包 Cupertino 化后删除本条。
   'packages/feature_calendar_cloud',
 };
 

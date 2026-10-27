@@ -1,14 +1,14 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
-import 'package:flutter/material.dart';
 
 import '../logic/local_holidays.dart';
 
-/// 本地订阅占位对话框（F-16）：只保存 URL，不发 HTTP。
+/// 本地订阅占位对话框（F-16）：只保存 URL，不发 HTTP。Cupertino 化（#130）。
 Future<Calendar?> showLocalSubscriptionDialog(
   BuildContext context, {
   required CalendarRepository repository,
 }) async {
-  final url = await showDialog<String>(
+  final url = await showCupertinoDialog<String>(
     context: context,
     builder: (_) => const _SubscriptionDialog(),
   );
@@ -37,19 +37,23 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return CupertinoAlertDialog(
       key: const Key('subscription_dialog'),
       title: const Text('添加订阅日历'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
+          const SizedBox(height: 4),
+          CupertinoTextField(
             key: const Key('subscription_url'),
             controller: _controller,
-            decoration: const InputDecoration(
-              labelText: '订阅地址（.ics）',
-              hintText: 'https://example.com/calendar.ics',
+            placeholder: 'https://example.com/calendar.ics',
+            decoration: BoxDecoration(
+              color: const Color(0xFFE9E9EB),
+              borderRadius: BorderRadius.circular(8),
             ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           ),
           const SizedBox(height: 8),
           const Align(
@@ -63,20 +67,22 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
           if (_error != null)
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(_error!,
-                  style: const TextStyle(
-                      fontSize: 12, color: Color(0xFFFF3B30))),
+              child: Text(
+                _error!,
+                style: const TextStyle(fontSize: 12, color: Color(0xFFFF3B30)),
+              ),
             ),
         ],
       ),
       actions: [
-        TextButton(
+        CupertinoDialogAction(
           key: const Key('subscription_cancel'),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        FilledButton(
+        CupertinoDialogAction(
           key: const Key('subscription_save'),
+          isDefaultAction: true,
           onPressed: _submit,
           child: const Text('保存'),
         ),

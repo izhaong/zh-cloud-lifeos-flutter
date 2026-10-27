@@ -4,20 +4,21 @@ import 'package:feature_calendar/feature_calendar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'support/life_test_app.dart';
 
 /// F-11 提醒与本地通知（TC-CAL-UI-153～155；契约 §2.3）。
 void main() {
   CalendarEvent event({bool allDay = false}) => CalendarEvent(
-        id: 'e1',
-        calendarId: 'c1',
-        uid: 'u1',
-        title: '周会',
-        startAt: DateTime.utc(2026, 10, 24, 2),
-        endAt: DateTime.utc(2026, 10, 24, 3),
-        allDay: allDay,
-        timeZone: 'Asia/Shanghai',
-        updatedAt: DateTime.utc(2026, 10, 24),
-      );
+    id: 'e1',
+    calendarId: 'c1',
+    uid: 'u1',
+    title: '周会',
+    startAt: DateTime.utc(2026, 10, 24, 2),
+    endAt: DateTime.utc(2026, 10, 24, 3),
+    allDay: allDay,
+    timeZone: 'Asia/Shanghai',
+    updatedAt: DateTime.utc(2026, 10, 24),
+  );
 
   group('触发时刻', () {
     test('定时：偏移按分钟加减并过滤过去', () {
@@ -31,9 +32,12 @@ void main() {
         DateTime.utc(2026, 10, 24, 2),
       ]);
       expect(
-          calendarAlertTriggers(withAlerts,
-              after: DateTime.utc(2026, 10, 24, 1, 50)),
-          [DateTime.utc(2026, 10, 24, 2)]);
+        calendarAlertTriggers(
+          withAlerts,
+          after: DateTime.utc(2026, 10, 24, 1, 50),
+        ),
+        [DateTime.utc(2026, 10, 24, 2)],
+      );
     });
 
     test('全天：提前天数 + 当地时刻（上海 09:00）', () {
@@ -52,18 +56,20 @@ void main() {
 
   group('表单与通知动作', () {
     testWidgets('TC-CAL-UI-153/155 多选提醒写入 EventAlert', (tester) async {
-      final container = ProviderContainer(overrides: [
-        calendarRepositoryProvider.overrideWithValue(_Repo()),
-        sidebarPrefsProvider.overrideWith((ref) => null),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(_Repo()),
+          sidebarPrefsProvider.overrideWith((ref) => null),
+        ],
+      );
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          home: Scaffold(body: _Harness(initial: event())),
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: lifeTestHost(Scaffold(body: _Harness(initial: event()))),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('event_field_alerts')));
@@ -74,8 +80,11 @@ void main() {
       await tester.pumpAndSettle();
 
       final state = tester.state<_HarnessState>(find.byType(_Harness));
-      expect(state.event.alerts.single.offsetMinutes, -15,
-          reason: 'TC-CAL-UI-153');
+      expect(
+        state.event.alerts.single.offsetMinutes,
+        -15,
+        reason: 'TC-CAL-UI-153',
+      );
 
       // TC-CAL-UI-155：再加「当时」→ 两条
       await tester.tap(find.byKey(const Key('event_field_alerts')));
@@ -86,47 +95,54 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(state.event.alerts.length, 2, reason: 'TC-CAL-UI-155');
-      expect(state.event.alerts.map((a) => a.offsetMinutes), [0, -15],
-          reason: '按契约预设顺序（0 在 -15 之前）');
+      expect(state.event.alerts.map((a) => a.offsetMinutes), [
+        0,
+        -15,
+      ], reason: '按契约预设顺序（0 在 -15 之前）');
     });
 
     testWidgets('TC-CAL-UI-154 稍后提醒 = 9 分钟后', (tester) async {
       final fake = _FakeScheduler();
       final now = DateTime.utc(2026, 10, 24, 2);
-      final actions =
-          CalendarNotificationActions(fake, clock: () => now);
+      final actions = CalendarNotificationActions(fake, clock: () => now);
 
       await actions.onSnooze(event());
       await actions.onDismiss('e1');
 
-      expect(fake.snoozed.single,
-          now.add(const Duration(minutes: 9)),
-          reason: '9 分钟后的新触发');
+      expect(
+        fake.snoozed.single,
+        now.add(const Duration(minutes: 9)),
+        reason: '9 分钟后的新触发',
+      );
       expect(fake.cancelled, ['e1']);
     });
 
     testWidgets('保存后调度、删除后取消（Noop 之外的真实调用点）', (tester) async {
       final fake = _FakeScheduler();
       final repo = _Repo();
-      final container = ProviderContainer(overrides: [
-        calendarRepositoryProvider.overrideWithValue(repo),
-        sidebarPrefsProvider.overrideWith((ref) => null),
-        calendarAlertSchedulerProvider.overrideWithValue(fake),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(repo),
+          sidebarPrefsProvider.overrideWith((ref) => null),
+          calendarAlertSchedulerProvider.overrideWithValue(fake),
+        ],
+      );
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          home: Scaffold(
-            body: EventInspectorPane(
-              initialEvent: event(),
-              onSaved: () {},
-              onClose: () {},
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: lifeTestHost(
+            Scaffold(
+              body: EventInspectorPane(
+                initialEvent: event(),
+                onSaved: () {},
+                onClose: () {},
+              ),
             ),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('event_inspector_save')));
       await tester.pumpAndSettle();
@@ -140,7 +156,9 @@ void main() {
 }
 
 CalendarEvent calendarEventWithAlerts(
-    CalendarEvent e, List<EventAlert> alerts) {
+  CalendarEvent e,
+  List<EventAlert> alerts,
+) {
   return CalendarEvent(
     id: e.id,
     remoteId: e.remoteId,
@@ -219,10 +237,11 @@ class _Repo implements CalendarRepository {
   final _events = StreamController<List<CalendarEvent>>.broadcast();
 
   @override
-  Stream<List<CalendarEvent>> watchEvents(
-          {required DateTime from,
-          required DateTime to,
-          Set<String>? calendarIds}) async* {
+  Stream<List<CalendarEvent>> watchEvents({
+    required DateTime from,
+    required DateTime to,
+    Set<String>? calendarIds,
+  }) async* {
     yield const <CalendarEvent>[];
     yield* _events.stream;
   }
@@ -239,15 +258,21 @@ class _Repo implements CalendarRepository {
   }
 
   @override
-  Future<String> upsertEvent(CalendarEvent e,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {
+  Future<String> upsertEvent(
+    CalendarEvent e, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {
     upserted.add(e);
     return e.id;
   }
 
   @override
-  Future<void> deleteEvent(String id,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {}
+  Future<void> deleteEvent(
+    String id, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
