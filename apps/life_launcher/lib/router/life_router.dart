@@ -76,8 +76,7 @@ GoRouter buildLifeRouter(WidgetRef ref) {
             routes: [
               GoRoute(
                 path: '/note',
-                builder: (context, state) =>
-                    const LifeMaterialIsland(child: NoteTabEntry()),
+                builder: (context, state) => const NoteTabEntry(),
               ),
             ],
           ),

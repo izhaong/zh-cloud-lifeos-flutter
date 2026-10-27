@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -11,9 +11,9 @@ import 'note_settings_page.dart';
 import 'note_sidebar.dart';
 import 'providers.dart';
 
-/// 记录主脚手架（F-03 骨架 / F-04 侧栏；编辑器随 F-05）。
+/// 记录主脚手架（F-03 骨架 / F-04 侧栏）。
 ///
-/// 宽屏左右分栏（侧栏 + 列表）；窄屏侧栏收进 Drawer。
+/// 宽屏左右分栏（侧栏 + 列表）；窄屏侧栏收进底部弹层。
 /// 不出现生态绑定文案（契约 §9）。
 class NoteScaffold extends ConsumerWidget {
   const NoteScaffold({super.key});
@@ -41,66 +41,70 @@ class NoteScaffold extends ConsumerWidget {
         sortedNotes.sort((a, b) => a.title.compareTo(b.title));
       case NoteSortMode.updated:
         sortedNotes.sort(
-            (a, b) => b.clientUpdatedAt.compareTo(a.clientUpdatedAt));
+          (a, b) => b.clientUpdatedAt.compareTo(a.clientUpdatedAt),
+        );
     }
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= wideBreakpoint;
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('记录'),
-            actions: [
-              IconButton(
-                key: const ValueKey('note_settings'),
-                tooltip: '记录设置',
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const NoteSettingsPage(),
+        return CupertinoPageScaffold(
+          key: const Key('note_scaffold'),
+          navigationBar: CupertinoNavigationBar(
+            middle: const Text('记录'),
+            leading: wide
+                ? null
+                : CupertinoButton(
+                    key: const ValueKey('note_sidebar_open'),
+                    minimumSize: Size.zero,
+                    padding: EdgeInsets.zero,
+                    onPressed: () => _showSidebarSheet(context),
+                    child: const Icon(CupertinoIcons.sidebar_left),
                   ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _NavBarIcon(
+                  key: const ValueKey('note_settings'),
+                  semanticLabel: '记录设置',
+                  icon: CupertinoIcons.gear,
+                  onPressed: () => _push(context, const NoteSettingsPage()),
                 ),
-              ),
-              IconButton(
-                key: const ValueKey('note_quick_capture'),
-                tooltip: '快速记录',
-                icon: const Icon(Icons.bolt_outlined),
-                onPressed: () => _quickCapture(context, ref, folders),
-              ),
-              IconButton(
-                key: const ValueKey('note_view_toggle'),
-                tooltip: gallery ? '列表视图' : '画廊视图',
-                icon: Icon(gallery ? Icons.view_list : Icons.grid_view),
-                onPressed: () =>
-                    ref.read(noteGalleryModeProvider.notifier).toggle(),
-              ),
-              IconButton(
-                key: const ValueKey('note_recycle'),
-                tooltip: '最近删除',
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const NoteRecyclePage(),
-                  ),
+                _NavBarIcon(
+                  key: const ValueKey('note_quick_capture'),
+                  semanticLabel: '快速记录',
+                  icon: CupertinoIcons.bolt,
+                  onPressed: () => _quickCapture(context, ref, folders),
                 ),
-              ),
-            ],
+                _NavBarIcon(
+                  key: const ValueKey('note_view_toggle'),
+                  semanticLabel: gallery ? '列表视图' : '画廊视图',
+                  icon: gallery
+                      ? CupertinoIcons.list_bullet
+                      : CupertinoIcons.square_grid_2x2,
+                  onPressed: () =>
+                      ref.read(noteGalleryModeProvider.notifier).toggle(),
+                ),
+                _NavBarIcon(
+                  key: const ValueKey('note_recycle'),
+                  semanticLabel: '最近删除',
+                  icon: CupertinoIcons.delete,
+                  onPressed: () => _push(context, const NoteRecyclePage()),
+                ),
+                _NavBarIcon(
+                  key: const ValueKey('note_new'),
+                  semanticLabel: '新建备忘录',
+                  icon: CupertinoIcons.add_circled,
+                  onPressed: () => _openEditor(context, ref, null, folders),
+                ),
+              ],
+            ),
           ),
-          drawer: wide ? null : const Drawer(child: SafeArea(child: NoteSidebar())),
-          floatingActionButton: FloatingActionButton(
-            key: const ValueKey('note_new'),
-            tooltip: '新建备忘录',
-            onPressed: () => _openEditor(context, ref, null, folders),
-            child: const Icon(Icons.add),
-          ),
-          body: wide
-              ? SafeArea(
-                  child: Row(
+          child: SafeArea(
+            child: wide
+                ? Row(
                     children: [
-                      const SizedBox(
-                        width: sidebarWidth,
-                        child: NoteSidebar(),
-                      ),
-                      const VerticalDivider(width: 1),
+                      const SizedBox(width: sidebarWidth, child: NoteSidebar()),
+                      const _Separator(),
                       Expanded(
                         child: _NoteList(
                           gallery: gallery,
@@ -112,32 +116,59 @@ class NoteScaffold extends ConsumerWidget {
                           onTap: (note) =>
                               _openEditor(context, ref, note, folders),
                           onPin: (note) => _togglePin(ref, note),
-                          onDelete: (note) =>
-                              ref.read(noteRepositoryProvider).softDelete(note.id),
+                          onDelete: (note) => ref
+                              .read(noteRepositoryProvider)
+                              .softDelete(note.id),
                         ),
                       ),
                     ],
+                  )
+                : _NoteList(
+                    gallery: gallery,
+                    emptyLabel: searching ? '无匹配结果' : '没有备忘录',
+                    onSearch: (value) => ref
+                        .read(noteSearchQueryProvider.notifier)
+                        .setQuery(value),
+                    notes: sortedNotes,
+                    onTap: (note) => _openEditor(context, ref, note, folders),
+                    onPin: (note) => _togglePin(ref, note),
+                    onDelete: (note) =>
+                        ref.read(noteRepositoryProvider).softDelete(note.id),
                   ),
-                )
-              : _NoteList(
-                  gallery: gallery,
-                  emptyLabel: searching ? '无匹配结果' : '没有备忘录',
-                  onSearch: (value) => ref
-                      .read(noteSearchQueryProvider.notifier)
-                      .setQuery(value),
-                  notes: sortedNotes,
-                  onTap: (note) => _openEditor(context, ref, note, folders),
-                  onPin: (note) => _togglePin(ref, note),
-                  onDelete: (note) =>
-                      ref.read(noteRepositoryProvider).softDelete(note.id),
-                ),
+          ),
         );
       },
     );
   }
 
+  void _push(BuildContext context, Widget page) {
+    Navigator.of(context).push(CupertinoPageRoute<void>(builder: (_) => page));
+  }
+
+  void _showSidebarSheet(BuildContext context) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (_) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        child: ColoredBox(
+          color: CupertinoDynamicColor.resolve(
+            CupertinoColors.systemBackground,
+            context,
+          ),
+          child: const SizedBox(
+            height: 420,
+            child: SafeArea(top: false, child: NoteSidebar()),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _quickCapture(
-      BuildContext context, WidgetRef ref, List<NoteFolder> folders) async {
+    BuildContext context,
+    WidgetRef ref,
+    List<NoteFolder> folders,
+  ) async {
     NoteFolder? target;
     final settings = ref.read(noteSettingsProvider);
     final selectedId = ref.read(selectedNoteFolderIdProvider);
@@ -159,54 +190,57 @@ class NoteScaffold extends ConsumerWidget {
       }
     }
     if (target == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('先新建一个文件夹')),
-      );
+      await _infoDialog(context, '先新建一个文件夹');
       return;
     }
     final titleController = TextEditingController();
     final bodyController = TextEditingController();
-    await showDialog<void>(
+    await showCupertinoDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('快速记录'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            CupertinoTextField(
               key: const ValueKey('note_quick_title'),
               controller: titleController,
-              decoration: const InputDecoration(hintText: '标题'),
+              placeholder: '标题',
             ),
-            TextField(
+            const SizedBox(height: 8),
+            CupertinoTextField(
               key: const ValueKey('note_quick_body'),
               controller: bodyController,
               maxLines: 4,
-              decoration: const InputDecoration(hintText: '正文'),
+              placeholder: '正文',
             ),
           ],
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('取消'),
           ),
-          TextButton(
+          CupertinoDialogAction(
             key: const ValueKey('note_quick_save'),
             onPressed: () async {
               final title = titleController.text.trim();
               final body = bodyController.text;
-              await ref.read(noteRepositoryProvider).upsertNote(Note(
-                    id: 'note-${DateTime.now().millisecondsSinceEpoch}',
-                    folderId: target!.id,
-                    title: title.isEmpty ? '快速记录' : title,
-                    bodyDelta: jsonEncode({
-                      'ops': [
-                        {'insert': '$body\n'},
-                      ],
-                    }),
-                    clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-                  ));
+              await ref
+                  .read(noteRepositoryProvider)
+                  .upsertNote(
+                    Note(
+                      id: 'note-${DateTime.now().millisecondsSinceEpoch}',
+                      folderId: target!.id,
+                      title: title.isEmpty ? '快速记录' : title,
+                      bodyDelta: jsonEncode({
+                        'ops': [
+                          {'insert': '$body\n'},
+                        ],
+                      }),
+                      clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+                    ),
+                  );
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
               }
@@ -219,27 +253,31 @@ class NoteScaffold extends ConsumerWidget {
   }
 
   Future<void> _promptUnlock(
-      BuildContext context, WidgetRef ref, Note note) async {
+    BuildContext context,
+    WidgetRef ref,
+    Note note,
+  ) async {
     final passwordController = TextEditingController();
-    final unlocked = await showDialog<bool>(
+    final unlocked = await showCupertinoDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('解锁备忘录'),
-        content: TextField(
+        content: CupertinoTextField(
           key: const ValueKey('note_unlock_password'),
           controller: passwordController,
           obscureText: true,
-          decoration: const InputDecoration(hintText: '输入密码'),
+          placeholder: '输入密码',
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('取消'),
           ),
-          TextButton(
+          CupertinoDialogAction(
             key: const ValueKey('note_unlock_confirm'),
-            onPressed: () => Navigator.of(dialogContext)
-                .pop(passwordController.text.trim().isNotEmpty),
+            onPressed: () => Navigator.of(
+              dialogContext,
+            ).pop(passwordController.text.trim().isNotEmpty),
             child: const Text('解锁'),
           ),
         ],
@@ -249,7 +287,7 @@ class NoteScaffold extends ConsumerWidget {
       return;
     }
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      CupertinoPageRoute<void>(
         builder: (_) => NoteEditorPage(
           note: note,
           folderId: note.folderId,
@@ -260,26 +298,34 @@ class NoteScaffold extends ConsumerWidget {
   }
 
   void _togglePin(WidgetRef ref, Note note) {
-    ref.read(noteRepositoryProvider).upsertNote(Note(
-          id: note.id,
-          folderId: note.folderId,
-          title: note.title,
-          bodyDelta: note.bodyDelta,
-          bodyText: note.bodyText,
-          pinned: !note.pinned,
-          locked: note.locked,
-          checklistTotal: note.checklistTotal,
-          checklistDone: note.checklistDone,
-          tagNames: note.tagNames,
-          sortOrder: note.sortOrder,
-          deletedAt: note.deletedAt,
-          revision: note.revision + 1,
-          clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
+    ref
+        .read(noteRepositoryProvider)
+        .upsertNote(
+          Note(
+            id: note.id,
+            folderId: note.folderId,
+            title: note.title,
+            bodyDelta: note.bodyDelta,
+            bodyText: note.bodyText,
+            pinned: !note.pinned,
+            locked: note.locked,
+            checklistTotal: note.checklistTotal,
+            checklistDone: note.checklistDone,
+            tagNames: note.tagNames,
+            sortOrder: note.sortOrder,
+            deletedAt: note.deletedAt,
+            revision: note.revision + 1,
+            clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
   }
 
-  void _openEditor(BuildContext context, WidgetRef ref, Note? note,
-      List<NoteFolder> folders) {
+  void _openEditor(
+    BuildContext context,
+    WidgetRef ref,
+    Note? note,
+    List<NoteFolder> folders,
+  ) {
     if (note != null && note.locked) {
       _promptUnlock(context, ref, note);
       return;
@@ -308,20 +354,71 @@ class NoteScaffold extends ConsumerWidget {
         break;
       }
     }
-    final folderId = note?.folderId ??
+    final folderId =
+        note?.folderId ??
         defaultFolderId ??
         (selected != null && !selected.smart ? selected.id : firstReal?.id);
     if (folderId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('先新建一个文件夹')),
-      );
+      _infoDialog(context, '先新建一个文件夹');
       return;
     }
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      CupertinoPageRoute<void>(
         builder: (_) => NoteEditorPage(note: note, folderId: folderId),
       ),
     );
+  }
+
+  Future<void> _infoDialog(BuildContext context, String message) {
+    return showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NavBarIcon extends StatelessWidget {
+  const _NavBarIcon({
+    required Key key,
+    required this.semanticLabel,
+    required this.icon,
+    required this.onPressed,
+  }) : super(key: key);
+
+  final String semanticLabel;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      child: CupertinoButton(
+        minimumSize: Size.zero,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        onPressed: onPressed,
+        child: Icon(icon, size: 22),
+      ),
+    );
+  }
+}
+
+class _Separator extends StatelessWidget {
+  const _Separator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 0.5, color: CupertinoColors.separator);
   }
 }
 
@@ -350,14 +447,21 @@ class _NoteList extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          child: TextField(
+          child: CupertinoTextField(
             key: const ValueKey('note_search_field'),
             onChanged: onSearch,
-            decoration: const InputDecoration(
-              isDense: true,
-              prefixIcon: Icon(Icons.search),
-              hintText: '搜索',
-              border: OutlineInputBorder(),
+            prefix: const Padding(
+              padding: EdgeInsets.only(left: 6),
+              child: Icon(
+                CupertinoIcons.search,
+                size: 18,
+                color: CupertinoColors.secondaryLabel,
+              ),
+            ),
+            placeholder: '搜索',
+            decoration: BoxDecoration(
+              color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
         ),
@@ -383,9 +487,13 @@ class _NoteList extends StatelessWidget {
         itemCount: notes.length,
         itemBuilder: (_, i) {
           final note = notes[i];
-          return Card(
-            child: InkWell(
-              onTap: () => onTap(note),
+          return GestureDetector(
+            onTap: () => onTap(note),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -395,7 +503,10 @@ class _NoteList extends StatelessWidget {
                       note.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleSmall,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Expanded(
@@ -403,7 +514,10 @@ class _NoteList extends StatelessWidget {
                         note.locked ? '已锁定' : note.bodyText,
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodySmall,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: CupertinoColors.secondaryLabel,
+                        ),
                       ),
                     ),
                   ],
@@ -418,38 +532,72 @@ class _NoteList extends StatelessWidget {
       itemCount: notes.length,
       itemBuilder: (_, i) {
         final note = notes[i];
-        return ListTile(
+        return GestureDetector(
           onTap: () => onTap(note),
-          title: Text(
-            note.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: note.locked
-              ? const Text('已锁定', maxLines: 1)
-              : Text(
-                  note.bodyText,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                key: ValueKey('note_pin_${note.id}'),
-                tooltip: note.pinned ? '取消置顶' : '置顶',
-                icon: Icon(
-                  note.pinned ? Icons.push_pin : Icons.push_pin_outlined,
-                ),
-                onPressed: () => onPin(note),
+          child: ColoredBox(
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.systemBackground,
+              context,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          note.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          note.locked ? '已锁定' : note.bodyText,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: CupertinoColors.secondaryLabel,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CupertinoButton(
+                    key: ValueKey('note_pin_${note.id}'),
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    onPressed: () => onPin(note),
+                    child: Icon(
+                      note.pinned
+                          ? CupertinoIcons.pin_fill
+                          : CupertinoIcons.pin,
+                      size: 20,
+                      color: note.pinned
+                          ? CupertinoColors.systemBlue
+                          : CupertinoColors.secondaryLabel,
+                    ),
+                  ),
+                  CupertinoButton(
+                    key: ValueKey('note_delete_${note.id}'),
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    onPressed: () => onDelete(note),
+                    child: const Icon(
+                      CupertinoIcons.delete,
+                      size: 20,
+                      color: CupertinoColors.secondaryLabel,
+                    ),
+                  ),
+                ],
               ),
-              IconButton(
-                key: ValueKey('note_delete_${note.id}'),
-                tooltip: '删除',
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => onDelete(note),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -468,9 +616,16 @@ class _EmptyHint extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.note_outlined, size: 48),
+          const Icon(
+            CupertinoIcons.doc_text,
+            size: 48,
+            color: CupertinoColors.tertiaryLabel,
+          ),
           const SizedBox(height: 8),
-          Text(label),
+          Text(
+            label,
+            style: const TextStyle(color: CupertinoColors.secondaryLabel),
+          ),
         ],
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,14 +17,10 @@ void main() {
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
         child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
           home: NoteEditorPage(
             folderId: 'f1',
-            note: Note(
-              id: 'n1',
-              folderId: 'f1',
-              title: '购物',
-              bodyDelta: delta,
-            ),
+            note: Note(id: 'n1', folderId: 'f1', title: '购物', bodyDelta: delta),
           ),
         ),
       ),
@@ -36,7 +33,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('note_export_markdown')));
     await tester.pumpAndSettle();
     final exported = tester
-        .widget<SelectableText>(find.byKey(const ValueKey('note_export_text')))
+        .widget<Text>(find.byKey(const ValueKey('note_export_text')))
         .data!;
     expect(exported, contains('# 购物'));
     expect(exported, contains('- [ ] 鸡蛋'));

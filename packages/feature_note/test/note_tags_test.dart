@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,25 +16,31 @@ void main() {
   Future<InMemoryNoteRepository> seeded() async {
     final repo = InMemoryNoteRepository();
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '工作'));
-    await repo.upsertFolder(const NoteFolder(
-      id: 's1',
-      name: '工作标签',
-      smart: true,
-      filterJson: '{"tagNames":["工作"]}',
-    ));
-    await repo.upsertNote(const Note(
-      id: 'n1',
-      folderId: 'f1',
-      title: '带标签',
-      bodyDelta: '{"ops":[{"insert":"a\\n"}]}',
-      tagNames: ['工作'],
-    ));
-    await repo.upsertNote(const Note(
-      id: 'n2',
-      folderId: 'f1',
-      title: '无标签',
-      bodyDelta: '{"ops":[{"insert":"b\\n"}]}',
-    ));
+    await repo.upsertFolder(
+      const NoteFolder(
+        id: 's1',
+        name: '工作标签',
+        smart: true,
+        filterJson: '{"tagNames":["工作"]}',
+      ),
+    );
+    await repo.upsertNote(
+      const Note(
+        id: 'n1',
+        folderId: 'f1',
+        title: '带标签',
+        bodyDelta: '{"ops":[{"insert":"a\\n"}]}',
+        tagNames: ['工作'],
+      ),
+    );
+    await repo.upsertNote(
+      const Note(
+        id: 'n2',
+        folderId: 'f1',
+        title: '无标签',
+        bodyDelta: '{"ops":[{"insert":"b\\n"}]}',
+      ),
+    );
     return repo;
   }
 
@@ -46,7 +53,10 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -59,10 +69,12 @@ void main() {
     await tester.tap(find.text('无标签'));
     await tester.pumpAndSettle();
     await tester.enterText(
-        find.byKey(const ValueKey('note_editor_tag_input')), '私人');
+      find.byKey(const ValueKey('note_editor_tag_input')),
+      '私人',
+    );
     await tester.tap(find.byKey(const ValueKey('note_editor_tag_add')));
     await tester.pumpAndSettle();
-    expect(find.widgetWithText(InputChip, '私人'), findsOneWidget);
+    expect(find.byKey(const ValueKey('note_editor_tag_私人')), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('note_editor_save')));
     await tester.pumpAndSettle();

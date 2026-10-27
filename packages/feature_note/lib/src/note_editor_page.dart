@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:app_core/app_core.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,6 +14,7 @@ import 'providers.dart';
 ///
 /// 新建/编辑标题与富文本正文；保存写回 [NoteRepository]，正文序列化为
 /// Quill Delta JSON（bodyDelta），纯文本与清单计数由仓库归一。
+/// quill 为 Material 内核，整块进 [LifeMaterialIsland]。
 class NoteEditorPage extends ConsumerStatefulWidget {
   const NoteEditorPage({
     super.key,
@@ -55,7 +57,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     try {
       final decoded = jsonDecode(deltaJson);
       if (decoded is Map && decoded['ops'] is List) {
-        return quill.Document.fromJson(List<dynamic>.from(decoded['ops'] as List));
+        return quill.Document.fromJson(
+          List<dynamic>.from(decoded['ops'] as List),
+        );
       }
     } catch (_) {
       // 锁定密文或损坏内容：不解析，按空文档打开由上层锁定页拦截
@@ -63,30 +67,57 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     return quill.Document();
   }
 
+  Future<void> _showMoreMenu() async {
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        key: const Key('note_editor_more_sheet'),
+        actions: [
+          CupertinoActionSheetAction(
+            key: const ValueKey('note_export_markdown'),
+            onPressed: () => Navigator.of(sheetContext).pop('export'),
+            child: const Text('导出 Markdown'),
+          ),
+          CupertinoActionSheetAction(
+            key: const ValueKey('note_import_markdown'),
+            onPressed: () => Navigator.of(sheetContext).pop('import'),
+            child: const Text('导入 Markdown'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (action == 'export') {
+      await _exportMarkdown();
+    } else if (action == 'import') {
+      await _importMarkdown();
+    }
+  }
+
   Future<void> _exportMarkdown() async {
     final existing = widget.note;
     if (existing == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('先保存备忘录再导出')),
-      );
+      await _infoDialog('先保存备忘录再导出');
       return;
     }
     final markdown = NoteMarkdownCodec.toMarkdown(
       _title.text,
       jsonEncode({'ops': _body.document.toDelta().toJson()}),
     );
-    await showDialog<void>(
+    await showCupertinoDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('导出 Markdown'),
         content: SingleChildScrollView(
-          child: SelectableText(
-            markdown,
-            key: const ValueKey('note_export_text'),
-          ),
+          child: Text(markdown, key: const ValueKey('note_export_text')),
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
+            isDefaultAction: true,
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('关闭'),
           ),
@@ -97,23 +128,24 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
 
   Future<void> _importMarkdown() async {
     final controller = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('导入 Markdown'),
-        content: TextField(
+        content: CupertinoTextField(
           key: const ValueKey('note_import_text'),
           controller: controller,
           maxLines: 6,
-          decoration: const InputDecoration(hintText: '# 标题\n正文'),
+          placeholder: '# 标题\n正文',
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('取消'),
           ),
-          TextButton(
+          CupertinoDialogAction(
             key: const ValueKey('note_import_submit'),
+            isDefaultAction: true,
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('导入'),
           ),
@@ -124,71 +156,71 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       return;
     }
     final parsed = NoteMarkdownCodec.fromMarkdown(controller.text);
-    await ref.read(noteRepositoryProvider).upsertNote(Note(
-          id: 'note-${DateTime.now().millisecondsSinceEpoch}',
-          folderId: widget.note?.folderId ?? widget.folderId,
-          title: parsed.title,
-          bodyDelta: parsed.deltaJson,
-          clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
+    await ref
+        .read(noteRepositoryProvider)
+        .upsertNote(
+          Note(
+            id: 'note-${DateTime.now().millisecondsSinceEpoch}',
+            folderId: widget.note?.folderId ?? widget.folderId,
+            title: parsed.title,
+            bodyDelta: parsed.deltaJson,
+            clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已导入为新备忘录')),
-      );
+      await _infoDialog('已导入为新备忘录');
     }
   }
 
   Future<void> _share() async {
     final existing = widget.note;
     if (existing == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('先保存备忘录再共享')),
-      );
+      await _infoDialog('先保存备忘录再共享');
       return;
     }
     final userIdController = TextEditingController();
     var writable = false;
-    final submitted = await showDialog<bool>(
+    final submitted = await showCupertinoDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setLocalState) => AlertDialog(
+        builder: (context, setLocalState) => CupertinoAlertDialog(
           title: const Text('共享备忘录'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              CupertinoTextField(
                 key: const ValueKey('note_share_user_id'),
                 controller: userIdController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(hintText: '对方用户编号'),
+                placeholder: '对方用户编号',
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  ChoiceChip(
-                    key: const ValueKey('note_share_read'),
-                    label: const Text('只读'),
-                    selected: !writable,
-                    onSelected: (_) => setLocalState(() => writable = false),
+              CupertinoSlidingSegmentedControl<int>(
+                key: const Key('note_share_permission'),
+                groupValue: writable ? 1 : 0,
+                onValueChanged: (value) =>
+                    setLocalState(() => writable = value == 1),
+                children: const <int, Widget>{
+                  0: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('只读', key: ValueKey('note_share_read')),
                   ),
-                  const SizedBox(width: 8),
-                  ChoiceChip(
-                    key: const ValueKey('note_share_write'),
-                    label: const Text('可写'),
-                    selected: writable,
-                    onSelected: (_) => setLocalState(() => writable = true),
+                  1: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('可写', key: ValueKey('note_share_write')),
                   ),
-                ],
+                },
               ),
             ],
           ),
           actions: [
-            TextButton(
+            CupertinoDialogAction(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('取消'),
             ),
-            TextButton(
+            CupertinoDialogAction(
               key: const ValueKey('note_share_submit'),
+              isDefaultAction: true,
               onPressed: () => Navigator.of(dialogContext).pop(true),
               child: const Text('共享'),
             ),
@@ -203,15 +235,15 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     if (targetUserId.isEmpty) {
       return;
     }
-    await ref.read(noteSharePortProvider).share(
+    await ref
+        .read(noteSharePortProvider)
+        .share(
           noteId: existing.id,
           targetUserId: targetUserId,
           writable: writable,
         );
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已共享')),
-      );
+      await _infoDialog('已共享');
     }
   }
 
@@ -221,25 +253,27 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       return;
     }
     final passwordController = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
+      builder: (dialogContext) => CupertinoAlertDialog(
         title: const Text('锁定备忘录'),
-        content: TextField(
+        content: CupertinoTextField(
           key: const ValueKey('note_lock_password'),
           controller: passwordController,
           obscureText: true,
-          decoration: const InputDecoration(hintText: '设置密码'),
+          placeholder: '设置密码',
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('取消'),
           ),
-          TextButton(
+          CupertinoDialogAction(
             key: const ValueKey('note_lock_confirm'),
-            onPressed: () => Navigator.of(dialogContext)
-                .pop(passwordController.text.trim().isNotEmpty),
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(
+              dialogContext,
+            ).pop(passwordController.text.trim().isNotEmpty),
             child: const Text('锁定'),
           ),
         ],
@@ -249,18 +283,24 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       return;
     }
     final delta = jsonEncode({'ops': _body.document.toDelta().toJson()});
-    await ref.read(noteRepositoryProvider).upsertNote(Note(
-          id: existing.id,
-          folderId: existing.folderId,
-          title: _title.text.trim().isEmpty ? existing.title : _title.text.trim(),
-          bodyDelta: delta,
-          pinned: existing.pinned,
-          locked: true,
-          tagNames: List<String>.unmodifiable(_tags),
-          sortOrder: existing.sortOrder,
-          revision: existing.revision + 1,
-          clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-        ));
+    await ref
+        .read(noteRepositoryProvider)
+        .upsertNote(
+          Note(
+            id: existing.id,
+            folderId: existing.folderId,
+            title: _title.text.trim().isEmpty
+                ? existing.title
+                : _title.text.trim(),
+            bodyDelta: delta,
+            pinned: existing.pinned,
+            locked: true,
+            tagNames: List<String>.unmodifiable(_tags),
+            sortOrder: existing.sortOrder,
+            revision: existing.revision + 1,
+            clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        );
     if (mounted) {
       Navigator.of(context).pop();
     }
@@ -288,8 +328,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     }
     final delta = jsonEncode({'ops': _body.document.toDelta().toJson()});
     final note = Note(
-      id: existing?.id ??
-          'note-${DateTime.now().millisecondsSinceEpoch}',
+      id: existing?.id ?? 'note-${DateTime.now().millisecondsSinceEpoch}',
       folderId: existing?.folderId ?? widget.folderId,
       title: _title.text.trim().isEmpty ? '新建备忘录' : _title.text.trim(),
       bodyDelta: delta,
@@ -319,6 +358,22 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     });
   }
 
+  Future<void> _infoDialog(String message) {
+    return showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _title.dispose();
@@ -329,96 +384,93 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.note == null ? '新建备忘录' : '编辑备忘录'),
-        actions: [
-          PopupMenuButton<String>(
-            key: const ValueKey('note_editor_more'),
-            tooltip: '更多',
-            onSelected: (value) {
-              if (value == 'export') {
-                _exportMarkdown();
-              } else if (value == 'import') {
-                _importMarkdown();
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                key: ValueKey('note_export_markdown'),
-                value: 'export',
-                child: Text('导出 Markdown'),
-              ),
-              PopupMenuItem(
-                key: ValueKey('note_import_markdown'),
-                value: 'import',
-                child: Text('导入 Markdown'),
-              ),
-            ],
-          ),
-          IconButton(
-            key: const ValueKey('note_editor_share'),
-            tooltip: '共享',
-            icon: const Icon(Icons.people_outline),
-            onPressed: _share,
-          ),
-          IconButton(
-            key: const ValueKey('note_editor_lock'),
-            tooltip: '锁定',
-            icon: const Icon(Icons.lock_outline),
-            onPressed: _lock,
-          ),
-          IconButton(
-            key: const ValueKey('note_editor_image'),
-            tooltip: '插入图片',
-            icon: const Icon(Icons.image_outlined),
-            onPressed: _insertImage,
-          ),
-          IconButton(
-            key: const ValueKey('note_editor_bold'),
-            tooltip: '加粗',
-            icon: const Icon(Icons.format_bold),
-            onPressed: () => _body.formatSelection(quill.Attribute.bold),
-          ),
-          TextButton(
-            key: const ValueKey('note_editor_save'),
-            onPressed: _save,
-            child: const Text('保存'),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
+    return CupertinoPageScaffold(
+      key: const Key('note_editor_page'),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(widget.note == null ? '新建备忘录' : '编辑备忘录'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              key: const ValueKey('note_editor_title'),
-              controller: _title,
-              decoration: const InputDecoration(
-                hintText: '标题',
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16),
+            _EditorAction(
+              key: const ValueKey('note_editor_more'),
+              semanticLabel: '更多',
+              icon: CupertinoIcons.ellipsis,
+              onPressed: _showMoreMenu,
+            ),
+            _EditorAction(
+              key: const ValueKey('note_editor_share'),
+              semanticLabel: '共享',
+              icon: CupertinoIcons.person_2,
+              onPressed: _share,
+            ),
+            _EditorAction(
+              key: const ValueKey('note_editor_lock'),
+              semanticLabel: '锁定',
+              icon: CupertinoIcons.lock,
+              onPressed: _lock,
+            ),
+            _EditorAction(
+              key: const ValueKey('note_editor_image'),
+              semanticLabel: '插入图片',
+              icon: CupertinoIcons.photo,
+              onPressed: _insertImage,
+            ),
+            _EditorAction(
+              key: const ValueKey('note_editor_bold'),
+              semanticLabel: '加粗',
+              icon: CupertinoIcons.bold,
+              onPressed: () => _body.formatSelection(quill.Attribute.bold),
+            ),
+            CupertinoButton(
+              key: const ValueKey('note_editor_save'),
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              onPressed: _save,
+              child: const Text(
+                '保存',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: CupertinoColors.systemBlue,
+                ),
               ),
             ),
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            CupertinoTextField(
+              key: const ValueKey('note_editor_title'),
+              controller: _title,
+              placeholder: '标题',
+              decoration: null,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: CupertinoTextField(
                       key: const ValueKey('note_editor_tag_input'),
                       controller: _tagInput,
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        hintText: '添加标签',
-                        border: InputBorder.none,
-                      ),
+                      placeholder: '添加标签',
+                      decoration: null,
+                      style: const TextStyle(fontSize: 14),
                     ),
                   ),
-                  IconButton(
+                  CupertinoButton(
                     key: const ValueKey('note_editor_tag_add'),
-                    tooltip: '添加标签',
-                    icon: const Icon(Icons.add),
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     onPressed: _addTag,
+                    child: const Icon(
+                      CupertinoIcons.add_circled,
+                      size: 20,
+                      color: CupertinoColors.systemBlue,
+                    ),
                   ),
                 ],
               ),
@@ -428,25 +480,52 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
                     for (final tag in _tags)
-                      InputChip(
+                      DecoratedBox(
                         key: ValueKey('note_editor_tag_$tag'),
-                        label: Text(tag),
-                        onDeleted: () => setState(() => _tags.remove(tag)),
+                        decoration: BoxDecoration(
+                          color: CupertinoColors.tertiarySystemFill.resolveFrom(
+                            context,
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 3, 4, 3),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(tag, style: const TextStyle(fontSize: 13)),
+                              GestureDetector(
+                                onTap: () => setState(() => _tags.remove(tag)),
+                                child: const Padding(
+                                  padding: EdgeInsets.only(left: 2),
+                                  child: Icon(
+                                    CupertinoIcons.xmark_circle_fill,
+                                    size: 14,
+                                    color: CupertinoColors.secondaryLabel,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                   ],
                 ),
               ),
-            const Divider(height: 1),
+            const _Separator(),
             _ChecklistPanel(controller: _body),
             Expanded(
-              child: quill.QuillEditor.basic(
-                controller: _body,
-                config: const quill.QuillEditorConfig(
-                  placeholder: '开始记录…',
-                  padding: EdgeInsets.all(16),
-                  embedBuilders: [NoteImageEmbedBuilder()],
+              child: LifeMaterialIsland(
+                child: quill.QuillEditor.basic(
+                  controller: _body,
+                  config: const quill.QuillEditorConfig(
+                    placeholder: '开始记录…',
+                    padding: EdgeInsets.all(16),
+                    embedBuilders: [NoteImageEmbedBuilder()],
+                  ),
                 ),
               ),
             ),
@@ -457,6 +536,41 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   }
 }
 
+class _EditorAction extends StatelessWidget {
+  const _EditorAction({
+    required Key key,
+    required this.semanticLabel,
+    required this.icon,
+    required this.onPressed,
+  }) : super(key: key);
+
+  final String semanticLabel;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: semanticLabel,
+      button: true,
+      child: CupertinoButton(
+        minimumSize: Size.zero,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        onPressed: onPressed,
+        child: Icon(icon, size: 22),
+      ),
+    );
+  }
+}
+
+class _Separator extends StatelessWidget {
+  const _Separator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(height: 0.5, color: CupertinoColors.separator);
+  }
+}
 
 class _ChecklistItem {
   const _ChecklistItem({
@@ -491,24 +605,28 @@ class _ChecklistPanel extends StatelessWidget {
         return Column(
           children: [
             for (final item in items)
-              CheckboxListTile(
+              Row(
                 key: ValueKey('note_checklist_${item.start}'),
-                dense: true,
-                controlAffinity: ListTileControlAffinity.leading,
-                value: item.done,
-                title: Text(
-                  item.text,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                onChanged: (checked) => controller.formatText(
-                  item.start,
-                  item.length,
-                  quill.Attribute.clone(
-                    quill.Attribute.list,
-                    checked == true ? 'checked' : 'unchecked',
+                children: [
+                  CupertinoCheckbox(
+                    value: item.done,
+                    onChanged: (checked) => controller.formatText(
+                      item.start,
+                      item.length,
+                      quill.Attribute.clone(
+                        quill.Attribute.list,
+                        checked == true ? 'checked' : 'unchecked',
+                      ),
+                    ),
                   ),
-                ),
+                  Expanded(
+                    child: Text(
+                      item.text,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
           ],
         );
@@ -528,19 +646,20 @@ class _ChecklistPanel extends StatelessWidget {
       final attrs = op['attributes'];
       final list = attrs is Map ? attrs['list'] : null;
       if (list is String && list.isNotEmpty) {
-        items.add(_ChecklistItem(
-          start: offset,
-          length: insert.length,
-          text: insert.trim(),
-          done: list == 'checked',
-        ));
+        items.add(
+          _ChecklistItem(
+            start: offset,
+            length: insert.length,
+            text: insert.trim(),
+            done: list == 'checked',
+          ),
+        );
       }
       offset += insert.length;
     }
     return items;
   }
 }
-
 
 /// 图片 embed（F-09）：Delta 里存 {noteImage: {path}}，开源包只渲染占位与文件名；
 /// 上传 infra 换 fileId 在 cloud 包（F-16）。
@@ -561,9 +680,19 @@ class NoteImageEmbedBuilder extends quill.EmbedBuilder {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.image_outlined, size: 16),
+        const Icon(
+          CupertinoIcons.photo,
+          size: 16,
+          color: CupertinoColors.secondaryLabel,
+        ),
         const SizedBox(width: 4),
-        Text(name, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          name,
+          style: const TextStyle(
+            fontSize: 12,
+            color: CupertinoColors.secondaryLabel,
+          ),
+        ),
       ],
     );
   }

@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,6 +20,7 @@ void main() {
           ),
         ],
         child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
           home: NoteEditorPage(folderId: 'f1'),
         ),
       ),

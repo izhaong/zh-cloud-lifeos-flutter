@@ -29,12 +29,9 @@ List<String> _discoverScanRoots(String root) {
   return found;
 }
 
-/// 迁移中的包：feature_task 已收口（#129），日历/记录/日历云在各自 PR 内逐步从 pending 移除。
+/// 迁移中的包：#129/#130/#131 已全部收口，pending 清空。
 /// 记名豁免不等于收口：`--strict` 仍会全量列出，台账要引 `scanned/pending/violations` 三元组。
-const _pendingPackages = <String>{
-  // feature_calendar 已随 #130 Cupertino 化收口，移出 pending。
-  'packages/feature_note',
-};
+const _pendingPackages = <String>{};
 
 /// 允许出现 Material API 的文件（仅这些文件）。
 const _materialAllowed = <String>{
@@ -42,10 +39,6 @@ const _materialAllowed = <String>{
   'packages/app_core/lib/src/theme/life_tokens.dart',
   // Material 岛宿主。
   'packages/app_core/lib/src/theme/life_material_island.dart',
-  // 根 ScaffoldMessenger（过渡期，feature_note 迁移完成后移除）。
-  'apps/life_launcher/lib/main.dart',
-  // 未迁移 feature 的过渡岛 + 云登录页岛（#130/#131 完成后收窄）。
-  'apps/life_launcher/lib/router/life_router.dart',
 };
 
 const _materialMarkers = <String>[

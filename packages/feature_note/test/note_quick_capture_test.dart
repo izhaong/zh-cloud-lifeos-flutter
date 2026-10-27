@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,7 +19,10 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -26,9 +30,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('note_quick_capture')));
     await tester.pumpAndSettle();
     await tester.enterText(
-        find.byKey(const ValueKey('note_quick_title')), '闪现想法');
+      find.byKey(const ValueKey('note_quick_title')),
+      '闪现想法',
+    );
     await tester.enterText(
-        find.byKey(const ValueKey('note_quick_body')), '记一笔');
+      find.byKey(const ValueKey('note_quick_body')),
+      '记一笔',
+    );
     await tester.tap(find.byKey(const ValueKey('note_quick_save')));
     await tester.pumpAndSettle();
 

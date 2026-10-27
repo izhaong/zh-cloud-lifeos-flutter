@@ -1,3 +1,4 @@
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
@@ -27,7 +28,10 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -38,19 +42,33 @@ void main() {
     expect(find.text('新建备忘录'), findsOneWidget);
 
     await tester.enterText(
-        find.byKey(const ValueKey('note_editor_title')), '买菜清单');
+      find.byKey(const ValueKey('note_editor_title')),
+      '买菜清单',
+    );
 
     // 正文写入「买菜」并加粗（编辑器控制器 = flutter_quill）
-    final editor = tester.widget<quill.QuillEditor>(find.byType(quill.QuillEditor));
+    final editor = tester.widget<quill.QuillEditor>(
+      find.byType(quill.QuillEditor),
+    );
     final controller = editor.controller;
-    controller.replaceText(0, 0, '买菜',
-        const TextSelection.collapsed(offset: 2));
+    controller.replaceText(
+      0,
+      0,
+      '买菜',
+      const TextSelection.collapsed(offset: 2),
+    );
     controller.formatText(0, 2, quill.Attribute.bold);
     await tester.pumpAndSettle();
-    expect(controller.document.toPlainText(), contains('买菜'),
-        reason: '编辑器控制器里已有正文');
-    expect(controller.document.toDelta().toJson().toString(), contains('bold'),
-        reason: '编辑器控制器里已有加粗属性');
+    expect(
+      controller.document.toPlainText(),
+      contains('买菜'),
+      reason: '编辑器控制器里已有正文',
+    );
+    expect(
+      controller.document.toDelta().toJson().toString(),
+      contains('bold'),
+      reason: '编辑器控制器里已有加粗属性',
+    );
 
     await tester.tap(find.byKey(const ValueKey('note_editor_save')));
     await tester.pumpAndSettle();
@@ -76,17 +94,22 @@ void main() {
 
     final repo = InMemoryNoteRepository();
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '工作'));
-    await repo.upsertNote(const Note(
-      id: 'n1',
-      folderId: 'f1',
-      title: '旧标题',
-      bodyDelta: '{"ops":[{"insert":"正文\\n"}]}',
-    ));
+    await repo.upsertNote(
+      const Note(
+        id: 'n1',
+        folderId: 'f1',
+        title: '旧标题',
+        bodyDelta: '{"ops":[{"insert":"正文\\n"}]}',
+      ),
+    );
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [noteRepositoryProvider.overrideWithValue(repo)],
-        child: const MaterialApp(home: NoteScaffold()),
+        child: const MaterialApp(
+          localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
+          home: NoteScaffold(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -96,7 +119,9 @@ void main() {
     expect(find.text('编辑备忘录'), findsOneWidget);
 
     await tester.enterText(
-        find.byKey(const ValueKey('note_editor_title')), '新标题');
+      find.byKey(const ValueKey('note_editor_title')),
+      '新标题',
+    );
     await tester.tap(find.byKey(const ValueKey('note_editor_save')));
     await tester.pumpAndSettle();
 
