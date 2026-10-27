@@ -111,6 +111,17 @@ class $ReminderListsTable extends ReminderLists
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _remoteIdMeta = const VerificationMeta(
+    'remoteId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteId = GeneratedColumn<String>(
+    'remote_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -122,6 +133,7 @@ class $ReminderListsTable extends ReminderLists
     groupName,
     listType,
     smartFilter,
+    remoteId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -196,6 +208,12 @@ class $ReminderListsTable extends ReminderLists
         ),
       );
     }
+    if (data.containsKey('remote_id')) {
+      context.handle(
+        _remoteIdMeta,
+        remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta),
+      );
+    }
     return context;
   }
 
@@ -241,6 +259,10 @@ class $ReminderListsTable extends ReminderLists
         DriftSqlType.string,
         data['${effectivePrefix}smart_filter'],
       ),
+      remoteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_id'],
+      ),
     );
   }
 
@@ -269,6 +291,9 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
 
   /// 自定义智能列表条件 JSON（TC-UI-116；NULL = 非自定义智能列表）。
   final String? smartFilter;
+
+  /// 服务端清单 ID（flutter#144 / TC-SYNC-106；NULL = 纯本地未同步）。V14。
+  final String? remoteId;
   const ReminderList({
     required this.id,
     required this.title,
@@ -279,6 +304,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     this.groupName,
     this.listType,
     this.smartFilter,
+    this.remoteId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -299,6 +325,9 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     }
     if (!nullToAbsent || smartFilter != null) {
       map['smart_filter'] = Variable<String>(smartFilter);
+    }
+    if (!nullToAbsent || remoteId != null) {
+      map['remote_id'] = Variable<String>(remoteId);
     }
     return map;
   }
@@ -322,6 +351,9 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       smartFilter: smartFilter == null && nullToAbsent
           ? const Value.absent()
           : Value(smartFilter),
+      remoteId: remoteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteId),
     );
   }
 
@@ -340,6 +372,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       groupName: serializer.fromJson<String?>(json['groupName']),
       listType: serializer.fromJson<String?>(json['listType']),
       smartFilter: serializer.fromJson<String?>(json['smartFilter']),
+      remoteId: serializer.fromJson<String?>(json['remoteId']),
     );
   }
   @override
@@ -355,6 +388,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       'groupName': serializer.toJson<String?>(groupName),
       'listType': serializer.toJson<String?>(listType),
       'smartFilter': serializer.toJson<String?>(smartFilter),
+      'remoteId': serializer.toJson<String?>(remoteId),
     };
   }
 
@@ -368,6 +402,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     Value<String?> groupName = const Value.absent(),
     Value<String?> listType = const Value.absent(),
     Value<String?> smartFilter = const Value.absent(),
+    Value<String?> remoteId = const Value.absent(),
   }) => ReminderList(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -378,6 +413,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     groupName: groupName.present ? groupName.value : this.groupName,
     listType: listType.present ? listType.value : this.listType,
     smartFilter: smartFilter.present ? smartFilter.value : this.smartFilter,
+    remoteId: remoteId.present ? remoteId.value : this.remoteId,
   );
   ReminderList copyWithCompanion(ReminderListsCompanion data) {
     return ReminderList(
@@ -394,6 +430,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       smartFilter: data.smartFilter.present
           ? data.smartFilter.value
           : this.smartFilter,
+      remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
     );
   }
 
@@ -408,7 +445,8 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
           ..write('sectionsJson: $sectionsJson, ')
           ..write('groupName: $groupName, ')
           ..write('listType: $listType, ')
-          ..write('smartFilter: $smartFilter')
+          ..write('smartFilter: $smartFilter, ')
+          ..write('remoteId: $remoteId')
           ..write(')'))
         .toString();
   }
@@ -424,6 +462,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     groupName,
     listType,
     smartFilter,
+    remoteId,
   );
   @override
   bool operator ==(Object other) =>
@@ -437,7 +476,8 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
           other.sectionsJson == this.sectionsJson &&
           other.groupName == this.groupName &&
           other.listType == this.listType &&
-          other.smartFilter == this.smartFilter);
+          other.smartFilter == this.smartFilter &&
+          other.remoteId == this.remoteId);
 }
 
 class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
@@ -450,6 +490,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
   final Value<String?> groupName;
   final Value<String?> listType;
   final Value<String?> smartFilter;
+  final Value<String?> remoteId;
   final Value<int> rowid;
   const ReminderListsCompanion({
     this.id = const Value.absent(),
@@ -461,6 +502,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     this.groupName = const Value.absent(),
     this.listType = const Value.absent(),
     this.smartFilter = const Value.absent(),
+    this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ReminderListsCompanion.insert({
@@ -473,6 +515,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     this.groupName = const Value.absent(),
     this.listType = const Value.absent(),
     this.smartFilter = const Value.absent(),
+    this.remoteId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title);
@@ -486,6 +529,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     Expression<String>? groupName,
     Expression<String>? listType,
     Expression<String>? smartFilter,
+    Expression<String>? remoteId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -498,6 +542,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
       if (groupName != null) 'group_name': groupName,
       if (listType != null) 'list_type': listType,
       if (smartFilter != null) 'smart_filter': smartFilter,
+      if (remoteId != null) 'remote_id': remoteId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -512,6 +557,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     Value<String?>? groupName,
     Value<String?>? listType,
     Value<String?>? smartFilter,
+    Value<String?>? remoteId,
     Value<int>? rowid,
   }) {
     return ReminderListsCompanion(
@@ -524,6 +570,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
       groupName: groupName ?? this.groupName,
       listType: listType ?? this.listType,
       smartFilter: smartFilter ?? this.smartFilter,
+      remoteId: remoteId ?? this.remoteId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -558,6 +605,9 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     if (smartFilter.present) {
       map['smart_filter'] = Variable<String>(smartFilter.value);
     }
+    if (remoteId.present) {
+      map['remote_id'] = Variable<String>(remoteId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -576,6 +626,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
           ..write('groupName: $groupName, ')
           ..write('listType: $listType, ')
           ..write('smartFilter: $smartFilter, ')
+          ..write('remoteId: $remoteId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8009,6 +8060,7 @@ typedef $$ReminderListsTableCreateCompanionBuilder =
       Value<String?> groupName,
       Value<String?> listType,
       Value<String?> smartFilter,
+      Value<String?> remoteId,
       Value<int> rowid,
     });
 typedef $$ReminderListsTableUpdateCompanionBuilder =
@@ -8022,6 +8074,7 @@ typedef $$ReminderListsTableUpdateCompanionBuilder =
       Value<String?> groupName,
       Value<String?> listType,
       Value<String?> smartFilter,
+      Value<String?> remoteId,
       Value<int> rowid,
     });
 
@@ -8076,6 +8129,11 @@ class $$ReminderListsTableFilterComposer
 
   ColumnFilters<String> get smartFilter => $composableBuilder(
     column: $table.smartFilter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -8133,6 +8191,11 @@ class $$ReminderListsTableOrderingComposer
     column: $table.smartFilter,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReminderListsTableAnnotationComposer
@@ -8174,6 +8237,9 @@ class $$ReminderListsTableAnnotationComposer
     column: $table.smartFilter,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get remoteId =>
+      $composableBuilder(column: $table.remoteId, builder: (column) => column);
 }
 
 class $$ReminderListsTableTableManager
@@ -8222,6 +8288,7 @@ class $$ReminderListsTableTableManager
                 Value<String?> groupName = const Value.absent(),
                 Value<String?> listType = const Value.absent(),
                 Value<String?> smartFilter = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderListsCompanion(
                 id: id,
@@ -8233,6 +8300,7 @@ class $$ReminderListsTableTableManager
                 groupName: groupName,
                 listType: listType,
                 smartFilter: smartFilter,
+                remoteId: remoteId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -8246,6 +8314,7 @@ class $$ReminderListsTableTableManager
                 Value<String?> groupName = const Value.absent(),
                 Value<String?> listType = const Value.absent(),
                 Value<String?> smartFilter = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderListsCompanion.insert(
                 id: id,
@@ -8257,6 +8326,7 @@ class $$ReminderListsTableTableManager
                 groupName: groupName,
                 listType: listType,
                 smartFilter: smartFilter,
+                remoteId: remoteId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -24,6 +24,9 @@ class ReminderLists extends Table {
   /// 自定义智能列表条件 JSON（TC-UI-116；NULL = 非自定义智能列表）。
   TextColumn get smartFilter => text().nullable()();
 
+  /// 服务端清单 ID（flutter#144 / TC-SYNC-106；NULL = 纯本地未同步）。V14。
+  TextColumn get remoteId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -320,7 +323,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -418,6 +421,16 @@ class LifeProductivityDb extends _$LifeProductivityDb {
           if (from < 13) {
             // V13（flutter#124 卡 4 / TC-UI-120）：任务侧本地偏好
             await m.createTable(taskPreferences);
+          }
+          if (from < 14 && to >= 14) {
+            // V14（flutter#144 / TC-SYNC-106）：清单入站落库要有服务端 ID 列。
+            // to 上界必须有：迁移测试会在「已按最新 schema 建好的库」上重放
+            // 历史 onUpgrade(from, to)，缺上界就对已有列重复 ADD COLUMN。
+            await m.addColumn(reminderLists, reminderLists.remoteId);
+            await m.createIndex(
+              Index('idx_lists_remote', 'CREATE INDEX idx_lists_remote '
+                  'ON reminder_lists (remote_id)'),
+            );
           }
         },
       );

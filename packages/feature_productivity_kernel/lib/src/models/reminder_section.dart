@@ -11,6 +11,7 @@ final class ReminderSection extends Equatable {
     required this.id,
     required this.title,
     this.sortOrder = 0,
+    this.remoteId,
   });
 
   final String id;
@@ -19,14 +20,22 @@ final class ReminderSection extends Equatable {
   /// 同列表内排序键（`sortOrder asc, id asc` 契约同条目）。
   final int sortOrder;
 
-  ReminderSection copyWith({String? title, int? sortOrder}) {
+  /// 服务端分区 ID（flutter#144 / TC-SYNC-106；null = 纯本地未同步）。
+  final String? remoteId;
+
+  ReminderSection copyWith({
+    String? title,
+    int? sortOrder,
+    String? remoteId,
+  }) {
     return ReminderSection(
       id: id,
       title: title ?? this.title,
       sortOrder: sortOrder ?? this.sortOrder,
+      remoteId: remoteId ?? this.remoteId,
     );
   }
 
   @override
-  List<Object?> get props => [id, title, sortOrder];
+  List<Object?> get props => [id, title, sortOrder, remoteId];
 }

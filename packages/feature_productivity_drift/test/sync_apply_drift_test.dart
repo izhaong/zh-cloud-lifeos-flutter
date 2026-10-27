@@ -18,7 +18,11 @@ void main() {
     // 入站落库由仓库承担（它才是唯一持有行映射的地方）
     applier = repo;
     cursors = DriftSyncCursorStore(db);
-    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
+    // 夹具直插行、不走 repo.upsertList：flutter#144 起清单写入也会登记
+    // 出站（entityType=list），会把本文件「只测 task 出站」的断言多算一条。
+    await db.into(db.reminderLists).insert(
+          ReminderListsCompanion.insert(
+              id: 'list.work', title: '工作'));
   });
 
   tearDown(() async {

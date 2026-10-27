@@ -18,6 +18,7 @@ final class ReminderList extends Equatable {
     this.groupName,
     this.listType = ReminderListType.standard,
     this.smartFilter,
+    this.remoteId,
   });
 
   final String id;
@@ -42,6 +43,9 @@ final class ReminderList extends Equatable {
 
   /// 自定义智能列表条件（TC-UI-116；null = 非自定义智能列表）。
   final SmartListFilter? smartFilter;
+
+  /// 服务端清单 ID（flutter#144 / TC-SYNC-106；null = 纯本地未同步）。
+  final String? remoteId;
 
   /// 建 grocery 列表：预置 8 分区模板（农产品→日用品，sortOrder 0–7）。
   factory ReminderList.createGroceryList({
@@ -74,6 +78,7 @@ final class ReminderList extends Equatable {
     Object? groupName = const _GrpUnset(),
     ReminderListType? listType,
     SmartListFilter? smartFilter,
+    String? remoteId,
   }) {
     return ReminderList(
       id: id,
@@ -86,13 +91,14 @@ final class ReminderList extends Equatable {
       groupName: groupName is _GrpUnset ? this.groupName : groupName as String?,
       listType: listType ?? this.listType,
       smartFilter: smartFilter ?? this.smartFilter,
+      remoteId: remoteId ?? this.remoteId,
     );
   }
 
   @override
   List<Object?> get props =>
       [id, title, colorArgb, isSmart, itemCount, sortOrder, sections,
-       groupName, listType, smartFilter];
+       groupName, listType, smartFilter, remoteId];
 }
 
 

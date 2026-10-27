@@ -118,6 +118,9 @@ void main() {
     // 否则重开时 from=6 的 V8 加列与现存列冲突（duplicate column）
     seed.customStatement(
         'ALTER TABLE reminder_items DROP COLUMN recurrence_until');
+        // V14（flutter#144）：reminder_lists 新增 remote_id；降到 v6 基线
+    // 须一并移除，否则重开时 from<14 的加列与现存列冲突（duplicate column）
+    seed.customStatement('ALTER TABLE reminder_lists DROP COLUMN remote_id');
     seed.customStatement('PRAGMA user_version = 6');
     await seed.close();
 
@@ -318,6 +321,9 @@ void main() {
           colorArgb: 0xFFAF52DE,
         ));
     seed.customStatement('ALTER TABLE calendars DROP COLUMN last_refresh_error');
+        // V14（flutter#144）：reminder_lists 新增 remote_id；降到 v9 基线
+    // 须一并移除，否则重开时 from<14 的加列与现存列冲突（duplicate column）
+    seed.customStatement('ALTER TABLE reminder_lists DROP COLUMN remote_id');
     seed.customStatement('PRAGMA user_version = 9');
     await seed.close();
 

@@ -15,7 +15,11 @@ void main() {
     db = LifeProductivityDb(NativeDatabase.memory());
     repo = DriftReminderRepository(db);
     outbox = DriftSyncOutbox(db);
-    await repo.upsertList(const ReminderList(id: 'list.personal', title: '个人'));
+    // 夹具直插行、不走 repo.upsertList：flutter#144 起清单写入也会登记
+    // 出站（entityType=list），会把本文件「只测 task 出站」的断言多算一条。
+    await db.into(db.reminderLists).insert(
+          ReminderListsCompanion.insert(
+              id: 'list.personal', title: '个人'));
   });
 
   tearDown(() async {
@@ -31,7 +35,7 @@ void main() {
   }
 
   test('V11：发件箱表随 schemaVersion 11 建表', () async {
-    expect(db.schemaVersion, 13,
+    expect(db.schemaVersion, 14,
         reason: 'V11 发件箱、V12 游标、V13 任务偏好（flutter#124 卡 2/3/4）');
     expect(await outbox.pending(), isEmpty);
   });
@@ -83,7 +87,9 @@ void main() {
         const ReminderItem(id: 'i1', listId: 'list.personal', title: '买牛奶'));
     await repo.upsertItem(const ReminderItem(
         id: 'i2', listId: 'list.personal', title: '子项', parentId: 'i1'));
-    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
+    await db.into(db.reminderLists).insert(
+          ReminderListsCompanion.insert(
+              id: 'list.work', title: '工作'));
 
     await repo.toggleCompleted('i1');
     await repo.toggleFlagged('i1');

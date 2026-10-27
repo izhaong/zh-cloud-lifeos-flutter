@@ -1,7 +1,12 @@
+import 'dart:convert';
+
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import '../models/reminder_item.dart';
+import '../models/reminder_list.dart';
+import '../models/reminder_list_type.dart';
+import '../models/reminder_section.dart';
 
 /// 发件箱条目（本地已发生、尚未被服务端接受的变更）。
 ///
@@ -186,3 +191,94 @@ Map<String, dynamic> taskSyncPayload(ReminderItem item) => {
     };
 
 int? _epochMilli(DateTime? value) => value?.toUtc().millisecondsSinceEpoch;
+
+/// 清单 → 任务域同步载荷（服务端 `LifeosTaskSyncCodec.listPayload` 同键名）。
+///
+/// flutter#144 / TC-SYNC-106 出站半边。`id` 优先发服务端 ID（remoteId）；
+/// 本地新建的清单发本地 id，由服务端物化后回填。`icon` 本地无对应字段故省略
+/// （服务端是部分更新语义：省略=保持）。
+Map<String, dynamic> listSyncPayload(ReminderList list) => {
+      'id': list.remoteId ?? list.id,
+      'name': list.title,
+      'color': list.colorArgb,
+      'type': list.listType.id,
+      'isSmart': list.isSmart,
+      'smartFilter': list.smartFilter == null
+          ? null
+          : jsonEncode({
+              'tagEquals': list.smartFilter!.tagEquals,
+              'flaggedOnly': list.smartFilter!.flaggedOnly,
+            }),
+      'sortOrder': list.sortOrder,
+    };
+
+/// 任务域清单载荷 → [ReminderList]（[listSyncPayload] 的逆向）。
+///
+/// 缺键按「不动该字段」的中性值处理；`sections` 不在此还原（分区是独立的
+/// `task_section` 实体，随各自变更落进 `sections_json`）。
+ReminderList reminderListFromSyncPayload(
+  Map<String, dynamic> payload, {
+  required String entityId,
+  ReminderList? existing,
+}) {
+  int? asInt(Object? v) => v is num ? v.toInt() : int.tryParse('$v');
+  bool asBool(Object? v, bool fallback) => v is bool
+      ? v
+      : (v == null
+          ? fallback
+          : ('' == '$v' ? fallback : ('1' == '$v' || 'true' == '$v')));
+  String? asString(Object? v) => v?.toString();
+  var filter = existing?.smartFilter;
+  final rawFilter = asString(payload['smartFilter']);
+  if (rawFilter != null && rawFilter.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(rawFilter);
+      if (decoded is Map) {
+        filter = SmartListFilter(
+          tagEquals: decoded['tagEquals'] as String?,
+          flaggedOnly: (decoded['flaggedOnly'] as bool?) ?? false,
+        );
+      }
+    } catch (_) {}
+  }
+  return ReminderList(
+    id: existing?.id ?? entityId,
+    title: asString(payload['name']) ?? existing?.title ?? '',
+    colorArgb: asInt(payload['color']) ?? existing?.colorArgb ?? 0xFF007AFF,
+    isSmart: asBool(payload['isSmart'], existing?.isSmart ?? false),
+    itemCount: existing?.itemCount ?? 0,
+    sortOrder: asInt(payload['sortOrder']) ?? existing?.sortOrder ?? 0,
+    sections: existing?.sections ?? const [],
+    groupName: existing?.groupName,
+    listType: ReminderListType.fromId(asString(payload['type'])),
+    smartFilter: filter,
+    remoteId: entityId,
+  );
+}
+
+/// 分区 → 任务域同步载荷（服务端 `LifeosTaskSyncCodec.sectionPayload` 同键名）。
+Map<String, dynamic> sectionSyncPayload({
+  required String listId,
+  required ReminderSection section,
+}) =>
+    {
+      'id': section.remoteId ?? section.id,
+      'listId': listId,
+      'name': section.title,
+      'sortOrder': section.sortOrder,
+    };
+
+/// 任务域分区载荷 → [ReminderSection]（[sectionSyncPayload] 的逆向）。
+ReminderSection reminderSectionFromSyncPayload(
+  Map<String, dynamic> payload, {
+  required String entityId,
+  ReminderSection? existing,
+}) {
+  int? asInt(Object? v) => v is num ? v.toInt() : int.tryParse('$v');
+  return ReminderSection(
+    id: existing?.id ?? entityId,
+    title: payload['name']?.toString() ?? existing?.title ?? '',
+    sortOrder: asInt(payload['sortOrder']) ?? existing?.sortOrder ?? 0,
+    remoteId: entityId,
+  );
+}
