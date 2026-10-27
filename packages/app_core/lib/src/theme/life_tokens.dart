@@ -19,13 +19,23 @@ abstract final class LifeTokens {
   }
 
   /// Material 岛主题：只服务 kalender / flutter_quill 等第三方内核。
+  ///
+  /// 不用 `ColorScheme.fromSeed`：M3 会把 007AFF 调成灰蓝（实测 primary=ff445e91），
+  /// 与 Cupertino 主色分叉。
   static ThemeData materialIsland() {
+    const colorScheme = ColorScheme.light(
+      primary: brand,
+      onPrimary: Color(0xFFFFFFFF),
+      secondary: brand,
+      onSecondary: Color(0xFFFFFFFF),
+      surface: Color(0xFFFFFFFF),
+      onSurface: onSurface,
+      error: Color(0xFFFF3B30),
+      onError: Color(0xFFFFFFFF),
+    );
     final base = ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: brand,
-        brightness: Brightness.light,
-      ),
+      colorScheme: colorScheme,
       scaffoldBackgroundColor: surface,
     );
     return base.copyWith(

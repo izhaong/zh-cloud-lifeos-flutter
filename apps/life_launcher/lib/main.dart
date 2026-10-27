@@ -7,7 +7,7 @@ import 'package:feature_note/feature_note.dart';
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:feature_task_cloud/feature_task_cloud.dart';
-import 'package:flutter/material.dart' show ScaffoldMessenger;
+import 'package:flutter/material.dart' show ScaffoldMessenger, Theme;
 import 'package:flutter_localizations/flutter_localizations.dart'
     show GlobalMaterialLocalizations, GlobalWidgetsLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -141,8 +141,11 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
         GlobalWidgetsLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
       ],
-      builder: (context, child) => ScaffoldMessenger(
-        child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => Theme(
+        data: LifeTokens.materialIsland(),
+        child: ScaffoldMessenger(
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       routerConfig: router,
     );
