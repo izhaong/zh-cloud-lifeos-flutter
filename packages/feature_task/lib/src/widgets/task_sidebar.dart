@@ -156,27 +156,37 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
               padding: const EdgeInsets.only(bottom: 8),
               children: [
                 if (smart.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: ReminderTokens.cardGap,
-                        crossAxisSpacing: ReminderTokens.cardGap,
-                        mainAxisExtent: 60,
-                      ),
-                      itemCount: smart.length,
-                      itemBuilder: (context, i) => SmartListCard(
-                        list: smart[i],
-                        selected: smart[i].id == widget.selectedListId,
-                        onTap: () => widget.onSelect(smart[i]),
-                      ),
-                    ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      // 参考图卡片随侧栏变宽而增高（360 宽约 60，1532 宽约 75）。
+                      final cardHeight =
+                          ((constraints.maxWidth - 32) * 0.18)
+                              .clamp(60.0, 84.0)
+                              .toDouble();
+                      return Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            mainAxisSpacing: ReminderTokens.cardGap,
+                            crossAxisSpacing: ReminderTokens.cardGap,
+                            mainAxisExtent: cardHeight,
+                          ),
+                          itemCount: smart.length,
+                          itemBuilder: (context, i) => SmartListCard(
+                            list: smart[i],
+                            selected: smart[i].id == widget.selectedListId,
+                            compact: cardHeight < 72,
+                            onTap: () => widget.onSelect(smart[i]),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                if (!hasGrocery && mine.isNotEmpty)
+                if (!hasGrocery)
                   _SuggestedListRow(
                     onTap: () {
                       final id =

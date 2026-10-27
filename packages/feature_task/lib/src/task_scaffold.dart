@@ -9,6 +9,7 @@ import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
 import 'widgets/reminder_row.dart';
+import 'widgets/smart_list_card.dart';
 import 'widgets/task_settings_sheet.dart';
 import 'widgets/task_shortcuts.dart';
 import 'widgets/task_sidebar.dart';
@@ -97,7 +98,7 @@ class TaskScaffold extends ConsumerWidget {
         return Column(
           children: [
             Material(
-              color: const Color(0xFFF2F2F7),
+              color: ReminderTokens.windowBg,
               child: Row(
                 children: [
                   const Expanded(
@@ -154,17 +155,22 @@ class _CompactPane extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final smart = lists.where((e) => e.isSmart).toList(growable: false);
+    final smart = lists
+        .where((e) => e.isSmart && e.id != 'smart.trash')
+        .toList(growable: false);
     final mine = lists.where((e) => !e.isSmart).toList(growable: false);
+    final trash = lists.where((e) => e.id == 'smart.trash').firstOrNull;
+    final hasGrocery =
+        mine.any((e) => e.listType == ReminderListType.grocery);
     final query = ref.watch(searchQueryProvider).trim();
     final searching = query.isNotEmpty;
 
     // iOS 提醒事项「列表」首页：大标题 + 搜索 + 智能卡片 + 我的列表。
     // 嵌在生活台壳内时，壳应用栏常显；本页不再另起全屏路由。
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: ReminderTokens.windowBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF2F2F7),
+        backgroundColor: ReminderTokens.windowBg,
         surfaceTintColor: Colors.transparent,
         title: const Text('列表'),
         actions: [
@@ -190,7 +196,7 @@ class _CompactPane extends ConsumerWidget {
               hintText: '搜索',
               prefixIcon: const Icon(CupertinoIcons.search, size: 20),
               filled: true,
-              fillColor: const Color(0xFFE5E5EA),
+              fillColor: ReminderTokens.separator,
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(vertical: 10),
               border: OutlineInputBorder(
@@ -206,20 +212,41 @@ class _CompactPane extends ConsumerWidget {
               onSelectItem: onSelectItem,
             )
           else ...[
-            GridView.count(
-              crossAxisCount: 2,
+            GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.55,
-              children: [
-                for (final list in smart
-                  ..sort(
-                      (a, b) => _smartOrder(a.id).compareTo(_smartOrder(b.id))))
-                  _SmartCard(list: list, onTap: () => onOpenList?.call(list.id)),
-              ],
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                mainAxisExtent: 84,
+              ),
+              itemCount: smart.length,
+              itemBuilder: (context, i) {
+                final list = smart[i];
+                return SmartListCard(
+                  list: list,
+                  selected: false,
+                  compact: true,
+                  onTap: () => onOpenList?.call(list.id),
+                );
+              },
             ),
+            if (!hasGrocery)
+              ListTile(
+                key: const ValueKey('suggested_grocery_home'),
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(CupertinoIcons.cart_fill,
+                    color: ReminderTokens.systemGreen),
+                title: const Text('建议列表：日常采购'),
+                trailing: IconButton(
+                  key: const ValueKey('suggested_grocery_home_add'),
+                  icon: const Icon(CupertinoIcons.add_circled_solid,
+                      color: ReminderTokens.systemGreen),
+                  onPressed: () => _createSuggestedGrocery(ref),
+                ),
+                onTap: () => _createSuggestedGrocery(ref),
+              ),
             const SizedBox(height: 20),
             Text(
               '我的列表',
@@ -241,9 +268,15 @@ class _CompactPane extends ConsumerWidget {
                   for (var i = 0; i < mine.length; i++) ...[
                     if (i > 0) const Divider(height: 1, indent: 52),
                     ListTile(
-                      leading: CircleAvatar(
-                        radius: 10,
-                        backgroundColor: Color(mine[i].colorArgb),
+                      leading: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Color(mine[i].colorArgb),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(CupertinoIcons.list_bullet,
+                            color: Colors.white, size: 15),
                       ),
                       title: Text(mine[i].title),
                       trailing: Row(
@@ -273,6 +306,28 @@ class _CompactPane extends ConsumerWidget {
                           .upsertList(list),
                     ),
                   ),
+                  if (trash != null) ...[
+                    const Divider(height: 1, indent: 52),
+                    ListTile(
+                      leading: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: ReminderTokens.labelSecondary,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(CupertinoIcons.trash,
+                            color: Colors.white, size: 15),
+                      ),
+                      title: Text(trash.title),
+                      trailing: Text(
+                        '${trash.itemCount}',
+                        style: const TextStyle(
+                            color: ReminderTokens.labelSecondary),
+                      ),
+                      onTap: () => onOpenList?.call(trash.id),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -282,16 +337,11 @@ class _CompactPane extends ConsumerWidget {
     );
   }
 
-  static int _smartOrder(String id) {
-    return switch (id) {
-      'smart.today' => 0,
-      'smart.scheduled' => 1,
-      'smart.all' => 2,
-      'smart.flagged' => 3,
-      'smart.urgent' => 4,
-      'smart.completed' => 5,
-      _ => 9,
-    };
+  static void _createSuggestedGrocery(WidgetRef ref) {
+    final id = 'list.grocery.${DateTime.now().millisecondsSinceEpoch}';
+    ref.read(reminderRepositoryProvider).upsertList(
+          ReminderList.createGroceryList(id: id, title: '日常采购'),
+        );
   }
 }
 
@@ -376,7 +426,7 @@ class _CompactListPane extends StatelessWidget {
     final list = lists.where((e) => e.id == openListId).firstOrNull;
     if (list == null) {
       return const Scaffold(
-        backgroundColor: Color(0xFFF2F2F7),
+        backgroundColor: ReminderTokens.windowBg,
         body: Center(child: Text('列表不存在')),
       );
     }
@@ -396,70 +446,6 @@ class _CompactListPane extends StatelessWidget {
               ),
             ),
     );
-  }
-}
-
-class _SmartCard extends StatelessWidget {
-  const _SmartCard({required this.list, required this.onTap});
-
-  final ReminderList list;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const SizedBox(width: 2),
-                  Icon(
-                    _icon(list.id),
-                    color: const Color(0xFF007AFF),
-                    size: 22,
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${list.itemCount}',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                list.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  static IconData _icon(String id) {
-    return switch (id) {
-      'smart.today' => Icons.today_outlined,
-      'smart.scheduled' => Icons.calendar_today_outlined,
-      'smart.all' => Icons.inbox_outlined,
-      'smart.flagged' => Icons.flag_outlined,
-      'smart.urgent' => Icons.warning_amber_outlined,
-      'smart.completed' => Icons.check_circle_outline,
-      _ => Icons.list,
-    };
   }
 }
 
@@ -511,7 +497,7 @@ class _TwoPane extends ConsumerWidget {
                   ),
             ),
           ),
-          const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
+          const VerticalDivider(width: 1, color: ReminderTokens.separator),
         ],
         Expanded(
           child: current == null
@@ -619,7 +605,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
                   ),
             ),
           ),
-          const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
+          const VerticalDivider(width: 1, color: ReminderTokens.separator),
         ],
         Expanded(
           child: current == null
@@ -645,7 +631,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
                 ),
         ),
         if (selected != null) ...[
-          const VerticalDivider(width: 1, color: Color(0xFFE5E5EA)),
+          const VerticalDivider(width: 1, color: ReminderTokens.separator),
           SizedBox(
             width: 320,
             child: KeyedSubtree(
@@ -958,7 +944,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        automaticallyImplyLeading: widget.leading == null,
+        // 桌面三栏不显示返回箭头（参考图主区直接是标题/工具条）。
+        automaticallyImplyLeading: !isPane && widget.leading == null,
         leading: widget.leading,
         leadingWidth: widget.leading == null ? null : 96,
         // macOS 大标题口径（图2）：宽屏 AppBar 不放标题，标题进内容区（列表色大字）
