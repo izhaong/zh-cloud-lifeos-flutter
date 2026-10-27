@@ -99,9 +99,12 @@ class CalendarToolbar extends ConsumerWidget {
                 onPressed: () => _shift(ref, 1),
               ),
               IconButton(
+                key: const Key('calendar_inbox_button'),
                 tooltip: '收件箱',
                 icon: const Icon(Icons.inbox_outlined),
-                onPressed: () {}, // M4 收件箱
+                onPressed: () => ref
+                    .read(calendarInboxOpenerProvider)
+                    ?.call(context),
               ),
               IconButton(
                 key: const Key('calendar_settings_button'),

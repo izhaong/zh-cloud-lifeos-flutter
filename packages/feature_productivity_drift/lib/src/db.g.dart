@@ -1716,6 +1716,17 @@ class $CalendarsTable extends Calendars
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _lastRefreshErrorMeta = const VerificationMeta(
+    'lastRefreshError',
+  );
+  @override
+  late final GeneratedColumn<String> lastRefreshError = GeneratedColumn<String>(
+    'last_refresh_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _permissionMeta = const VerificationMeta(
     'permission',
   );
@@ -1766,6 +1777,7 @@ class $CalendarsTable extends Calendars
     sourceUrl,
     refreshMinutes,
     holidayRegion,
+    lastRefreshError,
     permission,
     revision,
     deletedAt,
@@ -1872,6 +1884,15 @@ class $CalendarsTable extends Calendars
         ),
       );
     }
+    if (data.containsKey('last_refresh_error')) {
+      context.handle(
+        _lastRefreshErrorMeta,
+        lastRefreshError.isAcceptableOrUnknown(
+          data['last_refresh_error']!,
+          _lastRefreshErrorMeta,
+        ),
+      );
+    }
     if (data.containsKey('permission')) {
       context.handle(
         _permissionMeta,
@@ -1951,6 +1972,10 @@ class $CalendarsTable extends Calendars
         DriftSqlType.string,
         data['${effectivePrefix}holiday_region'],
       ),
+      lastRefreshError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_refresh_error'],
+      ),
       permission: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}permission'],
@@ -1997,6 +2022,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
   /// kind=holiday 的地区码（首期 CN）。
   final String? holidayRegion;
 
+  /// 上次订阅刷新失败的错误信息（NULL=正常；契约 §2.6 last_refresh_error）。
+  final String? lastRefreshError;
+
   /// OWNER / EDIT / VIEW。
   final String permission;
   final int revision;
@@ -2015,6 +2043,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     this.sourceUrl,
     this.refreshMinutes,
     this.holidayRegion,
+    this.lastRefreshError,
     required this.permission,
     required this.revision,
     this.deletedAt,
@@ -2044,6 +2073,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     }
     if (!nullToAbsent || holidayRegion != null) {
       map['holiday_region'] = Variable<String>(holidayRegion);
+    }
+    if (!nullToAbsent || lastRefreshError != null) {
+      map['last_refresh_error'] = Variable<String>(lastRefreshError);
     }
     map['permission'] = Variable<String>(permission);
     map['revision'] = Variable<int>(revision);
@@ -2078,6 +2110,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
       holidayRegion: holidayRegion == null && nullToAbsent
           ? const Value.absent()
           : Value(holidayRegion),
+      lastRefreshError: lastRefreshError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastRefreshError),
       permission: Value(permission),
       revision: Value(revision),
       deletedAt: deletedAt == null && nullToAbsent
@@ -2105,6 +2140,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
       sourceUrl: serializer.fromJson<String?>(json['sourceUrl']),
       refreshMinutes: serializer.fromJson<int?>(json['refreshMinutes']),
       holidayRegion: serializer.fromJson<String?>(json['holidayRegion']),
+      lastRefreshError: serializer.fromJson<String?>(json['lastRefreshError']),
       permission: serializer.fromJson<String>(json['permission']),
       revision: serializer.fromJson<int>(json['revision']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -2127,6 +2163,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
       'sourceUrl': serializer.toJson<String?>(sourceUrl),
       'refreshMinutes': serializer.toJson<int?>(refreshMinutes),
       'holidayRegion': serializer.toJson<String?>(holidayRegion),
+      'lastRefreshError': serializer.toJson<String?>(lastRefreshError),
       'permission': serializer.toJson<String>(permission),
       'revision': serializer.toJson<int>(revision),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -2147,6 +2184,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     Value<String?> sourceUrl = const Value.absent(),
     Value<int?> refreshMinutes = const Value.absent(),
     Value<String?> holidayRegion = const Value.absent(),
+    Value<String?> lastRefreshError = const Value.absent(),
     String? permission,
     int? revision,
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -2168,6 +2206,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     holidayRegion: holidayRegion.present
         ? holidayRegion.value
         : this.holidayRegion,
+    lastRefreshError: lastRefreshError.present
+        ? lastRefreshError.value
+        : this.lastRefreshError,
     permission: permission ?? this.permission,
     revision: revision ?? this.revision,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -2193,6 +2234,9 @@ class Calendar extends DataClass implements Insertable<Calendar> {
       holidayRegion: data.holidayRegion.present
           ? data.holidayRegion.value
           : this.holidayRegion,
+      lastRefreshError: data.lastRefreshError.present
+          ? data.lastRefreshError.value
+          : this.lastRefreshError,
       permission: data.permission.present
           ? data.permission.value
           : this.permission,
@@ -2217,6 +2261,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
           ..write('sourceUrl: $sourceUrl, ')
           ..write('refreshMinutes: $refreshMinutes, ')
           ..write('holidayRegion: $holidayRegion, ')
+          ..write('lastRefreshError: $lastRefreshError, ')
           ..write('permission: $permission, ')
           ..write('revision: $revision, ')
           ..write('deletedAt: $deletedAt')
@@ -2239,6 +2284,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
     sourceUrl,
     refreshMinutes,
     holidayRegion,
+    lastRefreshError,
     permission,
     revision,
     deletedAt,
@@ -2260,6 +2306,7 @@ class Calendar extends DataClass implements Insertable<Calendar> {
           other.sourceUrl == this.sourceUrl &&
           other.refreshMinutes == this.refreshMinutes &&
           other.holidayRegion == this.holidayRegion &&
+          other.lastRefreshError == this.lastRefreshError &&
           other.permission == this.permission &&
           other.revision == this.revision &&
           other.deletedAt == this.deletedAt);
@@ -2279,6 +2326,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
   final Value<String?> sourceUrl;
   final Value<int?> refreshMinutes;
   final Value<String?> holidayRegion;
+  final Value<String?> lastRefreshError;
   final Value<String> permission;
   final Value<int> revision;
   final Value<DateTime?> deletedAt;
@@ -2297,6 +2345,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     this.sourceUrl = const Value.absent(),
     this.refreshMinutes = const Value.absent(),
     this.holidayRegion = const Value.absent(),
+    this.lastRefreshError = const Value.absent(),
     this.permission = const Value.absent(),
     this.revision = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -2316,6 +2365,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     this.sourceUrl = const Value.absent(),
     this.refreshMinutes = const Value.absent(),
     this.holidayRegion = const Value.absent(),
+    this.lastRefreshError = const Value.absent(),
     this.permission = const Value.absent(),
     this.revision = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -2337,6 +2387,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     Expression<String>? sourceUrl,
     Expression<int>? refreshMinutes,
     Expression<String>? holidayRegion,
+    Expression<String>? lastRefreshError,
     Expression<String>? permission,
     Expression<int>? revision,
     Expression<DateTime>? deletedAt,
@@ -2356,6 +2407,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
       if (sourceUrl != null) 'source_url': sourceUrl,
       if (refreshMinutes != null) 'refresh_minutes': refreshMinutes,
       if (holidayRegion != null) 'holiday_region': holidayRegion,
+      if (lastRefreshError != null) 'last_refresh_error': lastRefreshError,
       if (permission != null) 'permission': permission,
       if (revision != null) 'revision': revision,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -2377,6 +2429,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     Value<String?>? sourceUrl,
     Value<int?>? refreshMinutes,
     Value<String?>? holidayRegion,
+    Value<String?>? lastRefreshError,
     Value<String>? permission,
     Value<int>? revision,
     Value<DateTime?>? deletedAt,
@@ -2396,6 +2449,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
       sourceUrl: sourceUrl ?? this.sourceUrl,
       refreshMinutes: refreshMinutes ?? this.refreshMinutes,
       holidayRegion: holidayRegion ?? this.holidayRegion,
+      lastRefreshError: lastRefreshError ?? this.lastRefreshError,
       permission: permission ?? this.permission,
       revision: revision ?? this.revision,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -2445,6 +2499,9 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
     if (holidayRegion.present) {
       map['holiday_region'] = Variable<String>(holidayRegion.value);
     }
+    if (lastRefreshError.present) {
+      map['last_refresh_error'] = Variable<String>(lastRefreshError.value);
+    }
     if (permission.present) {
       map['permission'] = Variable<String>(permission.value);
     }
@@ -2476,6 +2533,7 @@ class CalendarsCompanion extends UpdateCompanion<Calendar> {
           ..write('sourceUrl: $sourceUrl, ')
           ..write('refreshMinutes: $refreshMinutes, ')
           ..write('holidayRegion: $holidayRegion, ')
+          ..write('lastRefreshError: $lastRefreshError, ')
           ..write('permission: $permission, ')
           ..write('revision: $revision, ')
           ..write('deletedAt: $deletedAt, ')
@@ -7334,6 +7392,7 @@ typedef $$CalendarsTableCreateCompanionBuilder =
       Value<String?> sourceUrl,
       Value<int?> refreshMinutes,
       Value<String?> holidayRegion,
+      Value<String?> lastRefreshError,
       Value<String> permission,
       Value<int> revision,
       Value<DateTime?> deletedAt,
@@ -7354,6 +7413,7 @@ typedef $$CalendarsTableUpdateCompanionBuilder =
       Value<String?> sourceUrl,
       Value<int?> refreshMinutes,
       Value<String?> holidayRegion,
+      Value<String?> lastRefreshError,
       Value<String> permission,
       Value<int> revision,
       Value<DateTime?> deletedAt,
@@ -7431,6 +7491,11 @@ class $$CalendarsTableFilterComposer
 
   ColumnFilters<String> get holidayRegion => $composableBuilder(
     column: $table.holidayRegion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastRefreshError => $composableBuilder(
+    column: $table.lastRefreshError,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -7524,6 +7589,11 @@ class $$CalendarsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get lastRefreshError => $composableBuilder(
+    column: $table.lastRefreshError,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get permission => $composableBuilder(
     column: $table.permission,
     builder: (column) => ColumnOrderings(column),
@@ -7594,6 +7664,11 @@ class $$CalendarsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get lastRefreshError => $composableBuilder(
+    column: $table.lastRefreshError,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get permission => $composableBuilder(
     column: $table.permission,
     builder: (column) => column,
@@ -7650,6 +7725,7 @@ class $$CalendarsTableTableManager
                 Value<String?> sourceUrl = const Value.absent(),
                 Value<int?> refreshMinutes = const Value.absent(),
                 Value<String?> holidayRegion = const Value.absent(),
+                Value<String?> lastRefreshError = const Value.absent(),
                 Value<String> permission = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7668,6 +7744,7 @@ class $$CalendarsTableTableManager
                 sourceUrl: sourceUrl,
                 refreshMinutes: refreshMinutes,
                 holidayRegion: holidayRegion,
+                lastRefreshError: lastRefreshError,
                 permission: permission,
                 revision: revision,
                 deletedAt: deletedAt,
@@ -7688,6 +7765,7 @@ class $$CalendarsTableTableManager
                 Value<String?> sourceUrl = const Value.absent(),
                 Value<int?> refreshMinutes = const Value.absent(),
                 Value<String?> holidayRegion = const Value.absent(),
+                Value<String?> lastRefreshError = const Value.absent(),
                 Value<String> permission = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -7706,6 +7784,7 @@ class $$CalendarsTableTableManager
                 sourceUrl: sourceUrl,
                 refreshMinutes: refreshMinutes,
                 holidayRegion: holidayRegion,
+                lastRefreshError: lastRefreshError,
                 permission: permission,
                 revision: revision,
                 deletedAt: deletedAt,

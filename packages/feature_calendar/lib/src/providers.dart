@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kalender/kalender.dart' as kalender;
 
@@ -71,6 +72,14 @@ final preferenceProvider = StreamProvider<CalendarPreference>((ref) {
 final deviceTimeZoneProvider = FutureProvider<String>((ref) {
   return deviceTimeZoneName();
 });
+
+/// 云侧入口（壳注入；开源包不 import cloud，F-17）。
+final calendarInboxOpenerProvider =
+    Provider<Future<void> Function(BuildContext context)?>((ref) => null);
+
+/// 「立即同步」触发器（壳注入 coordinator.syncOnce；未登录时内部跳过）。
+final calendarSyncTriggerProvider =
+    Provider<Future<void> Function()?>((ref) => null);
 
 /// 提醒事项仓库（壳注入同一实例；默认 null = 不投影，F-15）。
 final calendarReminderRepositoryProvider =

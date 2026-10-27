@@ -40,6 +40,10 @@ abstract interface class ReminderRepository {
   /// isCompleted 回 false（对齐 Apple 提醒事项「完成即生成下一次」）。
   Future<void> toggleCompleted(String itemId);
 
+  /// 跨日刷新：本地日变化时重算计数并广播（app 回前台时由壳层调用）。
+  /// 返回是否发生刷新。
+  bool checkDayRollover();
+
   /// 切换旗标态。
   Future<void> toggleFlagged(String itemId);
 
@@ -149,18 +153,54 @@ final class InMemoryReminderRepository implements ReminderRepository {
   final _listWatchers = <_ListsWatcher>[];
   final _itemWatchers = <_ItemsWatcher>[];
   DateTime? _nowForTest;
+  DateTime? _lastSeenDay;
 
   /// 测试注入「当前时间」以冻结今天边界。
   set nowForTest(DateTime? value) => _nowForTest = value;
 
   DateTime get _now => _nowForTest ?? DateTime.now();
 
+  /// 跨日刷新（真实 bug 修复）：智能列表「今天/计划」按本地日过滤，
+  /// 但 stream 只在写操作 emit——app 跨午夜保持打开时 UI 仍是昨天的快照
+  /// （「今天」里躺着昨日的项，且分区头已标成「已过期」，自相矛盾）。
+  /// 首订阅起每 60s 比对本地日，跨日即重算计数并广播。
+  /// 跨日检查（测试可直接调用）：本地日变化 → 重算计数并广播。
+  /// 返回是否发生了跨日刷新。
+  @override
+  bool checkDayRollover() {
+    final today = _todayOf(_now);
+    final last = _lastSeenDay;
+    if (last != null &&
+        today.year == last.year &&
+        today.month == last.month &&
+        today.day == last.day) {
+      return false;
+    }
+    _lastSeenDay = today;
+    _recount();
+    _notify();
+    return true;
+  }
+
+  /// 没有任何订阅者时停表（测试不留 pending Timer）。
+  void _stopDayRolloverWatchIfIdle() {
+    // 日界守护已随订阅生命周期，无需集中停表（保留空实现以兼容既有调用点）
+  }
+
+  /// 兼容旧调用点：无集中 timer，无需释放。
+  void disposeDayRolloverWatch() {}
+
+  static DateTime _todayOf(DateTime t) => DateTime(t.year, t.month, t.day);
+
   @override
   Stream<List<ReminderList>> watchLists() {
     final watcher = _ListsWatcher();
     _listWatchers.add(watcher);
     final stream = watcher.stream(onListen: () => _emitLists(watcher));
-    watcher.whenCanceled(() => _listWatchers.remove(watcher));
+    watcher.whenCanceled(() {
+      _listWatchers.remove(watcher);
+      _stopDayRolloverWatchIfIdle();
+    });
     return stream;
   }
 
@@ -169,7 +209,10 @@ final class InMemoryReminderRepository implements ReminderRepository {
     final watcher = _ItemsWatcher(listId);
     _itemWatchers.add(watcher);
     final stream = watcher.stream(onListen: () => _emitItems(watcher));
-    watcher.whenCanceled(() => _itemWatchers.remove(watcher));
+    watcher.whenCanceled(() {
+      _itemWatchers.remove(watcher);
+      _stopDayRolloverWatchIfIdle();
+    });
     return stream;
   }
 

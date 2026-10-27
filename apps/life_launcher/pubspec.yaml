@@ -21,6 +21,8 @@ dependencies:
     path: ../../packages/feature_productivity_kernel
   feature_calendar:
     path: ../../packages/feature_calendar
+  feature_calendar_cloud:
+    path: ../../packages/feature_calendar_cloud
   feature_productivity_drift:
     path: ../../packages/feature_productivity_drift
   feature_task:

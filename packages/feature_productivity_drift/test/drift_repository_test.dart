@@ -381,7 +381,7 @@ void main() {
     final back = (await db8.select(db8.reminderItems).get())
         .singleWhere((e) => e.id == 'v6row');
     expect(back.recurrenceUntil, DateTime(2026, 12, 31));
-    expect(db8.schemaVersion, 9); // V9（lifeos/note F-02）：记录两表随升级建齐
+    expect(db8.schemaVersion, 10); // V9（lifeos/note F-02）建记录两表；V10（calendar F-16）补订阅刷新列
     await db8.close();
   });
 
