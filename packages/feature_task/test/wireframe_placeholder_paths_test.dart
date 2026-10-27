@@ -1,10 +1,12 @@
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'support/life_test_app.dart';
 
 /// Issue #1 线框三端链路收口审计 · 占位链路测试
 /// 覆盖：TC-UI-207（手机 ⋯编辑占位）、TC-UI-306（设置弹层）。
@@ -21,7 +23,7 @@ Future<void> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: MaterialApp(home: child),
+      child: lifeTestHost(child),
     ),
   );
   await tester.pumpAndSettle();
@@ -78,8 +80,8 @@ void main() {
     await tester.tap(find.byType(CupertinoSwitch).first);
     await tester.pumpAndSettle();
 
-    // 关闭：点 sheet 外
-    await tester.tapAt(const Offset(10, 100));
+    // 关闭：点 sheet 外（顶部留白）
+    await tester.tapAt(const Offset(10, 20));
     await tester.pumpAndSettle();
     expect(find.text('默认列表'), findsNothing);
   });

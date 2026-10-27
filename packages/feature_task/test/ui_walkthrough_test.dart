@@ -6,6 +6,8 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'support/life_test_app.dart';
+
 /// 实机走查模拟：按 testcases 的 TC-UI 用例模拟用户操作流程。
 /// 每个测试 = 一条完整用户链路。
 void main() {
@@ -118,7 +120,7 @@ void main() {
     view.devicePixelRatio = 1.0;
     await tester.pumpWidget(ProviderScope(
       overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: const MaterialApp(home: TaskScaffold(openListId: null)),
+      child: lifeTestHost(const TaskScaffold(openListId: null)),
     ));
     await tester.pumpAndSettle();
 
@@ -129,7 +131,10 @@ void main() {
 
     // 新建列表对话框
     expect(find.text('新建列表').evaluate().isNotEmpty || find.text('添加列表').evaluate().isNotEmpty, isTrue);
-    await tester.enterText(find.byType(TextField).first, '工作');
+    await tester.enterText(
+      find.byKey(const ValueKey('new_list_name')),
+      '工作',
+    );
     // 找确认按钮
     await tester.tap(find.byKey(const ValueKey('new_list_submit')));
     await tester.pumpAndSettle();

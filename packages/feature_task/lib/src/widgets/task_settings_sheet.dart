@@ -1,5 +1,4 @@
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 import '../design/reminder_tokens.dart';
 
@@ -10,21 +9,23 @@ Future<void> showTaskSettingsSheet(
   BuildContext context, {
   void Function(BuildContext sheetContext)? onOpenCloudLogin,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    backgroundColor: ReminderTokens.windowBg,
-    constraints: const BoxConstraints(maxWidth: 480),
-    builder: (sheetContext) => _TaskSettingsSheet(
-      onOpenCloudLogin: onOpenCloudLogin,
+  return Navigator.of(context).push(
+    CupertinoSheetRoute<void>(
+      scrollableBuilder: (sheetContext, scrollController) => _TaskSettingsSheet(
+        scrollController: scrollController,
+        onOpenCloudLogin: onOpenCloudLogin,
+      ),
     ),
   );
 }
 
 class _TaskSettingsSheet extends StatefulWidget {
-  const _TaskSettingsSheet({this.onOpenCloudLogin});
+  const _TaskSettingsSheet({
+    required this.scrollController,
+    this.onOpenCloudLogin,
+  });
 
+  final ScrollController scrollController;
   final void Function(BuildContext sheetContext)? onOpenCloudLogin;
 
   @override
@@ -38,98 +39,96 @@ class _TaskSettingsSheetState extends State<_TaskSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        leading: CupertinoButton(
+          key: const ValueKey('settings_done'),
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('完成'),
+        ),
+        middle: const Text('设置'),
+      ),
+      child: SafeArea(
+        top: false,
+        child: ListView(
+          controller: widget.scrollController,
           children: [
-            const Center(
-              child: Text(
-                '设置',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Card(
-              margin: EdgeInsets.zero,
-              elevation: 0,
-              color: Colors.white,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  _row(
-                    icon: CupertinoIcons.list_bullet,
-                    label: '默认列表',
-                    trailing: const Text('提醒事项',
-                        style: TextStyle(color: ReminderTokens.labelSecondary)),
+            const SizedBox(height: 8),
+            CupertinoListSection.insetGrouped(
+              children: [
+                _row(
+                  icon: CupertinoIcons.list_bullet,
+                  label: '默认列表',
+                  trailing: Text(
+                    '提醒事项',
+                    style: TextStyle(color: secondary),
                   ),
-                  const Divider(height: 1, indent: 48),
-                  _switchRow(
-                    icon: CupertinoIcons.clock,
-                    label: '全天提醒时点',
-                    value: _allDayNotify,
-                    onChanged: (v) => setState(() => _allDayNotify = v),
+                ),
+                _switchRow(
+                  icon: CupertinoIcons.clock,
+                  label: '全天提醒时点',
+                  value: _allDayNotify,
+                  onChanged: (v) => setState(() => _allDayNotify = v),
+                ),
+                _switchRow(
+                  icon: CupertinoIcons.checkmark_circle,
+                  label: '完成时标记为已完成',
+                  value: _markComplete,
+                  onChanged: (v) => setState(() => _markComplete = v),
+                ),
+                _switchRow(
+                  icon: CupertinoIcons.sparkles,
+                  label: '建议列表',
+                  value: _suggestLists,
+                  onChanged: (v) => setState(() => _suggestLists = v),
+                ),
+                _row(
+                  icon: CupertinoIcons.cart,
+                  label: '采购清单语言',
+                  trailing: Text(
+                    '简体中文',
+                    style: TextStyle(color: secondary),
                   ),
-                  const Divider(height: 1, indent: 48),
-                  _switchRow(
-                    icon: CupertinoIcons.checkmark_circle,
-                    label: '完成时标记为已完成',
-                    value: _markComplete,
-                    onChanged: (v) => setState(() => _markComplete = v),
-                  ),
-                  const Divider(height: 1, indent: 48),
-                  _switchRow(
-                    icon: CupertinoIcons.sparkles,
-                    label: '建议列表',
-                    value: _suggestLists,
-                    onChanged: (v) => setState(() => _suggestLists = v),
-                  ),
-                  const Divider(height: 1, indent: 48),
-                  _row(
-                    icon: CupertinoIcons.cart,
-                    label: '采购清单语言',
-                    trailing: const Text('简体中文',
-                        style: TextStyle(color: ReminderTokens.labelSecondary)),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 24),
-            Center(
-              child: CupertinoButton(
-                key: const ValueKey('settings_reset'),
-                padding: EdgeInsets.zero,
-                onPressed: () => setState(() {
-                  _allDayNotify = true;
-                  _markComplete = false;
-                  _suggestLists = true;
-                }),
-                child: const Text('还原默认设置',
-                    style: TextStyle(fontSize: 15, color: Color(0xFF007AFF))),
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
-            Center(
-              child: CupertinoButton(
-                key: const ValueKey('settings_cloud_login'),
-                padding: EdgeInsets.zero,
-                onPressed: widget.onOpenCloudLogin == null
-                    ? null
-                    : () => widget.onOpenCloudLogin!(context),
-                child: Text(
-                  widget.onOpenCloudLogin == null
-                      ? '云同步：登录后可用'
-                      : '开启云同步',
-                  style: const TextStyle(
-                      fontSize: 13, color: Color(0xFF007AFF)),
+            CupertinoListSection.insetGrouped(
+              children: [
+                CupertinoListTile(
+                  key: const ValueKey('settings_reset'),
+                  leading: const Icon(
+                    CupertinoIcons.arrow_counterclockwise,
+                    color: ReminderTokens.systemBlue,
+                  ),
+                  title: const Text('还原默认设置'),
+                  onTap: () => setState(() {
+                    _allDayNotify = true;
+                    _markComplete = false;
+                    _suggestLists = true;
+                  }),
                 ),
-              ),
+                CupertinoListTile(
+                  key: const ValueKey('settings_cloud_login'),
+                  leading: const Icon(
+                    CupertinoIcons.cloud,
+                    color: ReminderTokens.systemBlue,
+                  ),
+                  title: Text(
+                    widget.onOpenCloudLogin == null
+                        ? '云同步：登录后可用'
+                        : '开启云同步',
+                  ),
+                  onTap: widget.onOpenCloudLogin == null
+                      ? null
+                      : () => widget.onOpenCloudLogin!(context),
+                ),
+              ],
             ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -141,16 +140,10 @@ class _TaskSettingsSheetState extends State<_TaskSettingsSheet> {
     required String label,
     required Widget trailing,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: const Color(0xFF007AFF)),
-          const SizedBox(width: 12),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 15))),
-          trailing,
-        ],
-      ),
+    return CupertinoListTile(
+      leading: Icon(icon, color: ReminderTokens.systemBlue),
+      title: Text(label),
+      trailing: trailing,
     );
   }
 

@@ -1,11 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 /// 新建列表弹窗（名称 + 颜色 + 图标 + 类型；图4 全字段，TC-UI-115/316）。
 ///
 /// - 类型：标准 / 日常采购（grocery 预置 8 分区模板，不做商品识别——HT105086 降级）
-/// - 图标：8 个 Material Symbols 预设（列表头展示用）
+/// - 图标：8 个 Cupertino 预设（列表头展示用）
 /// - 提交 = [onCreate]（由上层调 upsertList；id 走 [newListId] 工厂）
 Future<void> showNewListDialog(
   BuildContext context, {
@@ -27,93 +27,118 @@ Future<void> showNewListDialog(
     0xFF30B0C7, // 青
   ];
 
-  return showDialog<void>(
+  return showCupertinoDialog<void>(
     context: context,
     builder: (context) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
+      builder: (context, setState) => CupertinoAlertDialog(
         title: const Text('新列表'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              autofocus: true,
-              decoration: const InputDecoration(hintText: '列表名称'),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                for (final c in palette)
-                  GestureDetector(
-                    key: ValueKey('color_$c'),
-                    onTap: () => setState(() => colorArgb = c),
-                    child: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Color(c),
-                      child: colorArgb == c
-                          ? const Icon(Icons.check,
-                              size: 16, color: Colors.white)
-                          : null,
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CupertinoTextField(
+                key: const ValueKey('new_list_name'),
+                controller: titleController,
+                autofocus: true,
+                placeholder: '列表名称',
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color:
+                      CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final c in palette)
+                    GestureDetector(
+                      key: ValueKey('color_$c'),
+                      onTap: () => setState(() => colorArgb = c),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(c),
+                        ),
+                        child: colorArgb == c
+                            ? const Icon(
+                                CupertinoIcons.checkmark,
+                                size: 16,
+                                color: CupertinoColors.white,
+                              )
+                            : null,
+                      ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // 图标选择（TC-UI-316 图4 字段）
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                for (final entry in presetListIcons.entries)
-                  GestureDetector(
-                    key: ValueKey('icon_${entry.key}'),
-                    onTap: () => setState(() => iconId = entry.key),
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: iconId == entry.key
-                          ? Color(colorArgb)
-                          : const Color(0xFFF2F2F7),
-                      child: Icon(entry.value,
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final entry in presetListIcons.entries)
+                    GestureDetector(
+                      key: ValueKey('icon_${entry.key}'),
+                      onTap: () => setState(() => iconId = entry.key),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: iconId == entry.key
+                              ? Color(colorArgb)
+                              : CupertinoColors.tertiarySystemFill
+                                  .resolveFrom(context),
+                        ),
+                        child: Icon(
+                          entry.value,
                           size: 18,
                           color: iconId == entry.key
-                              ? Colors.white
-                              : const Color(0xFF8E8E93)),
+                              ? CupertinoColors.white
+                              : CupertinoColors.secondaryLabel
+                                  .resolveFrom(context),
+                        ),
+                      ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            // 类型下拉（TC-UI-313：标准 / 日常采购；智能列表入口后置 TC-UI-116）
-            DropdownButtonFormField<ReminderListType>(
-              key: const ValueKey('list_type'),
-              initialValue: listType,
-              decoration: const InputDecoration(
-                labelText: '类型',
-                border: OutlineInputBorder(),
+                ],
               ),
-              items: const [
-                DropdownMenuItem(
-                  value: ReminderListType.standard,
-                  child: Text('标准'),
+              const SizedBox(height: 16),
+              CupertinoSlidingSegmentedControl<ReminderListType>(
+                key: const ValueKey('list_type'),
+                groupValue: listType,
+                children: const {
+                  ReminderListType.standard: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Text('标准', style: TextStyle(fontSize: 13)),
+                  ),
+                  ReminderListType.grocery: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Text('日常采购', style: TextStyle(fontSize: 13)),
+                  ),
+                },
+                onValueChanged: (v) => setState(
+                  () => listType = v ?? ReminderListType.standard,
                 ),
-                DropdownMenuItem(
-                  value: ReminderListType.grocery,
-                  child: Text('日常采购（预置分区）'),
-                ),
-              ],
-              onChanged: (v) => setState(() => listType = v!),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('取消'),
           ),
-          TextButton(
+          CupertinoDialogAction(
             key: const ValueKey('new_list_submit'),
+            isDefaultAction: true,
             onPressed: () {
               final name = titleController.text.trim();
               if (name.isEmpty) return;
@@ -139,15 +164,14 @@ Future<void> showNewListDialog(
   );
 }
 
-
 /// 预设列表图标（图4；M4 同步后 listIcon 字段化，此处先 id 映射）。
 const presetListIcons = <String, IconData>{
-  'list': Icons.list,
-  'cart': Icons.shopping_cart_outlined,
-  'home': Icons.home_outlined,
-  'work': Icons.work_outline,
-  'school': Icons.school_outlined,
-  'favorite': Icons.favorite_border,
-  'flight': Icons.flight_outlined,
-  'folder': Icons.folder_outlined,
+  'list': CupertinoIcons.list_bullet,
+  'cart': CupertinoIcons.cart,
+  'home': CupertinoIcons.house,
+  'work': CupertinoIcons.briefcase,
+  'school': CupertinoIcons.book,
+  'favorite': CupertinoIcons.heart,
+  'flight': CupertinoIcons.airplane,
+  'folder': CupertinoIcons.folder,
 };

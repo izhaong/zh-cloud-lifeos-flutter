@@ -1,5 +1,4 @@
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
@@ -29,56 +28,57 @@ class SmartListCard extends StatelessWidget {
     final iconSize = compact ? 16.0 : 18.0;
     final countSize = compact ? 17.0 : 20.0;
     final titleSize = compact ? 12.0 : 13.0;
-    return Material(
+    return CupertinoButton(
       key: ValueKey('smart_card_${list.id}'),
-      color: Colors.transparent,
+      padding: EdgeInsets.zero,
+      minimumSize: Size.zero,
       borderRadius: radius,
-      child: Ink(
+      pressedOpacity: 0.86,
+      onPressed: onTap,
+      child: Container(
+        key: ValueKey('smart_card_surface_${list.id}'),
         decoration: BoxDecoration(
           gradient: ReminderTokens.smartGradient(list.id),
           borderRadius: radius,
           border: selected
-              ? Border.all(color: Colors.white.withValues(alpha: 0.92), width: 2)
+              ? Border.all(
+                  color: CupertinoColors.white.withValues(alpha: 0.92),
+                  width: 2,
+                )
               : null,
         ),
-        child: InkWell(
-          borderRadius: radius,
-          onTap: onTap,
-          child: Padding(
-            padding: EdgeInsets.all(padding),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        padding: EdgeInsets.all(padding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Icon(_icon(list.id), color: Colors.white, size: iconSize),
-                    const Spacer(),
-                    Text(
-                      '${list.itemCount}',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: countSize,
-                        fontWeight: FontWeight.w600,
-                        height: 1,
-                      ),
-                    ),
-                  ],
-                ),
+                Icon(_icon(list.id), color: CupertinoColors.white, size: iconSize),
                 const Spacer(),
                 Text(
-                  list.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  '${list.itemCount}',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: titleSize,
+                    color: CupertinoColors.white,
+                    fontSize: countSize,
                     fontWeight: FontWeight.w600,
-                    height: 1.1,
+                    height: 1,
                   ),
                 ),
               ],
             ),
-          ),
+            const Spacer(),
+            Text(
+              list.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: CupertinoColors.white,
+                fontSize: titleSize,
+                fontWeight: FontWeight.w600,
+                height: 1.1,
+              ),
+            ),
+          ],
         ),
       ),
     );

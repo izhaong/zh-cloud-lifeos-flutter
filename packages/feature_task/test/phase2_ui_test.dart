@@ -5,6 +5,8 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'support/life_test_app.dart';
+
 Future<void> _pump(
   WidgetTester tester, {
   required Size size,
@@ -18,7 +20,7 @@ Future<void> _pump(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-      child: MaterialApp(home: child),
+      child: lifeTestHost(child),
     ),
   );
   await tester.pumpAndSettle();
@@ -141,9 +143,9 @@ void main() {
     await tester.tap(find.text('添加列表'));
     await tester.pumpAndSettle();
 
-    // 弹窗输入框（避开首页搜索框；弹窗 hint 是「列表名称」）
+    // 弹窗输入框（避开首页搜索框；弹窗字段 key）
     await tester.enterText(
-      find.widgetWithText(TextField, '列表名称'),
+      find.byKey(const ValueKey('new_list_name')),
       '购物',
     );
     await tester.tap(find.text('完成').last);
