@@ -7306,6 +7306,659 @@ class SyncCursorRowsCompanion extends UpdateCompanion<SyncCursorRow> {
   }
 }
 
+class $TaskPreferencesTable extends TaskPreferences
+    with TableInfo<$TaskPreferencesTable, TaskPreference> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TaskPreferencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userKeyMeta = const VerificationMeta(
+    'userKey',
+  );
+  @override
+  late final GeneratedColumn<String> userKey = GeneratedColumn<String>(
+    'user_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _defaultListIdMeta = const VerificationMeta(
+    'defaultListId',
+  );
+  @override
+  late final GeneratedColumn<String> defaultListId = GeneratedColumn<String>(
+    'default_list_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _allDayNotifyMeta = const VerificationMeta(
+    'allDayNotify',
+  );
+  @override
+  late final GeneratedColumn<bool> allDayNotify = GeneratedColumn<bool>(
+    'all_day_notify',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("all_day_notify" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _markCompleteMeta = const VerificationMeta(
+    'markComplete',
+  );
+  @override
+  late final GeneratedColumn<bool> markComplete = GeneratedColumn<bool>(
+    'mark_complete',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("mark_complete" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _suggestListsMeta = const VerificationMeta(
+    'suggestLists',
+  );
+  @override
+  late final GeneratedColumn<bool> suggestLists = GeneratedColumn<bool>(
+    'suggest_lists',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("suggest_lists" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _showCompletedMeta = const VerificationMeta(
+    'showCompleted',
+  );
+  @override
+  late final GeneratedColumn<bool> showCompleted = GeneratedColumn<bool>(
+    'show_completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("show_completed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _sortModeMeta = const VerificationMeta(
+    'sortMode',
+  );
+  @override
+  late final GeneratedColumn<String> sortMode = GeneratedColumn<String>(
+    'sort_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('manual'),
+  );
+  static const VerificationMeta _sidebarVisibleMeta = const VerificationMeta(
+    'sidebarVisible',
+  );
+  @override
+  late final GeneratedColumn<bool> sidebarVisible = GeneratedColumn<bool>(
+    'sidebar_visible',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("sidebar_visible" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _collapsedKeysJsonMeta = const VerificationMeta(
+    'collapsedKeysJson',
+  );
+  @override
+  late final GeneratedColumn<String> collapsedKeysJson =
+      GeneratedColumn<String>(
+        'collapsed_keys_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('[]'),
+      );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userKey,
+    defaultListId,
+    allDayNotify,
+    markComplete,
+    suggestLists,
+    showCompleted,
+    sortMode,
+    sidebarVisible,
+    collapsedKeysJson,
+    revision,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'task_preferences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TaskPreference> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_key')) {
+      context.handle(
+        _userKeyMeta,
+        userKey.isAcceptableOrUnknown(data['user_key']!, _userKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userKeyMeta);
+    }
+    if (data.containsKey('default_list_id')) {
+      context.handle(
+        _defaultListIdMeta,
+        defaultListId.isAcceptableOrUnknown(
+          data['default_list_id']!,
+          _defaultListIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('all_day_notify')) {
+      context.handle(
+        _allDayNotifyMeta,
+        allDayNotify.isAcceptableOrUnknown(
+          data['all_day_notify']!,
+          _allDayNotifyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('mark_complete')) {
+      context.handle(
+        _markCompleteMeta,
+        markComplete.isAcceptableOrUnknown(
+          data['mark_complete']!,
+          _markCompleteMeta,
+        ),
+      );
+    }
+    if (data.containsKey('suggest_lists')) {
+      context.handle(
+        _suggestListsMeta,
+        suggestLists.isAcceptableOrUnknown(
+          data['suggest_lists']!,
+          _suggestListsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('show_completed')) {
+      context.handle(
+        _showCompletedMeta,
+        showCompleted.isAcceptableOrUnknown(
+          data['show_completed']!,
+          _showCompletedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sort_mode')) {
+      context.handle(
+        _sortModeMeta,
+        sortMode.isAcceptableOrUnknown(data['sort_mode']!, _sortModeMeta),
+      );
+    }
+    if (data.containsKey('sidebar_visible')) {
+      context.handle(
+        _sidebarVisibleMeta,
+        sidebarVisible.isAcceptableOrUnknown(
+          data['sidebar_visible']!,
+          _sidebarVisibleMeta,
+        ),
+      );
+    }
+    if (data.containsKey('collapsed_keys_json')) {
+      context.handle(
+        _collapsedKeysJsonMeta,
+        collapsedKeysJson.isAcceptableOrUnknown(
+          data['collapsed_keys_json']!,
+          _collapsedKeysJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userKey};
+  @override
+  TaskPreference map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TaskPreference(
+      userKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_key'],
+      )!,
+      defaultListId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}default_list_id'],
+      ),
+      allDayNotify: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}all_day_notify'],
+      )!,
+      markComplete: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}mark_complete'],
+      )!,
+      suggestLists: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}suggest_lists'],
+      )!,
+      showCompleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}show_completed'],
+      )!,
+      sortMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sort_mode'],
+      )!,
+      sidebarVisible: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}sidebar_visible'],
+      )!,
+      collapsedKeysJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collapsed_keys_json'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+    );
+  }
+
+  @override
+  $TaskPreferencesTable createAlias(String alias) {
+    return $TaskPreferencesTable(attachedDatabase, alias);
+  }
+}
+
+class TaskPreference extends DataClass implements Insertable<TaskPreference> {
+  final String userKey;
+  final String? defaultListId;
+  final bool allDayNotify;
+  final bool markComplete;
+  final bool suggestLists;
+
+  /// 视图态（卡 4b）：显示已完成 / 排序模式 / 侧栏显隐 / 折叠键 JSON 数组。
+  final bool showCompleted;
+  final String sortMode;
+  final bool sidebarVisible;
+  final String collapsedKeysJson;
+  final int revision;
+  const TaskPreference({
+    required this.userKey,
+    this.defaultListId,
+    required this.allDayNotify,
+    required this.markComplete,
+    required this.suggestLists,
+    required this.showCompleted,
+    required this.sortMode,
+    required this.sidebarVisible,
+    required this.collapsedKeysJson,
+    required this.revision,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_key'] = Variable<String>(userKey);
+    if (!nullToAbsent || defaultListId != null) {
+      map['default_list_id'] = Variable<String>(defaultListId);
+    }
+    map['all_day_notify'] = Variable<bool>(allDayNotify);
+    map['mark_complete'] = Variable<bool>(markComplete);
+    map['suggest_lists'] = Variable<bool>(suggestLists);
+    map['show_completed'] = Variable<bool>(showCompleted);
+    map['sort_mode'] = Variable<String>(sortMode);
+    map['sidebar_visible'] = Variable<bool>(sidebarVisible);
+    map['collapsed_keys_json'] = Variable<String>(collapsedKeysJson);
+    map['revision'] = Variable<int>(revision);
+    return map;
+  }
+
+  TaskPreferencesCompanion toCompanion(bool nullToAbsent) {
+    return TaskPreferencesCompanion(
+      userKey: Value(userKey),
+      defaultListId: defaultListId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(defaultListId),
+      allDayNotify: Value(allDayNotify),
+      markComplete: Value(markComplete),
+      suggestLists: Value(suggestLists),
+      showCompleted: Value(showCompleted),
+      sortMode: Value(sortMode),
+      sidebarVisible: Value(sidebarVisible),
+      collapsedKeysJson: Value(collapsedKeysJson),
+      revision: Value(revision),
+    );
+  }
+
+  factory TaskPreference.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TaskPreference(
+      userKey: serializer.fromJson<String>(json['userKey']),
+      defaultListId: serializer.fromJson<String?>(json['defaultListId']),
+      allDayNotify: serializer.fromJson<bool>(json['allDayNotify']),
+      markComplete: serializer.fromJson<bool>(json['markComplete']),
+      suggestLists: serializer.fromJson<bool>(json['suggestLists']),
+      showCompleted: serializer.fromJson<bool>(json['showCompleted']),
+      sortMode: serializer.fromJson<String>(json['sortMode']),
+      sidebarVisible: serializer.fromJson<bool>(json['sidebarVisible']),
+      collapsedKeysJson: serializer.fromJson<String>(json['collapsedKeysJson']),
+      revision: serializer.fromJson<int>(json['revision']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userKey': serializer.toJson<String>(userKey),
+      'defaultListId': serializer.toJson<String?>(defaultListId),
+      'allDayNotify': serializer.toJson<bool>(allDayNotify),
+      'markComplete': serializer.toJson<bool>(markComplete),
+      'suggestLists': serializer.toJson<bool>(suggestLists),
+      'showCompleted': serializer.toJson<bool>(showCompleted),
+      'sortMode': serializer.toJson<String>(sortMode),
+      'sidebarVisible': serializer.toJson<bool>(sidebarVisible),
+      'collapsedKeysJson': serializer.toJson<String>(collapsedKeysJson),
+      'revision': serializer.toJson<int>(revision),
+    };
+  }
+
+  TaskPreference copyWith({
+    String? userKey,
+    Value<String?> defaultListId = const Value.absent(),
+    bool? allDayNotify,
+    bool? markComplete,
+    bool? suggestLists,
+    bool? showCompleted,
+    String? sortMode,
+    bool? sidebarVisible,
+    String? collapsedKeysJson,
+    int? revision,
+  }) => TaskPreference(
+    userKey: userKey ?? this.userKey,
+    defaultListId: defaultListId.present
+        ? defaultListId.value
+        : this.defaultListId,
+    allDayNotify: allDayNotify ?? this.allDayNotify,
+    markComplete: markComplete ?? this.markComplete,
+    suggestLists: suggestLists ?? this.suggestLists,
+    showCompleted: showCompleted ?? this.showCompleted,
+    sortMode: sortMode ?? this.sortMode,
+    sidebarVisible: sidebarVisible ?? this.sidebarVisible,
+    collapsedKeysJson: collapsedKeysJson ?? this.collapsedKeysJson,
+    revision: revision ?? this.revision,
+  );
+  TaskPreference copyWithCompanion(TaskPreferencesCompanion data) {
+    return TaskPreference(
+      userKey: data.userKey.present ? data.userKey.value : this.userKey,
+      defaultListId: data.defaultListId.present
+          ? data.defaultListId.value
+          : this.defaultListId,
+      allDayNotify: data.allDayNotify.present
+          ? data.allDayNotify.value
+          : this.allDayNotify,
+      markComplete: data.markComplete.present
+          ? data.markComplete.value
+          : this.markComplete,
+      suggestLists: data.suggestLists.present
+          ? data.suggestLists.value
+          : this.suggestLists,
+      showCompleted: data.showCompleted.present
+          ? data.showCompleted.value
+          : this.showCompleted,
+      sortMode: data.sortMode.present ? data.sortMode.value : this.sortMode,
+      sidebarVisible: data.sidebarVisible.present
+          ? data.sidebarVisible.value
+          : this.sidebarVisible,
+      collapsedKeysJson: data.collapsedKeysJson.present
+          ? data.collapsedKeysJson.value
+          : this.collapsedKeysJson,
+      revision: data.revision.present ? data.revision.value : this.revision,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskPreference(')
+          ..write('userKey: $userKey, ')
+          ..write('defaultListId: $defaultListId, ')
+          ..write('allDayNotify: $allDayNotify, ')
+          ..write('markComplete: $markComplete, ')
+          ..write('suggestLists: $suggestLists, ')
+          ..write('showCompleted: $showCompleted, ')
+          ..write('sortMode: $sortMode, ')
+          ..write('sidebarVisible: $sidebarVisible, ')
+          ..write('collapsedKeysJson: $collapsedKeysJson, ')
+          ..write('revision: $revision')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    userKey,
+    defaultListId,
+    allDayNotify,
+    markComplete,
+    suggestLists,
+    showCompleted,
+    sortMode,
+    sidebarVisible,
+    collapsedKeysJson,
+    revision,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TaskPreference &&
+          other.userKey == this.userKey &&
+          other.defaultListId == this.defaultListId &&
+          other.allDayNotify == this.allDayNotify &&
+          other.markComplete == this.markComplete &&
+          other.suggestLists == this.suggestLists &&
+          other.showCompleted == this.showCompleted &&
+          other.sortMode == this.sortMode &&
+          other.sidebarVisible == this.sidebarVisible &&
+          other.collapsedKeysJson == this.collapsedKeysJson &&
+          other.revision == this.revision);
+}
+
+class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
+  final Value<String> userKey;
+  final Value<String?> defaultListId;
+  final Value<bool> allDayNotify;
+  final Value<bool> markComplete;
+  final Value<bool> suggestLists;
+  final Value<bool> showCompleted;
+  final Value<String> sortMode;
+  final Value<bool> sidebarVisible;
+  final Value<String> collapsedKeysJson;
+  final Value<int> revision;
+  final Value<int> rowid;
+  const TaskPreferencesCompanion({
+    this.userKey = const Value.absent(),
+    this.defaultListId = const Value.absent(),
+    this.allDayNotify = const Value.absent(),
+    this.markComplete = const Value.absent(),
+    this.suggestLists = const Value.absent(),
+    this.showCompleted = const Value.absent(),
+    this.sortMode = const Value.absent(),
+    this.sidebarVisible = const Value.absent(),
+    this.collapsedKeysJson = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TaskPreferencesCompanion.insert({
+    required String userKey,
+    this.defaultListId = const Value.absent(),
+    this.allDayNotify = const Value.absent(),
+    this.markComplete = const Value.absent(),
+    this.suggestLists = const Value.absent(),
+    this.showCompleted = const Value.absent(),
+    this.sortMode = const Value.absent(),
+    this.sidebarVisible = const Value.absent(),
+    this.collapsedKeysJson = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : userKey = Value(userKey);
+  static Insertable<TaskPreference> custom({
+    Expression<String>? userKey,
+    Expression<String>? defaultListId,
+    Expression<bool>? allDayNotify,
+    Expression<bool>? markComplete,
+    Expression<bool>? suggestLists,
+    Expression<bool>? showCompleted,
+    Expression<String>? sortMode,
+    Expression<bool>? sidebarVisible,
+    Expression<String>? collapsedKeysJson,
+    Expression<int>? revision,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userKey != null) 'user_key': userKey,
+      if (defaultListId != null) 'default_list_id': defaultListId,
+      if (allDayNotify != null) 'all_day_notify': allDayNotify,
+      if (markComplete != null) 'mark_complete': markComplete,
+      if (suggestLists != null) 'suggest_lists': suggestLists,
+      if (showCompleted != null) 'show_completed': showCompleted,
+      if (sortMode != null) 'sort_mode': sortMode,
+      if (sidebarVisible != null) 'sidebar_visible': sidebarVisible,
+      if (collapsedKeysJson != null) 'collapsed_keys_json': collapsedKeysJson,
+      if (revision != null) 'revision': revision,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TaskPreferencesCompanion copyWith({
+    Value<String>? userKey,
+    Value<String?>? defaultListId,
+    Value<bool>? allDayNotify,
+    Value<bool>? markComplete,
+    Value<bool>? suggestLists,
+    Value<bool>? showCompleted,
+    Value<String>? sortMode,
+    Value<bool>? sidebarVisible,
+    Value<String>? collapsedKeysJson,
+    Value<int>? revision,
+    Value<int>? rowid,
+  }) {
+    return TaskPreferencesCompanion(
+      userKey: userKey ?? this.userKey,
+      defaultListId: defaultListId ?? this.defaultListId,
+      allDayNotify: allDayNotify ?? this.allDayNotify,
+      markComplete: markComplete ?? this.markComplete,
+      suggestLists: suggestLists ?? this.suggestLists,
+      showCompleted: showCompleted ?? this.showCompleted,
+      sortMode: sortMode ?? this.sortMode,
+      sidebarVisible: sidebarVisible ?? this.sidebarVisible,
+      collapsedKeysJson: collapsedKeysJson ?? this.collapsedKeysJson,
+      revision: revision ?? this.revision,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userKey.present) {
+      map['user_key'] = Variable<String>(userKey.value);
+    }
+    if (defaultListId.present) {
+      map['default_list_id'] = Variable<String>(defaultListId.value);
+    }
+    if (allDayNotify.present) {
+      map['all_day_notify'] = Variable<bool>(allDayNotify.value);
+    }
+    if (markComplete.present) {
+      map['mark_complete'] = Variable<bool>(markComplete.value);
+    }
+    if (suggestLists.present) {
+      map['suggest_lists'] = Variable<bool>(suggestLists.value);
+    }
+    if (showCompleted.present) {
+      map['show_completed'] = Variable<bool>(showCompleted.value);
+    }
+    if (sortMode.present) {
+      map['sort_mode'] = Variable<String>(sortMode.value);
+    }
+    if (sidebarVisible.present) {
+      map['sidebar_visible'] = Variable<bool>(sidebarVisible.value);
+    }
+    if (collapsedKeysJson.present) {
+      map['collapsed_keys_json'] = Variable<String>(collapsedKeysJson.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TaskPreferencesCompanion(')
+          ..write('userKey: $userKey, ')
+          ..write('defaultListId: $defaultListId, ')
+          ..write('allDayNotify: $allDayNotify, ')
+          ..write('markComplete: $markComplete, ')
+          ..write('suggestLists: $suggestLists, ')
+          ..write('showCompleted: $showCompleted, ')
+          ..write('sortMode: $sortMode, ')
+          ..write('sidebarVisible: $sidebarVisible, ')
+          ..write('collapsedKeysJson: $collapsedKeysJson, ')
+          ..write('revision: $revision, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LifeProductivityDb extends GeneratedDatabase {
   _$LifeProductivityDb(QueryExecutor e) : super(e);
   $LifeProductivityDbManager get managers => $LifeProductivityDbManager(this);
@@ -7319,6 +7972,9 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
   late final $NotesTable notes = $NotesTable(this);
   late final $TaskOutboxRowsTable taskOutboxRows = $TaskOutboxRowsTable(this);
   late final $SyncCursorRowsTable syncCursorRows = $SyncCursorRowsTable(this);
+  late final $TaskPreferencesTable taskPreferences = $TaskPreferencesTable(
+    this,
+  );
   late final Index idxCalendarEventsCalStart = Index(
     'idx_calendar_events_cal_start',
     'CREATE INDEX idx_calendar_events_cal_start ON calendar_events (calendar_id, start_at)',
@@ -7337,6 +7993,7 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
     notes,
     taskOutboxRows,
     syncCursorRows,
+    taskPreferences,
     idxCalendarEventsCalStart,
   ];
 }
@@ -10833,6 +11490,334 @@ typedef $$SyncCursorRowsTableProcessedTableManager =
       SyncCursorRow,
       PrefetchHooks Function()
     >;
+typedef $$TaskPreferencesTableCreateCompanionBuilder =
+    TaskPreferencesCompanion Function({
+      required String userKey,
+      Value<String?> defaultListId,
+      Value<bool> allDayNotify,
+      Value<bool> markComplete,
+      Value<bool> suggestLists,
+      Value<bool> showCompleted,
+      Value<String> sortMode,
+      Value<bool> sidebarVisible,
+      Value<String> collapsedKeysJson,
+      Value<int> revision,
+      Value<int> rowid,
+    });
+typedef $$TaskPreferencesTableUpdateCompanionBuilder =
+    TaskPreferencesCompanion Function({
+      Value<String> userKey,
+      Value<String?> defaultListId,
+      Value<bool> allDayNotify,
+      Value<bool> markComplete,
+      Value<bool> suggestLists,
+      Value<bool> showCompleted,
+      Value<String> sortMode,
+      Value<bool> sidebarVisible,
+      Value<String> collapsedKeysJson,
+      Value<int> revision,
+      Value<int> rowid,
+    });
+
+class $$TaskPreferencesTableFilterComposer
+    extends Composer<_$LifeProductivityDb, $TaskPreferencesTable> {
+  $$TaskPreferencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get userKey => $composableBuilder(
+    column: $table.userKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get defaultListId => $composableBuilder(
+    column: $table.defaultListId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get allDayNotify => $composableBuilder(
+    column: $table.allDayNotify,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get markComplete => $composableBuilder(
+    column: $table.markComplete,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get suggestLists => $composableBuilder(
+    column: $table.suggestLists,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get showCompleted => $composableBuilder(
+    column: $table.showCompleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sortMode => $composableBuilder(
+    column: $table.sortMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get sidebarVisible => $composableBuilder(
+    column: $table.sidebarVisible,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get collapsedKeysJson => $composableBuilder(
+    column: $table.collapsedKeysJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TaskPreferencesTableOrderingComposer
+    extends Composer<_$LifeProductivityDb, $TaskPreferencesTable> {
+  $$TaskPreferencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get userKey => $composableBuilder(
+    column: $table.userKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get defaultListId => $composableBuilder(
+    column: $table.defaultListId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get allDayNotify => $composableBuilder(
+    column: $table.allDayNotify,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get markComplete => $composableBuilder(
+    column: $table.markComplete,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get suggestLists => $composableBuilder(
+    column: $table.suggestLists,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get showCompleted => $composableBuilder(
+    column: $table.showCompleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sortMode => $composableBuilder(
+    column: $table.sortMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get sidebarVisible => $composableBuilder(
+    column: $table.sidebarVisible,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get collapsedKeysJson => $composableBuilder(
+    column: $table.collapsedKeysJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TaskPreferencesTableAnnotationComposer
+    extends Composer<_$LifeProductivityDb, $TaskPreferencesTable> {
+  $$TaskPreferencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get userKey =>
+      $composableBuilder(column: $table.userKey, builder: (column) => column);
+
+  GeneratedColumn<String> get defaultListId => $composableBuilder(
+    column: $table.defaultListId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get allDayNotify => $composableBuilder(
+    column: $table.allDayNotify,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get markComplete => $composableBuilder(
+    column: $table.markComplete,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get suggestLists => $composableBuilder(
+    column: $table.suggestLists,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get showCompleted => $composableBuilder(
+    column: $table.showCompleted,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sortMode =>
+      $composableBuilder(column: $table.sortMode, builder: (column) => column);
+
+  GeneratedColumn<bool> get sidebarVisible => $composableBuilder(
+    column: $table.sidebarVisible,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get collapsedKeysJson => $composableBuilder(
+    column: $table.collapsedKeysJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+}
+
+class $$TaskPreferencesTableTableManager
+    extends
+        RootTableManager<
+          _$LifeProductivityDb,
+          $TaskPreferencesTable,
+          TaskPreference,
+          $$TaskPreferencesTableFilterComposer,
+          $$TaskPreferencesTableOrderingComposer,
+          $$TaskPreferencesTableAnnotationComposer,
+          $$TaskPreferencesTableCreateCompanionBuilder,
+          $$TaskPreferencesTableUpdateCompanionBuilder,
+          (
+            TaskPreference,
+            BaseReferences<
+              _$LifeProductivityDb,
+              $TaskPreferencesTable,
+              TaskPreference
+            >,
+          ),
+          TaskPreference,
+          PrefetchHooks Function()
+        > {
+  $$TaskPreferencesTableTableManager(
+    _$LifeProductivityDb db,
+    $TaskPreferencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TaskPreferencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TaskPreferencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TaskPreferencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> userKey = const Value.absent(),
+                Value<String?> defaultListId = const Value.absent(),
+                Value<bool> allDayNotify = const Value.absent(),
+                Value<bool> markComplete = const Value.absent(),
+                Value<bool> suggestLists = const Value.absent(),
+                Value<bool> showCompleted = const Value.absent(),
+                Value<String> sortMode = const Value.absent(),
+                Value<bool> sidebarVisible = const Value.absent(),
+                Value<String> collapsedKeysJson = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskPreferencesCompanion(
+                userKey: userKey,
+                defaultListId: defaultListId,
+                allDayNotify: allDayNotify,
+                markComplete: markComplete,
+                suggestLists: suggestLists,
+                showCompleted: showCompleted,
+                sortMode: sortMode,
+                sidebarVisible: sidebarVisible,
+                collapsedKeysJson: collapsedKeysJson,
+                revision: revision,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userKey,
+                Value<String?> defaultListId = const Value.absent(),
+                Value<bool> allDayNotify = const Value.absent(),
+                Value<bool> markComplete = const Value.absent(),
+                Value<bool> suggestLists = const Value.absent(),
+                Value<bool> showCompleted = const Value.absent(),
+                Value<String> sortMode = const Value.absent(),
+                Value<bool> sidebarVisible = const Value.absent(),
+                Value<String> collapsedKeysJson = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TaskPreferencesCompanion.insert(
+                userKey: userKey,
+                defaultListId: defaultListId,
+                allDayNotify: allDayNotify,
+                markComplete: markComplete,
+                suggestLists: suggestLists,
+                showCompleted: showCompleted,
+                sortMode: sortMode,
+                sidebarVisible: sidebarVisible,
+                collapsedKeysJson: collapsedKeysJson,
+                revision: revision,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TaskPreferencesTable, TaskPreference>(table),
+                  BaseReferences<
+                    _$LifeProductivityDb,
+                    $TaskPreferencesTable,
+                    TaskPreference
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TaskPreferencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LifeProductivityDb,
+      $TaskPreferencesTable,
+      TaskPreference,
+      $$TaskPreferencesTableFilterComposer,
+      $$TaskPreferencesTableOrderingComposer,
+      $$TaskPreferencesTableAnnotationComposer,
+      $$TaskPreferencesTableCreateCompanionBuilder,
+      $$TaskPreferencesTableUpdateCompanionBuilder,
+      (
+        TaskPreference,
+        BaseReferences<
+          _$LifeProductivityDb,
+          $TaskPreferencesTable,
+          TaskPreference
+        >,
+      ),
+      TaskPreference,
+      PrefetchHooks Function()
+    >;
 
 class $LifeProductivityDbManager {
   final _$LifeProductivityDb _db;
@@ -10855,4 +11840,6 @@ class $LifeProductivityDbManager {
       $$TaskOutboxRowsTableTableManager(_db, _db.taskOutboxRows);
   $$SyncCursorRowsTableTableManager get syncCursorRows =>
       $$SyncCursorRowsTableTableManager(_db, _db.syncCursorRows);
+  $$TaskPreferencesTableTableManager get taskPreferences =>
+      $$TaskPreferencesTableTableManager(_db, _db.taskPreferences);
 }
