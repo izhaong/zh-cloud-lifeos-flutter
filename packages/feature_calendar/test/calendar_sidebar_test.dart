@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/life_test_app.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 /// F-04 侧栏与迷你月历契约（TC-CAL-UI-120～124/126/127；契约 §5.4/§8.1/§8.5）。
 void main() {
@@ -12,26 +14,52 @@ void main() {
   late SharedPreferences prefs;
 
   Future<void> pumpSidebar(WidgetTester tester) async {
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        calendarRepositoryProvider.overrideWithValue(repo),
-        sidebarPrefsProvider.overrideWithValue(prefs),
-      ],
-      child: const MaterialApp(home: Scaffold(body: CalendarSidebar())),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(repo),
+          sidebarPrefsProvider.overrideWithValue(prefs),
+        ],
+        child: lifeTestHost(const Scaffold(body: CalendarSidebar())),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
   Future<void> seed(WidgetTester tester) async {
     prefs = await SharedPreferences.getInstance();
-    await repo.upsertCalendar(const Calendar(
-        id: 'c1', title: '工作', colorArgb: 0xFF007AFF, kind: CalendarKind.local));
-    await repo.upsertCalendar(const Calendar(
-        id: 'c2', title: '家庭', colorArgb: 0xFF34C759, kind: CalendarKind.local));
-    await repo.upsertCalendar(const Calendar(
-        id: 'c3', title: '公司排班', colorArgb: 0xFFAF52DE, kind: CalendarKind.subscription));
-    await repo.upsertCalendar(const Calendar(
-        id: 'c4', title: '中国大陆节假日', colorArgb: 0xFFFF3B30, kind: CalendarKind.holiday));
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 'c1',
+        title: '工作',
+        colorArgb: 0xFF007AFF,
+        kind: CalendarKind.local,
+      ),
+    );
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 'c2',
+        title: '家庭',
+        colorArgb: 0xFF34C759,
+        kind: CalendarKind.local,
+      ),
+    );
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 'c3',
+        title: '公司排班',
+        colorArgb: 0xFFAF52DE,
+        kind: CalendarKind.subscription,
+      ),
+    );
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 'c4',
+        title: '中国大陆节假日',
+        colorArgb: 0xFFFF3B30,
+        kind: CalendarKind.holiday,
+      ),
+    );
     await pumpSidebar(tester);
   }
 
@@ -53,12 +81,24 @@ void main() {
   // TC-CAL-UI-123：两个本地日历设同一 groupName → 组头出现一次，组下两条
   testWidgets('TC-CAL-UI-123 日历组组头', (tester) async {
     prefs = await SharedPreferences.getInstance();
-    await repo.upsertCalendar(const Calendar(
-        id: 'f1', title: '家庭', colorArgb: 0xFF34C759,
-        kind: CalendarKind.local, groupName: '家'));
-    await repo.upsertCalendar(const Calendar(
-        id: 'f2', title: '个人', colorArgb: 0xFF007AFF,
-        kind: CalendarKind.local, groupName: '家'));
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 'f1',
+        title: '家庭',
+        colorArgb: 0xFF34C759,
+        kind: CalendarKind.local,
+        groupName: '家',
+      ),
+    );
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 'f2',
+        title: '个人',
+        colorArgb: 0xFF007AFF,
+        kind: CalendarKind.local,
+        groupName: '家',
+      ),
+    );
     await pumpSidebar(tester);
     expect(find.text('家'), findsOneWidget, reason: '组头只出现一次');
     expect(find.text('家庭'), findsOneWidget);
@@ -68,33 +108,48 @@ void main() {
   // TC-CAL-UI-125：订阅刷新失败（lastRefreshError 非空）→ 该行有警告图标
   testWidgets('TC-CAL-UI-125 订阅刷新失败显示警告图标', (tester) async {
     prefs = await SharedPreferences.getInstance();
-    await repo.upsertCalendar(const Calendar(
+    await repo.upsertCalendar(
+      const Calendar(
         id: 'bad',
         title: '失败订阅',
         colorArgb: 0xFFAF52DE,
         kind: CalendarKind.subscription,
-        lastRefreshError: '拉取超时'));
-    await repo.upsertCalendar(const Calendar(
+        lastRefreshError: '拉取超时',
+      ),
+    );
+    await repo.upsertCalendar(
+      const Calendar(
         id: 'ok',
         title: '正常订阅',
         colorArgb: 0xFF34C759,
-        kind: CalendarKind.subscription));
+        kind: CalendarKind.subscription,
+      ),
+    );
     await pumpSidebar(tester);
-    expect(find.byKey(const Key('cal-refresh-error-bad')), findsOneWidget,
-        reason: 'lastRefreshError 非空的订阅行要有警告图标');
-    expect(find.byKey(const Key('cal-refresh-error-ok')), findsNothing,
-        reason: '无错误的订阅行不该出现警告图标');
+    expect(
+      find.byKey(const Key('cal-refresh-error-bad')),
+      findsOneWidget,
+      reason: 'lastRefreshError 非空的订阅行要有警告图标',
+    );
+    expect(
+      find.byKey(const Key('cal-refresh-error-ok')),
+      findsNothing,
+      reason: '无错误的订阅行不该出现警告图标',
+    );
   });
 
   // TC-CAL-UI-125（回归半）：详情页改色不得把已存的刷新错误写空
   testWidgets('TC-CAL-UI-125 改色后仍保留刷新失败标记', (tester) async {
     prefs = await SharedPreferences.getInstance();
-    await repo.upsertCalendar(const Calendar(
+    await repo.upsertCalendar(
+      const Calendar(
         id: 'bad',
         title: '失败订阅',
         colorArgb: 0xFFAF52DE,
         kind: CalendarKind.subscription,
-        lastRefreshError: '拉取超时'));
+        lastRefreshError: '拉取超时',
+      ),
+    );
     await pumpSidebar(tester);
 
     await tester.tap(find.byKey(const Key('cal-info-bad')));
@@ -103,10 +158,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repo.saved.last.colorArgb, 0xFFFF9500, reason: '改色落库');
-    expect(repo.saved.last.lastRefreshError, '拉取超时',
-        reason: '全量 upsert 不能把 lastRefreshError 写成 NULL');
-    expect(find.byKey(const Key('cal-refresh-error-bad')), findsOneWidget,
-        reason: '改色后警告图标仍在');
+    expect(
+      repo.saved.last.lastRefreshError,
+      '拉取超时',
+      reason: '全量 upsert 不能把 lastRefreshError 写成 NULL',
+    );
+    expect(
+      find.byKey(const Key('cal-refresh-error-bad')),
+      findsOneWidget,
+      reason: '改色后警告图标仍在',
+    );
   });
 
   // TC-CAL-UI-120：添加日历（名称 + 绿色）→ upsert 捕获 #34C759，侧栏出现
@@ -115,7 +176,7 @@ void main() {
     await tester.tap(find.text('添加日历'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField), '新日历');
+    await tester.enterText(find.byType(CupertinoTextField), '新日历');
     await tester.tap(find.byKey(const Key('preset-color-0xFF34C759')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('完成'));
@@ -149,22 +210,40 @@ void main() {
   // TC-CAL-UI-124：onlyId → visibleCalendarIdsProvider 只含该日历
   testWidgets('TC-CAL-UI-124 只显示这一本', (tester) async {
     prefs = await SharedPreferences.getInstance();
-    await repo.upsertCalendar(const Calendar(
-        id: 'a', title: 'A', colorArgb: 0xFF007AFF, kind: CalendarKind.local, isVisible: true));
-    await repo.upsertCalendar(const Calendar(
-        id: 'b', title: 'B', colorArgb: 0xFF34C759, kind: CalendarKind.local, isVisible: true));
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 'a',
+        title: 'A',
+        colorArgb: 0xFF007AFF,
+        kind: CalendarKind.local,
+        isVisible: true,
+      ),
+    );
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 'b',
+        title: 'B',
+        colorArgb: 0xFF34C759,
+        kind: CalendarKind.local,
+        isVisible: true,
+      ),
+    );
 
     late Set<String> visible;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        calendarRepositoryProvider.overrideWithValue(repo),
-        sidebarPrefsProvider.overrideWithValue(prefs),
-      ],
-      child: Consumer(builder: (context, ref, _) {
-        visible = ref.watch(visibleCalendarIdsProvider);
-        return const SizedBox();
-      }),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(repo),
+          sidebarPrefsProvider.overrideWithValue(prefs),
+        ],
+        child: Consumer(
+          builder: (context, ref, _) {
+            visible = ref.watch(visibleCalendarIdsProvider);
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await repo.setVisibility(onlyId: 'a');
@@ -176,23 +255,37 @@ void main() {
   // TC-CAL-UI-126：kind=shared 与 subscription 图标不同
   testWidgets('TC-CAL-UI-126 共享与订阅图标不同', (tester) async {
     prefs = await SharedPreferences.getInstance();
-    await repo.upsertCalendar(const Calendar(
-        id: 's1', title: '公司排班', colorArgb: 0xFFAF52DE, kind: CalendarKind.subscription));
-    await repo.upsertCalendar(const Calendar(
-        id: 'h1', title: '同事共享', colorArgb: 0xFFAF52DE, kind: CalendarKind.shared));
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 's1',
+        title: '公司排班',
+        colorArgb: 0xFFAF52DE,
+        kind: CalendarKind.subscription,
+      ),
+    );
+    await repo.upsertCalendar(
+      const Calendar(
+        id: 'h1',
+        title: '同事共享',
+        colorArgb: 0xFFAF52DE,
+        kind: CalendarKind.shared,
+      ),
+    );
     await pumpSidebar(tester);
 
-    final subIcon = tester.widget<Icon>(find.byIcon(Icons.rss_feed));
-    final sharedIcon = tester.widget<Icon>(find.byIcon(Icons.group_outlined));
+    final subIcon = tester.widget<Icon>(find.byIcon(CupertinoIcons.globe));
+    final sharedIcon = tester.widget<Icon>(
+      find.byIcon(CupertinoIcons.person_2),
+    );
     expect(subIcon.icon, isNot(sharedIcon.icon));
   });
 
   // ☰ 切换显隐并持久化（契约：shared_preferences 键 lifeos.calendar.sidebar.visible）
   test('侧栏显隐持久化', () async {
     prefs = await SharedPreferences.getInstance();
-    final container = ProviderContainer(overrides: [
-      sidebarPrefsProvider.overrideWithValue(prefs),
-    ]);
+    final container = ProviderContainer(
+      overrides: [sidebarPrefsProvider.overrideWithValue(prefs)],
+    );
     addTearDown(container.dispose);
 
     expect(container.read(sidebarVisibleProvider), isTrue);
@@ -204,17 +297,21 @@ void main() {
   // 迷你月历：点日期 → anchorDateProvider 变为该日
   testWidgets('迷你月历点日期改锚点', (tester) async {
     prefs = await SharedPreferences.getInstance();
-    final container = ProviderContainer(overrides: [
-      calendarRepositoryProvider.overrideWithValue(repo),
-      sidebarPrefsProvider.overrideWithValue(prefs),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        calendarRepositoryProvider.overrideWithValue(repo),
+        sidebarPrefsProvider.overrideWithValue(prefs),
+      ],
+    );
     addTearDown(container.dispose);
     final anchor = container.read(anchorDateProvider);
 
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: const MaterialApp(home: Scaffold(body: MiniMonth())),
-    ));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: lifeTestHost(const Scaffold(body: MiniMonth())),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('15').first);
@@ -261,8 +358,12 @@ class _MutableRepo implements CalendarRepository {
   }
 
   @override
-  Future<void> setVisibility(
-      {String? id, bool? visible, bool? allVisible, String? onlyId}) async {
+  Future<void> setVisibility({
+    String? id,
+    bool? visible,
+    bool? allVisible,
+    String? onlyId,
+  }) async {
     for (var i = 0; i < list.length; i++) {
       if (onlyId != null) {
         list[i] = _copyWithVisible(list[i], list[i].id == onlyId);
@@ -297,8 +398,11 @@ class _MutableRepo implements CalendarRepository {
   }
 
   @override
-  Stream<List<CalendarEvent>> watchEvents(
-      {required DateTime from, required DateTime to, Set<String>? calendarIds}) {
+  Stream<List<CalendarEvent>> watchEvents({
+    required DateTime from,
+    required DateTime to,
+    Set<String>? calendarIds,
+  }) {
     return Stream.value(const []);
   }
 
@@ -312,21 +416,31 @@ class _MutableRepo implements CalendarRepository {
   Future<void> reorderCalendars(List<String> ids) async {}
 
   @override
-  Future<String> upsertEvent(CalendarEvent e,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {
+  Future<String> upsertEvent(
+    CalendarEvent e, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {
     return e.id;
   }
 
   @override
-  Future<void> deleteEvent(String id,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {}
+  Future<void> deleteEvent(
+    String id, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {}
 
   @override
   Future<void> moveEvent(String id, String targetCalendarId) async {}
 
   @override
-  Future<List<CalendarEvent>> search(String keyword,
-      {DateTime? from, DateTime? to, int limit = 50}) async {
+  Future<List<CalendarEvent>> search(
+    String keyword, {
+    DateTime? from,
+    DateTime? to,
+    int limit = 50,
+  }) async {
     return const [];
   }
 

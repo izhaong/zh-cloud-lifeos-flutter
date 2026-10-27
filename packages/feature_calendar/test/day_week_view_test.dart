@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/life_test_app.dart';
 
 /// F-05 日/周视图契约（TC-CAL-UI-101/102/105/106/130/135/139；契约 §8.3/§8.5）。
 void main() {
@@ -14,21 +15,23 @@ void main() {
 
   final controller = kalender.DefaultEventsController();
 
-  Future<void> pumpCalendar(WidgetTester tester,
-      {CalendarViewMode mode = CalendarViewMode.day}) async {
+  Future<void> pumpCalendar(
+    WidgetTester tester, {
+    CalendarViewMode mode = CalendarViewMode.day,
+  }) async {
     prefs = await SharedPreferences.getInstance();
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        calendarRepositoryProvider.overrideWithValue(repo),
-        sidebarPrefsProvider.overrideWithValue(prefs),
-        kalenderEventsControllerProvider.overrideWithValue(controller),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: CalendarScaffold(initialViewMode: mode),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(repo),
+          sidebarPrefsProvider.overrideWithValue(prefs),
+          kalenderEventsControllerProvider.overrideWithValue(controller),
+        ],
+        child: lifeTestHost(
+          Scaffold(body: CalendarScaffold(initialViewMode: mode)),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
   }
 
@@ -57,14 +60,14 @@ void main() {
     await pumpCalendar(tester, mode: CalendarViewMode.week);
     final config = containerOf(tester).read(calendarViewConfigurationsProvider);
     expect(config.week.numberOfDays, 5);
-    expect(config.week.isWorkWeek, isTrue,
-        reason: 'workWeek 口径不含周六周日');
+    expect(config.week.isWorkWeek, isTrue, reason: 'workWeek 口径不含周六周日');
   });
 
   // TC-CAL-UI-106：时间轴范围 dayStartHour=8，dayEndHour=18
   testWidgets('TC-CAL-UI-106 时间轴范围 8-18', (tester) async {
     await repo.savePreference(
-        const CalendarPreference(dayStartHour: 8, dayEndHour: 18));
+      const CalendarPreference(dayStartHour: 8, dayEndHour: 18),
+    );
     await pumpCalendar(tester, mode: CalendarViewMode.day);
     final config = containerOf(tester).read(calendarViewConfigurationsProvider);
     expect(config.day.startHour, 8);
@@ -83,29 +86,35 @@ void main() {
 
     final state = container.read(draftEventProvider);
     expect(state!.startAt, DateTime.utc(2026, 10, 24, 10, 0));
-    expect(state.endAt.difference(state.startAt), const Duration(hours: 1),
-        reason: '时长=默认（§2.9 defaultDurationMinutes=60）');
+    expect(
+      state.endAt.difference(state.startAt),
+      const Duration(hours: 1),
+      reason: '时长=默认（§2.9 defaultDurationMinutes=60）',
+    );
   });
 
   // TC-CAL-UI-135：拖动改时间 → 仓库 startAt 增加 1 小时（接线逻辑；物理拖拽手动）
   testWidgets('TC-CAL-UI-135 拖动改时间落库', (tester) async {
-    await repo.upsertEvent(CalendarEvent(
-      id: 'e1',
-      calendarId: 'c1',
-      uid: 'u1',
-      title: '站会',
-      startAt: DateTime.utc(2026, 10, 24, 9),
-      endAt: DateTime.utc(2026, 10, 24, 9, 30),
-      timeZone: 'UTC',
-      updatedAt: DateTime.utc(2026, 10, 24),
-    ));
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e1',
+        calendarId: 'c1',
+        uid: 'u1',
+        title: '站会',
+        startAt: DateTime.utc(2026, 10, 24, 9),
+        endAt: DateTime.utc(2026, 10, 24, 9, 30),
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
     await pumpCalendar(tester, mode: CalendarViewMode.day);
 
     final callbacks = viewCallbacksOf(tester);
     await callbacks.onEventMoved(
-        repo.listEvents.firstWhere((e) => e.id == 'e1'),
-        DateTime.utc(2026, 10, 24, 11),
-        DateTime.utc(2026, 10, 24, 11, 30));
+      repo.listEvents.firstWhere((e) => e.id == 'e1'),
+      DateTime.utc(2026, 10, 24, 11),
+      DateTime.utc(2026, 10, 24, 11, 30),
+    );
 
     final saved = repo.upserted.last;
     expect(saved.startAt, DateTime.utc(2026, 10, 24, 11));
@@ -114,30 +123,34 @@ void main() {
 
   // 两个重叠事件都能看到（验收：假仓库放入 2 个重叠事件）
   testWidgets('重叠事件两条都渲染', (tester) async {
-    await repo.upsertEvent(CalendarEvent(
-      id: 'e1',
-      calendarId: 'c1',
-      uid: 'u1',
-      title: '重叠甲',
-      startAt: DateTime.utc(2026, 10, 24, 10),
-      endAt: DateTime.utc(2026, 10, 24, 11),
-      timeZone: 'UTC',
-      updatedAt: DateTime.utc(2026, 10, 24),
-    ));
-    await repo.upsertEvent(CalendarEvent(
-      id: 'e2',
-      calendarId: 'c1',
-      uid: 'u2',
-      title: '重叠乙',
-      startAt: DateTime.utc(2026, 10, 24, 10, 15),
-      endAt: DateTime.utc(2026, 10, 24, 11, 15),
-      timeZone: 'UTC',
-      updatedAt: DateTime.utc(2026, 10, 24),
-    ));
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e1',
+        calendarId: 'c1',
+        uid: 'u1',
+        title: '重叠甲',
+        startAt: DateTime.utc(2026, 10, 24, 10),
+        endAt: DateTime.utc(2026, 10, 24, 11),
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e2',
+        calendarId: 'c1',
+        uid: 'u2',
+        title: '重叠乙',
+        startAt: DateTime.utc(2026, 10, 24, 10, 15),
+        endAt: DateTime.utc(2026, 10, 24, 11, 15),
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
     await pumpCalendar(tester, mode: CalendarViewMode.day);
-    containerOf(tester)
-        .read(anchorDateProvider.notifier)
-        .set(DateTime.utc(2026, 10, 24));
+    containerOf(
+      tester,
+    ).read(anchorDateProvider.notifier).set(DateTime.utc(2026, 10, 24));
     await tester.pumpAndSettle();
 
     // kalender 事件 tile 文本由库内部渲染；控制器公共 API 断言装载
@@ -146,26 +159,31 @@ void main() {
 
   // TC-CAL-UI-139：全天行拖出多日 → upsert end=周四 00:00（接线逻辑；物理拖拽手动）
   testWidgets('TC-CAL-UI-139 全天拖多日落库', (tester) async {
-    await repo.upsertEvent(CalendarEvent(
-      id: 'e1',
-      calendarId: 'c1',
-      uid: 'u1',
-      title: '出差',
-      startAt: DateTime.utc(2026, 10, 19),
-      endAt: DateTime.utc(2026, 10, 20),
-      allDay: true,
-      timeZone: 'UTC',
-      updatedAt: DateTime.utc(2026, 10, 24),
-    ));
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e1',
+        calendarId: 'c1',
+        uid: 'u1',
+        title: '出差',
+        startAt: DateTime.utc(2026, 10, 19),
+        endAt: DateTime.utc(2026, 10, 20),
+        allDay: true,
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
     await pumpCalendar(tester, mode: CalendarViewMode.week);
-    containerOf(tester)
-        .read(anchorDateProvider.notifier)
-        .set(DateTime.utc(2026, 10, 24));
+    containerOf(
+      tester,
+    ).read(anchorDateProvider.notifier).set(DateTime.utc(2026, 10, 24));
     await tester.pumpAndSettle();
 
     final callbacks = viewCallbacksOf(tester);
-    await callbacks.onEventMoved(repo.listEvents.firstWhere((e) => e.id == 'e1'),
-        DateTime.utc(2026, 10, 19), DateTime.utc(2026, 10, 22));
+    await callbacks.onEventMoved(
+      repo.listEvents.firstWhere((e) => e.id == 'e1'),
+      DateTime.utc(2026, 10, 19),
+      DateTime.utc(2026, 10, 22),
+    );
 
     final saved = repo.upserted.last;
     expect(saved.allDay, isTrue);
@@ -188,9 +206,13 @@ ProviderContainer containerOf(WidgetTester tester) {
 /// 取 scaffold 接线的 kalender 回调（tests 直接调用，物理拖拽手动）。
 CalendarViewCallbacks viewCallbacksOf(WidgetTester tester) {
   if (find.byType(CalendarDayView).evaluate().isNotEmpty) {
-    return tester.widget<CalendarDayView>(find.byType(CalendarDayView)).viewCallbacks;
+    return tester
+        .widget<CalendarDayView>(find.byType(CalendarDayView))
+        .viewCallbacks;
   }
-  return tester.widget<CalendarWeekView>(find.byType(CalendarWeekView)).viewCallbacks;
+  return tester
+      .widget<CalendarWeekView>(find.byType(CalendarWeekView))
+      .viewCallbacks;
 }
 
 /// 构造 kalender 事件。
@@ -207,15 +229,21 @@ class _MutableRepo implements CalendarRepository {
   CalendarPreference preference = const CalendarPreference();
 
   @override
-  Stream<List<CalendarEvent>> watchEvents(
-      {required DateTime from, required DateTime to, Set<String>? calendarIds}) async* {
+  Stream<List<CalendarEvent>> watchEvents({
+    required DateTime from,
+    required DateTime to,
+    Set<String>? calendarIds,
+  }) async* {
     yield List<CalendarEvent>.unmodifiable(visible);
     yield* _eventController.stream;
   }
 
   @override
-  Future<String> upsertEvent(CalendarEvent e,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {
+  Future<String> upsertEvent(
+    CalendarEvent e, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {
     upserted.add(e);
     listEvents.add(e);
     visible.add(e);

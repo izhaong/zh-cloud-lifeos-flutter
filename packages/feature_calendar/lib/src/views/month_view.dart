@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:app_core/app_core.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kalender/kalender.dart' as kalender;
 
@@ -14,8 +15,11 @@ import '../providers.dart';
 /// （alternateCalendar=CHINESE，初一红色，TC-CAL-UI-115）；点/双击日创建全天草稿
 /// （TC-CAL-UI-131，标题交 F-12 解析器）。Key：`calendar_month_view`。
 class CalendarMonthView extends ConsumerStatefulWidget {
-  const CalendarMonthView(
-      {super.key, required this.viewCallbacks, required this.eventsController});
+  const CalendarMonthView({
+    super.key,
+    required this.viewCallbacks,
+    required this.eventsController,
+  });
 
   final CalendarViewCallbacks viewCallbacks;
   final kalender.DefaultEventsController eventsController;
@@ -39,10 +43,13 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
   }
 
   static kalender.MonthViewConfiguration _configFor(
-      CalendarPreference preference, DateTime anchor) {
+    CalendarPreference preference,
+    DateTime anchor,
+  ) {
     return kalender.MonthViewConfiguration.singleMonth(
-      firstDayOfWeek:
-          preference.startWeekOn == 7 ? DateTime.sunday : DateTime.monday,
+      firstDayOfWeek: preference.startWeekOn == 7
+          ? DateTime.sunday
+          : DateTime.monday,
       showWeekNumbers: preference.showWeekNumbers,
       initialDateTime: DateTime(anchor.year, anchor.month, 1),
     );
@@ -63,14 +70,15 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
     // 页面切换 → 同步锚点（工具栏/迷你月历与月视图一致）。
     void onPageChanged(kalender.KalenderDateTimeRange range) {
       final start = range.start.toUtc();
-      ref.read(anchorDateProvider.notifier).set(
-          DateTime(start.year, start.month, start.day));
+      ref
+          .read(anchorDateProvider.notifier)
+          .set(DateTime(start.year, start.month, start.day));
     }
 
     // occurrence → kalender 事件装载（重叠/跨周布局由库处理）。
     final occurrences =
         ref.watch(occurrencesProvider(_visibleMonthRange())).value ??
-            const <CalendarOccurrence>[];
+        const <CalendarOccurrence>[];
     widget.eventsController.replaceEvents([
       for (final o in occurrences)
         if (o.source != OccurrenceSource.holiday)
@@ -87,52 +95,54 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
 
     return KeyedSubtree(
       key: const Key('calendar_month_view'),
-      child: kalender.KalenderView(
-        eventsController: widget.eventsController,
-        kalenderController: _controller,
-        views: const [
-          kalender.MonthViewParts(
-            header: SizedBox.shrink(),
-            body: kalender.MonthBody(
-              tileComponents: kalender.TileComponents(
-                tileBuilder: monthEventTileBuilder,
+      child: LifeMaterialIsland(
+        child: kalender.KalenderView(
+          eventsController: widget.eventsController,
+          kalenderController: _controller,
+          views: const [
+            kalender.MonthViewParts(
+              header: SizedBox.shrink(),
+              body: kalender.MonthBody(
+                tileComponents: kalender.TileComponents(
+                  tileBuilder: monthEventTileBuilder,
+                ),
+              ),
+            ),
+          ],
+          components: kalender.KalenderComponents(
+            monthComponents: kalender.MonthComponents(
+              bodyComponents: kalender.MonthBodyComponents(
+                monthDayHeaderBuilder: (context, date) =>
+                    _MonthDayHeader(date: date, chinese: chinese),
               ),
             ),
           ),
-        ],
-        components: kalender.KalenderComponents(
-          monthComponents: kalender.MonthComponents(
-            bodyComponents: kalender.MonthBodyComponents(
-              monthDayHeaderBuilder: (context, date) =>
-                  _MonthDayHeader(date: date, chinese: chinese),
-            ),
-          ),
-        ),
-        callbacks: kalender.KalenderCallbacks(
-          onPageChanged: onPageChanged,
-          onTapped: (date) => widget.viewCallbacks.onDayTap(date),
-          onEventCreate: (event) {
-            widget.viewCallbacks.onDayTap(event.start);
-            return event;
-          },
-          onEventTapped: (event) {
-            for (final o in occurrences) {
-              if (event.id.startsWith('${o.eventId}:')) {
-                widget.viewCallbacks.onOccurrenceTapped(o);
-                break;
-              }
-            }
-          },
-          onEventSecondaryTapped: (event) {
-            for (final o in occurrences) {
-              if (event.id.startsWith('${o.eventId}:')) {
-                if (o.source == OccurrenceSource.reminder) {
-                  confirmDeleteReminder(context, widget.viewCallbacks, o);
+          callbacks: kalender.KalenderCallbacks(
+            onPageChanged: onPageChanged,
+            onTapped: (date) => widget.viewCallbacks.onDayTap(date),
+            onEventCreate: (event) {
+              widget.viewCallbacks.onDayTap(event.start);
+              return event;
+            },
+            onEventTapped: (event) {
+              for (final o in occurrences) {
+                if (event.id.startsWith('${o.eventId}:')) {
+                  widget.viewCallbacks.onOccurrenceTapped(o);
+                  break;
                 }
-                break;
               }
-            }
-          },
+            },
+            onEventSecondaryTapped: (event) {
+              for (final o in occurrences) {
+                if (event.id.startsWith('${o.eventId}:')) {
+                  if (o.source == OccurrenceSource.reminder) {
+                    confirmDeleteReminder(context, widget.viewCallbacks, o);
+                  }
+                  break;
+                }
+              }
+            },
+          ),
         ),
       ),
     );
@@ -178,7 +188,9 @@ class _MonthDayHeader extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 9,
-              color: isFirst ? const Color(0xFFFF3B30) : const Color(0xFF8E8E93),
+              color: isFirst
+                  ? const Color(0xFFFF3B30)
+                  : const Color(0xFF8E8E93),
             ),
           ),
         ],
@@ -188,8 +200,11 @@ class _MonthDayHeader extends StatelessWidget {
 }
 
 /// 色条 tile（色=日历颜色；文本=标题；TC-CAL-UI-112）。
-Widget monthEventTileBuilder(BuildContext context, kalender.KalenderEvent event,
-    kalender.KalenderDateTimeRange tileRange) {
+Widget monthEventTileBuilder(
+  BuildContext context,
+  kalender.KalenderEvent event,
+  kalender.KalenderDateTimeRange tileRange,
+) {
   final tile = event is CalendarEventTile ? event : null;
   final color = Color(tile?.colorArgb ?? 0xFF007AFF);
   return Container(
@@ -228,7 +243,10 @@ class CalendarEventTile extends kalender.KalenderEvent {
   final String title;
 
   @override
-  CalendarEventTile copyWithData({required DateTime start, required DateTime end}) {
+  CalendarEventTile copyWithData({
+    required DateTime start,
+    required DateTime end,
+  }) {
     return CalendarEventTile(
       start: start,
       end: end,

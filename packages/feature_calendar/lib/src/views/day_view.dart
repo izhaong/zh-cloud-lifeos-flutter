@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:app_core/app_core.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kalender/kalender.dart' as kalender;
 
@@ -14,8 +15,11 @@ import 'day_reminder_lane.dart';
 /// 右侧提醒栏 Key `day_reminder_lane`（F-15 填充）。
 /// Key：`calendar_day_view`。
 class CalendarDayView extends ConsumerWidget {
-  const CalendarDayView(
-      {super.key, required this.viewCallbacks, required this.eventsController});
+  const CalendarDayView({
+    super.key,
+    required this.viewCallbacks,
+    required this.eventsController,
+  });
 
   final CalendarViewCallbacks viewCallbacks;
   final kalender.DefaultEventsController eventsController;
@@ -25,8 +29,15 @@ class CalendarDayView extends ConsumerWidget {
     final config = ref.watch(calendarViewConfigurationsProvider);
     final anchor = ref.watch(anchorDateProvider);
     final occurrences =
-        ref.watch(occurrencesProvider(
-            (anchor, anchor.add(const Duration(days: 1))))).value ?? const [];
+        ref
+            .watch(
+              occurrencesProvider((
+                anchor,
+                anchor.add(const Duration(days: 1)),
+              )),
+            )
+            .value ??
+        const [];
 
     // occurrence → kalender 事件装载（重叠布局由库处理）
     eventsController.clearEvents();
@@ -55,50 +66,56 @@ class CalendarDayView extends ConsumerWidget {
       child: Row(
         children: [
           Expanded(
-            child: kalender.KalenderView(
-              eventsController: eventsController,
-              kalenderController: controller,
-              views: const [kalender.MultiDayViewParts()],
-              callbacks: kalender.KalenderCallbacks(
-                onEventCreate: (event) {
-                  viewCallbacks.onDraftCreate(
-                      event.start.toUtc(), event.end.toUtc());
-                  return event;
-                },
-                onEventChanged: (event, updated) {
-                  final original = _findOriginal(occurrences, updated.id);
-                  viewCallbacks.onEventMoved(original ?? _toKernel(updated),
-                      updated.start, updated.end);
-                },
-                // F-10：点已有日程 → Inspector（带该次 occurrence 起点）
-                onEventTapped: (event) {
-                  final occurrence = _findOccurrence(occurrences, event.id);
-                  if (occurrence != null) {
-                    viewCallbacks.onOccurrenceTapped(occurrence);
-                  }
-                },
-                onEventSecondaryTapped: (event) {
-                  final occurrence = _findOccurrence(occurrences, event.id);
-                  if (occurrence != null &&
-                      occurrence.source == OccurrenceSource.reminder) {
-                    confirmDeleteReminder(context, viewCallbacks, occurrence);
-                  }
-                },
+            child: LifeMaterialIsland(
+              child: kalender.KalenderView(
+                eventsController: eventsController,
+                kalenderController: controller,
+                views: const [kalender.MultiDayViewParts()],
+                callbacks: kalender.KalenderCallbacks(
+                  onEventCreate: (event) {
+                    viewCallbacks.onDraftCreate(
+                      event.start.toUtc(),
+                      event.end.toUtc(),
+                    );
+                    return event;
+                  },
+                  onEventChanged: (event, updated) {
+                    final original = _findOriginal(occurrences, updated.id);
+                    viewCallbacks.onEventMoved(
+                      original ?? _toKernel(updated),
+                      updated.start,
+                      updated.end,
+                    );
+                  },
+                  // F-10：点已有日程 → Inspector（带该次 occurrence 起点）
+                  onEventTapped: (event) {
+                    final occurrence = _findOccurrence(occurrences, event.id);
+                    if (occurrence != null) {
+                      viewCallbacks.onOccurrenceTapped(occurrence);
+                    }
+                  },
+                  onEventSecondaryTapped: (event) {
+                    final occurrence = _findOccurrence(occurrences, event.id);
+                    if (occurrence != null &&
+                        occurrence.source == OccurrenceSource.reminder) {
+                      confirmDeleteReminder(context, viewCallbacks, occurrence);
+                    }
+                  },
+                ),
               ),
             ),
           ),
-          const VerticalDivider(width: 1),
-          const SizedBox(
-            width: 220,
-            child: DayReminderLane(),
-          ),
+          Container(width: 1, color: const Color(0xFFC6C6C8)),
+          const SizedBox(width: 220, child: DayReminderLane()),
         ],
       ),
     );
   }
 
   CalendarOccurrence? _findOccurrence(
-      List<CalendarOccurrence> occurrences, String kalenderEventId) {
+    List<CalendarOccurrence> occurrences,
+    String kalenderEventId,
+  ) {
     for (final o in occurrences) {
       if (kalenderEventId.startsWith('${o.eventId}:')) {
         return o;
@@ -108,7 +125,9 @@ class CalendarDayView extends ConsumerWidget {
   }
 
   CalendarEvent? _findOriginal(
-      List<CalendarOccurrence> occurrences, String kalenderEventId) {
+    List<CalendarOccurrence> occurrences,
+    String kalenderEventId,
+  ) {
     for (final o in occurrences) {
       if (kalenderEventId.startsWith('${o.eventId}:')) {
         return CalendarEvent(
@@ -133,8 +152,11 @@ class CalendarDayView extends ConsumerWidget {
 /// weekViewDays=7 → week；=5 → workWeek（无周六日，TC-CAL-UI-105）。
 /// Key：`calendar_week_view`。
 class CalendarWeekView extends ConsumerWidget {
-  const CalendarWeekView(
-      {super.key, required this.viewCallbacks, required this.eventsController});
+  const CalendarWeekView({
+    super.key,
+    required this.viewCallbacks,
+    required this.eventsController,
+  });
 
   final CalendarViewCallbacks viewCallbacks;
   final kalender.DefaultEventsController eventsController;
@@ -143,17 +165,23 @@ class CalendarWeekView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(calendarViewConfigurationsProvider);
     final anchor = ref.watch(anchorDateProvider);
-    final occurrences = ref
-            .watch(occurrencesProvider(
-                (anchor, anchor.add(Duration(days: config.week.numberOfDays)))))
+    final occurrences =
+        ref
+            .watch(
+              occurrencesProvider((
+                anchor,
+                anchor.add(Duration(days: config.week.numberOfDays)),
+              )),
+            )
             .value ??
         const [];
 
     final kalenderConfig = config.week.isWorkWeek
         ? kalender.MultiDayViewConfiguration.workWeek(numberOfDays: 5)
         : kalender.MultiDayViewConfiguration.week(numberOfDays: 7);
-    final controller =
-        kalender.KalenderController(viewConfiguration: kalenderConfig);
+    final controller = kalender.KalenderController(
+      viewConfiguration: kalenderConfig,
+    );
 
     eventsController.clearEvents();
     eventsController.addEvents([
@@ -169,41 +197,50 @@ class CalendarWeekView extends ConsumerWidget {
 
     return KeyedSubtree(
       key: const Key('calendar_week_view'),
-      child: kalender.KalenderView(
-        eventsController: eventsController,
-        kalenderController: controller,
-        views: const [kalender.MultiDayViewParts()],
-        callbacks: kalender.KalenderCallbacks(
-          onEventCreate: (event) {
-            viewCallbacks.onDraftCreate(
-                event.start.toUtc(), event.end.toUtc());
-            return event;
-          },
-          onEventChanged: (event, updated) {
-            final original = _findOriginal(occurrences, updated.id);
-            viewCallbacks.onEventMoved(original ?? _toKernel(updated),
-                updated.start, updated.end);
-          },
-          onEventTapped: (event) {
-            final occurrence = _findOccurrence(occurrences, event.id);
-            if (occurrence != null) {
-              viewCallbacks.onOccurrenceTapped(occurrence);
-            }
-          },
-          onEventSecondaryTapped: (event) {
-            final occurrence = _findOccurrence(occurrences, event.id);
-            if (occurrence != null &&
-                occurrence.source == OccurrenceSource.reminder) {
-              confirmDeleteReminder(context, viewCallbacks, occurrence);
-            }
-          },
+      child: LifeMaterialIsland(
+        child: kalender.KalenderView(
+          eventsController: eventsController,
+          kalenderController: controller,
+          views: const [kalender.MultiDayViewParts()],
+          callbacks: kalender.KalenderCallbacks(
+            onEventCreate: (event) {
+              viewCallbacks.onDraftCreate(
+                event.start.toUtc(),
+                event.end.toUtc(),
+              );
+              return event;
+            },
+            onEventChanged: (event, updated) {
+              final original = _findOriginal(occurrences, updated.id);
+              viewCallbacks.onEventMoved(
+                original ?? _toKernel(updated),
+                updated.start,
+                updated.end,
+              );
+            },
+            onEventTapped: (event) {
+              final occurrence = _findOccurrence(occurrences, event.id);
+              if (occurrence != null) {
+                viewCallbacks.onOccurrenceTapped(occurrence);
+              }
+            },
+            onEventSecondaryTapped: (event) {
+              final occurrence = _findOccurrence(occurrences, event.id);
+              if (occurrence != null &&
+                  occurrence.source == OccurrenceSource.reminder) {
+                confirmDeleteReminder(context, viewCallbacks, occurrence);
+              }
+            },
+          ),
         ),
       ),
     );
   }
 
   CalendarOccurrence? _findOccurrence(
-      List<CalendarOccurrence> occurrences, String kalenderEventId) {
+    List<CalendarOccurrence> occurrences,
+    String kalenderEventId,
+  ) {
     for (final o in occurrences) {
       if (kalenderEventId.startsWith('${o.eventId}:')) {
         return o;
@@ -213,7 +250,9 @@ class CalendarWeekView extends ConsumerWidget {
   }
 
   CalendarEvent? _findOriginal(
-      List<CalendarOccurrence> occurrences, String kalenderEventId) {
+    List<CalendarOccurrence> occurrences,
+    String kalenderEventId,
+  ) {
     for (final o in occurrences) {
       if (kalenderEventId.startsWith('${o.eventId}:')) {
         return CalendarEvent(

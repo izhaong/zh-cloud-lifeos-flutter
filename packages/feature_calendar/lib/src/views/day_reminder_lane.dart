@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 
 /// 日视图右侧提醒栏（契约 §5.4；Key `day_reminder_lane`）。
 ///

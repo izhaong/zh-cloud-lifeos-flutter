@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -29,7 +29,7 @@ class CalendarViewCallbacks {
 
   /// 由 occurrence 打开 Inspector（草稿 + 该次原始开始；F-10 作用域用）。
   final void Function(CalendarEvent draft, DateTime occurrenceStart)?
-      openOccurrence;
+  openOccurrence;
 
   /// 点已有 occurrence：
   /// - reminder → 切换完成（空心圆，TC-CAL-UI-192）
@@ -45,7 +45,8 @@ class CalendarViewCallbacks {
     if (openOccurrence == null) {
       return;
     }
-    final master = await repo.getEvent(occurrence.masterEventId) ??
+    final master =
+        await repo.getEvent(occurrence.masterEventId) ??
         await repo.getEvent(occurrence.eventId);
     if (master != null) {
       openOccurrence!(master, occurrence.start);
@@ -93,7 +94,10 @@ class CalendarViewCallbacks {
   /// TC-CAL-UI-135：拖动改时间 → 仓库 startAt 变化。
   /// TC-CAL-UI-139：全天行拖多日 → end 排他（周四 00:00）。
   Future<void> onEventMoved(
-      CalendarEvent event, DateTime newStart, DateTime newEnd) async {
+    CalendarEvent event,
+    DateTime newStart,
+    DateTime newEnd,
+  ) async {
     await repo.upsertEvent(withTimes(event, newStart.toUtc(), newEnd.toUtc()));
   }
 
@@ -176,16 +180,20 @@ final calendarViewConfigurationsProvider = Provider<CalendarViewConfigs>((ref) {
       ref.watch(preferenceProvider).value ?? CalendarPreference.defaults;
   return CalendarViewConfigs(
     day: DayViewConfig(
-        startHour: preference.dayStartHour, endHour: preference.dayEndHour),
+      startHour: preference.dayStartHour,
+      endHour: preference.dayEndHour,
+    ),
     week: WeekViewConfig(
-        numberOfDays: preference.weekViewDays,
-        isWorkWeek: preference.weekViewDays == 5),
+      numberOfDays: preference.weekViewDays,
+      isWorkWeek: preference.weekViewDays == 5,
+    ),
   );
 });
 
 /// 双击/拖选创建的草稿（F-08 Inspector 接管保存；标题空不落库）。
-final draftEventProvider =
-    NotifierProvider<DraftEventNotifier, CalendarEvent?>(DraftEventNotifier.new);
+final draftEventProvider = NotifierProvider<DraftEventNotifier, CalendarEvent?>(
+  DraftEventNotifier.new,
+);
 
 class DraftEventNotifier extends Notifier<CalendarEvent?> {
   @override
@@ -204,20 +212,21 @@ Future<void> confirmDeleteReminder(
   CalendarViewCallbacks callbacks,
   CalendarOccurrence occurrence,
 ) async {
-  final ok = await showDialog<bool>(
+  final ok = await showCupertinoDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => CupertinoAlertDialog(
       key: const Key('reminder_delete_dialog'),
       title: const Text('删除提醒'),
       content: Text('「${occurrence.title}」将移到提醒事项的最近删除。'),
       actions: [
-        TextButton(
+        CupertinoDialogAction(
           key: const Key('reminder_delete_cancel'),
           onPressed: () => Navigator.of(ctx).pop(false),
           child: const Text('取消'),
         ),
-        FilledButton(
+        CupertinoDialogAction(
           key: const Key('reminder_delete_confirm'),
+          isDestructiveAction: true,
           onPressed: () => Navigator.of(ctx).pop(true),
           child: const Text('删除'),
         ),

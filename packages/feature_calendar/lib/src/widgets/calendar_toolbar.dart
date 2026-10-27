@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
@@ -46,22 +46,28 @@ class CalendarToolbar extends ConsumerWidget {
         ? Row(
             children: [
               const SizedBox(width: 4),
-              Text('${anchor.year}年${anchor.month}月',
-                  style: Theme.of(context).textTheme.titleMedium),
-              IconButton(
+              Text(
+                '${anchor.year}年${anchor.month}月',
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              _ToolbarIconButton(
                 tooltip: '上一个月',
-                icon: const Icon(Icons.chevron_left),
+                icon: CupertinoIcons.chevron_left,
                 onPressed: () => _shift(ref, -1),
               ),
-              IconButton(
+              _ToolbarIconButton(
                 tooltip: '下一个月',
-                icon: const Icon(Icons.chevron_right),
+                icon: CupertinoIcons.chevron_right,
                 onPressed: () => _shift(ref, 1),
               ),
               const Spacer(),
-              IconButton(
+              _ToolbarIconButton(
+                key: const Key('calendar_search_button'),
                 tooltip: '搜索',
-                icon: const Icon(Icons.search),
+                icon: CupertinoIcons.search,
                 onPressed: () =>
                     ref.read(searchActiveProvider.notifier).set(true),
               ),
@@ -77,44 +83,47 @@ class CalendarToolbar extends ConsumerWidget {
                 onEvent: onQuickCreate,
                 onReminder: onQuickCreateReminder,
               ),
-              IconButton(
+              _ToolbarIconButton(
                 tooltip: '日历列表',
-                icon: const Icon(Icons.menu),
-                onPressed: () => ref.read(sidebarVisibleProvider.notifier).toggle(),
+                icon: CupertinoIcons.sidebar_left,
+                onPressed: () =>
+                    ref.read(sidebarVisibleProvider.notifier).toggle(),
               ),
               const SizedBox(width: 8),
               const Expanded(child: _ViewSegment()),
-              IconButton(
+              _ToolbarIconButton(
                 tooltip: '上一天/周/月/年',
-                icon: const Icon(Icons.chevron_left),
+                icon: CupertinoIcons.chevron_left,
                 onPressed: () => _shift(ref, -1),
               ),
-              TextButton(
+              CupertinoButton(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 onPressed: () => ref.read(anchorDateProvider.notifier).today(),
                 child: const Text('今天'),
               ),
-              IconButton(
+              _ToolbarIconButton(
                 tooltip: '下一天/周/月/年',
-                icon: const Icon(Icons.chevron_right),
+                icon: CupertinoIcons.chevron_right,
                 onPressed: () => _shift(ref, 1),
               ),
-              IconButton(
+              _ToolbarIconButton(
                 key: const Key('calendar_inbox_button'),
                 tooltip: '收件箱',
-                icon: const Icon(Icons.inbox_outlined),
-                onPressed: () => ref
-                    .read(calendarInboxOpenerProvider)
-                    ?.call(context),
+                icon: CupertinoIcons.tray_full,
+                onPressed: () =>
+                    ref.read(calendarInboxOpenerProvider)?.call(context),
               ),
-              IconButton(
+              _ToolbarIconButton(
                 key: const Key('calendar_settings_button'),
                 tooltip: '设置',
-                icon: const Icon(Icons.settings_outlined),
+                icon: CupertinoIcons.gear,
                 onPressed: () => showCalendarSettingsSheet(context),
               ),
-              IconButton(
+              _ToolbarIconButton(
+                key: const Key('calendar_search_button'),
                 tooltip: '搜索',
-                icon: const Icon(Icons.search),
+                icon: CupertinoIcons.search,
                 onPressed: () =>
                     ref.read(searchActiveProvider.notifier).set(true),
               ),
@@ -134,13 +143,49 @@ class CalendarToolbar extends ConsumerWidget {
     final next = switch (mode) {
       CalendarViewMode.day ||
       CalendarViewMode.list ||
-      CalendarViewMode.week =>
-        anchor.add(Duration(days: direction * (mode == CalendarViewMode.week ? 7 : 1))),
-      CalendarViewMode.month =>
-        DateTime(anchor.year, anchor.month + direction, anchor.day),
-      CalendarViewMode.year => DateTime(anchor.year + direction, anchor.month, anchor.day),
+      CalendarViewMode.week => anchor.add(
+        Duration(days: direction * (mode == CalendarViewMode.week ? 7 : 1)),
+      ),
+      CalendarViewMode.month => DateTime(
+        anchor.year,
+        anchor.month + direction,
+        anchor.day,
+      ),
+      CalendarViewMode.year => DateTime(
+        anchor.year + direction,
+        anchor.month,
+        anchor.day,
+      ),
     };
     ref.read(anchorDateProvider.notifier).set(next);
+  }
+}
+
+/// 工具栏图标按钮（0.5px 风格：无涟漪、系统蓝）。
+class _ToolbarIconButton extends StatelessWidget {
+  const _ToolbarIconButton({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: tooltip,
+      button: true,
+      child: CupertinoButton(
+        minimumSize: Size.zero,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        onPressed: onPressed,
+        child: Icon(icon, size: 22, color: CupertinoColors.systemBlue),
+      ),
+    );
   }
 }
 
@@ -156,22 +201,14 @@ class _ViewSegment extends ConsumerWidget {
       CalendarViewMode.year,
     ];
     final mode = ref.watch(viewModeProvider);
-    return SegmentedButton<CalendarViewMode>(
-      segments: [
-        for (final m in modes)
-          ButtonSegment(value: m, label: Text(CalendarToolbar._labels[m]!)),
-      ],
-      selected: {if (mode != CalendarViewMode.list) mode},
-      onSelectionChanged: (selection) {
-        if (selection.isNotEmpty) {
-          ref.read(viewModeProvider.notifier).set(selection.first);
+    return CupertinoSlidingSegmentedControl<CalendarViewMode>(
+      groupValue: mode == CalendarViewMode.list ? null : mode,
+      onValueChanged: (value) {
+        if (value != null) {
+          ref.read(viewModeProvider.notifier).set(value);
         }
       },
-      showSelectedIcon: false,
-      style: const ButtonStyle(
-        visualDensity: VisualDensity.compact,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
+      children: {for (final m in modes) m: Text(CalendarToolbar._labels[m]!)},
     );
   }
 }
@@ -185,8 +222,9 @@ class _CalendarSearchBar extends ConsumerStatefulWidget {
 }
 
 class _CalendarSearchBarState extends ConsumerState<_CalendarSearchBar> {
-  late final TextEditingController _controller =
-      TextEditingController(text: ref.read(searchQueryProvider));
+  late final TextEditingController _controller = TextEditingController(
+    text: ref.read(searchQueryProvider),
+  );
 
   @override
   void dispose() {
@@ -203,33 +241,35 @@ class _CalendarSearchBarState extends ConsumerState<_CalendarSearchBar> {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
+            child: CupertinoTextField(
               key: const Key('calendar_search_field'),
               controller: _controller,
               autofocus: true,
-              decoration: const InputDecoration(
-                hintText: '搜索日程（标题/地点/备注）',
-                border: InputBorder.none,
-              ),
+              placeholder: '搜索日程（标题/地点/备注）',
+              decoration: const BoxDecoration(),
               onChanged: (v) => ref.read(searchQueryProvider.notifier).set(v),
             ),
           ),
-          IconButton(
+          CupertinoButton(
             key: const Key('calendar_search_close'),
-            tooltip: '关闭搜索',
-            icon: const Icon(Icons.close),
+            minimumSize: Size.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
             onPressed: () {
               _controller.clear();
               ref.read(searchQueryProvider.notifier).set('');
               ref.read(searchActiveProvider.notifier).set(false);
             },
+            child: const Icon(
+              CupertinoIcons.xmark,
+              size: 22,
+              color: CupertinoColors.systemBlue,
+            ),
           ),
         ],
       ),
     );
   }
 }
-
 
 /// 「＋」下拉：日程 / 提醒（F-15）。
 class _QuickCreateButton extends StatelessWidget {
@@ -240,29 +280,36 @@ class _QuickCreateButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      key: const Key('quick_create_menu'),
-      tooltip: '新建',
-      icon: const Icon(Icons.add),
-      onSelected: (value) {
-        if (value == 'event') {
-          onEvent?.call();
-        } else if (value == 'reminder') {
-          onReminder?.call();
-        }
-      },
-      itemBuilder: (_) => const [
-        PopupMenuItem(
-          key: Key('quick_create_event'),
-          value: 'event',
-          child: Text('新建日程'),
+    return CupertinoMenuAnchor(
+      menuChildren: [
+        CupertinoMenuItem(
+          key: const Key('quick_create_event'),
+          onPressed: onEvent == null ? null : () => onEvent!(),
+          child: const Text('新建日程'),
         ),
-        PopupMenuItem(
-          key: Key('quick_create_reminder'),
-          value: 'reminder',
-          child: Text('新建提醒'),
+        CupertinoMenuItem(
+          key: const Key('quick_create_reminder'),
+          onPressed: onReminder == null ? null : () => onReminder!(),
+          child: const Text('新建提醒'),
         ),
       ],
+      builder: (context, controller, child) {
+        return Semantics(
+          label: '新建',
+          button: true,
+          child: CupertinoButton(
+            key: const Key('quick_create_menu'),
+            minimumSize: Size.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            onPressed: controller.open,
+            child: const Icon(
+              CupertinoIcons.plus,
+              size: 22,
+              color: CupertinoColors.systemBlue,
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/life_test_app.dart';
 
 /// F-06 月视图契约（TC-CAL-UI-103/112/115/131；契约 §5.4/§8.3）。
 void main() {
@@ -13,28 +14,32 @@ void main() {
   late SharedPreferences prefs;
   final controller = kalender.DefaultEventsController();
 
-  Future<void> pumpMonth(WidgetTester tester,
-      {CalendarPreference preference = const CalendarPreference()}) async {
+  Future<void> pumpMonth(
+    WidgetTester tester, {
+    CalendarPreference preference = const CalendarPreference(),
+  }) async {
     prefs = await SharedPreferences.getInstance();
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        calendarRepositoryProvider.overrideWithValue(repo),
-        sidebarPrefsProvider.overrideWithValue(prefs),
-        kalenderEventsControllerProvider.overrideWithValue(controller),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: CalendarMonthView(
-            viewCallbacks: CalendarViewCallbacks(
-              repo: repo,
-              preference: preference,
-              setDraft: (draft) {},
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(repo),
+          sidebarPrefsProvider.overrideWithValue(prefs),
+          kalenderEventsControllerProvider.overrideWithValue(controller),
+        ],
+        child: lifeTestHost(
+          Scaffold(
+            body: CalendarMonthView(
+              viewCallbacks: CalendarViewCallbacks(
+                repo: repo,
+                preference: preference,
+                setDraft: (draft) {},
+              ),
+              eventsController: controller,
             ),
-            eventsController: controller,
           ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
   }
 
@@ -54,27 +59,31 @@ void main() {
   testWidgets('TC-CAL-UI-112 色条用日历颜色', (tester) async {
     final container = ProviderContainer(overrides: []);
     addTearDown(container.dispose);
-    await repo.upsertEvent(CalendarEvent(
-      id: 'e-all',
-      calendarId: 'c1',
-      uid: 'u1',
-      title: '全天出差',
-      startAt: DateTime.utc(2026, 10, 24),
-      endAt: DateTime.utc(2026, 10, 25),
-      allDay: true,
-      timeZone: 'UTC',
-      updatedAt: DateTime.utc(2026, 10, 24),
-    ));
-    await repo.upsertEvent(CalendarEvent(
-      id: 'e-timed',
-      calendarId: 'c1',
-      uid: 'u2',
-      title: '定时会',
-      startAt: DateTime.utc(2026, 10, 24, 10),
-      endAt: DateTime.utc(2026, 10, 24, 11),
-      timeZone: 'UTC',
-      updatedAt: DateTime.utc(2026, 10, 24),
-    ));
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e-all',
+        calendarId: 'c1',
+        uid: 'u1',
+        title: '全天出差',
+        startAt: DateTime.utc(2026, 10, 24),
+        endAt: DateTime.utc(2026, 10, 25),
+        allDay: true,
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e-timed',
+        calendarId: 'c1',
+        uid: 'u2',
+        title: '定时会',
+        startAt: DateTime.utc(2026, 10, 24, 10),
+        endAt: DateTime.utc(2026, 10, 24, 11),
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
     await pumpMonth(tester);
 
     // 装载后 tile 数据（CalendarEventTile）颜色=日历颜色（c1 无日历时
@@ -98,8 +107,9 @@ void main() {
     // CHINESE 偏好 → 月头组件包含农历文本（渲染当月，标签由同一函数产出）
     await pumpMonth(
       tester,
-      preference:
-          const CalendarPreference(alternateCalendar: AlternateCalendar.chinese),
+      preference: const CalendarPreference(
+        alternateCalendar: AlternateCalendar.chinese,
+      ),
     );
     final now = DateTime.now();
     expect(lunarDayLabel(DateTime(now.year, now.month, 1)).isNotEmpty, isTrue);
@@ -118,11 +128,13 @@ void main() {
     expect(captured, isNotNull);
     expect(captured!.allDay, isTrue, reason: '默认全天');
     // 本地零点 → UTC（测试机 America/New_York UTC-4：00:00 → 04:00Z）
-    final localMidnightUtc =
-        DateTime(2026, 10, 24).toUtc();
+    final localMidnightUtc = DateTime(2026, 10, 24).toUtc();
     expect(captured!.startAt, localMidnightUtc);
-    expect(captured!.endAt, localMidnightUtc.add(const Duration(days: 1)),
-        reason: 'end 排他次日');
+    expect(
+      captured!.endAt,
+      localMidnightUtc.add(const Duration(days: 1)),
+      reason: 'end 排他次日',
+    );
     expect(captured!.title, '', reason: '标题空（F-12 解析器接管）');
   });
 }
@@ -133,15 +145,21 @@ class _MutableRepo implements CalendarRepository {
   final _eventController = StreamController<List<CalendarEvent>>.broadcast();
 
   @override
-  Stream<List<CalendarEvent>> watchEvents(
-      {required DateTime from, required DateTime to, Set<String>? calendarIds}) async* {
+  Stream<List<CalendarEvent>> watchEvents({
+    required DateTime from,
+    required DateTime to,
+    Set<String>? calendarIds,
+  }) async* {
     yield List<CalendarEvent>.unmodifiable(visible);
     yield* _eventController.stream;
   }
 
   @override
-  Future<String> upsertEvent(CalendarEvent e,
-      {EditScope scope = EditScope.all, DateTime? occurrenceStart}) async {
+  Future<String> upsertEvent(
+    CalendarEvent e, {
+    EditScope scope = EditScope.all,
+    DateTime? occurrenceStart,
+  }) async {
     visible.add(e);
     _eventController.add(List<CalendarEvent>.unmodifiable(visible));
     return e.id;

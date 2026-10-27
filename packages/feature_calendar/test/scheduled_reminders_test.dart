@@ -5,28 +5,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kalender/kalender.dart' as kalender;
+import 'support/life_test_app.dart';
 
 /// F-15 提醒事项投影（TC-CAL-KR-401～405、UI-190～194；契约 §5.2）。
 void main() {
   const red = 0xFFFF3B30;
-  final lists = [
-    const ReminderList(id: 'l1', title: '提醒', colorArgb: red),
-  ];
+  final lists = [const ReminderList(id: 'l1', title: '提醒', colorArgb: red)];
 
   ReminderItem item({
     String id = 'r1',
     DateTime? dueAt,
     bool completed = false,
     String? recurrence,
-  }) =>
-      ReminderItem(
-        id: id,
-        listId: 'l1',
-        title: '取快递',
-        dueAt: dueAt,
-        isCompleted: completed,
-        recurrence: recurrence,
-      );
+  }) => ReminderItem(
+    id: id,
+    listId: 'l1',
+    title: '取快递',
+    dueAt: dueAt,
+    isCompleted: completed,
+    recurrence: recurrence,
+  );
 
   final from = DateTime.utc(2026, 10, 24);
   final to = DateTime.utc(2026, 10, 25);
@@ -60,8 +58,9 @@ void main() {
 
     test('TC-CAL-KR-403 dueAt=null 不投影', () {
       expect(
-          projectScheduledReminders([item()], lists, from: from, to: to),
-          isEmpty);
+        projectScheduledReminders([item()], lists, from: from, to: to),
+        isEmpty,
+      );
     });
 
     test('TC-CAL-KR-404 已完成带 completed=true', () {
@@ -78,9 +77,10 @@ void main() {
       final result = projectScheduledReminders(
         [
           item(
-              dueAt: DateTime.utc(2026, 10, 24, 10),
-              completed: true,
-              recurrence: 'daily'),
+            dueAt: DateTime.utc(2026, 10, 24, 10),
+            completed: true,
+            recurrence: 'daily',
+          ),
         ],
         lists,
         from: from,
@@ -91,41 +91,45 @@ void main() {
   });
 
   group('投影接线', () {
-    testWidgets('TC-CAL-UI-190/194 月视图渲染提醒（红色由投影断言）',
-        (tester) async {
+    testWidgets('TC-CAL-UI-190/194 月视图渲染提醒（红色由投影断言）', (tester) async {
       final reminderRepo = _ReminderRepo()
         ..lists.addAll(lists)
         ..items.add(item(dueAt: DateTime.utc(2026, 10, 24, 10)));
       final controller = kalender.DefaultEventsController();
-      final container = ProviderContainer(overrides: [
-        calendarRepositoryProvider.overrideWithValue(_CalendarRepo()),
-        calendarReminderRepositoryProvider.overrideWithValue(reminderRepo),
-        sidebarPrefsProvider.overrideWith((ref) => null),
-        kalenderEventsControllerProvider.overrideWithValue(controller),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(_CalendarRepo()),
+          calendarReminderRepositoryProvider.overrideWithValue(reminderRepo),
+          sidebarPrefsProvider.overrideWith((ref) => null),
+          kalenderEventsControllerProvider.overrideWithValue(controller),
+        ],
+      );
       addTearDown(container.dispose);
-      container.read(anchorDateProvider.notifier).set(DateTime.utc(2026, 10, 24));
+      container
+          .read(anchorDateProvider.notifier)
+          .set(DateTime.utc(2026, 10, 24));
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: MaterialApp(
-          home: Scaffold(
-            body: CalendarMonthView(
-              viewCallbacks: CalendarViewCallbacks(
-                repo: _CalendarRepo(),
-                preference: const CalendarPreference(),
-                setDraft: (_) {},
-                reminderRepository: reminderRepo,
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: lifeTestHost(
+            Scaffold(
+              body: CalendarMonthView(
+                viewCallbacks: CalendarViewCallbacks(
+                  repo: _CalendarRepo(),
+                  preference: const CalendarPreference(),
+                  setDraft: (_) {},
+                  reminderRepository: reminderRepo,
+                ),
+                eventsController: controller,
               ),
-              eventsController: controller,
             ),
           ),
         ),
-      ));
+      );
       await tester.pumpAndSettle();
 
-      expect(find.text('取快递'), findsOneWidget,
-          reason: 'TC-CAL-UI-190 提醒进入月视图');
+      expect(find.text('取快递'), findsOneWidget, reason: 'TC-CAL-UI-190 提醒进入月视图');
     });
 
     test('TC-CAL-UI-192 点进行切换完成', () async {
@@ -167,8 +171,7 @@ void main() {
       expect(reminderRepo.upserted, isEmpty, reason: '不走日历事件写入');
     });
 
-    testWidgets('TC-CAL-UI-191 ＋ → 新建提醒写入 ReminderRepository',
-        (tester) async {
+    testWidgets('TC-CAL-UI-191 ＋ → 新建提醒写入 ReminderRepository', (tester) async {
       tester.view.physicalSize = const Size(1000, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -176,18 +179,22 @@ void main() {
 
       final reminderRepo = _ReminderRepo()..lists.addAll(lists);
       final controller = kalender.DefaultEventsController();
-      final container = ProviderContainer(overrides: [
-        calendarRepositoryProvider.overrideWithValue(_CalendarRepo()),
-        calendarReminderRepositoryProvider.overrideWithValue(reminderRepo),
-        sidebarPrefsProvider.overrideWith((ref) => null),
-        kalenderEventsControllerProvider.overrideWithValue(controller),
-      ]);
+      final container = ProviderContainer(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(_CalendarRepo()),
+          calendarReminderRepositoryProvider.overrideWithValue(reminderRepo),
+          sidebarPrefsProvider.overrideWith((ref) => null),
+          kalenderEventsControllerProvider.overrideWithValue(controller),
+        ],
+      );
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(UncontrolledProviderScope(
-        container: container,
-        child: const MaterialApp(home: CalendarScaffold()),
-      ));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: lifeTestHost(const CalendarScaffold()),
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('quick_create_menu')));
@@ -195,8 +202,7 @@ void main() {
       await tester.tap(find.byKey(const Key('quick_create_reminder')));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-          find.byKey(const Key('quick_event_input')), '取快递');
+      await tester.enterText(find.byKey(const Key('quick_event_input')), '取快递');
       await tester.pump();
       await tester.tap(find.byKey(const Key('quick_event_create')));
       await tester.pumpAndSettle();
@@ -209,15 +215,16 @@ void main() {
 
 class _CalendarRepo implements CalendarRepository {
   final List<Calendar> calendars = const [
-    Calendar(id: 'c1', title: '工作', colorArgb: 0xFF007AFF)
+    Calendar(id: 'c1', title: '工作', colorArgb: 0xFF007AFF),
   ];
   final _events = StreamController<List<CalendarEvent>>.broadcast();
 
   @override
-  Stream<List<CalendarEvent>> watchEvents(
-          {required DateTime from,
-          required DateTime to,
-          Set<String>? calendarIds}) async* {
+  Stream<List<CalendarEvent>> watchEvents({
+    required DateTime from,
+    required DateTime to,
+    Set<String>? calendarIds,
+  }) async* {
     yield const <CalendarEvent>[];
     yield* _events.stream;
   }

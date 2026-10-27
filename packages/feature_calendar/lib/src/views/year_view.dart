@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -20,9 +20,14 @@ class CalendarYearView extends ConsumerWidget {
     final year = anchor.year;
     final today = DateTime.now();
     // 全年 occurrence 一次取齐（12 个月窗）；点聚合按「日期 → 去重颜色」。
-    final occurrences = ref
-            .watch(occurrencesProvider(
-                (DateTime(year, 1, 1), DateTime(year + 1, 1, 1))))
+    final occurrences =
+        ref
+            .watch(
+              occurrencesProvider((
+                DateTime(year, 1, 1),
+                DateTime(year + 1, 1, 1),
+              )),
+            )
             .value ??
         const <CalendarOccurrence>[];
     final dotsByDate = <DateTime, Set<int>>{};
@@ -64,10 +69,10 @@ class CalendarYearView extends ConsumerWidget {
               today: today,
               dotsByDate: dotsByDate,
               onMonthTap: () {
-                ref.read(anchorDateProvider.notifier)
+                ref
+                    .read(anchorDateProvider.notifier)
                     .set(DateTime(year, month, 1));
-                ref.read(viewModeProvider.notifier)
-                    .set(CalendarViewMode.month);
+                ref.read(viewModeProvider.notifier).set(CalendarViewMode.month);
               },
             ),
         ],
@@ -103,19 +108,18 @@ class _MiniMonthCard extends StatelessWidget {
     // 周一起始：周一=0 … 周日=6
     final leadBlanks = (firstDay.weekday - 1) % 7;
     final daysInMonth = DateTime(year, month + 1, 0).day;
-    final isTodayMonth =
-        today.year == year && today.month == month;
+    final isTodayMonth = today.year == year && today.month == month;
 
-    return InkWell(
+    return GestureDetector(
       key: Key('year_month_${month}_tap'),
+      behavior: HitTestBehavior.opaque,
       onTap: onMonthTap,
-      borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: isCurrentMonth
               ? const Color(0xFF007AFF).withAlpha(20)
-              : Colors.white,
+              : CupertinoColors.white,
           borderRadius: BorderRadius.circular(8),
           border: isCurrentMonth
               ? Border.all(color: const Color(0xFF007AFF))
@@ -138,7 +142,13 @@ class _MiniMonthCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 for (final w in _weekLabels)
-                  Text(w, style: const TextStyle(fontSize: 8, color: Color(0xFF8E8E93))),
+                  Text(
+                    w,
+                    style: const TextStyle(
+                      fontSize: 8,
+                      color: Color(0xFF8E8E93),
+                    ),
+                  ),
               ],
             ),
             Expanded(
@@ -172,7 +182,9 @@ class _MiniMonthCard extends StatelessWidget {
             key: isToday ? Key('year_today_${month}_$day') : null,
             decoration: isToday
                 ? const BoxDecoration(
-                    shape: BoxShape.circle, color: Color(0xFFFF3B30))
+                    shape: BoxShape.circle,
+                    color: Color(0xFFFF3B30),
+                  )
                 : null,
             padding: isToday ? const EdgeInsets.all(1) : null,
             child: Text(
@@ -180,7 +192,9 @@ class _MiniMonthCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 8,
                 height: 1,
-                color: isToday ? Colors.white : const Color(0xFF1C1C1E),
+                color: isToday
+                    ? CupertinoColors.white
+                    : const Color(0xFF1C1C1E),
               ),
             ),
           ),
@@ -190,12 +204,16 @@ class _MiniMonthCard extends StatelessWidget {
               children: [
                 for (final color in dots)
                   Container(
-                    key: Key('year_dot_${month}_${day}_${color.toRadixString(16)}'),
+                    key: Key(
+                      'year_dot_${month}_${day}_${color.toRadixString(16)}',
+                    ),
                     width: 2,
                     height: 2,
                     margin: const EdgeInsets.symmetric(horizontal: 0.5),
                     decoration: BoxDecoration(
-                        shape: BoxShape.circle, color: Color(color)),
+                      shape: BoxShape.circle,
+                      color: Color(color),
+                    ),
                   ),
               ],
             ),

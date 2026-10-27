@@ -18,10 +18,7 @@ const _scanRoots = <String>[
 ];
 
 /// 迁移中的包：feature_task 已收口（#129），日历/记录在各自 PR 内逐步从 pending 移除。
-const _pendingPackages = <String>{
-  'packages/feature_calendar',
-  'packages/feature_note',
-};
+const _pendingPackages = <String>{'packages/feature_note'};
 
 /// 允许出现 Material API 的文件（仅这些文件）。
 const _materialAllowed = <String>{

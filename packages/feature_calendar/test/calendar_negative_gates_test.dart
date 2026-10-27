@@ -21,12 +21,12 @@ void main() {
 
   /// 收集待检查源码：只看 Dart 与 Vue 模板，注释也一并算（剥离清单要求「不留文案」）。
   List<File> dartFiles(List<String> roots) => [
-        for (final root in roots)
-          ...Directory(root)
-              .listSync(recursive: true)
-              .whereType<File>()
-              .where((f) => f.path.endsWith('.dart')),
-      ];
+    for (final root in roots)
+      ...Directory(root)
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.dart')),
+  ];
 
   String hits(Iterable<File> files, List<String> tokens) {
     final found = <String>[];
@@ -44,28 +44,36 @@ void main() {
   }
 
   test('TC-CAL-REG-901 无 iCloud 文案（含注释）', () {
-    final files = dartFiles(scanRoots([
-      'lib',
-      '../feature_calendar_cloud/lib',
-      '../feature_productivity_kernel/lib',
-      '../feature_productivity_drift/lib',
-    ]));
+    final files = dartFiles(
+      scanRoots([
+        'lib',
+        '../feature_calendar_cloud/lib',
+        '../feature_productivity_kernel/lib',
+        '../feature_productivity_drift/lib',
+      ]),
+    );
     expect(files, isNotEmpty);
     expect(hits(files, ['iCloud']), isEmpty);
   });
 
   test('TC-CAL-REG-902 无 Siri / Apple Intelligence', () {
-    final files = dartFiles(scanRoots(['lib', '../feature_calendar_cloud/lib']));
+    final files = dartFiles(
+      scanRoots(['lib', '../feature_calendar_cloud/lib']),
+    );
     expect(hits(files, ['Siri', 'Apple Intelligence']), isEmpty);
   });
 
   test('TC-CAL-REG-903 无「生日」日历入口', () {
-    final files = dartFiles(scanRoots(['lib', '../feature_calendar_cloud/lib']));
+    final files = dartFiles(
+      scanRoots(['lib', '../feature_calendar_cloud/lib']),
+    );
     expect(hits(files, ['生日']), isEmpty);
   });
 
   test('TC-CAL-REG-904 无 FaceTime / Exchange / CarPlay', () {
-    final files = dartFiles(scanRoots(['lib', '../feature_calendar_cloud/lib']));
+    final files = dartFiles(
+      scanRoots(['lib', '../feature_calendar_cloud/lib']),
+    );
     expect(hits(files, ['FaceTime', 'Exchange', 'CarPlay']), isEmpty);
   });
 

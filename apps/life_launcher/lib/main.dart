@@ -30,10 +30,14 @@ Future<void> main() async {
   // F-03：记录仓库（Drift 实现随 F-04 落地前先 InMemory；组合根单点切换）
   final noteRepository = InMemoryNoteRepository();
   final prefs = await SharedPreferences.getInstance();
-  final dio = Dio(BaseOptions(baseUrl: const String.fromEnvironment(
-    'LIFEOS_API_BASE',
-    defaultValue: 'https://lifeos.zh04.com',
-  )));
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: const String.fromEnvironment(
+        'LIFEOS_API_BASE',
+        defaultValue: 'https://lifeos.zh04.com',
+      ),
+    ),
+  );
   final sessionStore = SecureSessionStore();
   final authPort = RestAuthPort(dio: dio, store: sessionStore);
   // TC-SYNC-114：401 时先走 authPort.refresh() 换新 token 再重试，不再拿过期 token 空转
@@ -52,13 +56,15 @@ Future<void> main() async {
     cursors: DriftSyncCursorStore(db),
   );
   // F-11：真实本地通知调度（开源包只声明接口）
-  final calendarAlertScheduler =
-      await LocalCalendarAlertScheduler.create(calendarRepository);
+  final calendarAlertScheduler = await LocalCalendarAlertScheduler.create(
+    calendarRepository,
+  );
   // F-17：日历云侧（同步 / 收件箱 / 导入导出），与任务共用同一会话存储
-  final calendarSyncPort =
-      RestCalendarSyncPort(dio: dio, store: sessionStore);
-  final calendarCollabPort =
-      RestCalendarCollabPort(dio: dio, store: sessionStore);
+  final calendarSyncPort = RestCalendarSyncPort(dio: dio, store: sessionStore);
+  final calendarCollabPort = RestCalendarCollabPort(
+    dio: dio,
+    store: sessionStore,
+  );
   final calendarSyncCoordinator = CalendarSyncCoordinator(
     repository: calendarRepository,
     port: calendarSyncPort,
@@ -89,25 +95,28 @@ Future<void> main() async {
         calendarRepositoryProvider.overrideWithValue(calendarRepository),
         noteRepositoryProvider.overrideWithValue(noteRepository),
         calendarReminderRepositoryProvider.overrideWithValue(repository),
-        calendarAlertSchedulerProvider.overrideWithValue(calendarAlertScheduler),
+        calendarAlertSchedulerProvider.overrideWithValue(
+          calendarAlertScheduler,
+        ),
         calendarCollabPortProvider.overrideWithValue(calendarCollabPort),
-        calendarSyncCoordinatorProvider
-            .overrideWithValue(calendarSyncCoordinator),
-        calendarSyncTriggerProvider.overrideWith((ref) => () async {
-              await calendarSyncCoordinator.syncOnce();
-            }),
+        calendarSyncCoordinatorProvider.overrideWithValue(
+          calendarSyncCoordinator,
+        ),
+        calendarSyncTriggerProvider.overrideWith(
+          (ref) => () async {
+            await calendarSyncCoordinator.syncOnce();
+          },
+        ),
         calendarInboxOpenerProvider.overrideWith(
-          (ref) => (context) => Navigator.of(context).push(
-            CupertinoPageRoute<void>(
-              builder: (_) => const LifeMaterialIsland(
-                child: CalendarCloudPage(),
+          (ref) =>
+              (context) => Navigator.of(context).push(
+                CupertinoPageRoute<void>(
+                  builder: (_) =>
+                      const LifeMaterialIsland(child: CalendarCloudPage()),
+                ),
               ),
-            ),
-          ),
         ),
-        pinnedTabsServiceProvider.overrideWithValue(
-          PinnedTabsService(prefs),
-        ),
+        pinnedTabsServiceProvider.overrideWithValue(PinnedTabsService(prefs)),
         authPortProvider.overrideWithValue(authPort),
         syncPortProvider.overrideWithValue(taskSyncCoordinator),
       ],
@@ -165,10 +174,7 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
       debugShowCheckedModeBanner: false,
       theme: LifeTokens.cupertino(),
       locale: const Locale('zh', 'CN'),
-      supportedLocales: const [
-        Locale('zh', 'CN'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
       localizationsDelegates: const [
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -176,9 +182,7 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
       ],
       builder: (context, child) => Theme(
         data: LifeTokens.materialIsland(),
-        child: ScaffoldMessenger(
-          child: child ?? const SizedBox.shrink(),
-        ),
+        child: ScaffoldMessenger(child: child ?? const SizedBox.shrink()),
       ),
       routerConfig: router,
     );
