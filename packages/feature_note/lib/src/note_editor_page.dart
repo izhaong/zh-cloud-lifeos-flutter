@@ -53,6 +53,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
 
   Future<void> _save() async {
     final existing = widget.note;
+    if (existing != null && existing.locked) {
+      return; // 锁定笔记不允许用编辑器覆盖密文（解锁归 F-12）
+    }
     final delta = jsonEncode({'ops': _body.document.toDelta().toJson()});
     final note = Note(
       id: existing?.id ??
@@ -112,6 +115,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               ),
             ),
             const Divider(height: 1),
+            _ChecklistPanel(controller: _body),
             Expanded(
               child: quill.QuillEditor.basic(
                 controller: _body,
@@ -125,5 +129,89 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         ),
       ),
     );
+  }
+}
+
+
+class _ChecklistItem {
+  const _ChecklistItem({
+    required this.start,
+    required this.length,
+    required this.text,
+    required this.done,
+  });
+
+  final int start;
+  final int length;
+  final String text;
+  final bool done;
+}
+
+/// 清单面板（F-06；契约 §1：checklist 由 Delta attributes.list 表达）。
+/// 勾选即改写该行 list 属性（unchecked/checked），保存后由仓库清点计数。
+class _ChecklistPanel extends StatelessWidget {
+  const _ChecklistPanel({required this.controller});
+
+  final quill.QuillController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final items = _items();
+        if (items.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return Column(
+          children: [
+            for (final item in items)
+              CheckboxListTile(
+                key: ValueKey('note_checklist_${item.start}'),
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: item.done,
+                title: Text(
+                  item.text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onChanged: (checked) => controller.formatText(
+                  item.start,
+                  item.length,
+                  quill.Attribute.clone(
+                    quill.Attribute.list,
+                    checked == true ? 'checked' : 'unchecked',
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  List<_ChecklistItem> _items() {
+    final ops = controller.document.toDelta().toJson();
+    var offset = 0;
+    final items = <_ChecklistItem>[];
+    for (final op in ops) {
+      final insert = op['insert'];
+      if (insert is! String) {
+        continue;
+      }
+      final attrs = op['attributes'];
+      final list = attrs is Map ? attrs['list'] : null;
+      if (list is String && list.isNotEmpty) {
+        items.add(_ChecklistItem(
+          start: offset,
+          length: insert.length,
+          text: insert.trim(),
+          done: list == 'checked',
+        ));
+      }
+      offset += insert.length;
+    }
+    return items;
   }
 }

@@ -19,6 +19,11 @@ final noteFoldersProvider = StreamProvider<List<NoteFolder>>((ref) {
   return ref.watch(noteRepositoryProvider).watchFolders();
 });
 
+/// 「最近删除」（F-06：删除进回收、可恢复）。
+final deletedNotesProvider = StreamProvider<List<Note>>((ref) {
+  return ref.watch(noteRepositoryProvider).watchDeleted();
+});
+
 /// 全部标签。
 final noteTagsProvider = StreamProvider<List<NoteTag>>((ref) {
   return ref.watch(noteRepositoryProvider).watchTags();
