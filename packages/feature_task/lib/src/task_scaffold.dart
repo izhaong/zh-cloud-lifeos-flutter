@@ -1127,10 +1127,16 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               ),
             _MoreMenu(
               onToggleCompleted: () {
-                final cur = ref.read(showCompletedProvider);
-                ref.read(showCompletedProvider.notifier).set(!cur);
+                final Map<String, bool> perList =
+                    ref.read(showCompletedByListProvider);
+                final bool cur = perList[widget.list.id] ?? false;
+                ref
+                    .read(showCompletedByListProvider.notifier)
+                    .setFor(widget.list.id, !cur);
               },
-              showCompleted: ref.watch(showCompletedProvider),
+              showCompleted:
+                  ref.watch(showCompletedByListProvider)[widget.list.id] ??
+                  false,
             ),
           ],
         ),
@@ -1496,7 +1502,9 @@ class _ListHeaderToolbar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final showCompleted = ref.watch(showCompletedProvider);
+    // #256：Apple 的「显示已完成」按列表记忆（默认隐藏；不回落全局，否则串台）
+    final bool showCompleted =
+        ref.watch(showCompletedByListProvider)[list.id] ?? false;
     final sortMode = ref.watch(listSortModeProvider);
     final titleColor = Color(list.colorArgb);
     return Padding(
@@ -1579,7 +1587,8 @@ class _ListHeaderToolbar extends ConsumerWidget {
               _MenuItem(value: false, label: '隐藏已完成'),
             ],
             current: showCompleted,
-            onSelected: (v) => ref.read(showCompletedProvider.notifier).set(v),
+            onSelected: (v) =>
+                ref.read(showCompletedByListProvider.notifier).setFor(list.id, v),
             anchor: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

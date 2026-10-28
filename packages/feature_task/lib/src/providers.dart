@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -86,8 +87,12 @@ class SidebarVisibleNotifier extends Notifier<bool>
 final filteredItemsForListProvider =
     StreamProvider.family<List<ReminderItem>, String?>((ref, listId) {
       final query = ref.watch(searchQueryProvider).trim().toLowerCase();
+      // #256：**严格按列表**取值（默认隐藏，与 TC-UI-108 一致）。
+      // 不能再回落全局：全局那一格是「最后一次」，回落会让 A 的开关串到所有列表。
+      final perList = ref.watch(showCompletedByListProvider);
       final showCompleted =
-          ref.watch(showCompletedProvider) || listId == 'smart.completed';
+          (listId != null && (perList[listId] ?? false)) ||
+          listId == 'smart.completed';
       final repo = ref.watch(reminderRepositoryProvider);
 
       // TC-UI-116 自定义智能列表（smart.custom.*）：filter 从列表元数据读取，
@@ -189,6 +194,62 @@ final filteredItemsForListProvider =
             );
           });
     });
+
+/// 任务区本地视图偏好存储（组合根注入 SharedPreferences；不参与同步）。
+///
+/// 与日历 `sidebarPrefsProvider` 同一套路：`dynamic` 规避外包对宿主偏好实现的
+/// 耦合；未注入时所有本地记忆退化成「不记忆」，不影响任何主路径。
+final taskViewPrefsProvider = Provider<dynamic>((ref) => null);
+
+/// 「显示已完成」的**按列表**记忆（矩阵 row 11「列表内开关」= 对等）。
+///
+/// Apple：View ▸ Show Completed 是每个列表各自一份，切列表不串味、重开仍在。
+/// 线上偏好行只有一个全局 `showCompleted`（服务端契约如此），所以：
+/// - 每列表的取舍存在本地 prefs（`lifeos.task.showCompletedByList`，JSON 表）；
+/// - 全局那份继续写「最后一次的选择」，维持 TC-UI-308 的读回与既有契约。
+final showCompletedByListProvider =
+    NotifierProvider<ShowCompletedByListNotifier, Map<String, bool>>(
+      ShowCompletedByListNotifier.new,
+    );
+
+class ShowCompletedByListNotifier extends Notifier<Map<String, bool>> {
+  static const _prefsKey = 'lifeos.task.showCompletedByList';
+
+  @override
+  Map<String, bool> build() {
+    final prefs = ref.watch(taskViewPrefsProvider);
+    final raw = prefs?.getString(_prefsKey);
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      return {
+        for (final e in decoded.entries)
+          if (e.value is bool) e.key.toString(): e.value as bool,
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  /// 记下某列表的取舍；同时把全局偏好写成「最后一次」（服务端同步的那一格）。
+  void setFor(String listId, bool value) {
+    state = {...state, listId: value};
+    ref.read(taskViewPrefsProvider)?.setString(_prefsKey, jsonEncode(state));
+    // 全局那一格写「最后一次」，维持 TC-UI-308 读回与既有服务端契约
+    ref.read(showCompletedProvider.notifier).set(value);
+  }
+
+  bool forList(String? listId) =>
+      listId == null ? false : (state[listId] ?? false);
+
+  /// #256 审查：「还原默认」必须连按列表的记忆一起清，否则过滤仍按旧状态
+  /// 显示已完成（TC-UI-309 要求视图态整体回默认）。
+  void reset() {
+    state = const {};
+    ref.read(taskViewPrefsProvider)?.remove(_prefsKey);
+  }
+}
 
 /// 「显示已完成」列表内开关（线框图2 工具行「显示」；TC-UI-108）。
 /// 卡 4b：视图态持久（TC-UI-308），默认仍 false——`list_toolbar_test.dart` 钉的就是默认隐藏。

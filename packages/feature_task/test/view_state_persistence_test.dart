@@ -4,11 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// TC-UI-308/309/304 持久半边：视图态（显示已完成、排序、分区折叠、侧栏显隐）
 /// 落进本地偏好行，重开/重启后读回（flutter#124 卡 4b）。
 void main() {
   late InMemoryTaskPreferenceRepository prefs;
+
+  /// #256：按列表的本地视图记忆走 SharedPreferences（组合根同款注入）
+  late SharedPreferences viewPrefs;
 
   Future<void> pump(
     WidgetTester tester, {
@@ -31,6 +35,7 @@ void main() {
         overrides: [
           reminderRepositoryProvider.overrideWithValue(repo),
           taskPreferenceRepositoryProvider.overrideWithValue(prefs),
+          taskViewPrefsProvider.overrideWithValue(viewPrefs),
         ],
         child: MaterialApp(
           home: TaskScaffold(openListId: openListId),
@@ -40,7 +45,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  setUp(() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues(const {});
+    viewPrefs = await SharedPreferences.getInstance();
     prefs = InMemoryTaskPreferenceRepository();
   });
 
@@ -182,6 +189,16 @@ void main() {
     await tester.pumpAndSettle();
     expect((await prefs.watchPreference().first).collapsedKeys, isNotEmpty);
 
+    // #256：先在该列表打开「显示已完成」，让按列表的记忆有值
+    await tester.tap(find.byKey(const ValueKey('toggle_show_completed')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('显示已完成').last);
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TaskScaffold)),
+    );
+    expect(container.read(showCompletedByListProvider), isNotEmpty);
+
     // 打开设置弹层点还原
     await tester.tap(find.byKey(const ValueKey('sidebar_settings')));
     await tester.pumpAndSettle();
@@ -193,5 +210,10 @@ void main() {
     expect(back.showCompleted, isFalse);
     expect(back.sortMode, 'manual');
     expect(back.sidebarVisible, isTrue);
+    expect(
+      container.read(showCompletedByListProvider),
+      isEmpty,
+      reason: '还原默认要连按列表的「显示已完成」记忆一起清（#256）',
+    );
   });
 }
