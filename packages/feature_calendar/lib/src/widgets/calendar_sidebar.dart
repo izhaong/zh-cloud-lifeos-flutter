@@ -64,7 +64,13 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
               // F-16：本地节假日开关（lunar 生成，可关）
               // parity#204：与同列其它日历行保持同一控件（勾选框）与同一列，
               // 不再用开关。
-              _SidebarToggleRow(
+              //
+              // #281：节假日日历一旦存在，就会作为普通日历出现在「其他」分组里
+              // （同一本日历、同一个勾选框）。此时这条固定行若还渲染，侧栏就会
+              // 出现两行同名条目、状态还可能不同步。因此**仅在尚未订阅时**显示
+              // 它作为入口；订阅后由分组内的同构行接管。
+              if (calendars.every((c) => c.id != kHolidayCalendarId))
+                _SidebarToggleRow(
                 rowKey: const Key('sidebar_holidays_toggle'),
                 leading: const Icon(
                   CupertinoIcons.calendar_badge_minus,
@@ -261,6 +267,8 @@ class _SidebarToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      // #281 顺带修正：rowKey 此前只存字段、没挂到 widget，等于键位不存在
+      key: rowKey,
       behavior: HitTestBehavior.opaque,
       onTap: () => onChanged(!value),
       child: Row(
