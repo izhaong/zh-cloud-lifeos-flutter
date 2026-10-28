@@ -1,4 +1,6 @@
-import 'package:flutter/cupertino.dart';
+// #317：CupertinoIcons 必须从 cupertino_ui 取——生产侧渲染的是那一份常量。
+// SDK 那份今天靠 IconData 的值相等才碰巧命中，上游码位一分叉就会静默失配。
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

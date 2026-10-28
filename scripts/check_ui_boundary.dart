@@ -9,20 +9,30 @@ import 'dart:io';
 ///
 /// 白名单逐文件写明原因与移除条件。
 
-/// 扫描根自动发现：覆盖 `apps/*/lib` 与 `packages/*/lib`。
+/// 扫描根自动发现：覆盖 `apps/*/{lib,test}` 与 `packages/*/{lib,test}`。
 /// 原先硬编码 5 个根，静默漏掉 6 个包（含 feature_task_cloud 里那个 SDK Cupertino 登录页），
 /// 使 `violations` 看起来比真实少。改为发现式，新增包自动纳管。
+///
+/// #317 把 `test/` 也纳进来，但**只在 test 根施 C1（SDK Cupertino）**：
+/// 生产侧 `packages/*/lib` 早已 0，缺口全在测试侧——`find.byIcon(CupertinoIcons.circle)`
+/// 断的是 SDK 那份常量，而渲染用的是 `cupertino_ui` 那份（两个库各有一份 `CupertinoIcons`）。
+/// `IconData` 有值相等（`icon_data.dart` 里 override 了 `==`/`hashCode`），所以两半今天
+/// 恰好相等、测试是绿的；一旦上游码位或 `fontPackage` 分叉，正向断言会响，
+/// 而 `expect(find.byIcon(…), findsNothing)` 这类**负断言会静默恒真**。
+/// 同一条「自有 UI 走 cupertino_ui」对测试不算豁免（铁律 #7）。
 List<String> _discoverScanRoots(String root) {
   final found = <String>[];
   for (final base in const ['apps', 'packages']) {
     final dir = Directory('$root/$base');
     if (!dir.existsSync()) continue;
     for (final entry in dir.listSync().whereType<Directory>()) {
-      final lib = '${entry.path}/lib';
-      if (!Directory(lib).existsSync()) continue;
-      found.add(
-        lib.startsWith('$root/') ? lib.substring(root.length + 1) : lib,
-      );
+      for (final sub in const ['lib', 'test']) {
+        final path = '${entry.path}/$sub';
+        if (!Directory(path).existsSync()) continue;
+        found.add(
+          path.startsWith('$root/') ? path.substring(root.length + 1) : path,
+        );
+      }
     }
   }
   found.sort();
@@ -94,6 +104,10 @@ UiBoundaryResult scanBoundary(String root, {bool strict = false}) {
     // rel 形如 packages/feature_task/lib：取第二段才是包名
     final segs = rel.split('/');
     final pkg = segs.length > 1 ? segs[1] : rel;
+    // #317：test/ 根只施 C1（SDK Cupertino）。字面色与 Material 越界两条在生产侧已收口，
+    // 测试宿主天然要挂在 MaterialApp 下（#293 的 test_support.dart 同源原因），
+    // 把它们套到 test/ 会一次涌出上百条与对等无关的红，反而把 C1 淹掉。
+    final isTestRoot = rel.endsWith('/test');
     for (final file in dir.listSync(recursive: true).whereType<File>()) {
       if (!file.path.endsWith('.dart')) continue;
       result.scanned++;
@@ -111,7 +125,7 @@ UiBoundaryResult scanBoundary(String root, {bool strict = false}) {
           source.contains('package:cupertino_ui/');
       final isTokenFile =
           relPath.contains('/theme/') || relPath.contains('/design/');
-      final countHex = isUiFile && !isTokenFile;
+      final countHex = isUiFile && !isTokenFile && !isTestRoot;
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         if (_isComment(line)) continue;
@@ -136,7 +150,9 @@ UiBoundaryResult scanBoundary(String root, {bool strict = false}) {
                 (result.hexByPackage[pkg] ?? 0) + hexCount;
           }
         }
-        if (allowMaterial) continue;
+        // test/ 不判 Material 越界（#317 有意收窄，selftest 里有负对照）：
+        // 各包测试宿主必须挂在 MaterialApp 祖先下，否则 kalender/quill 岛无处可挂。
+        if (isTestRoot || allowMaterial) continue;
         for (final marker in _materialMarkers) {
           if (line.contains(marker)) {
             result.violations.add('$relPath:${i + 1}  Material 越界: $marker');
@@ -207,10 +223,39 @@ const c = Color(0xFF007AFF); // 裸色（写着色）
 import 'package:flutter/painting.dart';
 const systemBlue = Color(0xFF007AFF);
 ''');
+    // #317 正对照：`test/` 根里的 SDK Cupertino import 必须同样判红，且这条红要能
+    // 归因到 test/ 路径本身——否则它可能只是 lib/ 那条坏样本在替它说话（恒真）。
+    final testDir = Directory('${tmp.path}/packages/demo/test')
+      ..createSync(recursive: true);
+    File('${testDir.path}/bad_test.dart').writeAsStringSync('''
+import 'package:flutter/cupertino.dart';
+import 'package:flutter_test/flutter_test.dart';
+void main() {
+  test('icon', () => find.byIcon(CupertinoIcons.circle));
+}
+''');
+    // #317 负对照：`test/` 不判 Material 越界是**刻意的收窄**（测试宿主天然要挂
+    // MaterialApp）。哪天有人把 Material 判据也套到 test/ 上，这条会红，逼着去
+    // #126 面 D 正面对待，而不是静默涌出上百条把 C1 淹掉。
+    File('${testDir.path}/host_test.dart').writeAsStringSync('''
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+void main() {
+  test('host', () => debugPrint(MaterialApp.toString()));
+}
+''');
     final result = scanBoundary(tmp.path, strict: true);
     final all = result.violations.join('\n');
     final cases = <String, bool>{
       'C1 SDK Cupertino 导入': all.contains('SDK Cupertino'),
+      'C1 test/ 根同样判红（#317，归因到 test 路径）': result.violations.any(
+        (v) =>
+            v.startsWith('packages/demo/test/bad_test.dart:') &&
+            v.contains('SDK Cupertino'),
+      ),
+      'test/ 不判 Material 越界（#317 负对照）': result.violations.every(
+        (v) => !v.startsWith('packages/demo/test/host_test.dart:'),
+      ),
       'C2 fromSeed': all.contains('ColorScheme.fromSeed'),
       'Material 越界': all.contains('Material 越界'),
       // 坏样本里 UI 文件 1 处（`Color(0xFF007AFF)` 字面色）；
