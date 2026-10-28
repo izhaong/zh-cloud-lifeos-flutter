@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers.dart';
 import 'calendar_view_callbacks.dart';
+import 'logic/quick_event_draft.dart';
 import 'views/day_view.dart';
 import 'views/month_view.dart';
 import 'views/year_view.dart';
@@ -120,17 +121,8 @@ class CalendarScaffold extends ConsumerWidget {
       if (quick == null || !context.mounted) {
         return;
       }
-      final draft = CalendarEvent(
-        id: kDraftEventId,
-        calendarId: '',
-        uid: '',
-        title: quick.title,
-        startAt: quick.startAt,
-        endAt: quick.endAt,
-        allDay: quick.allDay,
-        timeZone: zone,
-        updatedAt: DateTime.now().toUtc(),
-      );
+      // #219：未写日期的全天事件按设备本地当天锚定（UTC 墙钟会漂到前一天）
+      final draft = quickEventDraft(quick, timeZone: zone);
       openDraft(draft, null, measuredContentWidth);
     }
 
@@ -187,6 +179,7 @@ class CalendarScaffold extends ConsumerWidget {
                 Expanded(
                   child: _MainView(
                     mode: mode,
+                    compact: compact,
                     viewCallbacks: viewCallbacks,
                     eventsController: eventsController,
                   ),
@@ -282,11 +275,15 @@ class CalendarScaffold extends ConsumerWidget {
 class _MainView extends ConsumerWidget {
   const _MainView({
     required this.mode,
+    required this.compact,
     required this.viewCallbacks,
     required this.eventsController,
   });
 
   final CalendarViewMode mode;
+
+  /// #185：断点只在外壳取值；叶子视图按此开关决定是否挂宽档专属栏。
+  final bool compact;
   final CalendarViewCallbacks viewCallbacks;
   final kalender.DefaultEventsController eventsController;
 
@@ -297,6 +294,7 @@ class _MainView extends ConsumerWidget {
       CalendarViewMode.day => CalendarDayView(
         viewCallbacks: viewCallbacks,
         eventsController: eventsController,
+        showReminderLane: !compact,
       ),
       CalendarViewMode.week => CalendarWeekView(
         viewCallbacks: viewCallbacks,

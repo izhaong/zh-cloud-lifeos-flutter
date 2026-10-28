@@ -12,12 +12,16 @@ class QuickEvent {
     required this.startAt,
     required this.endAt,
     required this.allDay,
+    this.dateExplicit = true,
   });
 
   final String title;
   final DateTime startAt;
   final DateTime endAt;
   final bool allDay;
+
+  /// 输入里是否写了具体日期/星期；false 时日期取「设备本地当天」（#219）。
+  final bool dateExplicit;
 
   @override
   String toString() => 'QuickEvent($title, $startAt, $endAt, allDay=$allDay)';
@@ -303,6 +307,7 @@ QuickEvent? parseQuickEvent(
       startAt: utcFromWall(startWall, timeZone),
       endAt: utcFromWall(endWall, timeZone),
       allDay: true,
+      dateExplicit: date != null,
     );
   }
 
@@ -321,6 +326,7 @@ QuickEvent? parseQuickEvent(
     startAt: utcFromWall(startWall, timeZone),
     endAt: utcFromWall(endWall, timeZone),
     allDay: false,
+    dateExplicit: date != null,
   );
 }
 
