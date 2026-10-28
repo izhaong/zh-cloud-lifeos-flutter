@@ -78,6 +78,45 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
+  // ── #153：标题失焦即落库（不点「完成」），列表行随流刷新 ──
+  testWidgets('#153 标题失焦即落库（无需点完成）', (tester) async {
+    final repo = await _seed();
+    await _pump(tester, repo, selectedItemId: 'i1');
+
+    expect(find.text('详细信息'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('detail_title')),
+      '改名后',
+    );
+    // 焦点移到备注字段 → 标题失焦 → 即改即存
+    await tester.enterText(find.byKey(const ValueKey('detail_notes')), '');
+    await tester.pumpAndSettle();
+
+    final all = await repo.watchItems().first;
+    final saved = all.singleWhere((e) => e.id == 'i1');
+    expect(saved.title, '改名后', reason: '#153: 失焦必须落库，不依赖「完成」按钮');
+  });
+
+  // ── #153：日期选择器「好」确认即落库（无需点「完成」） ──
+  testWidgets('#153 日期与时间确认即落库（无需点完成）', (tester) async {
+    final repo = await _seed();
+    await _pump(tester, repo, selectedItemId: 'i1');
+
+    expect(
+      find.byKey(const ValueKey('due_at_row')),
+      findsOneWidget,
+      reason: '详情面板有日期与时间行',
+    );
+    await tester.tap(find.byKey(const ValueKey('due_at_row')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('due_at_confirm')));
+    await tester.pumpAndSettle();
+
+    final all = await repo.watchItems().first;
+    final saved = all.singleWhere((e) => e.id == 'i1');
+    expect(saved.dueAt, isNotNull, reason: '#153: 选择器确认必须落库');
+  });
+
   // ── TC-UI-113a：详情编辑备注 → 保存 → 仓库 notes 回写 ──
   testWidgets('TC-UI-113a 详情编辑备注→保存→仓库 notes 回写', (tester) async {
     final repo = await _seed();

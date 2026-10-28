@@ -41,6 +41,24 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   DateTime? _dueAt;
   bool _showSubtaskDraft = false;
 
+  /// 即改即存（#153）：文本字段输入后置脏，失焦/换行/关面板时兜底提交，
+  /// 避免只点选择器不点「完成」导致编辑丢失。
+  bool _dirty = false;
+  bool _deleted = false;
+
+  late final FocusNode _titleFocus = _blurOnUnfocus();
+  late final FocusNode _notesFocus = _blurOnUnfocus();
+  late final FocusNode _tagsFocus = _blurOnUnfocus();
+
+  /// 失焦兜底提交（#153）：焦点离开字段时若有未落库编辑则回写。
+  FocusNode _blurOnUnfocus() {
+    final node = FocusNode();
+    node.addListener(() {
+      if (!node.hasFocus) _commitIfDirty();
+    });
+    return node;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -72,10 +90,14 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
 
   @override
   void dispose() {
+    if (_dirty && !_deleted) _save();
     _title.dispose();
     _notes.dispose();
     _tags.dispose();
     _subtask.dispose();
+    _titleFocus.dispose();
+    _notesFocus.dispose();
+    _tagsFocus.dispose();
     super.dispose();
   }
 
@@ -100,10 +122,18 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
           : (_recurrenceUntil ?? ReminderItem.clear),
       tags: tagList,
     );
+    _dirty = false;
     widget.onSaved(updated);
   }
 
+  /// 失焦时兜底提交（#153）：有未落库编辑才回写，避免无谓 upsert。
+  void _commitIfDirty() {
+    if (!_dirty) return;
+    _save();
+  }
+
   Future<void> _delete() async {
+    _deleted = true;
     await _repo.deleteItem(widget.item.id);
     if (!mounted) return;
     widget.onClose?.call();
@@ -222,6 +252,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     );
     if (confirmed == true) {
       setState(() => _recurrenceUntil = picked);
+      _save();
     }
   }
 
@@ -331,10 +362,12 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     if (result == null) return;
     if (identical(result, ReminderItem.clear)) {
       setState(() => _dueAt = null);
+      _save();
       return;
     }
     if (result is DateTime) {
       setState(() => _dueAt = result);
+      _save();
     }
   }
 
@@ -376,6 +409,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
       _recurrence = selected.isEmpty ? null : selected;
       if (selected.isEmpty) _recurrenceUntil = null;
     });
+    _save();
   }
 
   static const _priorityLabels = <int, String>{
@@ -408,6 +442,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     );
     if (selected == null || !mounted) return;
     setState(() => _priority = selected);
+    _save();
   }
 
   Widget _groupedRows(List<Widget> rows) {
@@ -478,6 +513,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                 CupertinoTextField(
                   key: const ValueKey('detail_title'),
                   controller: _title,
+                  focusNode: _titleFocus,
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w500,
@@ -485,15 +521,20 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                   placeholder: '标题',
                   decoration: const BoxDecoration(),
                   padding: const EdgeInsets.symmetric(vertical: 10),
+                  onChanged: (_) => _dirty = true,
+                  onSubmitted: (_) => _save(),
                 ),
                 const _Hairline(),
                 CupertinoTextField(
                   key: const ValueKey('detail_notes'),
                   controller: _notes,
+                  focusNode: _notesFocus,
                   maxLines: 3,
                   placeholder: '备注',
                   decoration: const BoxDecoration(),
                   padding: const EdgeInsets.symmetric(vertical: 10),
+                  onChanged: (_) => _dirty = true,
+                  onSubmitted: (_) => _save(),
                 ),
               ],
             ),
@@ -547,7 +588,10 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                         size: 14,
                         color: Color(0xFFC7C7CC),
                       ),
-                      onPressed: () => setState(() => _recurrenceUntil = null),
+                      onPressed: () {
+                        setState(() => _recurrenceUntil = null);
+                        _save();
+                      },
                     ),
                   ],
                 ),
@@ -558,7 +602,10 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
               label: '标记',
               trailing: CupertinoSwitch(
                 value: _isFlagged,
-                onChanged: (v) => setState(() => _isFlagged = v),
+                onChanged: (v) {
+                  setState(() => _isFlagged = v);
+                  _save();
+                },
               ),
             ),
             _Row(
@@ -569,10 +616,13 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                 child: CupertinoTextField(
                   key: const ValueKey('detail_tags'),
                   controller: _tags,
+                  focusNode: _tagsFocus,
                   textAlign: TextAlign.right,
                   placeholder: '如：工作, 设计',
                   decoration: const BoxDecoration(),
                   padding: const EdgeInsets.symmetric(vertical: 6),
+                  onChanged: (_) => _dirty = true,
+                  onSubmitted: (_) => _save(),
                 ),
               ),
             ),
