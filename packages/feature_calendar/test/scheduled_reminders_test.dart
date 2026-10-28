@@ -1,3 +1,4 @@
+// TC-CAL-UI-194：日视图右侧「计划的提醒」区（Scheduled Reminders 行的提醒投影）。
 import 'dart:async';
 
 import 'package:feature_calendar/feature_calendar.dart';
