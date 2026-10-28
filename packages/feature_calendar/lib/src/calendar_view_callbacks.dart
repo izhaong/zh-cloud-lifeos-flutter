@@ -70,7 +70,13 @@ class CalendarViewCallbacks {
 
   /// TC-CAL-UI-130：双击/拖选创建 → 草稿（时长=偏好默认；标题空不落库）。
   CalendarEvent onDraftCreate(DateTime start, DateTime end) {
-    final duration = Duration(minutes: preference.defaultDurationMinutes);
+    // #294：拖拽创建要用**拖出来的长度**（Apple：10:00 拖到 12:00 就是两小时）；
+    // 只有双击那种「零长度」调用才回落默认时长（`double_tap_create` 传
+    // start==end，TC-CAL-UI-130）。
+    final dragged = end.isAfter(start) ? end.difference(start) : Duration.zero;
+    final duration = dragged > Duration.zero
+        ? dragged
+        : Duration(minutes: preference.defaultDurationMinutes);
     final draft = withTimes(
       _emptyDraft(),
       start.toUtc(),

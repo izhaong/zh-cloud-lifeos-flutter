@@ -66,7 +66,7 @@ void main() {
           reason: '零点起点的拖选属于全天带，终点按日截断');
     });
 
-    test('同日内拖选仍是定时草稿且时长=偏好默认（TC-CAL-UI-130 不回归）', () {
+    test('同日内拖选=定时草稿，且时长就是拖出来的长度（#294 推翻 #240 的过渡口径）', () {
       callbacks().onDragCreate(
         DateTime(2026, 10, 26, 10),
         DateTime(2026, 10, 26, 15),
@@ -75,8 +75,10 @@ void main() {
       expect(draft!.startAt.toLocal(), DateTime(2026, 10, 26, 10));
       expect(
         draft!.endAt.difference(draft!.startAt),
-        const Duration(minutes: 60),
-        reason: '同日拖选的口径是偏好默认时长，不在本卡改动',
+        const Duration(hours: 5),
+        reason: 'Apple：10:00 拖到 15:00 就是五小时；#240 当时把它记成「偏好默认」'
+            '只是过渡口径，#294 按矩阵 D3/D12「对等」改回拖拽取拖出长度。'
+            '默认时长仍服务双击场景（TC-CAL-UI-130）。',
       );
     });
   });
