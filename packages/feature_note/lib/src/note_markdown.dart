@@ -7,25 +7,31 @@ class NoteMarkdownCodec {
   const NoteMarkdownCodec._();
 
   /// Delta JSON → Markdown（标题 + 段落/清单）。
+  ///
+  /// 行属性（`header`/`list`）在 Quill 规范落点里挂在含 `\n` 的那个 op 上，
+  /// 旧落点则挂在同一行的文本 op 上；两种都认，否则规范落点的清单会导出成
+  /// 没有 `- [ ]` 前缀的普通段落（#237）。
   static String toMarkdown(String title, String bodyDelta) {
     final sb = StringBuffer();
     if (title.trim().isNotEmpty) {
       sb.writeln('# ${title.trim()}');
       sb.writeln();
     }
-    final ops = _ops(bodyDelta);
-    for (final op in ops) {
-      final insert = op['insert'];
-      if (insert is! String) continue;
-      final attrs = op['attributes'];
+    final line = StringBuffer();
+    Map? lineAttrs;
+    void flush() {
+      final text = line.toString();
+      line.clear();
+      final attrs = lineAttrs;
+      lineAttrs = null;
+      if (text.isEmpty) return;
       var prefix = '';
-      if (attrs is Map) {
+      if (attrs != null) {
         final header = attrs['header'];
         if (header is num) {
           prefix = '${'#' * header.toInt()} ';
         } else if (attrs['list'] is String) {
-          final list = attrs['list'] as String;
-          prefix = switch (list) {
+          prefix = switch (attrs['list'] as String) {
             'checked' => '- [x] ',
             'unchecked' => '- [ ] ',
             'ordered' => '1. ',
@@ -33,11 +39,25 @@ class NoteMarkdownCodec {
           };
         }
       }
-      final text = insert.endsWith('\n') ? insert.substring(0, insert.length - 1) : insert;
-      if (text.isEmpty) continue;
       sb.writeln('$prefix$text');
       if (prefix.isNotEmpty) sb.writeln();
     }
+
+    for (final op in _ops(bodyDelta)) {
+      final insert = op['insert'];
+      if (insert is! String) continue;
+      final attrs = op['attributes'];
+      if (attrs is Map &&
+          (attrs['list'] is String || attrs['header'] is num)) {
+        lineAttrs = attrs;
+      }
+      final parts = insert.split('\n');
+      for (var i = 0; i < parts.length; i++) {
+        if (i > 0) flush(); // 换行 → 上一行结束
+        line.write(parts[i]);
+      }
+    }
+    flush();
     return sb.toString();
   }
 
@@ -89,6 +109,54 @@ class NoteMarkdownCodec {
       title: (title == null || title.isEmpty) ? '导入的备忘录' : title,
       deltaJson: jsonEncode({'ops': ops}),
     );
+  }
+
+  /// 把「清单属性挂在文本 op 上、行尾 `\n` 单独成 op」的旧落点，改成 Quill
+  /// 规范落点（行属性只认含 `\n` 的那个 op）。
+  ///
+  /// #237：quill 11.6.0 的 `Line.insert` 只在遇到 `\n` 时才 `_format(style)`，
+  /// 才会把该行包进 `Block(list)`；只有 `Block` 分支才渲染行首勾选框。
+  /// 旧落点因此渲染不出勾选框（行内一行纯文字），只靠内核
+  /// `countChecklist` 的兼容分支计数——渲染与计数口径不一致。
+  ///
+  /// 只搬 `list` 一个键，其余行内属性留在原 op 上（否则会触发 quill
+  /// 「行上不许有行内属性」的断言）。无法识别或没有可搬的键时原样返回。
+  static String normalizeListAttributes(String bodyDelta) {
+    final ops = _ops(bodyDelta);
+    if (ops.isEmpty) return bodyDelta;
+    final out = <Map<String, Object?>>[];
+    var changed = false;
+    for (var i = 0; i < ops.length; i++) {
+      final op = ops[i];
+      final insert = op['insert'];
+      final attrs = op['attributes'];
+      if (insert is String &&
+          !insert.contains('\n') &&
+          attrs is Map &&
+          attrs['list'] is String &&
+          i + 1 < ops.length) {
+        final next = ops[i + 1];
+        final nextAttrs = next['attributes'];
+        if (next['insert'] == '\n' &&
+            (nextAttrs == null || (nextAttrs is Map && nextAttrs.isEmpty))) {
+          final rest = Map<String, Object?>.from(attrs)..remove('list');
+          out.add({
+            'insert': insert,
+            if (rest.isNotEmpty) 'attributes': rest,
+          });
+          out.add({
+            'insert': '\n',
+            'attributes': <String, Object?>{'list': attrs['list']},
+          });
+          i++; // 行尾 op 已被合并进上面那条
+          changed = true;
+          continue;
+        }
+      }
+      out.add(Map<String, Object?>.from(op));
+    }
+    if (!changed) return bodyDelta;
+    return jsonEncode({'ops': out});
   }
 
   static List<Map> _ops(String bodyDelta) {

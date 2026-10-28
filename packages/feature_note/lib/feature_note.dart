@@ -12,4 +12,3 @@ export 'src/note_recycle_page.dart';
 export 'src/note_settings_page.dart';
 export 'src/note_markdown.dart';
 export 'src/logic/default_folder_bootstrap.dart';
-export 'src/logic/checklist_items.dart';

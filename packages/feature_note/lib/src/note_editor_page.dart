@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
-import 'logic/checklist_items.dart';
 import 'note_markdown.dart';
 import 'providers.dart';
 
@@ -56,7 +55,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       return quill.Document();
     }
     try {
-      final decoded = jsonDecode(deltaJson);
+      // #237：先把旧落点的清单属性归一到行尾 op，否则 quill 不建 Block、
+      // 行首勾选框不渲染（内核计数却算进去了，渲染与计数会打架）。
+      final decoded = jsonDecode(
+        NoteMarkdownCodec.normalizeListAttributes(deltaJson),
+      );
       if (decoded is Map && decoded['ops'] is List) {
         return quill.Document.fromJson(
           List<dynamic>.from(decoded['ops'] as List),
@@ -542,7 +545,6 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 ),
               ),
             const _Separator(),
-            _ChecklistPanel(controller: _body),
             Expanded(
               child: LifeMaterialIsland(
                 child: quill.QuillEditor.basic(
@@ -596,58 +598,6 @@ class _Separator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(height: 0.5, color: CupertinoColors.separator);
   }
-}
-
-/// 清单面板（F-06；契约 §1：checklist 由 Delta attributes.list 表达）。
-/// 勾选即改写该行 list 属性（unchecked/checked），保存后由仓库清点计数。
-class _ChecklistPanel extends StatelessWidget {
-  const _ChecklistPanel({required this.controller});
-
-  final quill.QuillController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        final items = _items();
-        if (items.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        return Column(
-          children: [
-            for (final item in items)
-              Row(
-                key: ValueKey('note_checklist_${item.start}'),
-                children: [
-                  CupertinoCheckbox(
-                    value: item.done,
-                    onChanged: (checked) => controller.formatText(
-                      item.start,
-                      1,
-                      quill.Attribute.clone(
-                        quill.Attribute.list,
-                        checked == true ? 'checked' : 'unchecked',
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      item.text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  List<ChecklistItem> _items() =>
-      parseChecklistItems(controller.document.toDelta().toJson());
 }
 
 /// 图片 embed（F-09）：Delta 里存 {noteImage: {path}}，开源包只渲染占位与文件名；
