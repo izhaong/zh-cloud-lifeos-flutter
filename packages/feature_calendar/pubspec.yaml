@@ -17,6 +17,8 @@ dependencies:
 
   app_core:
     path: ../app_core
+  app_ui:
+    path: ../app_ui
 
   collection: any
   cupertino_ui: ^1.1.4

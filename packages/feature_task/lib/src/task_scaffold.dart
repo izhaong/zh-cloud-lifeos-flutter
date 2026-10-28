@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:app_core/app_core.dart';
+import 'package:app_ui/app_ui.dart';
 
 import 'design/reminder_tokens.dart';
 import 'providers.dart';
@@ -1218,8 +1219,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                           ),
                   for (final entry in sections.entries) ...[
                     if (!skipSectionHeader || entry.key != widget.list.title)
-                      _SectionHeader(
+                      LifeSectionHeader(
                         title: entry.key,
+                        sectionKey: ValueKey('section_${entry.key}'),
                         collapsed: _isCollapsed(
                             ref.watch(collapsedKeysProvider), entry.key),
                         onToggle: () => _toggleSection(entry.key),
@@ -1644,50 +1646,6 @@ class _ListHeaderToolbar extends ConsumerWidget {
 }
 
 /// 分区头（线框客户端「分区一 ∨」）：标题 + 条数 + 折叠箭头。
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    required this.collapsed,
-    required this.onToggle,
-  });
-
-  final String title;
-  final bool collapsed;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      key: ValueKey('section_$title'),
-      behavior: HitTestBehavior.opaque,
-      onTap: onToggle,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-        child: Row(
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: ReminderTokens.labelSecondary,
-              ),
-            ),
-            const Spacer(),
-            Icon(
-              collapsed
-                  ? CupertinoIcons.chevron_down
-                  : CupertinoIcons.chevron_up,
-              size: 14,
-              color: ReminderTokens.labelSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// 0.5px 发丝分隔线。
 class _Hairline extends StatelessWidget {
   const _Hairline({this.indent = 0});

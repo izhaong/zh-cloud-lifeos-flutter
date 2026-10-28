@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../logic/preference_copy.dart';
 import '../providers.dart';
 import 'package:app_core/app_core.dart';
+import 'package:app_ui/app_ui.dart';
 
 Future<void> showCalendarSettingsSheet(BuildContext context) {
   return showCupertinoModalPopup<void>(
@@ -84,7 +85,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
-            const _SectionHeader(
+            const LifeSectionHeader(
               title: '通用',
               key: Key('settings_section_general'),
             ),
@@ -153,7 +154,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               onChanged: (v) =>
                   _save(copyCalendarPreference(pref, showHolidays: v)),
             ),
-            const _SectionHeader(
+            const LifeSectionHeader(
               title: '提醒',
               key: Key('settings_section_reminders'),
             ),
@@ -205,7 +206,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
                 copyCalendarPreference(pref, defaultDurationMinutes: v),
               ),
             ),
-            const _SectionHeader(
+            const LifeSectionHeader(
               title: '高级',
               key: Key('settings_section_advanced'),
             ),
@@ -232,7 +233,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               onChanged: (v) =>
                   _save(copyCalendarPreference(pref, openEventsInWindow: v)),
             ),
-            const _SectionHeader(
+            const LifeSectionHeader(
               title: '账户',
               key: Key('settings_section_account'),
             ),
@@ -398,23 +399,3 @@ class _SwitchRow extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({super.key, required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: CalendarTokens.labelSecondary,
-        ),
-      ),
-    );
-  }
-}

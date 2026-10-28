@@ -2,6 +2,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_ui/app_ui.dart';
 
 import '../design/reminder_tokens.dart';
 import '../providers.dart';
@@ -94,10 +95,10 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
       final listsInGroup = groupLists[g]!;
       final groupCount =
           listsInGroup.fold<int>(0, (sum, e) => sum + e.itemCount);
-      groupedEntries.add(_GroupHeader(
+      groupedEntries.add(LifeSectionHeader(
         key: ValueKey('group_$g'),
         title: g,
-        count: groupCount,
+        count: groupCount > 0 ? groupCount : null,
         collapsed: isGroupCollapsed(g),
         onToggle: () =>
             ref.read(collapsedKeysProvider.notifier).toggle('group:$g'),
@@ -466,63 +467,3 @@ class _SuggestedListRow extends StatelessWidget {
 
 /// 分组折叠头（TC-UI-118）：组名 + 组内计数 + 折叠箭头。
 /// 负向门禁：本平台无账户概念，组名一律来自用户数据（禁 iCloud/Outlook 硬编码）。
-class _GroupHeader extends StatelessWidget {
-  const _GroupHeader({
-    super.key,
-    required this.title,
-    required this.count,
-    required this.collapsed,
-    required this.onToggle,
-  });
-
-  final String title;
-  final int count;
-  final bool collapsed;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      minimumSize: Size.zero,
-      alignment: Alignment.centerLeft,
-      onPressed: onToggle,
-      child: SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-          child: Row(
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
-                ),
-              ),
-              if (count > 0) ...[
-                const SizedBox(width: 4),
-                Text(
-                  '$count',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
-                  ),
-                ),
-              ],
-              const Spacer(),
-              Icon(
-                collapsed
-                    ? CupertinoIcons.chevron_down
-                    : CupertinoIcons.chevron_up,
-                size: 14,
-                color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

@@ -19,6 +19,8 @@ dependencies:
 
   app_core:
     path: ../app_core
+  app_ui:
+    path: ../app_ui
 
   flutter_riverpod: ^3.4.3
   hooks_riverpod: ^3.4.3
