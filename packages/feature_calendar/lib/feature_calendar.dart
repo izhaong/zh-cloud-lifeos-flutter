@@ -15,6 +15,7 @@ export 'src/logic/recurrence_ui.dart';
 export 'src/logic/alert_triggers.dart';
 export 'src/alerts/calendar_alert_scheduler.dart';
 export 'src/nlp/quick_event_parser.dart';
+export 'src/logic/quick_event_draft.dart';
 export 'src/widgets/quick_event_dialog.dart';
 export 'src/widgets/calendar_shortcuts.dart';
 export 'src/logic/search_filter.dart';
