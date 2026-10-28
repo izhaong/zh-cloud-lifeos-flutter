@@ -46,6 +46,18 @@ class CalendarDayView extends ConsumerWidget {
     eventsController.addEvents([
       for (final o in occurrences)
         if (o.source != OccurrenceSource.holiday)
+          if (o.source == OccurrenceSource.reminder)
+            ReminderMarkerEvent(
+              id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
+              start: o.start.toUtc(),
+              end: o.end.toUtc(),
+              isAllDay: o.allDay,
+              reminderId: o.reminderId ?? o.eventId,
+              colorArgb: o.colorArgb,
+              title: o.title,
+              completed: o.completed,
+            )
+          else
           CalendarEventTile(
             id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
             start: o.start.toUtc(),
@@ -216,6 +228,18 @@ class CalendarWeekView extends ConsumerWidget {
     eventsController.addEvents([
       for (final o in occurrences)
         if (o.source != OccurrenceSource.holiday)
+          if (o.source == OccurrenceSource.reminder)
+            ReminderMarkerEvent(
+              id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
+              start: o.start.toUtc(),
+              end: o.end.toUtc(),
+              isAllDay: o.allDay,
+              reminderId: o.reminderId ?? o.eventId,
+              colorArgb: o.colorArgb,
+              title: o.title,
+              completed: o.completed,
+            )
+          else
           CalendarEventTile(
             id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
             start: o.start.toUtc(),
@@ -339,6 +363,9 @@ Widget dayEventTileBuilder(
   kalender.KalenderEvent event,
   kalender.KalenderDateTimeRange tileRange,
 ) {
+  if (event is ReminderMarkerEvent) {
+    return buildReminderMarker(event);
+  }
   final tile = event is CalendarEventTile ? event : null;
   final color = Color(tile?.colorArgb ?? 0xFF007AFF);
   final title = tile?.title ?? '';
