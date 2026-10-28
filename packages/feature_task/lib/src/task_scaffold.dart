@@ -1169,7 +1169,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
                 return Column(
                   children: [
-                    if (!_isTrashView)
+                    if (_isTrashView)
+                      const _TrashHeader()
+                    else
                       _ListHeaderToolbar(
                         list: widget.list,
                         isPane: isPane,
@@ -1189,7 +1191,19 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                       ),
                     // 主体：空列表 = 空态引导（可点新建）；_showDraft 时草稿行进列表体
                     Expanded(
-                      child: isListEmpty
+                      child: _isTrashView && items.isEmpty && !isSearchEmpty
+                          // #163：回收站空态（原先落到空 ListView → 整页空白）
+                          ? const Center(
+                              key: ValueKey('trash_empty'),
+                              child: Text(
+                                '没有最近删除的提醒事项',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Color(0xFF8E8E93),
+                                ),
+                              ),
+                            )
+                          : isListEmpty
                           ? Column(
                               children: [
                                 if (isPane && !_isTrashView)
@@ -1359,6 +1373,39 @@ class _DraftRow extends StatelessWidget {
               size: 20,
               color: Color(0xFF007AFF),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 最近删除头部（TC-UI-109）：Apple Recently Deleted 有标题与保留期说明。
+/// 旧实现在 pane 档跳过表头且无空态 → 整页空白（#163）。
+class _TrashHeader extends StatelessWidget {
+  const _TrashHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      key: ValueKey('trash_header'),
+      padding: EdgeInsets.fromLTRB(16, 6, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '最近删除',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF8E8E93),
+              height: 1.1,
+            ),
+          ),
+          SizedBox(height: 2),
+          Text(
+            '项目将在删除 30 天后永久移除',
+            style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
           ),
         ],
       ),
