@@ -337,6 +337,46 @@ void main() {
       reason: '日历行仍用勾选框控制显隐',
     );
   });
+
+  // parity#312：选中环写死 CupertinoColors.black（const Color、无暗档），
+  // 暗色档打在深色弹层上就是黑贴黑，选中哪一档看不出来。判据成对给，
+  // 否则「暗档不等于黑」这一条可能是恒真。
+  testWidgets('#312 暗色档：色板选中环随亮度解算成白', (tester) async {
+    useBrightness(tester, Brightness.dark);
+    await seed(tester);
+    await tester.tap(find.text('添加日历'));
+    await tester.pumpAndSettle();
+    expect(selectedSwatchRingArgb(tester), 0xFFFFFFFF);
+  });
+
+  testWidgets('#312 亮色档：色板选中环仍是纯黑（亮色观感不变）', (tester) async {
+    useBrightness(tester, Brightness.light);
+    await seed(tester);
+    await tester.tap(find.text('添加日历'));
+    await tester.pumpAndSettle();
+    expect(selectedSwatchRingArgb(tester), 0xFF000000);
+  });
+}
+
+/// 把测试内的系统亮度钉成给定档，用例结束自动清掉。
+void useBrightness(WidgetTester tester, Brightness brightness) {
+  tester.binding.platformDispatcher.platformBrightnessTestValue = brightness;
+  addTearDown(tester.binding.platformDispatcher.clearPlatformBrightnessTestValue);
+}
+
+/// 新建日历弹层里**当前选中**那颗色板的描边颜色（默认选中蓝）。
+int selectedSwatchRingArgb(WidgetTester tester) {
+  final boxes = tester.widgetList<Container>(
+    find.descendant(
+      of: find.byKey(const Key('preset-color-0xFF007AFF')),
+      matching: find.byType(Container),
+    ),
+  );
+  expect(boxes, isNotEmpty, reason: '色板没渲出来=断言恒真');
+  final decoration = boxes.single.decoration as BoxDecoration?;
+  final border = decoration?.border;
+  expect(border, isNotNull, reason: '选中档没画环=断言恒真');
+  return border!.top.color.toARGB32();
 }
 
 /// 可变假仓库（F-04 侧栏交互；F-05+ 逐步充实）。

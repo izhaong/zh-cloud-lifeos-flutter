@@ -439,8 +439,13 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
                     decoration: BoxDecoration(
                       color: Color(argb),
                       shape: BoxShape.circle,
+                      // label 而不是 CupertinoColors.black：black 是 const Color、
+                      // 没有暗档，暗色档下黑环贴深色弹层底＝选中态直接丢了。
                       border: _colorArgb == argb
-                          ? Border.all(width: 3, color: CupertinoColors.black)
+                          ? Border.all(
+                              width: 3,
+                              color: CupertinoColors.label.resolveFrom(context),
+                            )
                           : null,
                     ),
                   ),
