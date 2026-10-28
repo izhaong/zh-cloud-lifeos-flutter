@@ -55,8 +55,15 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                     ref.read(scheduledRemindersVisibleProvider.notifier).set(v),
               ),
               // F-16：本地节假日开关（lunar 生成，可关）
+              // parity#204：与同列其它日历行保持同一控件（勾选框）与同一列，
+              // 不再用开关。
               _SidebarToggleRow(
                 rowKey: const Key('sidebar_holidays_toggle'),
+                leading: const Icon(
+                  CupertinoIcons.calendar_badge_minus,
+                  size: 18,
+                  color: Color(0xFF8E8E93),
+                ),
                 title: '中国大陆节假日',
                 value:
                     calendars
@@ -78,7 +85,6 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                     );
                   }
                 },
-                useSwitch: true,
               ),
               // F-16：订阅占位（只存 URL，不发 HTTP）
               _SidebarActionRow(
@@ -256,7 +262,6 @@ class _SidebarToggleRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.leading,
-    this.useSwitch = false,
   });
 
   final Key rowKey;
@@ -264,7 +269,6 @@ class _SidebarToggleRow extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
   final Widget? leading;
-  final bool useSwitch;
 
   @override
   Widget build(BuildContext context) {
@@ -279,12 +283,11 @@ class _SidebarToggleRow extends StatelessWidget {
           SizedBox(
             height: 32,
             child: Center(
-              child: useSwitch
-                  ? CupertinoSwitch(value: value, onChanged: onChanged)
-                  : CupertinoCheckbox(
-                      value: value,
-                      onChanged: (v) => onChanged(v ?? false),
-                    ),
+              // parity#204：同列表统一用勾选框（开关只留给详情页的「忽略提醒」）
+              child: CupertinoCheckbox(
+                value: value,
+                onChanged: (v) => onChanged(v ?? false),
+              ),
             ),
           ),
           const SizedBox(width: 12),
