@@ -1040,13 +1040,21 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                       color: Color(0xFF8E8E93),
                     ),
                   ),
+                  // parity#196：暗色档搜索框不能用写死白底，跟 #157 的
+                  // 动态令牌一起走 systemBackground / separator。
                   style: const TextStyle(fontSize: 13),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFFFF),
+                    color: CupertinoDynamicColor.resolve(
+                      CupertinoColors.systemBackground,
+                      context,
+                    ),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       width: 0.5,
-                      color: const Color(0xFFD1D1D6),
+                      color: CupertinoDynamicColor.resolve(
+                        CupertinoColors.separator,
+                        context,
+                      ),
                     ),
                   ),
                   padding: const EdgeInsets.symmetric(
