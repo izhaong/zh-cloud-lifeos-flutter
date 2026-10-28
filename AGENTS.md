@@ -25,6 +25,16 @@ flutter test   # 在各 package / app 目录，或 dart run melos run test
 dart run melos run verify   # 合前门禁：analyze(--fatal-infos) + UI 边界(先自检) + 全包测试
 ```
 
+### CI 现状（#322，2026-10-28 核实）
+
+本仓 `.github/workflows/ci.yml` 会创建 run，但 **Gitea 实例零 runner**
+（`GET /admin/actions/runners` → `{"runners":[],"total_count":0}`）：completed 的 run
+**全部是 cancelled**，从未出现 success。所以：
+
+- **不要**假设 CI 会替你发现红；
+- 合前一律跑 `dart run melos run verify`，并把输出贴进 PR（模板已要求）；
+- runner 就绪前，`--fatal-infos` 与 UI 尺子只由本地这条命令保证。
+
 - Dart SDK 随本机 Flutter（当前 3.12.2）；依赖钉版说明见 `README.md`
 - Drift codegen（drift_dev 2.35.1 + build_runner）已在 Dart 3.12.2 实测可用：`packages/feature_productivity_drift` 内 `dart run build_runner build`
 - freezed 4 / riverpod_generator 4：仍待 Dart ≥3.13 后启用
