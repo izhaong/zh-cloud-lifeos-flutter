@@ -165,7 +165,7 @@ class _MoreViewState extends ConsumerState<_MoreView> {
                       key: const ValueKey('add_more_apps'),
                       leading: const Icon(CupertinoIcons.plus_circle),
                       title: const Text('添加更多应用'),
-                      subtitle: const Text('打开 LifeOS App Store（H1 目录）'),
+                      subtitle: const Text('浏览并安装更多 LifeOS 应用'),
                       onTap: () => _showCatalogPlaceholder(context),
                     ),
                   ],
