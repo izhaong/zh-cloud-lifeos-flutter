@@ -851,7 +851,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     }
 
     if (widget.list.id == 'smart.today') {
-      final now = DateTime.now();
+      final now = ref.read(clockProvider)();
       final today = DateTime(now.year, now.month, now.day);
       final buckets = <String, List<ReminderItem>>{
         '已过期': [],
@@ -880,7 +880,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       };
     }
 
-    final now = DateTime.now();
+    final now = ref.read(clockProvider)();
     final sections = <String, List<ReminderItem>>{};
     for (final item in topLevel) {
       final key = item.dueAt == null ? '无日期' : _sectionLabel(item.dueAt!, now);
