@@ -52,7 +52,8 @@ class ReminderRow extends StatelessWidget {
     if (listName != null && listName!.isNotEmpty) {
       spans.add(TextSpan(text: listName));
     }
-    if (due != null) {
+    // parity#205：列表名与到期日都解析成「今天」时不重复拼接。
+    if (due != null && due.text != listName) {
       addSeparator();
       spans.add(TextSpan(
         text: due.text,
