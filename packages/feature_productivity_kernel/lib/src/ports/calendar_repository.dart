@@ -74,5 +74,21 @@ abstract interface class CalendarRepository {
   Future<void> savePreference(CalendarPreference p);
 }
 
+/// 系统写入能力（可选端口，#230）。
+///
+/// 节假日补齐 / 订阅刷新这类**应用内部生成**的日程不由用户编辑，必须绕过
+/// [CalendarRepository.upsertEvent] 的只读守卫——否则「订阅过节假日」的端
+/// 每次启动都会在写只读日历时抛异常，`runApp` 永不执行（纯黑窗口）。
+///
+/// 这不是放宽只读规则：实现层只接受落到系统日历（[CalendarKind.holiday] /
+/// [CalendarKind.subscription]）的写入，其它日历照旧拒绝；用户路径仍走
+/// [CalendarRepository.upsertEvent]。
+abstract interface class CalendarSystemWriter {
+  /// 写入应用内部生成的日程（幂等：同一 id 覆盖）。
+  ///
+  /// 目标日历非系统日历（或不存在）时抛 [StateError]。
+  Future<void> upsertSystemEvent(CalendarEvent e);
+}
+
 /// 重复事件编辑范围（契约 §3.2.1：仅此日程 / 此日程及之后 / 所有日程）。
 enum EditScope { thisOnly, thisAndFuture, all }
