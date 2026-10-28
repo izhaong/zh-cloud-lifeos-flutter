@@ -1,4 +1,8 @@
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+
+// #302：Web 上取浏览器 IANA 名；其余平台是返回 null 的占位实现。
+import 'device_zone_stub.dart'
+    if (dart.library.js_interop) 'device_zone_web.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
@@ -49,11 +53,12 @@ List<String> allTimeZoneNames() {
 
 /// 设备本地时区（IANA 名）。
 ///
-/// 兜底链（#297）：
+/// 兜底链（#297 / #302）：
 /// 1. `flutter_timezone` 的 identifier（桌面/移动可用）；
-/// 2. 该 id 不在 tz 库里 → 用当前 **UTC 偏移**合成 `Etc/GMT∓N`
-///    （Web 上插件不可用、Dart 的 `timeZoneName` 只有 "EDT" 这类缩写，都不入 tz 库）；
-/// 3. 连偏移都取不到 → `UTC`。
+/// 2. **浏览器 `Intl.DateTimeFormat().resolvedOptions().timeZone`**（Web 专用，
+///    条件导入；给出真 IANA 名，跟得上夏令时）；
+/// 3. 用当前 **UTC 偏移**合成 `Etc/GMT∓N`（固定偏移，只在拿不到真名时兜底）；
+/// 4. 连偏移都取不到 → `UTC`。
 ///
 /// 之前只有第 1 步 + 直接回退 `UTC`，于是 Web 端新建事件写成 UTC，网格按本地
 /// （EDT）画、详情按事件时区（UTC）显示，同一事件差 4 小时（#297）。
@@ -61,12 +66,26 @@ Future<String> deviceTimeZoneName() async {
   _ensureTimeZones();
   try {
     final info = await FlutterTimezone.getLocalTimezone();
-    final id = info.identifier;
-    if (tz.timeZoneDatabase.locations.containsKey(id)) return id;
-    return _fallbackZoneFromOffset(DateTime.now().timeZoneOffset) ?? 'UTC';
+    // 插件给的名字/浏览器给的名字都只在 tz 库里认得时才算数；都不认才谈
+    // 固定偏移兜底。自审修正：此前「插件返回不认识的名字」会直接跳到偏移兜底，
+    // 绕过浏览器真名，等于 Web 上 #302 白做。
+    return _zoneFromName(info.identifier) ??
+        _zoneFromName(browserTimeZoneName()) ??
+        _fallbackZoneFromOffset(DateTime.now().timeZoneOffset) ??
+        'UTC';
   } catch (_) {
-    return _fallbackZoneFromOffset(DateTime.now().timeZoneOffset) ?? 'UTC';
+    // 插件不可用（Web 最常见）→ 先问浏览器要真名，再谈偏移兜底。
+    return _zoneFromName(browserTimeZoneName()) ??
+        _fallbackZoneFromOffset(DateTime.now().timeZoneOffset) ??
+        'UTC';
   }
+}
+
+/// 名字在 tz 库里才算数，否则 null（继续往下兜）。
+String? _zoneFromName(String? name) {
+  if (name == null || name.isEmpty) return null;
+  _ensureTimeZones();
+  return tz.timeZoneDatabase.locations.containsKey(name) ? name : null;
 }
 
 /// 由当前 UTC 偏移合成固定偏移时区名（`Etc/GMT+N` 的符号与常识相反）。
