@@ -195,6 +195,69 @@ void main() {
     await pumpCalendar(tester, mode: CalendarViewMode.day);
     expect(find.byKey(const Key('day_reminder_lane')), findsOneWidget);
   });
+
+  // #184：日视图事件卡必须渲染标题与起止时间，禁止库默认「Tile」占位文案
+  testWidgets('#184 日视图事件卡显示标题与起止时间（无 Tile 占位）', (tester) async {
+    await repo.savePreference(
+      const CalendarPreference(dayStartHour: 8, dayEndHour: 20),
+    );
+    // 本地 10:00–11:00 → 转 UTC 存库 → 显示端 toLocal 还原，避开时区耦合
+    final start = DateTime(2026, 10, 24, 10).toUtc();
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e184',
+        calendarId: 'c1',
+        uid: 'u184',
+        title: '团队周会',
+        startAt: start,
+        endAt: DateTime(2026, 10, 24, 11).toUtc(),
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
+    await pumpCalendar(tester, mode: CalendarViewMode.day);
+    containerOf(
+      tester,
+    ).read(anchorDateProvider.notifier).set(DateTime(2026, 10, 24));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tile'), findsNothing,
+        reason: '#184: 日视图不得出现 kalender 默认占位文案「Tile」');
+    expect(find.byKey(const Key('day-event-e184')), findsOneWidget,
+        reason: '#184: 事件卡 tile 必须用自定义 builder 渲染');
+    expect(find.text('团队周会'), findsOneWidget,
+        reason: '#184: 事件卡必须显示事件标题');
+  });
+
+  // #184 审查 R1：全天/跨日条走 MultiDayHeader，也必须用自定义 builder
+  testWidgets('#184 日视图全天事件卡同样渲染标题（无 Tile 占位）', (tester) async {
+    await repo.savePreference(
+      const CalendarPreference(dayStartHour: 8, dayEndHour: 20),
+    );
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e184a',
+        calendarId: 'c1',
+        uid: 'u184a',
+        title: '全天例会',
+        startAt: DateTime.utc(2026, 10, 24),
+        endAt: DateTime.utc(2026, 10, 25),
+        allDay: true,
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
+    await pumpCalendar(tester, mode: CalendarViewMode.day);
+    containerOf(
+      tester,
+    ).read(anchorDateProvider.notifier).set(DateTime(2026, 10, 24));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tile'), findsNothing,
+        reason: '#184 R1: 全天区不得出现默认占位「Tile」');
+    expect(find.byKey(const Key('day-event-e184a')), findsOneWidget);
+    expect(find.text('全天例会'), findsOneWidget);
+  });
 }
 
 /// 取当前测试树里的 Riverpod 容器。

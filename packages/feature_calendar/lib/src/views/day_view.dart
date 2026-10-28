@@ -8,6 +8,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import '../calendar_view_callbacks.dart';
 import '../providers.dart';
 import 'day_reminder_lane.dart';
+import 'month_view.dart' show CalendarEventTile;
 
 /// 日视图（契约 §5.4/§8.3；F-05）。
 ///
@@ -40,15 +41,19 @@ class CalendarDayView extends ConsumerWidget {
         const [];
 
     // occurrence → kalender 事件装载（重叠布局由库处理）
+    // #184：装载 CalendarEventTile（带标题/日历色），日视图 tile 才能渲染内容
     eventsController.clearEvents();
     eventsController.addEvents([
       for (final o in occurrences)
         if (o.source != OccurrenceSource.holiday)
-          kalender.KalenderEvent(
+          CalendarEventTile(
             id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
             start: o.start.toUtc(),
             end: o.end.toUtc(),
             isAllDay: o.allDay,
+            kernelEventId: o.eventId,
+            colorArgb: o.colorArgb,
+            title: o.title,
           ),
     ]);
 
@@ -72,7 +77,22 @@ class CalendarDayView extends ConsumerWidget {
               child: kalender.KalenderView(
                 eventsController: eventsController,
                 kalenderController: controller,
-                views: const [kalender.MultiDayViewParts()],
+                // #184：显式传 tileComponents，避免 kalender 默认「Tile」占位文案；
+                // header（全天/跨日条）与 body（定时条）都要传——审查 R1 意见
+                views: const [
+                  kalender.MultiDayViewParts(
+                    header: kalender.MultiDayHeader(
+                      tileComponents: kalender.TileComponents(
+                        tileBuilder: dayEventTileBuilder,
+                      ),
+                    ),
+                    body: kalender.MultiDayBody(
+                      tileComponents: kalender.TileComponents(
+                        tileBuilder: dayEventTileBuilder,
+                      ),
+                    ),
+                  ),
+                ],
                 callbacks: kalender.KalenderCallbacks(
                   onEventCreate: (event) {
                     viewCallbacks.onDraftCreate(
@@ -291,5 +311,56 @@ CalendarEvent _toKernel(kalender.KalenderEvent event) {
     endAt: event.end.toUtc(),
     timeZone: 'UTC',
     updatedAt: DateTime.now().toUtc(),
+  );
+}
+
+/// 日视图事件 tile（#184：色=日历颜色，文本=起止时间 + 标题）。
+/// Apple 日历：日视图事件条显示标题与起止时间；全天条不带时刻。
+Widget dayEventTileBuilder(
+  BuildContext context,
+  kalender.KalenderEvent event,
+  kalender.KalenderDateTimeRange tileRange,
+) {
+  final tile = event is CalendarEventTile ? event : null;
+  final color = Color(tile?.colorArgb ?? 0xFF007AFF);
+  final title = tile?.title ?? '';
+  final start = event.start.toLocal();
+  final end = event.end.toLocal();
+  String two(int n) => n.toString().padLeft(2, '0');
+  final timeText = event.isAllDay
+      ? ''
+      : '${two(start.hour)}:${two(start.minute)} – ${two(end.hour)}:${two(end.minute)}';
+  return Container(
+    key: Key('day-event-${tile?.kernelEventId ?? event.id}'),
+    margin: const EdgeInsets.symmetric(horizontal: 1),
+    padding: const EdgeInsets.fromLTRB(5, 3, 3, 3),
+    decoration: BoxDecoration(
+      color: color.withAlpha(60),
+      borderRadius: BorderRadius.circular(4),
+      border: BorderDirectional(start: BorderSide(width: 3, color: color)),
+    ),
+    alignment: Alignment.topLeft,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (timeText.isNotEmpty)
+          Text(
+            timeText,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 10, color: color.withAlpha(200)),
+          ),
+        if (title.isNotEmpty)
+          Flexible(
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: color),
+            ),
+          ),
+      ],
+    ),
   );
 }
