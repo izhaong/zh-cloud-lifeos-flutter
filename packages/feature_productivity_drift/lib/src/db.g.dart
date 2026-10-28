@@ -1190,6 +1190,17 @@ class $ReminderItemsTable extends ReminderItems
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1209,6 +1220,7 @@ class $ReminderItemsTable extends ReminderItems
     completedAt,
     sectionId,
     deletedAt,
+    createdAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1336,6 +1348,12 @@ class $ReminderItemsTable extends ReminderItems
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
     return context;
   }
 
@@ -1413,6 +1431,10 @@ class $ReminderItemsTable extends ReminderItems
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      ),
     );
   }
 
@@ -1458,6 +1480,9 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
 
   /// 进入最近删除的时间（A10 本地回收窗；null = 未删）。V3（Issue #3）。
   final DateTime? deletedAt;
+
+  /// 创建时间（服务端 create_time 权威；null = 老数据）。V16（flutter #278）。
+  final DateTime? createdAt;
   const ReminderItem({
     required this.id,
     required this.listId,
@@ -1476,6 +1501,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     this.completedAt,
     this.sectionId,
     this.deletedAt,
+    this.createdAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1514,6 +1540,9 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     }
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
     }
     return map;
   }
@@ -1555,6 +1584,9 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
     );
   }
 
@@ -1581,6 +1613,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
       sectionId: serializer.fromJson<String?>(json['sectionId']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
     );
   }
   @override
@@ -1604,6 +1637,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
       'completedAt': serializer.toJson<DateTime?>(completedAt),
       'sectionId': serializer.toJson<String?>(sectionId),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
     };
   }
 
@@ -1625,6 +1659,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     Value<DateTime?> completedAt = const Value.absent(),
     Value<String?> sectionId = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
+    Value<DateTime?> createdAt = const Value.absent(),
   }) => ReminderItem(
     id: id ?? this.id,
     listId: listId ?? this.listId,
@@ -1645,6 +1680,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     completedAt: completedAt.present ? completedAt.value : this.completedAt,
     sectionId: sectionId.present ? sectionId.value : this.sectionId,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
   );
   ReminderItem copyWithCompanion(ReminderItemsCompanion data) {
     return ReminderItem(
@@ -1673,6 +1709,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           : this.completedAt,
       sectionId: data.sectionId.present ? data.sectionId.value : this.sectionId,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
 
@@ -1695,7 +1732,8 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           ..write('remoteId: $remoteId, ')
           ..write('completedAt: $completedAt, ')
           ..write('sectionId: $sectionId, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
@@ -1719,6 +1757,7 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
     completedAt,
     sectionId,
     deletedAt,
+    createdAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -1740,7 +1779,8 @@ class ReminderItem extends DataClass implements Insertable<ReminderItem> {
           other.remoteId == this.remoteId &&
           other.completedAt == this.completedAt &&
           other.sectionId == this.sectionId &&
-          other.deletedAt == this.deletedAt);
+          other.deletedAt == this.deletedAt &&
+          other.createdAt == this.createdAt);
 }
 
 class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
@@ -1761,6 +1801,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
   final Value<DateTime?> completedAt;
   final Value<String?> sectionId;
   final Value<DateTime?> deletedAt;
+  final Value<DateTime?> createdAt;
   final Value<int> rowid;
   const ReminderItemsCompanion({
     this.id = const Value.absent(),
@@ -1780,6 +1821,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     this.completedAt = const Value.absent(),
     this.sectionId = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ReminderItemsCompanion.insert({
@@ -1800,6 +1842,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     this.completedAt = const Value.absent(),
     this.sectionId = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        listId = Value(listId),
@@ -1822,6 +1865,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     Expression<DateTime>? completedAt,
     Expression<String>? sectionId,
     Expression<DateTime>? deletedAt,
+    Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1842,6 +1886,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
       if (completedAt != null) 'completed_at': completedAt,
       if (sectionId != null) 'section_id': sectionId,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1864,6 +1909,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     Value<DateTime?>? completedAt,
     Value<String?>? sectionId,
     Value<DateTime?>? deletedAt,
+    Value<DateTime?>? createdAt,
     Value<int>? rowid,
   }) {
     return ReminderItemsCompanion(
@@ -1884,6 +1930,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
       completedAt: completedAt ?? this.completedAt,
       sectionId: sectionId ?? this.sectionId,
       deletedAt: deletedAt ?? this.deletedAt,
+      createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1942,6 +1989,9 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1968,6 +2018,7 @@ class ReminderItemsCompanion extends UpdateCompanion<ReminderItem> {
           ..write('completedAt: $completedAt, ')
           ..write('sectionId: $sectionId, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8969,6 +9020,7 @@ typedef $$ReminderItemsTableCreateCompanionBuilder =
       Value<DateTime?> completedAt,
       Value<String?> sectionId,
       Value<DateTime?> deletedAt,
+      Value<DateTime?> createdAt,
       Value<int> rowid,
     });
 typedef $$ReminderItemsTableUpdateCompanionBuilder =
@@ -8990,6 +9042,7 @@ typedef $$ReminderItemsTableUpdateCompanionBuilder =
       Value<DateTime?> completedAt,
       Value<String?> sectionId,
       Value<DateTime?> deletedAt,
+      Value<DateTime?> createdAt,
       Value<int> rowid,
     });
 
@@ -9084,6 +9137,11 @@ class $$ReminderItemsTableFilterComposer
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -9181,6 +9239,11 @@ class $$ReminderItemsTableOrderingComposer
     column: $table.deletedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ReminderItemsTableAnnotationComposer
@@ -9250,6 +9313,9 @@ class $$ReminderItemsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
 
 class $$ReminderItemsTableTableManager
@@ -9306,6 +9372,7 @@ class $$ReminderItemsTableTableManager
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<String?> sectionId = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderItemsCompanion(
                 id: id,
@@ -9325,6 +9392,7 @@ class $$ReminderItemsTableTableManager
                 completedAt: completedAt,
                 sectionId: sectionId,
                 deletedAt: deletedAt,
+                createdAt: createdAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9346,6 +9414,7 @@ class $$ReminderItemsTableTableManager
                 Value<DateTime?> completedAt = const Value.absent(),
                 Value<String?> sectionId = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ReminderItemsCompanion.insert(
                 id: id,
@@ -9365,6 +9434,7 @@ class $$ReminderItemsTableTableManager
                 completedAt: completedAt,
                 sectionId: sectionId,
                 deletedAt: deletedAt,
+                createdAt: createdAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

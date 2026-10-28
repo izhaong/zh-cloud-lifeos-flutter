@@ -926,6 +926,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
             b.dueAt ?? DateTime(2999, 1, 1),
           ),
         );
+      case ListSortMode.createdDate:
+        // Apple 默认「最新的排最前」；存量行没创建时间（null）排最后，不瞎猜顺序。
+        sorted.sort((a, b) {
+          final x = a.createdAt, y = b.createdAt;
+          if (x == null && y == null) return 0;
+          if (x == null) return 1;
+          if (y == null) return -1;
+          return y.compareTo(x);
+        });
       case ListSortMode.title:
         sorted.sort(
           (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
@@ -1498,6 +1507,7 @@ class _ListHeaderToolbar extends ConsumerWidget {
   static const _sortLabels = {
     ListSortMode.manual: '手动',
     ListSortMode.dueDate: '按到期日',
+    ListSortMode.createdDate: '按创建日期',
     ListSortMode.title: '按标题',
     ListSortMode.priority: '按优先级',
   };
