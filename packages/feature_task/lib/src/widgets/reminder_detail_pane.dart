@@ -388,18 +388,18 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   Future<void> _pickRecurrence() async {
     final selected = await showCupertinoModalPopup<String>(
       context: context,
-      builder: (ctx) => CupertinoActionSheet(
+      builder: (ctx) => LifeActionSheet(
         title: const Text('重复'),
         actions: [
           for (final entry in {null: '永不', ..._recurrenceLabels}.entries)
-            CupertinoActionSheetAction(
+            LifeActionSheetAction(
               key: ValueKey('recurrence_${entry.key ?? 'none'}'),
               isDefaultAction: entry.key == _recurrence,
               onPressed: () => Navigator.of(ctx).pop(entry.key ?? ''),
               child: Text(entry.value),
             ),
         ],
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: LifeActionSheetAction(
           onPressed: () => Navigator.of(ctx).pop(),
           child: const Text('取消'),
         ),
@@ -424,18 +424,18 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   Future<void> _pickPriority() async {
     final selected = await showCupertinoModalPopup<int>(
       context: context,
-      builder: (ctx) => CupertinoActionSheet(
+      builder: (ctx) => LifeActionSheet(
         title: const Text('优先级'),
         actions: [
           for (final entry in _priorityLabels.entries)
-            CupertinoActionSheetAction(
+            LifeActionSheetAction(
               key: ValueKey('priority_${entry.key}'),
               isDefaultAction: entry.key == _priority,
               onPressed: () => Navigator.of(ctx).pop(entry.key),
               child: Text(entry.value),
             ),
         ],
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: LifeActionSheetAction(
           onPressed: () => Navigator.of(ctx).pop(),
           child: const Text('取消'),
         ),

@@ -78,3 +78,70 @@ class LifeDialogAction extends StatelessWidget {
     );
   }
 }
+
+/// `CupertinoActionSheet` 的替代：标题/正文同样补 CJK 回退（#236）。
+class LifeActionSheet extends StatelessWidget {
+  const LifeActionSheet({
+    super.key,
+    this.title,
+    this.message,
+    this.actions,
+    this.messageScrollController,
+    this.actionScrollController,
+    this.cancelButton,
+  });
+
+  final Widget? title;
+  final Widget? message;
+  final List<Widget>? actions;
+  final ScrollController? messageScrollController;
+  final ScrollController? actionScrollController;
+  final Widget? cancelButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoActionSheet(
+      title: title == null ? null : LifeDialogTextScope(child: title!),
+      message: message == null ? null : LifeDialogTextScope(child: message!),
+      actions: actions,
+      messageScrollController: messageScrollController,
+      actionScrollController: actionScrollController,
+      cancelButton: cancelButton,
+    );
+  }
+}
+
+/// `CupertinoActionSheetAction` 的替代：按钮文字同样补 CJK 回退。
+class LifeActionSheetAction extends StatelessWidget {
+  const LifeActionSheetAction({
+    super.key,
+    required this.onPressed,
+    this.isDefaultAction = false,
+    this.isDestructiveAction = false,
+    this.mouseCursor,
+    this.focusNode,
+    this.focusColor,
+    required this.child,
+  });
+
+  final VoidCallback onPressed;
+  final bool isDefaultAction;
+  final bool isDestructiveAction;
+  final MouseCursor? mouseCursor;
+  final FocusNode? focusNode;
+  final Color? focusColor;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoActionSheetAction(
+      onPressed: onPressed,
+      isDefaultAction: isDefaultAction,
+      isDestructiveAction: isDestructiveAction,
+      mouseCursor: mouseCursor,
+      focusNode: focusNode,
+      focusColor: focusColor,
+      child: LifeDialogTextScope(child: child),
+    );
+  }
+}

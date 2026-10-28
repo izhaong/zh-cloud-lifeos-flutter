@@ -71,21 +71,21 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   Future<void> _showMoreMenu() async {
     final action = await showCupertinoModalPopup<String>(
       context: context,
-      builder: (sheetContext) => CupertinoActionSheet(
+      builder: (sheetContext) => LifeActionSheet(
         key: const Key('note_editor_more_sheet'),
         actions: [
-          CupertinoActionSheetAction(
+          LifeActionSheetAction(
             key: const ValueKey('note_export_markdown'),
             onPressed: () => Navigator.of(sheetContext).pop('export'),
             child: const Text('导出 Markdown'),
           ),
-          CupertinoActionSheetAction(
+          LifeActionSheetAction(
             key: const ValueKey('note_import_markdown'),
             onPressed: () => Navigator.of(sheetContext).pop('import'),
             child: const Text('导入 Markdown'),
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: LifeActionSheetAction(
           isDefaultAction: true,
           onPressed: () => Navigator.of(sheetContext).pop(),
           child: const Text('取消'),

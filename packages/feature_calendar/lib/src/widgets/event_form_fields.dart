@@ -223,10 +223,10 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
   }) {
     return showCupertinoModalPopup<T>(
       context: context,
-      builder: (ctx) => CupertinoActionSheet(
+      builder: (ctx) => LifeActionSheet(
         actions: [
           for (final o in options)
-            CupertinoActionSheetAction(
+            LifeActionSheetAction(
               onPressed: () => Navigator.of(ctx).pop(o.value),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -240,7 +240,7 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
               ),
             ),
         ],
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: LifeActionSheetAction(
           onPressed: () => Navigator.of(ctx).pop(),
           child: const Text('取消'),
         ),
@@ -885,15 +885,15 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
   Future<void> _pickOrdinal() async {
     final o = await showCupertinoModalPopup<int>(
       context: context,
-      builder: (ctx) => CupertinoActionSheet(
+      builder: (ctx) => LifeActionSheet(
         actions: [
           for (final choice in kOrdinalChoices)
-            CupertinoActionSheetAction(
+            LifeActionSheetAction(
               onPressed: () => Navigator.of(ctx).pop(choice),
               child: Text(choice == -1 ? '最后' : '第 $choice'),
             ),
         ],
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: LifeActionSheetAction(
           onPressed: () => Navigator.of(ctx).pop(),
           child: const Text('取消'),
         ),
@@ -907,15 +907,15 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
   Future<void> _pickOrdinalWeekday() async {
     final d = await showCupertinoModalPopup<int>(
       context: context,
-      builder: (ctx) => CupertinoActionSheet(
+      builder: (ctx) => LifeActionSheet(
         actions: [
           for (var day = 1; day <= 7; day++)
-            CupertinoActionSheetAction(
+            LifeActionSheetAction(
               onPressed: () => Navigator.of(ctx).pop(day),
               child: Text(kWeekdayCodes[day - 1]),
             ),
         ],
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: LifeActionSheetAction(
           onPressed: () => Navigator.of(ctx).pop(),
           child: const Text('取消'),
         ),

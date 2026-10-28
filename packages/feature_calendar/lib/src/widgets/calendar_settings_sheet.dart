@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../logic/preference_copy.dart';
 import '../providers.dart';
+import 'package:app_core/app_core.dart';
 
 Future<void> showCalendarSettingsSheet(BuildContext context) {
   return showCupertinoModalPopup<void>(
@@ -43,10 +44,10 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
   Future<T?> _pick<T>(Map<T, String> items, T value) {
     return showCupertinoModalPopup<T>(
       context: context,
-      builder: (ctx) => CupertinoActionSheet(
+      builder: (ctx) => LifeActionSheet(
         actions: [
           for (final e in items.entries)
-            CupertinoActionSheetAction(
+            LifeActionSheetAction(
               onPressed: () => Navigator.of(ctx).pop(e.key),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -60,7 +61,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               ),
             ),
         ],
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: LifeActionSheetAction(
           onPressed: () => Navigator.of(ctx).pop(),
           child: const Text('取消'),
         ),
