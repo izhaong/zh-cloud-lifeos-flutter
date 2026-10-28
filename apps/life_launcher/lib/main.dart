@@ -14,6 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'router/life_router.dart';
 import 'notifications/local_calendar_alert_scheduler.dart';
+import 'notifications/local_reminder_alert_scheduler.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'shell/pinned_tabs_service.dart';
 import 'shell_providers.dart';
 
@@ -87,9 +89,21 @@ Future<void> main() async {
     cursors: DriftSyncCursorStore(db),
   );
   // F-11：真实本地通知调度（开源包只声明接口）
+  // #260：两个调度器共用**同一个**插件实例，避免第二次 initialize 覆盖掉
+  // 日历那份带 categories/点击回调的配置。
+  final notificationsPlugin = FlutterLocalNotificationsPlugin();
   final calendarAlertScheduler = await LocalCalendarAlertScheduler.create(
     calendarRepository,
+    plugin: notificationsPlugin,
   );
+  // #260：提醒事项到点提醒（Apple 对等；此前任务侧完全没有通知）
+  final reminderAlertScheduler = await LocalReminderAlertScheduler.create(
+    repository,
+    taskPreferenceRepository,
+    plugin: notificationsPlugin,
+    initialize: false,
+  );
+  await reminderAlertScheduler.start();
   // F-17：日历云侧（同步 / 收件箱 / 导入导出），与任务共用同一会话存储
   final calendarSyncPort = RestCalendarSyncPort(dio: dio, store: sessionStore);
   final calendarCollabPort = RestCalendarCollabPort(
@@ -131,6 +145,9 @@ Future<void> main() async {
         calendarReminderRepositoryProvider.overrideWithValue(repository),
         calendarAlertSchedulerProvider.overrideWithValue(
           calendarAlertScheduler,
+        ),
+        reminderAlertSchedulerProvider.overrideWithValue(
+          reminderAlertScheduler,
         ),
         calendarCollabPortProvider.overrideWithValue(calendarCollabPort),
         calendarSyncCoordinatorProvider.overrideWithValue(
