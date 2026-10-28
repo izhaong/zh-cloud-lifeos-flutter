@@ -9,14 +9,37 @@ abstract final class ReminderTokens {
   static const systemOrange = Color(0xFFFF9500);
   static const systemGreen = Color(0xFF34C759);
 
-  static const labelPrimary = Color(0xFF000000);
-  static const labelSecondary = Color(0xFF8E8E93);
-  static const labelTertiary = Color(0xFFC7C7CC);
+  // parity#157：Apple 语义色按亮/暗成对声明，绘制点用 CupertinoDynamicColor
+  // .resolve(...) 取值；此前是纯亮色常量，暗色下侧栏/主区仍白（#157）。
+  static const labelPrimary = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFF000000),
+    darkColor: Color(0xFFFFFFFF),
+  );
+  static const labelSecondary = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFF8E8E93),
+    darkColor: Color(0xFF98989F),
+  );
+  static const labelTertiary = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFC7C7CC),
+    darkColor: Color(0xFF5C5C60),
+  );
 
-  static const separator = Color(0xFFE5E5EA);
-  static const sidebarBg = Color(0xFFF5F5F5);
-  static const mainBg = Color(0xFFFFFFFF);
-  static const windowBg = Color(0xFFF2F2F7);
+  static const separator = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFE5E5EA),
+    darkColor: Color(0xFF38383A),
+  );
+  static const sidebarBg = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFF5F5F5),
+    darkColor: Color(0xFF1C1C1E),
+  );
+  static const mainBg = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFFFFFFF),
+    darkColor: Color(0xFF000000),
+  );
+  static const windowBg = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFF2F2F7),
+    darkColor: Color(0xFF000000),
+  );
 
   static const radiusCard = 10.0;
   static const radiusSheet = 16.0;

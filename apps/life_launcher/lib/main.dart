@@ -30,6 +30,10 @@ Future<void> main() async {
   final taskPreferenceRepository = DriftTaskPreferenceRepository(db);
   // F-03：记录仓库（Drift 实现随 F-04 落地前先 InMemory；组合根单点切换）
   final noteRepository = InMemoryNoteRepository();
+  // parity#156：首启/空库兜底一条默认日历，避免「没有可用日历，无法保存」
+  await ensureDefaultCalendar(calendarRepository);
+  // parity#155：首启/空库兜底一个可写文件夹，避免「先新建一个文件夹」死路
+  await ensureDefaultNoteFolder(noteRepository);
   final prefs = await SharedPreferences.getInstance();
   final dio = Dio(
     BaseOptions(

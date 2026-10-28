@@ -252,7 +252,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
           builder: (ctx, setSheetState) => Container(
             key: const ValueKey('due_at_editor'),
             height: 380,
-            color: ReminderTokens.windowBg,
+            color: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
             child: Column(
               children: [
                 Padding(
@@ -440,9 +440,9 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     );
 
     return CupertinoPageScaffold(
-      backgroundColor: ReminderTokens.windowBg,
+      backgroundColor: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: ReminderTokens.windowBg,
+        backgroundColor: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
         automaticallyImplyLeading: false,
         middle: const Text(
           '详细信息',
@@ -732,7 +732,7 @@ class _Hairline extends StatelessWidget {
     return Container(
       height: 0.5,
       margin: EdgeInsets.only(left: indent),
-      color: ReminderTokens.separator,
+      color: CupertinoDynamicColor.resolve(ReminderTokens.separator, context),
     );
   }
 }

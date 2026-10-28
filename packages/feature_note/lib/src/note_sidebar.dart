@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import 'logic/default_folder_bootstrap.dart';
 import 'providers.dart';
 
 /// 文件夹侧栏（F-04；契约 §5、guide/iphone/01）。
@@ -23,6 +24,22 @@ class NoteSidebar extends ConsumerWidget {
     return ListView(
       key: const ValueKey('note_sidebar'),
       children: [
+        // parity#155：Apple 备忘录侧栏可直接「新建文件夹」；此前全仓无入口，
+        // 空库下「新建备忘录/快速记录」会被「先新建一个文件夹」挡死。
+        CupertinoListTile(
+          key: const ValueKey('note_sidebar_new_folder'),
+          padding: const EdgeInsetsDirectional.only(start: 16, end: 16),
+          leading: const Icon(
+            CupertinoIcons.folder_badge_plus,
+            size: 20,
+            color: CupertinoColors.systemBlue,
+          ),
+          title: const Text(
+            '新建文件夹',
+            style: TextStyle(color: CupertinoColors.systemBlue),
+          ),
+          onTap: () => _createFolder(context, ref),
+        ),
         _folderTile(
           context,
           ref,
@@ -64,6 +81,46 @@ class NoteSidebar extends ConsumerWidget {
         ],
       ],
     );
+  }
+
+  Future<void> _createFolder(BuildContext context, WidgetRef ref) async {
+    final controller = TextEditingController();
+    final name = await showCupertinoDialog<String>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('新建文件夹'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            key: const ValueKey('note_new_folder_name'),
+            controller: controller,
+            autofocus: true,
+            placeholder: '名称',
+            onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+          ),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('取消'),
+          ),
+          CupertinoDialogAction(
+            key: const ValueKey('note_new_folder_ok'),
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted) return;
+    final title = (name ?? '').trim();
+    if (title.isEmpty) return;
+    final repo = ref.read(noteRepositoryProvider);
+    final id = await repo.upsertFolder(
+      NoteFolder(id: newNoteFolderId(), name: title),
+    );
+    ref.read(selectedNoteFolderIdProvider.notifier).select(id);
   }
 
   Widget _folderTile(

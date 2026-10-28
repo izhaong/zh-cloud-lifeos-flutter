@@ -99,7 +99,7 @@ class TaskScaffold extends ConsumerWidget {
         return Column(
           children: [
             ColoredBox(
-              color: ReminderTokens.windowBg,
+              color: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
               child: Row(
                 children: [
                   const Expanded(
@@ -173,9 +173,9 @@ class _CompactPane extends ConsumerWidget {
     // iOS 提醒事项「列表」首页：大标题 + 搜索 + 智能卡片 + 我的列表。
     // 嵌在生活台壳内时，壳应用栏常显；本页不再另起全屏路由。
     return CupertinoPageScaffold(
-      backgroundColor: ReminderTokens.windowBg,
+      backgroundColor: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: ReminderTokens.windowBg,
+        backgroundColor: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
         automaticallyImplyLeading: false,
         middle: const Text('列表'),
         trailing: CupertinoButton(
@@ -212,7 +212,7 @@ class _CompactPane extends ConsumerWidget {
               ),
             ),
             decoration: BoxDecoration(
-              color: ReminderTokens.separator,
+              color: CupertinoDynamicColor.resolve(ReminderTokens.separator, context),
               borderRadius: BorderRadius.circular(10),
             ),
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -425,8 +425,8 @@ class _CompactListPane extends StatelessWidget {
   Widget build(BuildContext context) {
     final list = lists.where((e) => e.id == openListId).firstOrNull;
     if (list == null) {
-      return const CupertinoPageScaffold(
-        backgroundColor: ReminderTokens.windowBg,
+      return CupertinoPageScaffold(
+        backgroundColor: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
         child: Center(child: Text('列表不存在')),
       );
     }
@@ -680,7 +680,10 @@ class _EmptyOverview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.white,
+      backgroundColor: CupertinoDynamicColor.resolve(
+        CupertinoColors.systemBackground,
+        context,
+      ),
       navigationBar: showSidebarButton
           ? CupertinoNavigationBar(
               automaticallyImplyLeading: false,
@@ -907,9 +910,14 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   }) {
     final repo = ref.read(reminderRepositoryProvider);
     final listName = widget.listTitles?[item.listId] ?? widget.list.title;
+    final subs = subtasksByParent[item.id] ?? const <ReminderItem>[];
+    // parity#166：进度取全量流（智能视图会把子任务过滤掉，不能只看本列表）
+    final progress = ref.watch(subtaskProgressProvider).value?[item.id];
     final row = ReminderRow(
       item: item,
       listName: listName,
+      subtaskDone: progress?.done ?? 0,
+      subtaskTotal: progress?.total ?? 0,
       onToggleCompleted: () => completeReminder(ref, item),
       onToggleFlagged: () => repo.toggleFlagged(item.id),
       onTap: () => widget.onSelectItem?.call(item),
@@ -937,7 +945,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       mainAxisSize: MainAxisSize.min,
       children: [
         trashRow,
-        for (final sub in subtasksByParent[item.id] ?? const <ReminderItem>[])
+        for (final sub in subs)
           Padding(
             padding: const EdgeInsets.only(left: 40),
             child: ReminderRow(
@@ -997,9 +1005,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     ).isPaneLayout;
 
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoColors.white,
+      backgroundColor: CupertinoDynamicColor.resolve(
+        CupertinoColors.systemBackground,
+        context,
+      ),
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: CupertinoColors.white,
+        backgroundColor: CupertinoDynamicColor.resolve(
+        CupertinoColors.systemBackground,
+        context,
+      ),
         // 桌面三栏不显示返回箭头（参考图主区直接是标题/工具条）。
         automaticallyImplyLeading: !isPane && widget.leading == null,
         leading: widget.leading,
@@ -1277,13 +1291,13 @@ class _GhostNewRow extends StatelessWidget {
       key: const ValueKey('ghost_new_item'),
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
           children: [
             Icon(
               CupertinoIcons.add_circled,
-              color: ReminderTokens.labelTertiary,
+              color: CupertinoDynamicColor.resolve(ReminderTokens.labelTertiary, context),
               size: 22,
             ),
             SizedBox(width: 14),
@@ -1411,17 +1425,17 @@ class _ListHeaderToolbar extends ConsumerWidget {
                     Text(
                       '$doneCount 项完成',
                       key: const ValueKey('done_count'),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: ReminderTokens.labelSecondary,
+                        color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
                       ),
                     ),
                     const SizedBox(width: 2),
-                    const Text(
+                    Text(
                       '·',
                       style: TextStyle(
                         fontSize: 13,
-                        color: ReminderTokens.labelSecondary,
+                        color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
                       ),
                     ),
                     CupertinoButton(
@@ -1429,7 +1443,7 @@ class _ListHeaderToolbar extends ConsumerWidget {
                       onPressed: doneCount == 0 ? null : onClearCompleted,
                       minimumSize: Size.zero,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      disabledColor: ReminderTokens.labelTertiary,
+                      disabledColor: CupertinoDynamicColor.resolve(ReminderTokens.labelTertiary, context),
                       child: const Text('清除', style: TextStyle(fontSize: 13)),
                     ),
                   ],
@@ -1569,7 +1583,7 @@ class _Hairline extends StatelessWidget {
     return Container(
       height: 0.5,
       margin: EdgeInsets.only(left: indent),
-      color: ReminderTokens.separator,
+      color: CupertinoDynamicColor.resolve(ReminderTokens.separator, context),
     );
   }
 }
@@ -1579,8 +1593,8 @@ class _VerticalHairline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(
-      color: ReminderTokens.separator,
+    return ColoredBox(
+      color: CupertinoDynamicColor.resolve(ReminderTokens.separator, context),
       child: SizedBox(width: 0.5),
     );
   }
@@ -1601,7 +1615,7 @@ class _HomeListRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isTrash
-        ? ReminderTokens.labelSecondary
+        ? CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context)
         : Color(list.colorArgb);
     final icon = isTrash
         ? CupertinoIcons.trash

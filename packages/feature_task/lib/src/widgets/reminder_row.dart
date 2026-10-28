@@ -18,6 +18,8 @@ class ReminderRow extends StatelessWidget {
     this.onDelete,
     this.dense = false,
     this.listName,
+    this.subtaskDone = 0,
+    this.subtaskTotal = 0,
   });
 
   final ReminderItem item;
@@ -30,10 +32,15 @@ class ReminderRow extends StatelessWidget {
   /// 子任务行的紧凑变体（缩进由外层控制）。
   final bool dense;
 
+  /// 子任务进度（parity#166：Apple 在父行显示 `1/2`；总数 0 = 不显示）。
+  final int subtaskDone;
+  final int subtaskTotal;
+
   @override
   Widget build(BuildContext context) {
     final due = _dueText(context, item.dueAt);
     final meta = <String>[
+      if (subtaskTotal > 0) '$subtaskDone/$subtaskTotal',
       if (item.recurrence != null) _recurrenceLabel(item.recurrence!),
       if (item.tags.isNotEmpty) item.tags.join(' '),
     ];
@@ -104,8 +111,8 @@ class ReminderRow extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text.rich(
                       TextSpan(children: spans),
-                      style: const TextStyle(
-                        color: ReminderTokens.labelSecondary,
+                      style: TextStyle(
+                        color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
                         fontSize: 12,
                       ),
                     ),
