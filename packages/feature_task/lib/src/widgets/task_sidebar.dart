@@ -45,6 +45,10 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
     'smart.urgent',
     'smart.completed',
   };
+  /// #258：设置里的「建议列表」开关（默认 true；未加载时按默认显示）。
+  bool get _suggestLists =>
+      ref.watch(taskPreferenceProvider).value?.suggestLists ?? true;
+
   @override
   Widget build(BuildContext context) {
     final collapsedGroups = ref.watch(collapsedKeysProvider);
@@ -185,7 +189,9 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
                       );
                     },
                   ),
-                if (!hasGrocery)
+                // #258：「建议列表」开关此前只写不读（死设置）。Apple 关掉后
+                // 不再在侧栏兜底推荐创建采购清单。
+                if (!hasGrocery && _suggestLists)
                   _SuggestedListRow(
                     onTap: () {
                       final id =

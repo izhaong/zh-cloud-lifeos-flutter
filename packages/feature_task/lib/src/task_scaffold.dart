@@ -264,7 +264,9 @@ class _CompactPane extends ConsumerWidget {
                 );
               },
             ),
-            if (!hasGrocery)
+            // #258：建议列表开关关闭后首页也不再推荐
+            if (!hasGrocery &&
+                (ref.watch(taskPreferenceProvider).value?.suggestLists ?? true))
               GestureDetector(
                 key: const ValueKey('suggested_grocery_home'),
                 behavior: HitTestBehavior.opaque,
