@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import '../design/calendar_tokens.dart';
 import '../providers.dart';
 
 /// 年视图（契约 §5.4；F-07）。
@@ -118,12 +119,12 @@ class _MiniMonthCard extends StatelessWidget {
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: isCurrentMonth
-              ? const Color(0xFF007AFF).withAlpha(20)
+              ? CalendarTokens.systemBlue.withAlpha(20)
               : CupertinoColors.white,
           borderRadius: BorderRadius.circular(8),
           border: isCurrentMonth
-              ? Border.all(color: const Color(0xFF007AFF))
-              : Border.all(color: const Color(0xFFE5E5EA)),
+              ? Border.all(color: CalendarTokens.systemBlue)
+              : Border.all(color: CalendarTokens.hairline),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -134,8 +135,8 @@ class _MiniMonthCard extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: isCurrentMonth
-                    ? const Color(0xFF007AFF)
-                    : const Color(0xFF1C1C1E),
+                    ? CalendarTokens.systemBlue
+                    : CalendarTokens.labelStrong,
               ),
             ),
             Row(
@@ -146,7 +147,7 @@ class _MiniMonthCard extends StatelessWidget {
                     w,
                     style: const TextStyle(
                       fontSize: 8,
-                      color: Color(0xFF8E8E93),
+                      color: CalendarTokens.labelSecondary,
                     ),
                   ),
               ],
@@ -183,7 +184,7 @@ class _MiniMonthCard extends StatelessWidget {
             decoration: isToday
                 ? const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Color(0xFFFF3B30),
+                    color: CalendarTokens.systemRed,
                   )
                 : null,
             padding: isToday ? const EdgeInsets.all(1) : null,
@@ -194,7 +195,7 @@ class _MiniMonthCard extends StatelessWidget {
                 height: 1,
                 color: isToday
                     ? CupertinoColors.white
-                    : const Color(0xFF1C1C1E),
+                     : CalendarTokens.labelStrong,
               ),
             ),
           ),
