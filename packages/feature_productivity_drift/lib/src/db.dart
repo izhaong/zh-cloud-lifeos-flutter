@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 part 'db.g.dart';
@@ -29,6 +31,30 @@ class ReminderLists extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+/// 清单手动分区表（V15 / #169；替掉 `reminder_lists.sections_json` 整块列）。
+///
+/// 一条分区一行：跨设备并发改**同一清单的不同分区**时各写各的行，
+/// 不再「读整块 JSON → 改一条 → 写整块」互相覆盖。
+/// `sections_json` 保留一版作回滚快照，读取侧不再使用。
+class ReminderSections extends Table {
+  /// 所属清单（本地 id）。
+  TextColumn get listId => text()();
+
+  /// 分区本地 id（同一清单内唯一）。
+  TextColumn get id => text()();
+
+  TextColumn get title => text()();
+
+  /// 分区排序（升序；同值按 id 升序兜底）。
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  /// 服务端分区 ID（flutter#144 / TC-SYNC-106；NULL = 纯本地未同步）。
+  TextColumn get remoteId => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {listId, id};
 }
 
 /// 提醒条目表。
@@ -318,12 +344,12 @@ class TaskPreferences extends Table {
 }
 
 @DriftDatabase(
-    tables: [ReminderLists, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows, SyncCursorRows, TaskPreferences])
+    tables: [ReminderLists, ReminderSections, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows, SyncCursorRows, TaskPreferences])
 class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -432,6 +458,55 @@ class LifeProductivityDb extends _$LifeProductivityDb {
                   'ON reminder_lists (remote_id)'),
             );
           }
+          if (from < 15 && to >= 15) {
+            // V15（#169 / TC-SYNC-106、TC-KR-118）：分区从整块 JSON 列拆成
+            // 一行一个分区。旧列保留一版（回滚快照），这里把既有数据搬进新表。
+            await m.createTable(reminderSections);
+            await m.createIndex(
+              Index('idx_sections_list_order',
+                  'CREATE INDEX IF NOT EXISTS idx_sections_list_order '
+                  'ON reminder_sections (list_id, sort_order)'),
+            );
+            await _backfillSections(m);
+          }
         },
       );
+
+  /// V15 数据搬迁：`reminder_lists.sections_json` → `reminder_sections` 行。
+  ///
+  /// 单条坏 JSON 不能拖垮整库升级：逐清单解析，解析失败的清单跳过（读取侧
+  /// 退化成「无分区」，用户下一次分区写入即可自愈）。
+  static Future<void> _backfillSections(Migrator m) async {
+    final rows = await m.database
+        .customSelect('SELECT id, sections_json FROM reminder_lists')
+        .get();
+    for (final row in rows) {
+      final listId = row.data['id'] as String;
+      final raw = row.data['sections_json'] as String?;
+      if (raw == null || raw.isEmpty) continue;
+      final List<dynamic> decoded;
+      try {
+        final parsed = jsonDecode(raw);
+        if (parsed is! List) continue;
+        decoded = parsed;
+      } catch (_) {
+        continue;
+      }
+      for (final entry in decoded.whereType<Map>()) {
+        final id = entry['id'];
+        if (id is! String) continue;
+        await m.database.customStatement(
+          'INSERT OR REPLACE INTO reminder_sections '
+          '(list_id, id, title, sort_order, remote_id) VALUES (?, ?, ?, ?, ?)',
+          [
+            listId,
+            id,
+            entry['title'] as String? ?? '',
+            (entry['sortOrder'] as num?)?.toInt() ?? 0,
+            entry['remoteId'] as String?,
+          ],
+        );
+      }
+    }
+  }
 }
