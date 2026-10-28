@@ -16,10 +16,21 @@ abstract final class LifeTokens {
   static const separator = CupertinoColors.separator;
   static const destructive = CupertinoColors.systemRed;
 
-  /// Material 的 `ColorScheme` 只收静态 `Color`，故按亮度取包内的分档原值，
-  /// 语义等价于 `CupertinoDynamicColor.resolveFrom` 在给定亮度下的结果。
-  static Color _resolve(CupertinoDynamicColor color, Brightness brightness) =>
-      brightness == Brightness.dark ? color.darkColor : color.color;
+  /// Material 的 `ColorScheme` 只收静态 `Color`，故按亮度 + 对比度取包内的**四档**原值，
+  /// 语义等价于 `CupertinoDynamicColor.resolveFrom(context)` 的结果。
+  ///
+  /// #348：此前只取 `color`/`darkColor`，Apple「提高对比度」打开后本应用毫无变化——
+  /// 高对比两档从未被取用。现在四档齐取。
+  static Color _resolve(
+    CupertinoDynamicColor color,
+    Brightness brightness, {
+    bool highContrast = false,
+  }) {
+    if (brightness == Brightness.dark) {
+      return highContrast ? color.darkHighContrastColor : color.darkColor;
+    }
+    return highContrast ? color.highContrastColor : color.color;
+  }
 
   /// #195：Web（CanvasKit）不走系统字体，中文缺字形即方块。随包 Noto Sans SC
   /// 子集（apps/life_launcher/assets/fonts）作全局回退；拉丁仍用默认字体。
@@ -33,13 +44,20 @@ abstract final class LifeTokens {
 
   /// 根主题：业务 UI 默认走 Cupertino。亮度由调用方按系统值传入，
   /// 缺省保持亮档（与原行为一致）。
-  static CupertinoThemeData cupertino([Brightness brightness = Brightness.light]) {
+  static CupertinoThemeData cupertino([
+    Brightness brightness = Brightness.light,
+    bool highContrast = false,
+  ]) {
+    // 高对比档必须落成具体色值（CupertinoThemeData 不会自己按高对比解析动态色）；
+    // 普通档仍传动态色，保持既有行为不变。
+    final barBg =
+        highContrast ? _resolve(surface, brightness, highContrast: true) : surface;
     final base = CupertinoThemeData(
       brightness: brightness,
       primaryColor: brand,
       primaryContrastingColor: const Color(0xFFFFFFFF),
-      barBackgroundColor: surface,
-      scaffoldBackgroundColor: surface,
+      barBackgroundColor: barBg,
+      scaffoldBackgroundColor: barBg,
     );
     final t = base.textTheme;
     return base.copyWith(
@@ -62,22 +80,27 @@ abstract final class LifeTokens {
   ///
   /// 不用 `ColorScheme.fromSeed`：M3 会把 007AFF 调成灰蓝（实测 primary=ff445e91），
   /// 与 Cupertino 主色分叉。
-  static ThemeData materialIsland([Brightness brightness = Brightness.light]) {
+  static ThemeData materialIsland([
+    Brightness brightness = Brightness.light,
+    bool highContrast = false,
+  ]) {
+    Color r(CupertinoDynamicColor c) =>
+        _resolve(c, brightness, highContrast: highContrast);
     final colorScheme = ColorScheme(
       brightness: brightness,
-      primary: _resolve(brand, brightness),
+      primary: r(brand),
       onPrimary: const Color(0xFFFFFFFF),
-      secondary: _resolve(brand, brightness),
+      secondary: r(brand),
       onSecondary: const Color(0xFFFFFFFF),
-      surface: _resolve(surfaceSecondary, brightness),
-      onSurface: _resolve(onSurface, brightness),
-      error: _resolve(destructive, brightness),
+      surface: r(surfaceSecondary),
+      onSurface: r(onSurface),
+      error: r(destructive),
       onError: const Color(0xFFFFFFFF),
     );
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: _resolve(surface, brightness),
+      scaffoldBackgroundColor: r(surface),
     );
     return base.copyWith(
       textTheme: base.textTheme.apply(fontFamilyFallback: cjkFontFallback),
@@ -85,7 +108,7 @@ abstract final class LifeTokens {
         centerTitle: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: _resolve(onSurface, brightness),
+        foregroundColor: r(onSurface),
       ),
     );
   }

@@ -227,15 +227,21 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
   @override
   void didChangePlatformBrightness() => setState(() {});
 
+  /// 提高对比度变化也要重建（#348）。
+  @override
+  void didChangeAccessibilityFeatures() => setState(() {});
+
   @override
   Widget build(BuildContext context) {
     final router = buildLifeRouter(ref);
-    final brightness =
-        WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    final dispatcher = WidgetsBinding.instance.platformDispatcher;
+    final brightness = dispatcher.platformBrightness;
+    // Apple「提高对比度」：辅助功能开关，色值要切到高对比档（#348）。
+    final highContrast = dispatcher.accessibilityFeatures.highContrast;
     return CupertinoApp.router(
       title: 'LifeOS 生活台',
       debugShowCheckedModeBanner: false,
-      theme: LifeTokens.cupertino(brightness),
+      theme: LifeTokens.cupertino(brightness, highContrast),
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
       localizationsDelegates: const [
