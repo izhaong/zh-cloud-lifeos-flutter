@@ -86,3 +86,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/OFL.txt
+  # #195：Web（CanvasKit）不读系统字体，随包 Noto Sans SC 子集成中文回退
+  fonts:
+    - family: Noto Sans SC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-Regular.ttf

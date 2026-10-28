@@ -21,15 +21,37 @@ abstract final class LifeTokens {
   static Color _resolve(CupertinoDynamicColor color, Brightness brightness) =>
       brightness == Brightness.dark ? color.darkColor : color.color;
 
+  /// #195：Web（CanvasKit）不走系统字体，中文缺字形即方块。随包 Noto Sans SC
+  /// 子集（apps/life_launcher/assets/fonts）作全局回退；拉丁仍用默认字体。
+  static const cjkFontFallback = <String>['Noto Sans SC'];
+
+  static TextStyle _withCjk(TextStyle style) =>
+      style.copyWith(fontFamilyFallback: cjkFontFallback);
+
   /// 根主题：业务 UI 默认走 Cupertino。亮度由调用方按系统值传入，
   /// 缺省保持亮档（与原行为一致）。
   static CupertinoThemeData cupertino([Brightness brightness = Brightness.light]) {
-    return CupertinoThemeData(
+    final base = CupertinoThemeData(
       brightness: brightness,
       primaryColor: brand,
       primaryContrastingColor: const Color(0xFFFFFFFF),
       barBackgroundColor: surface,
       scaffoldBackgroundColor: surface,
+    );
+    final t = base.textTheme;
+    return base.copyWith(
+      textTheme: CupertinoTextThemeData(
+        primaryColor: brand,
+        textStyle: _withCjk(t.textStyle),
+        actionTextStyle: _withCjk(t.actionTextStyle),
+        actionSmallTextStyle: _withCjk(t.actionSmallTextStyle),
+        tabLabelTextStyle: _withCjk(t.tabLabelTextStyle),
+        navTitleTextStyle: _withCjk(t.navTitleTextStyle),
+        navLargeTitleTextStyle: _withCjk(t.navLargeTitleTextStyle),
+        navActionTextStyle: _withCjk(t.navActionTextStyle),
+        pickerTextStyle: _withCjk(t.pickerTextStyle),
+        dateTimePickerTextStyle: _withCjk(t.dateTimePickerTextStyle),
+      ),
     );
   }
 
@@ -55,6 +77,7 @@ abstract final class LifeTokens {
       scaffoldBackgroundColor: _resolve(surface, brightness),
     );
     return base.copyWith(
+      textTheme: base.textTheme.apply(fontFamilyFallback: cjkFontFallback),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         backgroundColor: Colors.transparent,

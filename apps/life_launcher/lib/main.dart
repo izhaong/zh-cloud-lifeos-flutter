@@ -196,6 +196,13 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
         GlobalMaterialLocalizations.delegate,
       ],
       routerConfig: router,
+      // #195：给未被主题覆盖的文本也挂上 CJK 回退（Web 端不读系统字体）
+      builder: (context, child) => DefaultTextStyle.merge(
+        style: const TextStyle(
+          fontFamilyFallback: LifeTokens.cjkFontFallback,
+        ),
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }
