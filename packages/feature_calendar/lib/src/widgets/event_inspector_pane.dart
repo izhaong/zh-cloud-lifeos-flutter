@@ -67,6 +67,9 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
         oldWidget.initialEvent != widget.initialEvent) {
       _draft = widget.initialEvent;
       _saveAttempted = false;
+      // #252：换选到另一条事件时，上一轮「复制出的独立副本」状态必须清掉，
+      // 否则会对着新的重复日程跳过 THIS/FUTURE，直接整条改/删。
+      _detachedFromOrigin = false;
     }
   }
 

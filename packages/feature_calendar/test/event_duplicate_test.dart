@@ -179,6 +179,64 @@ void main() {
     expect(repo.lastOccurrenceStart, isNull,
         reason: '不能把原件的 occurrenceStart 带到副本上（会改坏原系列）');
   });
+
+  testWidgets('复制后切换到另一条重复日程 → 作用域语义恢复（不残留独立标记）', (tester) async {
+    SharedPreferences.setMockInitialValues(const {});
+    final repo = _Repo();
+    final controller = kalender.DefaultEventsController();
+    final container = ProviderContainer(
+      overrides: [
+        calendarRepositoryProvider.overrideWithValue(repo),
+        sidebarPrefsProvider.overrideWith((ref) => null),
+        kalenderEventsControllerProvider.overrideWithValue(controller),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final occurrenceStart = DateTime.utc(2026, 10, 24, 10);
+    CalendarEvent recurring(String id, String title) => CalendarEvent(
+      id: id,
+      calendarId: 'c1',
+      uid: id,
+      title: title,
+      startAt: occurrenceStart,
+      endAt: DateTime.utc(2026, 10, 24, 11),
+      timeZone: 'UTC',
+      rrule: 'FREQ=WEEKLY',
+      updatedAt: DateTime.utc(2026, 10, 24),
+    );
+
+    Widget pane(CalendarEvent e) => UncontrolledProviderScope(
+      container: container,
+      child: lifeTestHost(
+        Scaffold(
+          body: EventInspectorPane(
+            initialEvent: e,
+            occurrenceStart: occurrenceStart,
+            onSaved: () {},
+            onClose: () {},
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(pane(recurring('e1', '例会一')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('event_inspector_duplicate')));
+    await tester.pumpAndSettle();
+
+    // 换选另一条重复日程（expanded 第三栏会复用同一个 pane 实例）
+    await tester.pumpWidget(pane(recurring('e2', '例会二')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('event_inspector_save')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('编辑重复日程'),
+      findsOneWidget,
+      reason: '换选后的重复日程必须重新询问 THIS/FUTURE（独立副本标记已清）',
+    );
+  });
 }
 
 class _Repo implements CalendarRepository {
