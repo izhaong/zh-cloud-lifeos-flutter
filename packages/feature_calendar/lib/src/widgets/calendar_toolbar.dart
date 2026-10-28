@@ -47,23 +47,31 @@ class CalendarToolbar extends ConsumerWidget {
             children: [
               const SizedBox(width: 4),
               Text(
-                '${anchor.year}年${anchor.month}月',
+                _compactTitle(anchor, ref.watch(viewModeProvider)),
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               _ToolbarIconButton(
-                tooltip: '上一个月',
+                tooltip: '上一页',
                 icon: CupertinoIcons.chevron_left,
                 onPressed: () => _shift(ref, -1),
               ),
               _ToolbarIconButton(
-                tooltip: '下一个月',
+                tooltip: '下一页',
                 icon: CupertinoIcons.chevron_right,
                 onPressed: () => _shift(ref, 1),
               ),
+              CupertinoButton(
+                key: const Key('calendar_today_button'),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                onPressed: () => ref.read(anchorDateProvider.notifier).today(),
+                child: const Text('今天'),
+              ),
               const Spacer(),
+              const _CompactViewModeMenu(),
               _ToolbarIconButton(
                 key: const Key('calendar_search_button'),
                 tooltip: '搜索',
@@ -97,6 +105,7 @@ class CalendarToolbar extends ConsumerWidget {
                 onPressed: () => _shift(ref, -1),
               ),
               CupertinoButton(
+                key: const Key('calendar_today_button'),
                 minimumSize: Size.zero,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 onPressed: () => ref.read(anchorDateProvider.notifier).today(),
@@ -161,6 +170,17 @@ class CalendarToolbar extends ConsumerWidget {
   }
 }
 
+/// 紧凑档标题：日/周显示「月日」，月显示「年月」，年显示「年」（#178）。
+String _compactTitle(DateTime anchor, CalendarViewMode mode) {
+  return switch (mode) {
+    CalendarViewMode.day ||
+    CalendarViewMode.week => '${anchor.month}月${anchor.day}日',
+    CalendarViewMode.month ||
+    CalendarViewMode.list => '${anchor.year}年${anchor.month}月',
+    CalendarViewMode.year => '${anchor.year}年',
+  };
+}
+
 /// 工具栏图标按钮（0.5px 风格：无涟漪、系统蓝）。
 class _ToolbarIconButton extends StatelessWidget {
   const _ToolbarIconButton({
@@ -185,6 +205,58 @@ class _ToolbarIconButton extends StatelessWidget {
         onPressed: onPressed,
         child: Icon(icon, size: 22, color: CupertinoColors.systemBlue),
       ),
+    );
+  }
+}
+
+/// 紧凑档视图切换（#178：日/周/月/年；iPhone 档原本没有入口）。
+class _CompactViewModeMenu extends ConsumerWidget {
+  const _CompactViewModeMenu();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(viewModeProvider);
+    const modes = [
+      CalendarViewMode.day,
+      CalendarViewMode.week,
+      CalendarViewMode.month,
+      CalendarViewMode.year,
+    ];
+    return CupertinoMenuAnchor(
+      menuChildren: [
+        for (final m in modes)
+          CupertinoMenuItem(
+            key: Key('calendar_view_mode_${m.name}'),
+            onPressed: () => ref.read(viewModeProvider.notifier).set(m),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (m == mode) ...[
+                  const Icon(CupertinoIcons.checkmark, size: 14),
+                  const SizedBox(width: 4),
+                ],
+                Text(CalendarToolbar._labels[m]!),
+              ],
+            ),
+          ),
+      ],
+      builder: (context, controller, child) {
+        return Semantics(
+          label: '视图切换',
+          button: true,
+          child: CupertinoButton(
+            key: const Key('calendar_view_mode_menu'),
+            minimumSize: Size.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            onPressed: controller.open,
+            child: const Icon(
+              CupertinoIcons.calendar,
+              size: 22,
+              color: CupertinoColors.systemBlue,
+            ),
+          ),
+        );
+      },
     );
   }
 }

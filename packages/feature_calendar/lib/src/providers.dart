@@ -49,7 +49,10 @@ class AnchorDateNotifier extends Notifier<DateTime> {
   void set(DateTime value) => state = value;
 
   /// 回到今天。
-  void today() => build();
+  void today() {
+    final now = DateTime.now();
+    state = DateTime(now.year, now.month, now.day);
+  }
 }
 
 /// 视图模式。

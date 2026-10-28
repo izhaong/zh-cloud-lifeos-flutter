@@ -244,6 +244,7 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
           Expanded(
             child: EventFormFields(
               event: _draft,
+              showTitleRequired: _saveAttempted,
               onChanged: (next) {
                 setState(() => _draft = next);
                 widget.onDraftChanged?.call(next);
