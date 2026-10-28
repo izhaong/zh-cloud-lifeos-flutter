@@ -231,7 +231,7 @@ class _CompactPane extends ConsumerWidget {
               child: Icon(
                 CupertinoIcons.search,
                 size: 20,
-                color: Color(0xFF8E8E93),
+                color: ReminderTokens.labelSecondary,
               ),
             ),
             decoration: BoxDecoration(
@@ -300,7 +300,7 @@ class _CompactPane extends ConsumerWidget {
               '我的列表',
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF8E8E93),
+                color: ReminderTokens.labelSecondary,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -337,14 +337,14 @@ class _CompactPane extends ConsumerWidget {
                         children: [
                           Icon(
                             CupertinoIcons.add_circled_solid,
-                            color: Color(0xFF007AFF),
+                            color: ReminderTokens.systemBlue,
                             size: 24,
                           ),
                           SizedBox(width: 12),
                           Text(
                             '添加列表',
                             style: TextStyle(
-                              color: Color(0xFF007AFF),
+                              color: ReminderTokens.systemBlue,
                               fontSize: 16,
                             ),
                           ),
@@ -402,7 +402,7 @@ class _HomeSearchResults extends ConsumerWidget {
               child: Text(
                 '无结果',
                 key: ValueKey('search_empty'),
-                style: TextStyle(color: Color(0xFF8E8E93)),
+                style: TextStyle(color: ReminderTokens.labelSecondary),
               ),
             ),
           );
@@ -976,7 +976,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                 onPressed: () => repo.restoreItem(item.id),
                 child: const Text(
                   '恢复',
-                  style: TextStyle(color: Color(0xFF007AFF)),
+                  style: TextStyle(color: ReminderTokens.systemBlue),
                 ),
               ),
             ],
@@ -1088,7 +1088,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                     child: Icon(
                       CupertinoIcons.search,
                       size: 16,
-                      color: Color(0xFF8E8E93),
+                      color: ReminderTokens.labelSecondary,
                     ),
                   ),
                   // parity#196：暗色档搜索框不能用写死白底，跟 #157 的
@@ -1265,7 +1265,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                                 '没有最近删除的提醒事项',
                                 style: TextStyle(
                                   fontSize: 15,
-                                  color: Color(0xFF8E8E93),
+                                  color: ReminderTokens.labelSecondary,
                                 ),
                               ),
                             )
@@ -1298,7 +1298,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                                             '没有提醒',
                                             style: TextStyle(
                                               fontSize: 17,
-                                              color: Color(0xFF8E8E93),
+                                              color: ReminderTokens.labelSecondary,
                                             ),
                                           ),
                                           const SizedBox(height: 4),
@@ -1306,7 +1306,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                                             '点按此处或「＋ 新提醒事项」添加',
                                             style: TextStyle(
                                               fontSize: 13,
-                                              color: Color(0xFFC7C7CC),
+                                              color: ReminderTokens.labelTertiary,
                                             ),
                                           ),
                                         ],
@@ -1338,14 +1338,14 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                     Icon(
                       CupertinoIcons.plus_circle_fill,
                       size: 22,
-                      color: Color(0xFF007AFF),
+                      color: ReminderTokens.systemBlue,
                     ),
                     SizedBox(width: 6),
                     Text(
                       '新提醒事项',
                       style: TextStyle(
                         fontSize: 15,
-                        color: Color(0xFF007AFF),
+                        color: ReminderTokens.systemBlue,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1416,7 +1416,7 @@ class _DraftRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          const Icon(CupertinoIcons.circle, color: Color(0xFFC7C7CC)),
+          const Icon(CupertinoIcons.circle, color: ReminderTokens.labelTertiary),
           const SizedBox(width: 14),
           Expanded(
             child: CupertinoTextField(
@@ -1437,7 +1437,7 @@ class _DraftRow extends StatelessWidget {
             child: const Icon(
               CupertinoIcons.arrow_up,
               size: 20,
-              color: Color(0xFF007AFF),
+              color: ReminderTokens.systemBlue,
             ),
           ),
         ],
@@ -1464,14 +1464,14 @@ class _TrashHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF8E8E93),
+              color: ReminderTokens.labelSecondary,
               height: 1.1,
             ),
           ),
           SizedBox(height: 2),
           Text(
             '项目将在删除 30 天后永久移除',
-            style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+            style: TextStyle(fontSize: 13, color: ReminderTokens.labelSecondary),
           ),
         ],
       ),
@@ -1670,7 +1670,7 @@ class _SectionHeader extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF8E8E93),
+                color: ReminderTokens.labelSecondary,
               ),
             ),
             const Spacer(),
@@ -1679,7 +1679,7 @@ class _SectionHeader extends StatelessWidget {
                   ? CupertinoIcons.chevron_down
                   : CupertinoIcons.chevron_up,
               size: 14,
-              color: const Color(0xFF8E8E93),
+              color: ReminderTokens.labelSecondary,
             ),
           ],
         ),
@@ -1760,13 +1760,13 @@ class _HomeListRow extends StatelessWidget {
             ),
             Text(
               '${list.itemCount}',
-              style: const TextStyle(color: Color(0xFF8E8E93)),
+              style: const TextStyle(color: ReminderTokens.labelSecondary),
             ),
             const SizedBox(width: 4),
             const Icon(
               CupertinoIcons.chevron_forward,
               size: 16,
-              color: Color(0xFFC7C7CC),
+              color: ReminderTokens.labelTertiary,
             ),
           ],
         ),
