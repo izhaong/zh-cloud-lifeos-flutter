@@ -79,6 +79,44 @@ class CalendarViewCallbacks {
     return draft;
   }
 
+  /// 是否为「全天区拖拽」区间（parity#228）。
+  ///
+  /// kalender 0.33 的 `createNewEvent` 一律构造 `KalenderEvent(start,end)`，
+  /// **不带 isAllDay**，所以不能靠 `event.isAllDay` 判断落在哪个泳道。
+  /// 全天区的拖拽区间按天对齐（两端都是 00:00，且跨度 ≥1 天），时间轴拖拽
+  /// 则带分钟粒度：据此区分。
+  static bool looksLikeAllDayRange(DateTime start, DateTime end) {
+    final alignedStart = start.hour == 0 && start.minute == 0;
+    final alignedEnd = end.hour == 0 && end.minute == 0;
+    return alignedStart && alignedEnd && !end.isBefore(start.add(const Duration(days: 1)));
+  }
+
+  /// TC-CAL-UI-139 / E2：全天区拖多日 → 跨天全天草稿。
+  ///
+  /// kalender 的 `onEventCreate` 对「全天区」拖拽给的是 isAllDay 事件，
+  /// 但区间可能带 00:00–01:00 之类的时刻；这里按**日期**归一成
+  /// 当地 00:00 → 次日 00:00（排他），丢掉时刻（parity#228）。
+  CalendarEvent onAllDayDraftCreate(DateTime start, DateTime end) {
+    final startDay = DateTime(start.year, start.month, start.day);
+    var endDay = DateTime(end.year, end.month, end.day);
+    if (!endDay.isAfter(startDay)) {
+      endDay = startDay.add(const Duration(days: 1));
+    }
+    final draft = CalendarEvent(
+      id: 'draft',
+      calendarId: '',
+      uid: '',
+      title: '',
+      startAt: utcFromWall(startDay, timeZone),
+      endAt: utcFromWall(endDay, timeZone),
+      allDay: true,
+      timeZone: timeZone,
+      updatedAt: DateTime.now().toUtc(),
+    );
+    setDraft(draft);
+    return draft;
+  }
+
   /// TC-CAL-UI-131：月视图点/双击某日 → 全天草稿（标题空）。
   void onDayTap(DateTime date) {
     // 用设备时区的当地 00:00 → 次日 00:00（排他），再转 UTC；

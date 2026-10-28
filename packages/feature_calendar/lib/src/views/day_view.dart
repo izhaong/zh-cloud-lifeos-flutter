@@ -118,10 +118,22 @@ class CalendarDayView extends ConsumerWidget {
                 ],
                 callbacks: kalender.KalenderCallbacks(
                   onEventCreate: (event) {
-                    viewCallbacks.onDraftCreate(
-                      event.start.toUtc(),
-                      event.end.toUtc(),
-                    );
+                    // parity#228：全天区拖多日要得到跨天全天草稿，而不是
+                    // 「开始那天 00:00–01:00」的定时草稿。
+                    if (CalendarViewCallbacks.looksLikeAllDayRange(
+                      event.start.toLocal(),
+                      event.end.toLocal(),
+                    )) {
+                      viewCallbacks.onAllDayDraftCreate(
+                        event.start.toLocal(),
+                        event.end.toLocal(),
+                      );
+                    } else {
+                      viewCallbacks.onDraftCreate(
+                        event.start.toUtc(),
+                        event.end.toUtc(),
+                      );
+                    }
                     return event;
                   },
                   onEventChanged: (event, updated) {
@@ -305,6 +317,16 @@ class CalendarWeekView extends ConsumerWidget {
           ],
           callbacks: kalender.KalenderCallbacks(
             onEventCreate: (event) {
+              if (CalendarViewCallbacks.looksLikeAllDayRange(
+                event.start.toLocal(),
+                event.end.toLocal(),
+              )) {
+                viewCallbacks.onAllDayDraftCreate(
+                  event.start.toLocal(),
+                  event.end.toLocal(),
+                );
+                return event;
+              }
               viewCallbacks.onDraftCreate(
                 event.start.toUtc(),
                 event.end.toUtc(),
