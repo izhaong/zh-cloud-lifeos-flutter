@@ -30,9 +30,10 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
   /// 同时最多排多少条（防一次性排几百条）。
   final int maxSlots;
 
-  /// itemId → (通知 id, 触发时刻)：用来判断哪些要新增/撤销。
-  final Map<String, (int, DateTime)> _scheduled = {};
+  /// itemId → (通知 id, 触发时刻, 标题)：用来判断哪些要新增/撤销/重排。
+  final Map<String, (int, DateTime, String)> _scheduled = {};
   StreamSubscription<List<ReminderItem>>? _sub;
+  StreamSubscription<TaskPreference>? _prefsSub;
   bool _permissionsRequested = false;
   bool _rescheduling = false;
   bool _again = false;
@@ -43,6 +44,7 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
     FlutterLocalNotificationsPlugin? plugin,
     Future<void> Function()? requestPermissions,
     int maxSlots = 64,
+    bool initialize = true,
   }) async {
     tzdata.initializeTimeZones();
     final plugin0 = plugin ?? FlutterLocalNotificationsPlugin();
@@ -86,21 +88,27 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
       maxSlots: maxSlots,
     );
 
-    await plugin0.initialize(
-      settings: const InitializationSettings(
+    // 审查 R1：与日历共用同一个插件实例时**不要**再 initialize——那会用一份
+    // 不带 categories/onDidReceiveNotificationResponse 的配置覆盖掉日历的点击
+    // 与「稍后 9 分钟」回调。共用实例的初始化由日历侧完成。
+    if (initialize) {
+      await plugin0.initialize(
+        settings: const InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
           requestSoundPermission: false,
         ),
-        macOS: DarwinInitializationSettings(
-          requestAlertPermission: false,
-          requestBadgePermission: false,
-          requestSoundPermission: false,
+          macOS: DarwinInitializationSettings(
+            requestAlertPermission: false,
+            requestBadgePermission: false,
+            requestSoundPermission: false,
+          ),
         ),
-      ),
-    );
+        onDidReceiveNotificationResponse: null,
+      );
+    }
     return scheduler;
   }
 
@@ -110,11 +118,18 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
     _sub = _repository
         .watchItems(includeCompleted: true)
         .listen((_) => unawaited(rescheduleAll()));
+    // 审查 R1：「全天提醒时点」开关一变也要立刻收敛，否则已排/该撤的不动
+    _prefsSub?.cancel();
+    _prefsSub = _preferences.watchPreference().listen(
+      (_) => unawaited(rescheduleAll()),
+    );
   }
 
   Future<void> dispose() async {
     await _sub?.cancel();
+    await _prefsSub?.cancel();
     _sub = null;
+    _prefsSub = null;
   }
 
   @override
@@ -175,13 +190,16 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
     for (final entry in capped) {
       final itemId = entry.key;
       final fireAt = entry.value;
+      final title = _titles[itemId] ?? '待办到点';
       final current = _scheduled[itemId];
-      if (current != null && current.$2 == fireAt) continue; // 没变
+      if (current != null && current.$2 == fireAt && current.$3 == title) {
+        continue; // 时刻与标题都没变
+      }
       if (current != null) await _plugin.cancel(id: current.$1);
       final id = _notificationId(itemId);
       await _ensurePermissionsRequested();
-      await _schedule(itemId, id, fireAt);
-      _scheduled[itemId] = (id, fireAt);
+      await _schedule(itemId, id, fireAt, title);
+      _scheduled[itemId] = (id, fireAt, title);
     }
   }
 
@@ -191,11 +209,16 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
     await _requestPermissions?.call();
   }
 
-  Future<void> _schedule(String itemId, int id, DateTime fireAt) async {
+  Future<void> _schedule(
+    String itemId,
+    int id,
+    DateTime fireAt,
+    String body,
+  ) async {
     await _plugin.zonedSchedule(
       id: id,
       title: '提醒事项',
-      body: _bodyOf(itemId),
+      body: body,
       scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -212,9 +235,6 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
       payload: itemId,
     );
   }
-
-  /// 通知正文：优先用标题（缓存里查不到就退回通用文案）。
-  String _bodyOf(String itemId) => _titles[itemId] ?? '待办到点';
 
   final Map<String, String> _titles = {};
 
