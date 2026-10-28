@@ -323,7 +323,11 @@ class _Hairline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(height: 0.5, color: CupertinoColors.separator);
+    // #295：同侧栏背景——不 resolve 就会在暗色档画出亮色发丝线。
+    return Container(
+      height: 0.5,
+      color: CupertinoColors.separator.resolveFrom(context),
+    );
   }
 }
 
@@ -333,9 +337,11 @@ class _VerticalHairline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox(
+    return SizedBox(
       width: 0.5,
-      child: ColoredBox(color: CupertinoColors.separator),
+      child: ColoredBox(
+        color: CupertinoColors.separator.resolveFrom(context),
+      ),
     );
   }
 }
