@@ -35,7 +35,7 @@ melos:
     ui-boundary:
       # 先自检再跑真实扫描：新尺首跑必须先证明「每条判据都能判红」（Epic #126 C4）
       # --max-hex 是「只减不增」的棘轮：当前基线 76（#268 收紧 C3 为 Color(0x…) 字面色，并清 reminder_row 的 7 处）
-      run: dart run scripts/check_ui_boundary.dart --selftest && dart run scripts/check_ui_boundary.dart --max-hex 76
+      run: dart run scripts/check_ui_boundary.dart --selftest && dart run scripts/check_ui_boundary.dart --max-hex 66
       description: UI 边界检查（Material 白名单 / SDK Cupertino / fromSeed / Color() 字面色计数）
     gen:
       run: dart run melos exec --depends-on=build_runner -- dart run build_runner build

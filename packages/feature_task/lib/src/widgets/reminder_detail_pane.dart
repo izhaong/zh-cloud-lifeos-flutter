@@ -217,7 +217,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
       builder: (ctx) => Container(
         key: const ValueKey('recurrence_until_sheet'),
         height: 340,
-        color: const Color(0xFFF2F2F7),
+        color: ReminderTokens.windowBg,
         child: Column(
           children: [
             Padding(
@@ -560,7 +560,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                 onPressed: _pickRecurrence,
                 child: Text(
                   _recurrenceLabel,
-                  style: const TextStyle(color: Color(0xFF8E8E93)),
+                  style: const TextStyle(color: ReminderTokens.labelSecondary),
                 ),
               ),
             ),
@@ -578,7 +578,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                           : '${_recurrenceUntil!.year}-'
                                 '${_recurrenceUntil!.month.toString().padLeft(2, '0')}-'
                                 '${_recurrenceUntil!.day.toString().padLeft(2, '0')}',
-                      style: const TextStyle(color: Color(0xFF8E8E93)),
+                      style: const TextStyle(color: ReminderTokens.labelSecondary),
                     ),
                     CupertinoButton(
                       key: const ValueKey('recurrence_until_clear'),
@@ -587,7 +587,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                       child: const Icon(
                         CupertinoIcons.clear,
                         size: 14,
-                        color: Color(0xFFC7C7CC),
+                        color: ReminderTokens.labelTertiary,
                       ),
                       onPressed: () {
                         setState(() => _recurrenceUntil = null);
@@ -643,7 +643,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                           >= 5 => '中 !!',
                           _ => '低 !',
                         },
-                  style: const TextStyle(color: Color(0xFF8E8E93)),
+                  style: const TextStyle(color: ReminderTokens.labelSecondary),
                 ),
               ),
             ),
@@ -659,7 +659,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                 child: Text(
                   _currentListTitle ?? '移动到…',
                   style: const TextStyle(
-                    color: Color(0xFF007AFF),
+                    color: ReminderTokens.systemBlue,
                     fontSize: 13,
                   ),
                 ),
@@ -683,7 +683,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                     key: ValueKey('subtask_${sub.id}'),
                     direction: DismissDirection.endToStart,
                     background: Container(
-                      color: const Color(0xFFFF3B30),
+                      color: ReminderTokens.systemRed,
                       alignment: Alignment.centerRight,
                       padding: const EdgeInsets.only(right: 20),
                       child: const Icon(
@@ -709,7 +709,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                         const Icon(
                           CupertinoIcons.circle,
                           size: 18,
-                          color: Color(0xFFC7C7CC),
+                          color: ReminderTokens.labelTertiary,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -738,10 +738,10 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                       Icon(
                         CupertinoIcons.add,
                         size: 20,
-                        color: Color(0xFF007AFF),
+                        color: ReminderTokens.systemBlue,
                       ),
                       SizedBox(width: 8),
-                      Text('添加子任务', style: TextStyle(color: Color(0xFF007AFF))),
+                      Text('添加子任务', style: TextStyle(color: ReminderTokens.systemBlue)),
                     ],
                   ),
                 ),
