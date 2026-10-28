@@ -71,7 +71,10 @@ bool _isComment(String line) {
   return t.startsWith('//');
 }
 
-final _bareHex = RegExp(r'0x[Ff]{2}[0-9A-Fa-f]{6}');
+/// 字面色 = **`Color(0xRRGGBB)` / `Color(0xAARRGGBB)` 形式**的写死颜色。
+/// 纯 int 调色板（`colorArgb = 0xFF...`、`const <int>[...]`）是**数据**不是样式，
+/// 与 kernel 的默认色同类，不应计入 UI 债（#268）。
+final _bareHex = RegExp(r'Color\(0x[Ff]{2}[0-9A-Fa-f]{6}');
 
 UiBoundaryResult scanBoundary(String root, {bool strict = false}) {
   final result = UiBoundaryResult();
@@ -192,7 +195,7 @@ void _selfTest() {
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 final scheme = ColorScheme.fromSeed(seedColor: 0xFF007AFF);
-const c = 0xFF007AFF; // 裸色
+const c = Color(0xFF007AFF); // 裸色（写着色）
 ''');
     // 反向对照：令牌/主题目录里的字面色**不该**被计数（那是唯一合法落点）
     final tokens =
@@ -208,8 +211,8 @@ const systemBlue = Color(0xFF007AFF);
       'C2 fromSeed': all.contains('ColorScheme.fromSeed'),
       'Material 越界': all.contains('Material 越界'),
       // 坏样本里 UI 文件 2 处（fromSeed 的 seed + 裸色），令牌目录那 1 处被排除
-      'C3 裸 hex 计数（排除令牌/数据层）':
-          (result.hexByPackage['demo'] ?? 0) == 2,
+      'C3 字面色（Color() 形式，排除令牌/数据层）':
+          (result.hexByPackage['demo'] ?? 0) == 1,
     };
     var failed = 0;
     for (final entry in cases.entries) {
