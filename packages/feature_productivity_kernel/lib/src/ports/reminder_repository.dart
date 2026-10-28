@@ -29,7 +29,12 @@ abstract interface class ReminderRepository {
   /// - `smart.flagged`：未完成且 isFlagged
   /// - `smart.urgent`：未完成且（当日过期 或 priority>=9）
   /// - `smart.completed`：已完成全部（模型 D2 预留入口）
-  Stream<List<ReminderItem>> watchItems({String? listId});
+  /// [includeCompleted]=true 时，智能列表（今天/计划/全部/旗标/紧急）一并返回
+  /// 已完成条目——Apple「显示已完成」开关语义（TC-UI-108，parity#180）。
+  Stream<List<ReminderItem>> watchItems({
+    String? listId,
+    bool includeCompleted = false,
+  });
 
   /// 新增或更新单条提醒（全字段回写；id 用 [newReminderId] 工厂生成）。
   Future<void> upsertItem(ReminderItem item);
@@ -205,8 +210,11 @@ final class InMemoryReminderRepository implements ReminderRepository {
   }
 
   @override
-  Stream<List<ReminderItem>> watchItems({String? listId}) {
-    final watcher = _ItemsWatcher(listId);
+  Stream<List<ReminderItem>> watchItems({
+    String? listId,
+    bool includeCompleted = false,
+  }) {
+    final watcher = _ItemsWatcher(listId, includeCompleted: includeCompleted);
     _itemWatchers.add(watcher);
     final stream = watcher.stream(onListen: () => _emitItems(watcher));
     watcher.whenCanceled(() {
@@ -247,14 +255,20 @@ final class InMemoryReminderRepository implements ReminderRepository {
       // T-04 重复结束日期：next 晚于 recurrenceUntil 当天结束 → 不再滚动，
       // 真正完成（含当天——「含当天仍出现，次日不再出现」）
       final until = cur.recurrenceUntil;
-      final pastEnd = until != null && next.isAfter(DateTime(
-            until.year, until.month, until.day, 23, 59, 59, 999));
+      final pastEnd =
+          until != null &&
+          next.isAfter(
+            DateTime(until.year, until.month, until.day, 23, 59, 59, 999),
+          );
       if (pastEnd) {
         _items[i] = cur.copyWith(isCompleted: true, completedAt: _now);
       } else {
         // 完成带重复规则的条目：滚动下一次 dueAt，完成态回 false
         _items[i] = cur.copyWith(
-            dueAt: next, isCompleted: false, completedAt: ReminderItem.clear);
+          dueAt: next,
+          isCompleted: false,
+          completedAt: ReminderItem.clear,
+        );
       }
     } else {
       // 完成时间联动（服务端 completedAt 对齐）：完成记当下，取消清空
@@ -288,8 +302,7 @@ final class InMemoryReminderRepository implements ReminderRepository {
     for (var i = 0; i < _items.length; i++) {
       final e = _items[i];
       // 本条或其后代（子任务随父）→ 换列表并清分区
-      final selfOrDescendant =
-          e.id == itemId || _isDescendantOf(e.id, itemId);
+      final selfOrDescendant = e.id == itemId || _isDescendantOf(e.id, itemId);
       if (selfOrDescendant) {
         _items[i] = ReminderItem(
           id: e.id,
@@ -302,7 +315,7 @@ final class InMemoryReminderRepository implements ReminderRepository {
           priority: e.priority,
           tags: e.tags,
           recurrence: e.recurrence,
-      recurrenceUntil: e.recurrenceUntil,
+          recurrenceUntil: e.recurrenceUntil,
           parentId: e.parentId,
           sortOrder: e.sortOrder,
           remoteId: e.remoteId,
@@ -350,8 +363,7 @@ final class InMemoryReminderRepository implements ReminderRepository {
     final cascade = _cascadeFrom(itemId);
     // 原列表已删 ⇒ 落首个自有列表（Apple 默认列表口径）
     final target = _items.firstWhere((e) => e.id == itemId);
-    final listAlive =
-        _lists.any((l) => l.id == target.listId && !l.isSmart);
+    final listAlive = _lists.any((l) => l.id == target.listId && !l.isSmart);
     String? fallback;
     if (!listAlive) {
       for (final l in _lists) {
@@ -375,7 +387,7 @@ final class InMemoryReminderRepository implements ReminderRepository {
         priority: e.priority,
         tags: e.tags,
         recurrence: e.recurrence,
-      recurrenceUntil: e.recurrenceUntil,
+        recurrenceUntil: e.recurrenceUntil,
         parentId: e.parentId,
         sortOrder: e.sortOrder,
         remoteId: e.remoteId,
@@ -392,7 +404,8 @@ final class InMemoryReminderRepository implements ReminderRepository {
     final cutoff = _now.subtract(recycleWindow);
     final before = _items.length;
     _items.removeWhere(
-        (e) => e.deletedAt != null && !e.deletedAt!.isAfter(cutoff));
+      (e) => e.deletedAt != null && !e.deletedAt!.isAfter(cutoff),
+    );
     final removed = before - _items.length;
     if (removed > 0) {
       _recount();
@@ -408,7 +421,8 @@ final class InMemoryReminderRepository implements ReminderRepository {
     while (changed) {
       changed = false;
       for (final e in _items) {
-        if (e.parentId != null && removed.contains(e.parentId) &&
+        if (e.parentId != null &&
+            removed.contains(e.parentId) &&
             !removed.contains(e.id)) {
           removed.add(e.id);
           changed = true;
@@ -487,8 +501,7 @@ final class InMemoryReminderRepository implements ReminderRepository {
     required String listId,
     required ReminderSection section,
   }) async {
-    final sections =
-        _sectionsByList.putIfAbsent(listId, () => []);
+    final sections = _sectionsByList.putIfAbsent(listId, () => []);
     final i = sections.indexWhere((e) => e.id == section.id);
     if (i >= 0) {
       sections[i] = section;
@@ -507,9 +520,7 @@ final class InMemoryReminderRepository implements ReminderRepository {
     final sections = _sectionsByList[listId];
     if (sections == null) return;
     // 保序重排：滤未知 id；已知分区缺列保底追加在尾
-    final byId = {
-      for (final s in sections) s.id: s,
-    };
+    final byId = {for (final s in sections) s.id: s};
     final ordered = <ReminderSection>[];
     final seen = <String>{};
     for (final id in sectionIds) {
@@ -552,7 +563,8 @@ final class InMemoryReminderRepository implements ReminderRepository {
   void _syncSectionsToList(String listId) {
     final i = _lists.indexWhere((e) => e.id == listId);
     if (i < 0) return;
-    final sections = [...?_sectionsByList[listId]]..sort((a, b) {
+    final sections = [...?_sectionsByList[listId]]
+      ..sort((a, b) {
         final byOrder = a.sortOrder.compareTo(b.sortOrder);
         return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
       });
@@ -580,7 +592,9 @@ final class InMemoryReminderRepository implements ReminderRepository {
       w.controller.add(lists);
     }
     for (final w in _itemWatchers.toList(growable: false)) {
-      w.controller.add(_snapshotItems(w.listId));
+      w.controller.add(
+        _snapshotItems(w.listId, includeCompleted: w.includeCompleted),
+      );
     }
   }
 
@@ -589,11 +603,20 @@ final class InMemoryReminderRepository implements ReminderRepository {
   }
 
   void _emitItems(_ItemsWatcher watcher) {
-    watcher.controller.add(_snapshotItems(watcher.listId));
+    watcher.controller.add(
+      _snapshotItems(
+        watcher.listId,
+        includeCompleted: watcher.includeCompleted,
+      ),
+    );
   }
 
-  List<ReminderItem> _snapshotItems(String? listId) =>
-      List<ReminderItem>.unmodifiable(_sorted(_filter(listId, _now)));
+  List<ReminderItem> _snapshotItems(
+    String? listId, {
+    bool includeCompleted = false,
+  }) => List<ReminderItem>.unmodifiable(
+    _sorted(_filter(listId, _now, includeCompleted: includeCompleted)),
+  );
 
   /// 排序契约（两实现一致）：`sortOrder asc, id asc`。
   List<ReminderItem> _sorted(Iterable<ReminderItem> items) {
@@ -605,26 +628,39 @@ final class InMemoryReminderRepository implements ReminderRepository {
     return list;
   }
 
-  Iterable<ReminderItem> _filter(String? listId, DateTime now) {
+  Iterable<ReminderItem> _filter(
+    String? listId,
+    DateTime now, {
+    bool includeCompleted = false,
+  }) {
     // 回收窗（TC-UI-109）：软删条目只在 smart.trash 出现
     final alive = _items.where((e) => e.deletedAt == null);
     if (listId == null) return alive;
     return switch (listId) {
-      'smart.trash' => _items.where((e) =>
-          e.deletedAt != null &&
-          e.deletedAt!.isAfter(now.subtract(recycleWindow))),
+      'smart.trash' => _items.where(
+        (e) =>
+            e.deletedAt != null &&
+            e.deletedAt!.isAfter(now.subtract(recycleWindow)),
+      ),
       // 今天 = 今天到期 + 已过期未完成（Apple 口径，TC-UI-101）。
       'smart.today' => alive.where(
-          (e) => !e.isCompleted && _isTodayOrOverdue(e.dueAt, now)),
-      'smart.scheduled' =>
-          alive.where((e) => !e.isCompleted && e.dueAt != null),
-      'smart.all' => alive.where((e) => !e.isCompleted),
-      'smart.flagged' => alive.where((e) => !e.isCompleted && e.isFlagged),
+        (e) =>
+            (includeCompleted || !e.isCompleted) &&
+            _isTodayOrOverdue(e.dueAt, now),
+      ),
+      'smart.scheduled' => alive.where(
+        (e) => (includeCompleted || !e.isCompleted) && e.dueAt != null,
+      ),
+      'smart.all' => alive.where((e) => includeCompleted || !e.isCompleted),
+      'smart.flagged' => alive.where(
+        (e) => (includeCompleted || !e.isCompleted) && e.isFlagged,
+      ),
       // 紧急 = 已过期未完成或高优先级（含今天已过时）。
-      'smart.urgent' => alive.where((e) =>
-          !e.isCompleted &&
-          (e.priority >= 9 ||
-              (e.dueAt != null && e.dueAt!.isBefore(now)))),
+      'smart.urgent' => alive.where(
+        (e) =>
+            (includeCompleted || !e.isCompleted) &&
+            (e.priority >= 9 || (e.dueAt != null && e.dueAt!.isBefore(now))),
+      ),
       'smart.completed' => alive.where((e) => e.isCompleted),
       // 分配事项：本地没有 assignee 字段，协作（M4）接入前恒为空。
       'smart.assigned' => const <ReminderItem>[],
@@ -664,7 +700,8 @@ final class _ListsWatcher extends _RepoWatch<List<ReminderList>> {}
 
 /// 条目订阅（按 listId 过滤）。
 final class _ItemsWatcher extends _RepoWatch<List<ReminderItem>> {
-  _ItemsWatcher(this.listId);
+  _ItemsWatcher(this.listId, {this.includeCompleted = false});
 
   final String? listId;
+  final bool includeCompleted;
 }

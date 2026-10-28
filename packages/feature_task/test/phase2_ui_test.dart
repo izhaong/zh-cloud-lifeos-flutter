@@ -172,8 +172,10 @@ class _CountingRepo implements ReminderRepository {
   Stream<List<ReminderList>> watchLists() => _inner.watchLists();
 
   @override
-  Stream<List<ReminderItem>> watchItems({String? listId}) =>
-      _inner.watchItems(listId: listId);
+  Stream<List<ReminderItem>> watchItems({
+    String? listId,
+    bool includeCompleted = false,
+  }) => _inner.watchItems(listId: listId);
 
   @override
   Future<void> upsertItem(ReminderItem item) async {
