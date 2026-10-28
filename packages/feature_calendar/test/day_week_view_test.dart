@@ -258,6 +258,36 @@ void main() {
     expect(find.byKey(const Key('day-event-e184a')), findsOneWidget);
     expect(find.text('全天例会'), findsOneWidget);
   });
+
+  // #200：周视图与日视图同款缺陷面——事件卡须渲染标题/时间，无「Tile」占位
+  testWidgets('#200 周视图事件卡显示标题与起止时间（无 Tile 占位）', (tester) async {
+    await repo.savePreference(
+      const CalendarPreference(dayStartHour: 8, dayEndHour: 20),
+    );
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e200',
+        calendarId: 'c1',
+        uid: 'u200',
+        title: '周会',
+        startAt: DateTime(2026, 10, 24, 10).toUtc(),
+        endAt: DateTime(2026, 10, 24, 11).toUtc(),
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
+    await pumpCalendar(tester, mode: CalendarViewMode.week);
+    containerOf(
+      tester,
+    ).read(anchorDateProvider.notifier).set(DateTime(2026, 10, 24));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tile'), findsNothing,
+        reason: '#200: 周视图不得出现 kalender 默认占位「Tile」');
+    expect(find.byKey(const Key('day-event-e200')), findsOneWidget,
+        reason: '#200: 周视图事件卡必须用自定义 builder 渲染');
+    expect(find.text('周会'), findsOneWidget, reason: '#200: 事件卡必须显示标题');
+  });
 }
 
 /// 取当前测试树里的 Riverpod 容器。
