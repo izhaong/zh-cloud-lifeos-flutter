@@ -38,7 +38,9 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
         key: const Key('calendar_sidebar'),
         width: widget.width,
         child: ColoredBox(
-          color: CalendarTokens.groupedBackground,
+          // #295：ColoredBox 不会解算 CupertinoDynamicColor，直接把令牌的
+          // 亮色档画出来——暗色档下整条侧栏就成了「黑主区 + 白侧栏」。
+          color: CalendarTokens.groupedBackground.resolveFrom(context),
           child: ListView(
             children: [
               for (final entry in groups.entries) ...[
@@ -342,7 +344,10 @@ class _Hairline extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(left: indent),
-      child: Container(height: 0.5, color: CupertinoColors.separator),
+      child: Container(
+        height: 0.5,
+        color: CupertinoColors.separator.resolveFrom(context),
+      ),
     );
   }
 }
