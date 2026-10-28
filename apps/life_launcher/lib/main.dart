@@ -17,6 +17,23 @@ import 'notifications/local_calendar_alert_scheduler.dart';
 import 'shell/pinned_tabs_service.dart';
 import 'shell_providers.dart';
 
+/// 启动预热步骤兜底（#230）：这些步骤只做「尽力补齐」，失败不得阻断启动。
+///
+/// 修复前 `await refreshSubscribedHolidays(...)` 裸写在 `runApp` 之前：只要它
+/// 抛（订阅过节假日的持久库端必抛只读日历），`runApp` 永远不执行，窗口纯黑
+/// 且用户无法在界面内自救。数据库打开等**致命**步骤仍保持裸写、照常失败。
+Future<void> runNonFatalStartupStep(
+  String label,
+  Future<void> Function() step,
+) async {
+  try {
+    await step();
+  } catch (e, st) {
+    debugPrint('启动预热失败（$label）：$e');
+    debugPrintStack(stackTrace: st);
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // parity#193：kalender 的星期/日期名走 intl，必须先装载本地化数据，
@@ -38,7 +55,11 @@ Future<void> main() async {
   // parity#155：首启/空库兜底一个可写文件夹，避免「先新建一个文件夹」死路
   await ensureDefaultNoteFolder(noteRepository);
   // parity#182：已订阅节假日 → 按设备时区与当年补齐（UTC 墙钟会挪日/缺年）
-  await refreshSubscribedHolidays(calendarRepository);
+  // #230：补齐失败（含只读日历写异常）只记日志，绝不阻断 runApp。
+  await runNonFatalStartupStep(
+    '订阅节假日补齐',
+    () => refreshSubscribedHolidays(calendarRepository),
+  );
   final prefs = await SharedPreferences.getInstance();
   final dio = Dio(
     BaseOptions(

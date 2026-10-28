@@ -87,8 +87,18 @@ Future<Calendar> ensureLocalHolidayCalendar(
     );
     await repository.upsertCalendar(calendar);
   }
+  // #230：节假日是应用内部生成的数据，必须走系统写入能力——节假日日历对
+  // 用户编辑只读，用 upsertEvent 会抛 StateError 并让启动卡在 runApp 之前。
+  // 实现层未提供该能力时（测试替身）退回 upsertEvent，保持既有替身可用。
+  final systemWriter = repository is CalendarSystemWriter
+      ? repository as CalendarSystemWriter
+      : null;
   for (final event in holidayCalendarEvents(year, timeZone: timeZone)) {
-    await repository.upsertEvent(event);
+    if (systemWriter != null) {
+      await systemWriter.upsertSystemEvent(event);
+    } else {
+      await repository.upsertEvent(event);
+    }
   }
   if (calendar.isVisible != visible) {
     await repository.setVisibility(id: kHolidayCalendarId, visible: visible);

@@ -21,7 +21,8 @@ import 'db.dart' as db;
 ///   drift 本地化读取影响）；exdates/alerts/invitees 走 JSON 文本列
 /// - 重复事件编辑语义照抄契约 §3.2.1：THIS→例外行+exdates、
 ///   FUTURE→主记录 UNTIL(occurrenceStart-1s)+新主记录、ALL→直改+例外平移
-class DriftCalendarRepository implements kernel.CalendarRepository {
+class DriftCalendarRepository
+    implements kernel.CalendarRepository, kernel.CalendarSystemWriter {
   DriftCalendarRepository(this._db);
 
   final db.LifeProductivityDb _db;
@@ -215,6 +216,42 @@ class DriftCalendarRepository implements kernel.CalendarRepository {
     }
 
     // ALL：直改主记录；改了 startAt 则例外行 original_start_at 平移同偏移；sequence+1
+    return _upsertAll(e, existing);
+  }
+
+  /// #230：系统写入（节假日补齐）——跳过只读守卫，但仍限定系统日历。
+  ///
+  /// 不放进 [upsertEvent] 的旁路开关，避免用户路径有办法写只读日历：
+  /// 只有 [kernel.CalendarSystemWriter] 的调用方能到这里，且目标日历
+  /// 必须是 holiday/subscription（系统自有），其它一律拒绝。
+  @override
+  Future<void> upsertSystemEvent(kernel.CalendarEvent e) async {
+    await _assertSystemCalendar(e.calendarId);
+    final existing = await (_db.select(_db.calendarEvents)
+          ..where((t) => t.id.equals(e.id)))
+        .getSingleOrNull();
+    await _upsertAll(e, existing);
+  }
+
+  /// 系统日历守卫：只允许写应用内部生成的日历（节假日/订阅）。
+  Future<void> _assertSystemCalendar(String calendarId) async {
+    final cal = await (_db.select(_db.calendars)
+          ..where((t) => t.id.equals(calendarId)))
+        .getSingleOrNull();
+    if (cal == null) {
+      throw StateError('日历不存在：$calendarId');
+    }
+    final kind = kernel.CalendarKind.fromId(cal.kind);
+    if (kind != kernel.CalendarKind.holiday &&
+        kind != kernel.CalendarKind.subscription) {
+      throw StateError('系统写入只能落到节假日/订阅日历：$calendarId');
+    }
+  }
+
+  Future<String> _upsertAll(
+    kernel.CalendarEvent e,
+    db.CalendarEvent? existing,
+  ) async {
     final sequence = existing == null ? e.sequence : existing.sequence + 1;
     await _db.into(_db.calendarEvents).insertOnConflictUpdate(
           _eventCompanion(e, sequence: sequence),
