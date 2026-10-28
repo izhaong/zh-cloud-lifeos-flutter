@@ -41,9 +41,10 @@ class CalendarDayView extends ConsumerWidget {
         const [];
 
     // occurrence → kalender 事件装载（重叠布局由库处理）
-    // #184：装载 CalendarEventTile（带标题/日历色），日视图 tile 才能渲染内容
-    eventsController.clearEvents();
-    eventsController.addEvents([
+    // #197：装载必须延后到帧末——build 期 clearEvents/addEvents 会同步 notify
+    // 尚在树中的 kalender 事件 widget（含本帧已 deactivated 的），触发
+    // dependOnInherited 异常并中断整棵 build（第三栏 Inspector 挂不上）。
+    final loadedEvents = [
       for (final o in occurrences)
         if (o.source != OccurrenceSource.holiday)
           CalendarEventTile(
@@ -55,7 +56,11 @@ class CalendarDayView extends ConsumerWidget {
             colorArgb: o.colorArgb,
             title: o.title,
           ),
-    ]);
+    ];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      eventsController.clearEvents();
+      eventsController.addEvents(loadedEvents);
+    });
 
     final controller = kalender.KalenderController(
       viewConfiguration: kalender.MultiDayViewConfiguration.singleDay(
@@ -211,9 +216,8 @@ class CalendarWeekView extends ConsumerWidget {
       viewConfiguration: kalenderConfig,
     );
 
-    eventsController.clearEvents();
-    // #200：装载 CalendarEventTile（带标题/日历色），周视图 tile 才能渲染内容
-    eventsController.addEvents([
+    // #200：装载 CalendarEventTile（带标题/日历色）；#197：延后到帧末（见日视图）
+    final loadedEvents = [
       for (final o in occurrences)
         if (o.source != OccurrenceSource.holiday)
           CalendarEventTile(
@@ -225,7 +229,11 @@ class CalendarWeekView extends ConsumerWidget {
             colorArgb: o.colorArgb,
             title: o.title,
           ),
-    ]);
+    ];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      eventsController.clearEvents();
+      eventsController.addEvents(loadedEvents);
+    });
 
     return KeyedSubtree(
       key: const Key('calendar_week_view'),
