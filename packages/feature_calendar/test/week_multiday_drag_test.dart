@@ -54,6 +54,18 @@ void main() {
       expect(draft!.endAt, DateTime.utc(2026, 10, 28, 4));
     });
 
+    // 审查 R1：全天带的拖选终点可能带 01:00（#228 记载），不能按「包含」再补一天
+    test('全天区终点带 01:00 → 按日截断（与 #228 一致，不多算一天）', () {
+      callbacks().onDragCreate(
+        DateTime(2026, 10, 26),
+        DateTime(2026, 10, 28, 1),
+      );
+      expect(draft!.allDay, isTrue);
+      expect(draft!.startAt, DateTime.utc(2026, 10, 26, 4));
+      expect(draft!.endAt, DateTime.utc(2026, 10, 28, 4),
+          reason: '零点起点的拖选属于全天带，终点按日截断');
+    });
+
     test('同日内拖选仍是定时草稿且时长=偏好默认（TC-CAL-UI-130 不回归）', () {
       callbacks().onDragCreate(
         DateTime(2026, 10, 26, 10),

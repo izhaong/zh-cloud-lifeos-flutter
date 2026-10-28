@@ -115,9 +115,16 @@ class CalendarViewCallbacks {
   ///   语义，矩阵 E2）；此前这里按「起始 + 偏好默认时长」造 1 小时，把终点丢了；
   /// - 同日内拖选 → 仍按 TC-CAL-UI-130「时长=偏好默认」。
   CalendarEvent onDragCreate(DateTime startLocal, DateTime endLocal) {
-    if (looksLikeAllDayRange(startLocal, endLocal)) {
+    // 全天带的拖选**从某日零点起**（kalender 的「天」行），终点可能带 01:00
+    // 这类时刻（#228 记载）：这条路径保持「按日截断」语义，不能按包含补天，
+    // 否则同一次拖拽会比 #228 多算一天。
+    if (startLocal.hour == 0 &&
+        startLocal.minute == 0 &&
+        startLocal.second == 0 &&
+        spansMultipleDays(startLocal, endLocal)) {
       return onAllDayDraftCreate(startLocal, endLocal);
     }
+    // 定时网格里横拖跨多日：起点带时刻，按 Apple「拖进哪天就含哪天」补到次日零点。
     if (spansMultipleDays(startLocal, endLocal)) {
       return onAllDayDraftCreate(startLocal, inclusiveAllDayEnd(endLocal));
     }
