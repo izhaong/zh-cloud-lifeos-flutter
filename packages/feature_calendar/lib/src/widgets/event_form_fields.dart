@@ -3,6 +3,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_core/app_core.dart';
 
 import '../logic/event_time.dart';
 import '../logic/calendar_ids.dart';
@@ -703,7 +704,7 @@ class _TimeZoneDialogState extends State<_TimeZoneDialog> {
     final matches = _all
         .where((z) => z.toLowerCase().contains(_query.toLowerCase()))
         .toList();
-    return CupertinoAlertDialog(
+    return LifeAlertDialog(
       key: const Key('event_timezone_dialog'),
       title: const Text('时区'),
       content: SizedBox(
@@ -772,7 +773,7 @@ class _TimeZoneDialogState extends State<_TimeZoneDialog> {
         ),
       ),
       actions: [
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('event_timezone_cancel'),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
@@ -927,7 +928,7 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoAlertDialog(
+    return LifeAlertDialog(
       key: const Key('recurrence_editor'),
       title: const Text('自定义重复'),
       content: SizedBox(
@@ -1103,12 +1104,12 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
         ),
       ),
       actions: [
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('recurrence_editor_cancel'),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('recurrence_editor_save'),
           isDefaultAction: true,
           onPressed: () => Navigator.of(context).pop(_c),
@@ -1238,7 +1239,7 @@ class _AlertsDialogState extends State<_AlertsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoAlertDialog(
+    return LifeAlertDialog(
       key: const Key('alerts_dialog'),
       title: const Text('提醒'),
       content: SizedBox(
@@ -1247,12 +1248,12 @@ class _AlertsDialogState extends State<_AlertsDialog> {
         child: widget.allDay ? _buildAllDay() : _buildTimed(),
       ),
       actions: [
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('alerts_dialog_cancel'),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('alerts_dialog_save'),
           isDefaultAction: true,
           onPressed: () => Navigator.of(context).pop(_buildResult()),

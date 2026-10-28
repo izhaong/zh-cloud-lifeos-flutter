@@ -1,6 +1,7 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:app_core/app_core.dart';
 
 import '../providers.dart';
 import '../logic/event_time.dart';
@@ -408,7 +409,7 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.calendar != null;
-    return CupertinoAlertDialog(
+    return LifeAlertDialog(
       title: Text(isEdit ? '编辑日历' : '添加日历'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -471,7 +472,7 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
       ),
       actions: [
         if (isEdit)
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const Key('detail-delete'),
             isDestructiveAction: true,
             onPressed: () async {
@@ -482,11 +483,11 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
             },
             child: const Text('删除'),
           ),
-        CupertinoDialogAction(
+        LifeDialogAction(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('dialog-done'),
           isDefaultAction: true,
           onPressed: () async {

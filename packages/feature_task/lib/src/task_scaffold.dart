@@ -2,6 +2,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_core/app_core.dart';
 
 import 'design/reminder_tokens.dart';
 import 'providers.dart';
@@ -182,11 +183,11 @@ class _CompactPane extends ConsumerWidget {
           key: const ValueKey('home_edit_placeholder'),
           onPressed: () => showCupertinoDialog<void>(
             context: context,
-            builder: (ctx) => CupertinoAlertDialog(
+            builder: (ctx) => LifeAlertDialog(
               title: const Text('编辑列表'),
               content: const Text('规划占位'),
               actions: [
-                CupertinoDialogAction(
+                LifeDialogAction(
                   onPressed: () => Navigator.of(ctx).pop(),
                   child: const Text('好'),
                 ),

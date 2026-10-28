@@ -1,4 +1,5 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:app_core/app_core.dart';
 
 import '../nlp/quick_event_parser.dart';
 import '../logic/event_time.dart';
@@ -56,7 +57,7 @@ class _QuickEventDialogState extends State<_QuickEventDialog> {
   @override
   Widget build(BuildContext context) {
     final parsed = _parse();
-    return CupertinoAlertDialog(
+    return LifeAlertDialog(
       key: const Key('quick_event_dialog'),
       title: const Text('新建日程'),
       content: Column(
@@ -89,12 +90,12 @@ class _QuickEventDialogState extends State<_QuickEventDialog> {
         ],
       ),
       actions: [
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('quick_event_cancel'),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('quick_event_create'),
           isDefaultAction: true,
           onPressed: _submit,

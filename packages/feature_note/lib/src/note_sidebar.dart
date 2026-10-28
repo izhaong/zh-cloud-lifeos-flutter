@@ -2,6 +2,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_core/app_core.dart';
 
 import 'logic/default_folder_bootstrap.dart';
 import 'providers.dart';
@@ -87,7 +88,7 @@ class NoteSidebar extends ConsumerWidget {
     final controller = TextEditingController();
     final name = await showCupertinoDialog<String>(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
+      builder: (ctx) => LifeAlertDialog(
         title: const Text('新建文件夹'),
         content: Padding(
           padding: const EdgeInsets.only(top: 12),
@@ -100,11 +101,11 @@ class NoteSidebar extends ConsumerWidget {
           ),
         ),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('取消'),
           ),
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const ValueKey('note_new_folder_ok'),
             isDefaultAction: true,
             onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),

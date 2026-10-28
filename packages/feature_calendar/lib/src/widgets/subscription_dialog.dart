@@ -1,5 +1,6 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_core/app_core.dart';
 
 import '../logic/local_holidays.dart';
 
@@ -37,7 +38,7 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoAlertDialog(
+    return LifeAlertDialog(
       key: const Key('subscription_dialog'),
       title: const Text('添加订阅日历'),
       content: Column(
@@ -75,12 +76,12 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
         ],
       ),
       actions: [
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('subscription_cancel'),
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('subscription_save'),
           isDefaultAction: true,
           onPressed: _submit,
