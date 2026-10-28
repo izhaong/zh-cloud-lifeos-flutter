@@ -6,9 +6,16 @@ import 'package:kalender/kalender.dart' as kalender;
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import '../calendar_view_callbacks.dart';
+import '../logic/double_tap_create.dart';
 import '../providers.dart';
 import 'day_reminder_lane.dart';
 import 'month_view.dart' show CalendarEventTile;
+
+/// 日视图双击创建节拍器（#225；页面内单实例，跨 build 保节拍）。
+final _dayTapTracker = CalendarDoubleTapTracker();
+
+/// 周视图双击创建节拍器（#225）。
+final _weekTapTracker = CalendarDoubleTapTracker();
 
 /// 日视图（契约 §5.4/§8.3；F-05）。
 ///
@@ -117,6 +124,15 @@ class CalendarDayView extends ConsumerWidget {
                   ),
                 ],
                 callbacks: kalender.KalenderCallbacks(
+                  // #225：空区双击创建（Apple：Day 视图双击定时区建日程）。
+                  // kalender 无双击识别器，用 onTappedWithDetail 上报 +
+                  // 节拍器合成双击；DayDetail.date 已含像素→时刻换算与吸附。
+                  onTappedWithDetail: (detail) => handleCalendarTapCreate(
+                    detail,
+                    _dayTapTracker,
+                    onDraftCreate: viewCallbacks.onDraftCreate,
+                    onDayTap: viewCallbacks.onDayTap,
+                  ),
                   onEventCreate: (event) {
                     // parity#228：全天区拖多日要得到跨天全天草稿，而不是
                     // 「开始那天 00:00–01:00」的定时草稿。
@@ -316,6 +332,13 @@ class CalendarWeekView extends ConsumerWidget {
             ),
           ],
           callbacks: kalender.KalenderCallbacks(
+            // #225：空区双击创建（Apple：Week 视图双击定时区建日程）。
+            onTappedWithDetail: (detail) => handleCalendarTapCreate(
+              detail,
+              _weekTapTracker,
+              onDraftCreate: viewCallbacks.onDraftCreate,
+              onDayTap: viewCallbacks.onDayTap,
+            ),
             onEventCreate: (event) {
               if (CalendarViewCallbacks.looksLikeAllDayRange(
                 event.start.toLocal(),

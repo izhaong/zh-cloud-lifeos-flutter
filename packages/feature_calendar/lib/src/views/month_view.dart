@@ -6,8 +6,12 @@ import 'package:kalender/kalender.dart' as kalender;
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import '../calendar_view_callbacks.dart';
+import '../logic/double_tap_create.dart';
 import '../logic/lunar_label.dart';
 import '../providers.dart';
+
+/// #225：月视图双击闸门（页面级单实例；跨 build 保留节拍）。
+final _monthTapGate = CalendarTapGate();
 
 /// 月视图（契约 §5.4；F-06）。
 ///
@@ -98,6 +102,7 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
         child: kalender.KalenderView(
           eventsController: widget.eventsController,
           kalenderController: _controller,
+          // #225：views 不再可 const（双击闸门在 callbacks 上，views 保持纯配置）
           views: const [
             kalender.MonthViewParts(
               // #164：原先把表头换成 SizedBox.shrink()，月视图完全没有星期行
@@ -128,7 +133,13 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
           ),
           callbacks: kalender.KalenderCallbacks(
             onPageChanged: onPageChanged,
-            onTapped: (date) => widget.viewCallbacks.onDayTap(date),
+            // #225：月格空区单击即创建全天草稿（既有口径，TC-CAL-UI-131）；
+            // 双击的第二下必须吞掉，否则会落在草稿弹层遮罩上把草稿关掉。
+            onTapped: (date) {
+              if (_monthTapGate.allow(date)) {
+                widget.viewCallbacks.onDayTap(date);
+              }
+            },
             onEventCreate: (event) {
               widget.viewCallbacks.onDayTap(event.start);
               return event;
