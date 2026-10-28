@@ -75,6 +75,15 @@ void main() {
       reason: '清单面板要出现勾选框',
     );
 
+    // #222：面板行必须显示该行文字，不能再出现只有勾选框的空壳行
+    final panelRow = find.byKey(const ValueKey('note_checklist_2'));
+    expect(panelRow, findsOneWidget, reason: '清单面板每行一项');
+    expect(
+      find.descendant(of: panelRow, matching: find.text('买菜')),
+      findsOneWidget,
+      reason: '旧实现取换行符文字，面板行恒为空',
+    );
+
     await tester.tap(find.byKey(const ValueKey('note_editor_save')));
     await tester.pumpAndSettle();
     var note = (await repo.watchNotes().first).single;
