@@ -113,7 +113,8 @@ class _LaneReminderRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 13,
-                color: CalendarTokens.labelSubtle,
+                // 亮档 3C3C43 贴在解算后的黑底上会糊，背板翻暗时文字得一起解算。
+                color: CalendarTokens.labelSubtle.resolveFrom(context),
                 decoration:
                     item.isCompleted ? TextDecoration.lineThrough : null,
               ),

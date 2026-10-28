@@ -1004,9 +1004,11 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                             kWeekdayCodes[d - 1],
                             style: TextStyle(
                               fontSize: 13,
+                              // 选中档底是写死的 systemBlue，白字两档都成立；
+                              // 未选中档底已解算成暗灰，文字得跟着解算。
                               color: _c.weekdays.contains(d)
                                   ? CupertinoColors.white
-                                  : CupertinoColors.black,
+                                  : CupertinoColors.label.resolveFrom(context),
                             ),
                           ),
                         ),

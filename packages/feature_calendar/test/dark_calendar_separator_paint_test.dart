@@ -68,6 +68,16 @@ void main() {
           if (t.group(2) != null) continue; // 已 .resolveFrom / .resolve
           final name = t.group(1)!;
           final tail = name.split('.').last;
+          // 文字通道写死 `CupertinoColors.black`：它是 const Color、没有暗档，
+          // 压在本单翻暗的背板上就是黑字贴黑底（审查轮在周几胶囊实测到）。
+          // 文本要随亮度只能走 label 这类动态令牌。
+          if (channel == 'TextStyle(' && name == 'CupertinoColors.black') {
+            final line = text.substring(0, m.start + t.start).split('\n').length;
+            violations.add(
+              '${file.path}:$line 文字写死 CupertinoColors.black（无暗档，用 label）',
+            );
+            continue;
+          }
           final isStatic =
               (name.startsWith('CalendarTokens.') &&
                   staticTokens.contains(tail)) ||
@@ -197,6 +207,49 @@ void main() {
     );
     expect(_separatorPaints(tester), contains(_lightSeparatorArgb));
   });
+
+  // 审查轮指出的对比度回归：本单把背板解算成暗档后，压在其上、却没解算的
+  // 文字令牌就变成「深灰贴黑」。断言只量会被画出来的那串 ARGB，成对给亮色对照。
+  testWidgets('暗色档：提醒栏标题跟着背板一起解算（3C3C43 不许贴在黑底上）', (tester) async {
+    await _pump(
+      tester,
+      Brightness.dark,
+      const Column(children: [Expanded(child: DayReminderLane())]),
+      reminders: _laneReminders(),
+    );
+    expect(_laneTitleArgb(tester), 0xFFEBEBF5);
+  });
+
+  testWidgets('亮色档：提醒栏标题仍是 3C3C43（亮色外观逐像素不变）', (tester) async {
+    await _pump(
+      tester,
+      Brightness.light,
+      const Column(children: [Expanded(child: DayReminderLane())]),
+      reminders: _laneReminders(),
+    );
+    expect(_laneTitleArgb(tester), 0xFF3C3C43);
+  });
+}
+
+/// 灌进提醒栏的一条当天提醒（不联网、不打真实仓库）。
+List<ReminderItem> _laneReminders() => [
+  ReminderItem(
+    id: 'lane-1',
+    listId: 'list-1',
+    title: '买牛奶',
+    dueAt: DateTime.now(),
+  ),
+];
+
+/// 提醒栏标题的落笔颜色 ARGB。
+int _laneTitleArgb(WidgetTester tester) {
+  final text = tester.widget<Text>(
+    find.descendant(
+      of: find.byKey(const Key('day_reminder_lane')),
+      matching: find.text('买牛奶'),
+    ),
+  );
+  return text.style!.color!.toARGB32();
 }
 
 /// SDK 里是普通 `const Color`（没有暗档），交给 paint 也谈不上「未解算」。
@@ -343,7 +396,12 @@ CalendarEvent _draftEvent() => CalendarEvent(
   updatedAt: DateTime.utc(2026, 10, 24),
 );
 
-Future<void> _pump(WidgetTester tester, Brightness brightness, Widget child) async {
+Future<void> _pump(
+  WidgetTester tester,
+  Brightness brightness,
+  Widget child, {
+  List<ReminderItem>? reminders,
+}) async {
   TestWidgetsFlutterBinding.instance.platformDispatcher.views.first
     ..physicalSize = const Size(1280, 900)
     ..devicePixelRatio = 1.0;
@@ -356,6 +414,10 @@ Future<void> _pump(WidgetTester tester, Brightness brightness, Widget child) asy
         kalenderEventsControllerProvider.overrideWithValue(
           kalender.DefaultEventsController(),
         ),
+        if (reminders != null)
+          reminderItemsForCalendarProvider.overrideWith(
+            (ref) => Stream.value(reminders),
+          ),
       ],
       child: lifeTestHost(child),
     ),
