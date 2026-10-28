@@ -96,6 +96,16 @@ UiBoundaryResult scanBoundary(String root, {bool strict = false}) {
           : file.path;
       final allowMaterial = _materialAllowed.contains(relPath);
       final lines = file.readAsLinesSync();
+      // C3 的计数口径：只算**UI 层**的字面色。
+      // - 纯数据层的 ARGB 常量（kernel 的默认色/同步兜底色）不是 UI 债：
+      //   kernel 不依赖 Flutter，也不该 import Cupertino 令牌；
+      // - 令牌文件本身就是字面色的唯一合法落点（`/theme/`、`/design/`）。
+      final source = lines.join('\n');
+      final isUiFile = source.contains('package:flutter/') ||
+          source.contains('package:cupertino_ui/');
+      final isTokenFile =
+          relPath.contains('/theme/') || relPath.contains('/design/');
+      final countHex = isUiFile && !isTokenFile;
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
         if (_isComment(line)) continue;
@@ -113,10 +123,12 @@ UiBoundaryResult scanBoundary(String root, {bool strict = false}) {
           );
         }
         // C3：裸 hex 计数（尺子；本次不阻断，由 --max-hex 收口）
-        final hexCount = _bareHex.allMatches(line).length;
-        if (hexCount > 0) {
-          result.hexByPackage[pkg] =
-              (result.hexByPackage[pkg] ?? 0) + hexCount;
+        if (countHex) {
+          final hexCount = _bareHex.allMatches(line).length;
+          if (hexCount > 0) {
+            result.hexByPackage[pkg] =
+                (result.hexByPackage[pkg] ?? 0) + hexCount;
+          }
         }
         if (allowMaterial) continue;
         for (final marker in _materialMarkers) {
@@ -182,13 +194,22 @@ import 'package:flutter/material.dart';
 final scheme = ColorScheme.fromSeed(seedColor: 0xFF007AFF);
 const c = 0xFF007AFF; // 裸色
 ''');
+    // 反向对照：令牌/主题目录里的字面色**不该**被计数（那是唯一合法落点）
+    final tokens =
+        Directory('${tmp.path}/packages/demo/lib/src/theme')..createSync(recursive: true);
+    File('${tokens.path}/tokens.dart').writeAsStringSync('''
+import 'package:flutter/painting.dart';
+const systemBlue = Color(0xFF007AFF);
+''');
     final result = scanBoundary(tmp.path, strict: true);
     final all = result.violations.join('\n');
     final cases = <String, bool>{
       'C1 SDK Cupertino 导入': all.contains('SDK Cupertino'),
       'C2 fromSeed': all.contains('ColorScheme.fromSeed'),
       'Material 越界': all.contains('Material 越界'),
-      'C3 裸 hex 计数': (result.hexByPackage['demo'] ?? 0) >= 2,
+      // 坏样本里 UI 文件 2 处（fromSeed 的 seed + 裸色），令牌目录那 1 处被排除
+      'C3 裸 hex 计数（排除令牌/数据层）':
+          (result.hexByPackage['demo'] ?? 0) == 2,
     };
     var failed = 0;
     for (final entry in cases.entries) {
