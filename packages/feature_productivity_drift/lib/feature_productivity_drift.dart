@@ -25,6 +25,7 @@ export 'src/db.dart'
         NoteFoldersCompanion,
         NotesCompanion;
 export 'src/drift_calendar_repository.dart';
+export 'src/drift_note_repository.dart';
 export 'src/drift_reminder_repository.dart';
 export 'src/drift_sync_outbox.dart';
 export 'src/drift_task_preference_repository.dart';
