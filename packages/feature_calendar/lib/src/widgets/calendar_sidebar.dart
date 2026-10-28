@@ -1,4 +1,5 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter/services.dart' show HardwareKeyboard;
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:app_core/app_core.dart';
@@ -27,6 +28,9 @@ class CalendarSidebar extends ConsumerStatefulWidget {
 }
 
 class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
+  /// 当前获得焦点的日历行（#360）：空格切换的是它——Apple 的「选中行 + 空格切显隐」。
+  String? _focusedCalendarId;
+
   @override
   Widget build(BuildContext context) {
     final calendarsAsync = ref.watch(calendarsProvider);
@@ -34,7 +38,33 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
     final groups = _group(calendars);
     return Shortcuts(
       shortcuts: sidebarShortcutBindings(),
-      child: SizedBox(
+      child: Actions(
+        actions: {
+          // #360：此前只挂了 Shortcuts、**没有 Actions**——空格触发的
+          // ToggleCalendarVisibilityIntent 无人处理，等于空操作。
+          ToggleCalendarVisibilityIntent: CallbackAction<
+              ToggleCalendarVisibilityIntent>(
+            onInvoke: (_) {
+              final id = _focusedCalendarId;
+              if (id == null) return null;
+              ref.read(calendarRepositoryProvider).setVisibility(
+                    id: id,
+                    visible: !(
+                      ref
+                          .read(calendarsProvider)
+                          .value
+                          ?.firstWhere((c) => c.id == id,
+                              orElse: () => const Calendar(
+                                  id: '', title: '', colorArgb: 0))
+                          .isVisible ??
+                      false
+                    ),
+                  );
+              return null;
+            },
+          ),
+        },
+        child: SizedBox(
         key: const Key('calendar_sidebar'),
         width: widget.width,
         child: ColoredBox(
@@ -48,7 +78,7 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                   title: entry.key,
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                 ),
-                for (final c in entry.value) _CalendarRow(calendar: c),
+                for (final c in entry.value) _CalendarRow(calendar: c, onFocused: (id) => _focusedCalendarId = id),
               ],
               // F-15：「其他」组固定行——已安排的提醒事项（默认勾选）
               _SidebarToggleRow(
@@ -124,6 +154,7 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -169,14 +200,21 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
 }
 
 class _CalendarRow extends ConsumerWidget {
-  const _CalendarRow({required this.calendar});
+  const _CalendarRow({required this.calendar, this.onFocused});
 
   final Calendar calendar;
+
+  /// 行获得焦点时通知侧栏（空格切换的目标，见 #360）。
+  final ValueChanged<String>? onFocused;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final color = Color(calendar.colorArgb);
-    return Padding(
+    return Focus(
+      onFocusChange: (has) {
+        if (has) onFocused?.call(calendar.id);
+      },
+      child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: SizedBox(
         height: 32,
@@ -228,17 +266,38 @@ class _CalendarRow extends ConsumerWidget {
               height: 32,
               child: Center(
                 child: CupertinoCheckbox(
+                  key: Key('cal-visibility-${calendar.id}'),
                   value: calendar.isVisible,
-                  onChanged: (v) => ref
-                      .read(calendarRepositoryProvider)
-                      .setVisibility(id: calendar.id, visible: v ?? true),
+                  onChanged: (v) => _onVisibilityTap(ref, v),
                 ),
               ),
             ),
           ],
         ),
       ),
+      ),
     );
+  }
+
+  /// 显隐点击（#360，Apple C-133）：
+  /// - **⌘点** → 全部显隐（`allVisible`）；
+  /// - **⌥⌘点** → 只留这一本（`onlyId`）；
+  /// - 无修饰 → 单条勾选（既有行为）。
+  ///
+  /// 此前 A7 行裁「对等」，但仓储 API 备好、界面上按不出来（lib 里没有修饰键检测）。
+  Future<void> _onVisibilityTap(WidgetRef ref, bool? v) async {
+    final keys = HardwareKeyboard.instance;
+    final repo = ref.read(calendarRepositoryProvider);
+    if (keys.isMetaPressed && keys.isAltPressed) {
+      await repo.setVisibility(onlyId: calendar.id);
+      return;
+    }
+    if (keys.isMetaPressed) {
+      // ⌘点：把**全部**日历切到与本条相反的状态（Apple「⌘点全选/全不选」语义）。
+      await repo.setVisibility(allVisible: !calendar.isVisible);
+      return;
+    }
+    await repo.setVisibility(id: calendar.id, visible: v ?? true);
   }
 
   /// TC-CAL-UI-127：详情 ⓘ——改色、忽略提醒、删除。
