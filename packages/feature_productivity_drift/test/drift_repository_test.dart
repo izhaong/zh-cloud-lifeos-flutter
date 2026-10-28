@@ -24,16 +24,17 @@ void main() {
     final lists = await repo.watchLists().first;
     expect(
       lists.map((e) => e.id),
-      containsAll(
-        ['smart.today', 'smart.scheduled', 'smart.all', 'smart.flagged'],
-      ),
+      containsAll([
+        'smart.today',
+        'smart.scheduled',
+        'smart.all',
+        'smart.flagged',
+      ]),
     );
   });
 
   test('upsertList/upsertItem 后 watchItems 与计数回写', () async {
-    await repo.upsertList(
-      const ReminderList(id: 'list.personal', title: '个人'),
-    );
+    await repo.upsertList(const ReminderList(id: 'list.personal', title: '个人'));
     await repo.upsertItem(
       const ReminderItem(id: 'i1', listId: 'list.personal', title: '买牛奶'),
     );
@@ -42,16 +43,11 @@ void main() {
     expect(items.map((e) => e.id), ['i1']);
 
     final lists = await repo.watchLists().first;
-    expect(
-      lists.firstWhere((e) => e.id == 'list.personal').itemCount,
-      1,
-    );
+    expect(lists.firstWhere((e) => e.id == 'list.personal').itemCount, 1);
   });
 
   test('toggleCompleted 后计数变化 + 全字段回写（含 tags JSON）', () async {
-    await repo.upsertList(
-      const ReminderList(id: 'list.work', title: '工作'),
-    );
+    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
     await repo.upsertItem(
       const ReminderItem(id: 'w1', listId: 'list.work', title: '初稿'),
     );
@@ -68,17 +64,11 @@ void main() {
     );
 
     final listsBefore = await repo.watchLists().first;
-    expect(
-      listsBefore.firstWhere((e) => e.id == 'list.work').itemCount,
-      1,
-    );
+    expect(listsBefore.firstWhere((e) => e.id == 'list.work').itemCount, 1);
 
     await repo.toggleCompleted('w1');
     final listsAfter = await repo.watchLists().first;
-    expect(
-      listsAfter.firstWhere((e) => e.id == 'list.work').itemCount,
-      0,
-    );
+    expect(listsAfter.firstWhere((e) => e.id == 'list.work').itemCount, 0);
 
     final allItems = await repo.watchItems(listId: 'list.work').first;
     final item = allItems.singleWhere((e) => e.id == 'w1');
@@ -91,9 +81,7 @@ void main() {
   });
 
   test('smart.flagged 语义过滤与写后广播', () async {
-    await repo.upsertList(
-      const ReminderList(id: 'list.work', title: '工作'),
-    );
+    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
     final emitted = <List<ReminderItem>>[];
     final sub = repo.watchItems(listId: 'smart.flagged').listen(emitted.add);
     await pumpEventQueue();
@@ -112,20 +100,15 @@ void main() {
   });
 
   test('数据跨实例持久（真实落库语义）', () async {
-    await repo.upsertList(
-      const ReminderList(id: 'list.keep', title: '留存'),
-    );
+    await repo.upsertList(const ReminderList(id: 'list.keep', title: '留存'));
     final repo2 = DriftReminderRepository(db);
     final lists = await repo2.watchLists().first;
     expect(lists.map((e) => e.id), contains('list.keep'));
   });
 
-  test('toggleCompleted 对带重复规则条目滚动下一次 dueAt（与 InMemory 一致）',
-      () async {
+  test('toggleCompleted 对带重复规则条目滚动下一次 dueAt（与 InMemory 一致）', () async {
     repo.nowForTest = DateTime(2026, 10, 22, 12);
-    await repo.upsertList(
-      const ReminderList(id: 'list.personal', title: '个人'),
-    );
+    await repo.upsertList(const ReminderList(id: 'list.personal', title: '个人'));
     await repo.upsertItem(
       ReminderItem(
         id: 'r1',
@@ -144,9 +127,7 @@ void main() {
   });
 
   test('deleteItem 级联删除子任务（多层）', () async {
-    await repo.upsertList(
-      const ReminderList(id: 'list.work', title: '工作'),
-    );
+    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
     await repo.upsertItem(
       const ReminderItem(id: 'p', listId: 'list.work', title: '父'),
     );
@@ -176,9 +157,7 @@ void main() {
   });
 
   test('deleteList 级联删除列表条目', () async {
-    await repo.upsertList(
-      const ReminderList(id: 'list.work', title: '工作'),
-    );
+    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
     await repo.upsertItem(
       const ReminderItem(id: 'a', listId: 'list.work', title: 'A'),
     );
@@ -188,21 +167,31 @@ void main() {
   });
 
   test('排序契约：sortOrder asc, id asc（与 InMemory 一致）', () async {
-    await repo.upsertList(
-      const ReminderList(id: 'list.work', title: '工作'),
-    );
+    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
     // 故意乱序写入
     await repo.upsertItem(
       const ReminderItem(
-          id: 'b', listId: 'list.work', title: 'B', sortOrder: 2),
+        id: 'b',
+        listId: 'list.work',
+        title: 'B',
+        sortOrder: 2,
+      ),
     );
     await repo.upsertItem(
       const ReminderItem(
-          id: 'a', listId: 'list.work', title: 'A', sortOrder: 1),
+        id: 'a',
+        listId: 'list.work',
+        title: 'A',
+        sortOrder: 1,
+      ),
     );
     await repo.upsertItem(
       const ReminderItem(
-          id: 'c', listId: 'list.work', title: 'C', sortOrder: 1),
+        id: 'c',
+        listId: 'list.work',
+        title: 'C',
+        sortOrder: 1,
+      ),
     );
 
     final items = await repo.watchItems(listId: 'list.work').first;
@@ -210,9 +199,7 @@ void main() {
   });
 
   test('toggleFlagged 切换旗标', () async {
-    await repo.upsertList(
-      const ReminderList(id: 'list.work', title: '工作'),
-    );
+    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
     await repo.upsertItem(
       const ReminderItem(id: 'f1', listId: 'list.work', title: '旗标'),
     );
@@ -227,9 +214,7 @@ void main() {
 
   test('upsertList 拒绝 smart. 前缀 id', () async {
     expect(
-      () => repo.upsertList(
-        const ReminderList(id: 'smart.hack', title: '黑客'),
-      ),
+      () => repo.upsertList(const ReminderList(id: 'smart.hack', title: '黑客')),
       throwsArgumentError,
     );
   });
@@ -366,41 +351,45 @@ void main() {
     raw.execute('PRAGMA user_version = 6');
 
     final db8 = LifeProductivityDb(NativeDatabase.opened(raw));
-    final row = (await db8.select(db8.reminderItems).get())
-        .singleWhere((e) => e.id == 'v6row');
+    final row = (await db8.select(db8.reminderItems).get()).singleWhere(
+      (e) => e.id == 'v6row',
+    );
     expect(row.title, 'V6 条目'); // 旧数据保留
     expect(row.recurrence, 'daily');
     expect(row.recurrenceUntil, isNull, reason: 'V8 新列默认 NULL'); // T-04 新列
 
     // 往返：写入结束日期再读回
-    await (db8.update(db8.reminderItems)
-          ..where((t) => t.id.equals('v6row')))
-        .write(ReminderItemsCompanion(
-      recurrenceUntil: Value(DateTime(2026, 12, 31)),
-    ));
-    final back = (await db8.select(db8.reminderItems).get())
-        .singleWhere((e) => e.id == 'v6row');
+    await (db8.update(
+      db8.reminderItems,
+    )..where((t) => t.id.equals('v6row'))).write(
+      ReminderItemsCompanion(recurrenceUntil: Value(DateTime(2026, 12, 31))),
+    );
+    final back = (await db8.select(db8.reminderItems).get()).singleWhere(
+      (e) => e.id == 'v6row',
+    );
     expect(back.recurrenceUntil, DateTime(2026, 12, 31));
     expect(db8.schemaVersion, 14); // V11 发件箱、V12 游标、V13 任务偏好、V14 清单 remoteId
     await db8.close();
   });
 
-  test('T-04 生产守卫：drift toggleCompleted 越过结束日 → 真完成不滚动（cursor R1）',
-      () async {
+  test('T-04 生产守卫：drift toggleCompleted 越过结束日 → 真完成不滚动（cursor R1）', () async {
     final today = DateTime.now();
-    await repo.upsertItem(ReminderItem(
-      id: 'until1',
-      listId: 'list.personal',
-      title: '每天喝水',
-      dueAt: today,
-      recurrence: 'daily',
-      recurrenceUntil: today, // 今天=结束日
-    ));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'until1',
+        listId: 'list.personal',
+        title: '每天喝水',
+        dueAt: today,
+        recurrence: 'daily',
+        recurrenceUntil: today, // 今天=结束日
+      ),
+    );
 
     await repo.toggleCompleted('until1');
 
-    final after = (await repo.watchItems().first)
-        .singleWhere((e) => e.id == 'until1');
+    final after = (await repo.watchItems().first).singleWhere(
+      (e) => e.id == 'until1',
+    );
     expect(after.isCompleted, isTrue, reason: '越界 → 真完成（drift 生产路径）');
     // drift 秒级存储截断毫秒——日期级比较
     expect(after.dueAt!.year, today.year);
@@ -408,66 +397,71 @@ void main() {
     expect(after.dueAt!.day, today.day, reason: 'dueAt 不滚动（日期级）');
 
     // 未越界对照
-    await repo.upsertItem(ReminderItem(
-      id: 'until2',
-      listId: 'list.personal',
-      title: '每天读书',
-      dueAt: today,
-      recurrence: 'daily',
-      recurrenceUntil: today.add(const Duration(days: 30)),
-    ));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'until2',
+        listId: 'list.personal',
+        title: '每天读书',
+        dueAt: today,
+        recurrence: 'daily',
+        recurrenceUntil: today.add(const Duration(days: 30)),
+      ),
+    );
     await repo.toggleCompleted('until2');
-    final after2 = (await repo.watchItems().first)
-        .singleWhere((e) => e.id == 'until2');
+    final after2 = (await repo.watchItems().first).singleWhere(
+      (e) => e.id == 'until2',
+    );
     expect(after2.isCompleted, isFalse, reason: '未越界 → 滚动');
   });
 
   test('T-04 守卫扩展：moveItem/恢复/软删后 recurrenceUntil 不丢（cursor R1）', () async {
     final today = DateTime.now();
-    await repo.upsertItem(ReminderItem(
-      id: 'keep-until',
-      listId: 'list.personal',
-      title: '移动保留',
-      dueAt: today,
-      recurrence: 'daily',
-      recurrenceUntil: DateTime(2026, 12, 31),
-    ));
-    await repo.upsertList(const ReminderList(
-        id: 'list.work', title: '工作', colorArgb: 0xFF007AFF));
+    await repo.upsertItem(
+      ReminderItem(
+        id: 'keep-until',
+        listId: 'list.personal',
+        title: '移动保留',
+        dueAt: today,
+        recurrence: 'daily',
+        recurrenceUntil: DateTime(2026, 12, 31),
+      ),
+    );
+    await repo.upsertList(
+      const ReminderList(id: 'list.work', title: '工作', colorArgb: 0xFF007AFF),
+    );
 
     await repo.moveItem('keep-until', 'list.work');
-    var row = (await repo.watchItems().first)
-        .singleWhere((e) => e.id == 'keep-until');
-    expect(row.recurrenceUntil, DateTime(2026, 12, 31),
-        reason: '移动后结束日不丢');
+    var row = (await repo.watchItems().first).singleWhere(
+      (e) => e.id == 'keep-until',
+    );
+    expect(row.recurrenceUntil, DateTime(2026, 12, 31), reason: '移动后结束日不丢');
 
     await repo.deleteItem('keep-until');
     await repo.restoreItem('keep-until');
-    row = (await repo.watchItems().first)
-        .singleWhere((e) => e.id == 'keep-until');
-    expect(row.recurrenceUntil, DateTime(2026, 12, 31),
-        reason: '软删恢复后结束日不丢');
+    row = (await repo.watchItems().first).singleWhere(
+      (e) => e.id == 'keep-until',
+    );
+    expect(row.recurrenceUntil, DateTime(2026, 12, 31), reason: '软删恢复后结束日不丢');
   });
 
-  test('契约字段（remoteId/completedAt/sectionId/deletedAt）经仓库往返',
-      () async {
-    await repo.upsertList(
-      const ReminderList(id: 'list.personal', title: '个人'),
-    );
+  test('契约字段（remoteId/completedAt/sectionId/deletedAt）经仓库往返', () async {
+    await repo.upsertList(const ReminderList(id: 'list.personal', title: '个人'));
     // 仓内约定：本地墙钟 DateTime（drift 存绝对时刻、往返稳定）；
     // UTC 换算归 M4 同步边界（映射表文档裁定，TC-KR-101）。
     final completed = DateTime(2026, 10, 24, 1, 0);
     await repo.upsertItem(
-      const ReminderItem(id: 'c1', listId: 'list.personal', title: '契约条目')
-          .copyWith(
+      const ReminderItem(
+        id: 'c1',
+        listId: 'list.personal',
+        title: '契约条目',
+      ).copyWith(
         remoteId: 'srv-77',
         completedAt: completed,
         sectionId: 'sec-1',
       ),
     );
 
-    final item =
-        (await repo.watchItems(listId: 'list.personal').first).single;
+    final item = (await repo.watchItems(listId: 'list.personal').first).single;
     expect(item.remoteId, 'srv-77');
     expect(item.completedAt, completed);
     expect(item.sectionId, 'sec-1');
@@ -477,34 +471,32 @@ void main() {
     // 注：deletedAt 置位后条目属 smart.trash 视图，普通列表视图按回收窗语义排除
     final now = DateTime(2026, 10, 24, 2, 30);
     await repo.upsertItem(
-      item.copyWith(
-        sectionId: ReminderItem.clear,
-        deletedAt: now,
-      ),
+      item.copyWith(sectionId: ReminderItem.clear, deletedAt: now),
     );
-    final updated =
-        (await repo.watchItems(listId: 'smart.trash').first).single;
+    final updated = (await repo.watchItems(listId: 'smart.trash').first).single;
     expect(updated.sectionId, isNull);
     expect(updated.deletedAt, now);
     expect((await repo.watchItems(listId: 'list.personal').first), isEmpty);
   });
 
   test('moveItem（cursor PR#11 意见2补测）：子任务随父、分区清空、目标校验', () async {
-    await repo.upsertList(
-        const ReminderList(id: 'list.a', title: 'A'));
-    await repo.upsertList(
-        const ReminderList(id: 'list.b', title: 'B'));
-    await repo.upsertItem(const ReminderItem(
-      id: 'parent',
-      listId: 'list.a',
-      title: '父',
-    ).copyWith(sectionId: 'sec-x'));
-    await repo.upsertItem(const ReminderItem(
-      id: 'child',
-      listId: 'list.a',
-      title: '子',
-      parentId: 'parent',
-    ));
+    await repo.upsertList(const ReminderList(id: 'list.a', title: 'A'));
+    await repo.upsertList(const ReminderList(id: 'list.b', title: 'B'));
+    await repo.upsertItem(
+      const ReminderItem(
+        id: 'parent',
+        listId: 'list.a',
+        title: '父',
+      ).copyWith(sectionId: 'sec-x'),
+    );
+    await repo.upsertItem(
+      const ReminderItem(
+        id: 'child',
+        listId: 'list.a',
+        title: '子',
+        parentId: 'parent',
+      ),
+    );
 
     await repo.moveItem('parent', 'list.b');
 
@@ -518,5 +510,29 @@ void main() {
     await repo.moveItem('parent', 'smart.today');
     final stillB = await repo.watchItems(listId: 'list.b').first;
     expect(stillB.map((e) => e.id), contains('parent'));
+  });
+  // parity#161：行内旗标后侧栏「旗标」卡计数必须立即变，不能等重载
+  test('toggleFlagged 后 watchLists 的 smart.flagged 计数立即变 1', () async {
+    final seen = <List<ReminderList>>[];
+    final sub = repo.watchLists().listen(seen.add);
+    int flagged() =>
+        seen.last.firstWhere((l) => l.id == 'smart.flagged').itemCount;
+    // 轮询等快照到位，避免固定 sleep 造成抖动
+    Future<void> until(bool Function() done) async {
+      for (var i = 0; i < 200 && (seen.isEmpty || !done()); i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    await repo.upsertItem(
+      const ReminderItem(id: 'r1', listId: 'list.personal', title: '甲'),
+    );
+    await until(() => flagged() == 0);
+
+    await repo.toggleFlagged('r1');
+    await until(() => flagged() == 1);
+
+    expect(flagged(), 1, reason: '旗标切换后计数必须由 watchLists 重新发射');
+    await sub.cancel();
   });
 }

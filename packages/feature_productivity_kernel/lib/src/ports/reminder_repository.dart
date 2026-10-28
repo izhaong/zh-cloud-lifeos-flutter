@@ -273,6 +273,9 @@ final class InMemoryReminderRepository implements ReminderRepository {
     if (i < 0) return;
     final cur = _items[i];
     _items[i] = cur.copyWith(isFlagged: !cur.isFlagged);
+    // parity#161：旗标影响 smart.flagged 计数，必须重算后再广播，
+    // 否则侧栏「旗标」卡计数要等整页重载才变。
+    _recount();
     _notify();
   }
 
