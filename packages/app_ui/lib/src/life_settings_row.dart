@@ -19,6 +19,7 @@ class LifeSettingsRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.divider = true,
+    this.flexibleTrailing = true,
   });
 
   final String title;
@@ -28,6 +29,13 @@ class LifeSettingsRow extends StatelessWidget {
 
   /// 是否为最后一行/独立行时关掉分隔线。
   final bool divider;
+
+  /// 尾部是否允许收缩（长文本/时间串用）。
+  ///
+  /// 开关**不能**走这条：开关是固定尺寸控件，若也塞进 `Flexible`，它会和标题列
+  /// 平分宽度，窄屏上标题提前折行——这与迁移前 `_SwitchRow`（开关占固有宽）不一致
+  /// （#318 审查指出）。
+  final bool flexibleTrailing;
 
   @override
   Widget build(BuildContext context) {
@@ -66,13 +74,16 @@ class LifeSettingsRow extends StatelessWidget {
             ),
             if (trailing != null) ...[
               const SizedBox(width: 8),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: trailing!,
-                ),
-              ),
+              if (flexibleTrailing)
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: trailing!,
+                  ),
+                )
+              else
+                trailing!,
             ],
           ],
         ),
@@ -104,6 +115,7 @@ class LifeSwitchRow extends StatelessWidget {
       title: title,
       subtitle: subtitle,
       divider: divider,
+      flexibleTrailing: false,
       onTap: () => onChanged(!value),
       trailing: CupertinoSwitch(value: value, onChanged: onChanged),
     );

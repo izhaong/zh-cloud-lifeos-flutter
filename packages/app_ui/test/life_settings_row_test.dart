@@ -55,6 +55,33 @@ void main() {
     expect(value, isTrue, reason: '点标题（整行）应当切换，与迁移前的 GestureDetector 一致');
   });
 
+  testWidgets('开关行的开关不参与收缩（窄屏标题不折行）', (tester) async {
+    tester.view
+      ..physicalSize = const Size(320, 640)
+      ..devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      host(LifeSwitchRow(title: '全天提醒时点', value: true, onChanged: (_) {})),
+    );
+
+    // 开关外层不得再包 Flexible（否则会与标题列平分宽度）
+    final flexibleAncestors = find.ancestor(
+      of: find.byType(CupertinoSwitch),
+      matching: find.byType(Flexible),
+    );
+    expect(flexibleAncestors, findsNothing);
+
+    final titleWidth = tester.getSize(find.text('全天提醒时点')).width;
+    final switchWidth = tester.getSize(find.byType(CupertinoSwitch)).width;
+    expect(
+      titleWidth,
+      greaterThan(switchWidth),
+      reason: '标题列应拿到剩余宽度，而不是和开关平分',
+    );
+  });
+
   testWidgets('divider=false 时不画分隔线（最后一行用）', (tester) async {
     await tester.pumpWidget(
       host(const LifeSettingsRow(title: '关于', divider: false)),
