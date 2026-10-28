@@ -41,6 +41,9 @@ jobs:
       - name: Analyze（melos 全仓）
         run: dart run melos run analyze
 
+      - name: UI boundary（先 selftest 再扫；字面色零容忍）
+        run: dart run melos run ui-boundary
+
       - name: Test（逐包）
         run: |
           # 失败时把红名单与关键段落打到日志再退出（沿 todo-flutter #708 CI 排障惯例）

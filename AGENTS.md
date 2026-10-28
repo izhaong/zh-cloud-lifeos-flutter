@@ -22,6 +22,7 @@ dart pub get
 cd apps/life_launcher && flutter run -d macos
 dart analyze
 flutter test   # 在各 package / app 目录，或 dart run melos run test
+dart run melos run verify   # 合前门禁：analyze(--fatal-infos) + UI 边界(先自检) + 全包测试
 ```
 
 - Dart SDK 随本机 Flutter（当前 3.12.2）；依赖钉版说明见 `README.md`
