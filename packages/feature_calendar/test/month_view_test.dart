@@ -142,18 +142,19 @@ void main() {
     final callbacks = CalendarViewCallbacks(
       repo: repo,
       preference: const CalendarPreference(),
+      // parity#219：草稿必须锚在设备时区的当地零点（此前写死 UTC 会漂一天）
+      timeZone: 'America/New_York',
       setDraft: (draft) => captured = draft,
     );
     callbacks.onDayTap(DateTime(2026, 10, 24));
     expect(captured, isNotNull);
     expect(captured!.allDay, isTrue, reason: '默认全天');
-    // 本地零点 → UTC（测试机 America/New_York UTC-4：00:00 → 04:00Z）
-    final localMidnightUtc = DateTime(2026, 10, 24).toUtc();
-    expect(captured!.startAt, localMidnightUtc);
+    // 当地 10/24 00:00 EDT → 04:00Z
+    expect(captured!.startAt, DateTime.utc(2026, 10, 24, 4));
     expect(
       captured!.endAt,
-      localMidnightUtc.add(const Duration(days: 1)),
-      reason: 'end 排他次日',
+      DateTime.utc(2026, 10, 25, 4),
+      reason: 'end 排他次日（当地零点）',
     );
     expect(captured!.title, '', reason: '标题空（F-12 解析器接管）');
   });

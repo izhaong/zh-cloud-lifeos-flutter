@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import 'logic/event_time.dart';
 import 'providers.dart';
 
 /// 日/周视图回调接线（F-05；TC-CAL-UI-130/135/139 的可测核心）。
@@ -16,10 +17,15 @@ class CalendarViewCallbacks {
     required this.setDraft,
     this.openOccurrence,
     this.reminderRepository,
+    this.timeZone = 'UTC',
   });
 
   final CalendarRepository repo;
   final CalendarPreference preference;
+
+  /// 设备/显示时区（IANA）。草稿必须带它：此前硬编码 'UTC'，全天归一
+  /// 会锚到 UTC 零点，在 UTC−4 等时区渲染成前一天（parity#219）。
+  final String timeZone;
 
   /// 提醒事项仓库（F-15 投影的完成/删除；null = 只读展示）。
   final ReminderRepository? reminderRepository;
@@ -75,17 +81,20 @@ class CalendarViewCallbacks {
 
   /// TC-CAL-UI-131：月视图点/双击某日 → 全天草稿（标题空）。
   void onDayTap(DateTime date) {
+    // 用设备时区的当地 00:00 → 次日 00:00（排他），再转 UTC；
+    // 写 UTC 零点会在西半球时区把「今天」渲染成前一天（parity#219）。
     final dayStart = DateTime(date.year, date.month, date.day);
+    final dayEnd = DateTime(date.year, date.month, date.day + 1);
     setDraft(
       CalendarEvent(
         id: 'draft',
         calendarId: '',
         uid: '',
         title: '',
-        startAt: dayStart.toUtc(),
-        endAt: dayStart.add(const Duration(days: 1)).toUtc(),
+        startAt: utcFromWall(dayStart, timeZone),
+        endAt: utcFromWall(dayEnd, timeZone),
         allDay: true,
-        timeZone: 'UTC',
+        timeZone: timeZone,
         updatedAt: DateTime.now().toUtc(),
       ),
     );
@@ -101,7 +110,7 @@ class CalendarViewCallbacks {
     await repo.upsertEvent(withTimes(event, newStart.toUtc(), newEnd.toUtc()));
   }
 
-  static CalendarEvent _emptyDraft() {
+  CalendarEvent _emptyDraft() {
     return CalendarEvent(
       id: 'draft',
       calendarId: '',
@@ -109,7 +118,7 @@ class CalendarViewCallbacks {
       title: '',
       startAt: DateTime.now().toUtc(),
       endAt: DateTime.now().toUtc(),
-      timeZone: 'UTC',
+      timeZone: timeZone,
       updatedAt: DateTime.now().toUtc(),
     );
   }
