@@ -16,9 +16,9 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
     this._plugin,
     this._repository,
     this._preferences, {
-    Future<void> Function()? requestPermissions,
+    this._requestPermissions,
     this.maxSlots = 64,
-  }) : _requestPermissions = requestPermissions;
+  });
 
   static const String channelId = 'lifeos_task_alerts';
 

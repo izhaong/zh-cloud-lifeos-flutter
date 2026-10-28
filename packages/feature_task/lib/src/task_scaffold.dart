@@ -453,7 +453,7 @@ class _CompactListPane extends StatelessWidget {
     if (list == null) {
       return CupertinoPageScaffold(
         backgroundColor: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
-        child: Center(child: Text('列表不存在')),
+        child: const Center(child: Text('列表不存在')),
       );
     }
     return ListContentPane(
@@ -1391,14 +1391,14 @@ class _GhostNewRow extends StatelessWidget {
               color: CupertinoDynamicColor.resolve(ReminderTokens.labelTertiary, context),
               size: 22,
             ),
-            SizedBox(width: 14),
-            Icon(
+            const SizedBox(width: 14),
+            const Icon(
               CupertinoIcons.add,
               color: ReminderTokens.systemBlue,
               size: 16,
             ),
-            SizedBox(width: 4),
-            Text(
+            const SizedBox(width: 4),
+            const Text(
               '新提醒事项',
               style: TextStyle(fontSize: 15, color: ReminderTokens.systemBlue),
             ),
@@ -1679,7 +1679,7 @@ class _VerticalHairline extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: CupertinoDynamicColor.resolve(ReminderTokens.separator, context),
-      child: SizedBox(width: 0.5),
+      child: const SizedBox(width: 0.5),
     );
   }
 }

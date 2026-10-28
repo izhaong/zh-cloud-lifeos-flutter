@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
-import 'support/life_test_app.dart';
 
 /// TC-UI-308（主区工具条）：旗标行为 + 无分享按钮负向断言。
 ///
@@ -19,7 +18,7 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
-  Future<InMemoryReminderRepository> _seed() async {
+  Future<InMemoryReminderRepository> seed() async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(const ReminderList(id: 'list.a', title: '列表A'));
     await repo.upsertItem(
@@ -28,7 +27,7 @@ void main() {
     return repo;
   }
 
-  Future<void> _pump(
+  Future<void> pump(
     WidgetTester tester,
     ReminderRepository repo, {
     String openListId = 'list.a',
@@ -47,32 +46,32 @@ void main() {
   }
 
   testWidgets('TC-UI-308 行内旗标点击切换 isFlagged', (tester) async {
-    final repo = await _seed();
-    await _pump(tester, repo);
+    final repo = await seed();
+    await pump(tester, repo);
 
-    Future<bool> _flagged() async {
+    Future<bool> flagged() async {
       final all = await repo.watchItems().first;
       return all.firstWhere((e) => e.id == 'open1').isFlagged;
     }
 
-    expect(await _flagged(), isFalse, reason: '初始未标记');
+    expect(await flagged(), isFalse, reason: '初始未标记');
 
     // 行内旗标按钮：row_flag_<id>
     final flagBtn = find.byKey(const Key('row_flag_open1'));
     expect(flagBtn, findsOneWidget, reason: '行内旗标按钮存在');
     await tester.tap(flagBtn);
     await tester.pumpAndSettle();
-    expect(await _flagged(), isTrue, reason: '点击后应标记为旗标');
+    expect(await flagged(), isTrue, reason: '点击后应标记为旗标');
 
     // 再点一次取消
     await tester.tap(flagBtn);
     await tester.pumpAndSettle();
-    expect(await _flagged(), isFalse, reason: '再次点击应取消标记');
+    expect(await flagged(), isFalse, reason: '再次点击应取消标记');
   });
 
   testWidgets('TC-UI-308 本平台无「分享」入口（负向断言）', (tester) async {
-    final repo = await _seed();
-    await _pump(tester, repo);
+    final repo = await seed();
+    await pump(tester, repo);
 
     // 任务 UI 不应出现「分享」文案
     expect(find.text('分享'), findsNothing,
