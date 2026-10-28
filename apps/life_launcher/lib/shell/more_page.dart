@@ -113,7 +113,7 @@ class _MoreViewState extends ConsumerState<_MoreView> {
                               leading: Icon(app.icon),
                               title: Text(app.title),
                               subtitle: app.isPlaceholder
-                                  ? const Text('占位 · feature_* 待拆入')
+                                  ? const Text('即将推出')
                                   : null,
                               trailing: CupertinoButton(
                                 key: ValueKey('pin_${app.id}'),
@@ -142,7 +142,7 @@ class _MoreViewState extends ConsumerState<_MoreView> {
                         leading: Icon(app.icon),
                         title: Text(app.title),
                         subtitle: Text(
-                          app.isPlaceholder ? '占位 · feature_* 待拆入' : '已安装',
+                          app.isPlaceholder ? '即将推出' : '已安装',
                         ),
                         trailing: !pinnedSet.contains(app.id) &&
                                 (badges[app.id] ?? 0) > 0
@@ -235,7 +235,7 @@ class _PinnedRow extends StatelessWidget {
           leading: Icon(app.icon),
           title: Text(app.title),
           subtitle: app.isPlaceholder
-              ? const Text('占位 · feature_* 待拆入')
+              ? const Text('即将推出')
               : null,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,

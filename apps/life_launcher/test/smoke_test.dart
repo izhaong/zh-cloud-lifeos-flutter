@@ -17,12 +17,8 @@ Future<List<dynamic>> _overrides({
   SharedPreferences.setMockInitialValues(prefsValues);
   final prefs = await SharedPreferences.getInstance();
   return [
-    reminderRepositoryProvider.overrideWithValue(
-      InMemoryReminderRepository(),
-    ),
-    pinnedTabsServiceProvider.overrideWithValue(
-      PinnedTabsService(prefs),
-    ),
+    reminderRepositoryProvider.overrideWithValue(InMemoryReminderRepository()),
+    pinnedTabsServiceProvider.overrideWithValue(PinnedTabsService(prefs)),
     shellBadgeCountsProvider.overrideWithValue(badges),
   ];
 }
@@ -33,7 +29,8 @@ Future<void> _pump(
   Map<String, Object> prefsValues = const {},
   Map<String, int> badges = const {},
 }) async {
-  final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+  final view =
+      TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
   view
     ..physicalSize = size
     ..devicePixelRatio = 1.0;
@@ -43,9 +40,7 @@ Future<void> _pump(
   );
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        for (final o in overrideList) o as dynamic,
-      ],
+      overrides: [for (final o in overrideList) o as dynamic],
       child: const LifeLauncherApp(),
     ),
   );
@@ -54,17 +49,21 @@ Future<void> _pump(
 
 void main() {
   tearDown(() {
-    final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views
-        .first;
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.resetPhysicalSize();
     view.resetDevicePixelRatio();
   });
 
   test('PinnedTabsService.normalize：滤未知/去重/截断', () {
     expect(
-      PinnedTabsService.normalize(
-        ['task', 'ghost', 'task', 'calendar', 'habit'],
-      ),
+      PinnedTabsService.normalize([
+        'task',
+        'ghost',
+        'task',
+        'calendar',
+        'habit',
+      ]),
       ['task', 'calendar', 'habit'],
     );
     // 超上限截断（服务层单测；当前注册表仅 3 应用，用构造数据验证 ≤5）
@@ -104,16 +103,21 @@ void main() {
     await tester.pumpAndSettle();
 
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getStringList('shell.pinned_tab_ids'),
-        ['calendar', 'note', 'habit']);
+    expect(prefs.getStringList('shell.pinned_tab_ids'), [
+      'calendar',
+      'note',
+      'habit',
+    ]);
 
     // 加回「任务」（追加到末位）
     await tester.tap(find.byKey(const ValueKey('pin_task')));
     await tester.pumpAndSettle();
-    expect(
-      prefs.getStringList('shell.pinned_tab_ids'),
-      ['calendar', 'note', 'habit', 'task'],
-    );
+    expect(prefs.getStringList('shell.pinned_tab_ids'), [
+      'calendar',
+      'note',
+      'habit',
+      'task',
+    ]);
 
     // 「编辑」期间底栏实时变化：任务 Tab 暂时消失时加回后回来
     final labels = tester
@@ -161,7 +165,11 @@ void main() {
     // 更多面板展示态显示占位说明
     await tester.tap(find.text('更多'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('占位'), findsWidgets);
+    expect(find.textContaining('即将推出'), findsWidgets);
+    // parity#162：内部占位文案不得暴露给用户
+    expect(find.textContaining('feature_'), findsNothing);
+    expect(find.textContaining('待拆入'), findsNothing);
+    expect(find.textContaining('占位'), findsNothing);
   });
 
   testWidgets('既有壳启动冒烟：任务 Tab + 智能列表', (tester) async {

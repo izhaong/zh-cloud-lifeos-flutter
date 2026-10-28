@@ -86,7 +86,7 @@ GoRouter buildLifeRouter(WidgetRef ref) {
                 path: '/habits',
                 builder: (context, state) => const PlaceholderPage(
                   title: '习惯',
-                  subtitle: '占位 · feature_habit 待拆入',
+                  subtitle: '即将推出',
                 ),
               ),
             ],
