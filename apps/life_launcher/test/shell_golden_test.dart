@@ -56,6 +56,17 @@ void main() {
     );
   });
 
+  testWidgets('iPhone 375 进列表（golden 基线；条目级）', (tester) async {
+    await pumpAt(tester, const Size(375, 812));
+    // 375 首屏是紧凑概览，不渲染条目；点进列表才有条目级内容（#337）。
+    await tester.tap(find.text('今天').first);
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(CupertinoApp),
+      matchesGoldenFile('goldens/iphone_375_task_list.png'),
+    );
+  });
+
   testWidgets('iPad 834（golden 基线；挂钟注入固定 2026-10-26）', (tester) async {
     await pumpAt(tester, const Size(834, 1112));
     await expectLater(
