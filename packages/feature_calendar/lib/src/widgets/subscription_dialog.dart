@@ -52,7 +52,7 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
             controller: _controller,
             placeholder: 'https://example.com/calendar.ics',
             decoration: BoxDecoration(
-              color: CalendarTokens.chipBackground,
+              color: CalendarTokens.chipBackground.resolveFrom(context),
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),

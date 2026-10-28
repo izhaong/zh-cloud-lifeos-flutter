@@ -124,7 +124,7 @@ class _MiniMonthCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: isCurrentMonth
               ? Border.all(color: CalendarTokens.systemBlue)
-              : Border.all(color: CalendarTokens.hairline),
+              : Border.all(color: CalendarTokens.hairline.resolveFrom(context)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,

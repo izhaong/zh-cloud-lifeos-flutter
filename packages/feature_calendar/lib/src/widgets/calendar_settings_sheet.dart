@@ -309,9 +309,12 @@ class _Row extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(width: 0.5, color: CupertinoColors.separator),
+            bottom: BorderSide(
+              width: 0.5,
+              color: CupertinoColors.separator.resolveFrom(context),
+            ),
           ),
         ),
         child: Row(
@@ -371,9 +374,12 @@ class _SwitchRow extends StatelessWidget {
       onTap: () => onChanged(!value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(width: 0.5, color: CupertinoColors.separator),
+            bottom: BorderSide(
+              width: 0.5,
+              color: CupertinoColors.separator.resolveFrom(context),
+            ),
           ),
         ),
         child: Row(
