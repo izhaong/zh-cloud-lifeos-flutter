@@ -39,6 +39,19 @@ abstract final class LifeTokens {
   static TextStyle _withCjk(TextStyle style) =>
       style.copyWith(fontFamilyFallback: cjkFontFallback);
 
+  /// Apple「粗体文本」（Bold Text）：把字重提到至少 [min]。
+  ///
+  /// 局限（明说）：只作用于**主题层**；控件里硬编码的 `TextStyle(fontWeight: …)`
+  /// 不受影响——全覆盖需要逐个改业务样式，属另一个量级的工作。
+  static TextStyle _bolder(TextStyle style, bool boldText,
+      {FontWeight min = FontWeight.w600}) {
+    if (!boldText) return style;
+    final current = style.fontWeight ?? FontWeight.w400;
+    // .value 是 Flutter 3.x 的替代（.index 已废弃）
+    if (current.value >= min.value) return style;
+    return style.copyWith(fontWeight: min);
+  }
+
   /// #234：Cupertino 弹层用 SDK 常量样式，需单独挂回退。
   static const dialogTextStyle = TextStyle(fontFamilyFallback: cjkFontFallback);
 
@@ -47,6 +60,7 @@ abstract final class LifeTokens {
   static CupertinoThemeData cupertino([
     Brightness brightness = Brightness.light,
     bool highContrast = false,
+    bool boldText = false,
   ]) {
     // 高对比档必须落成具体色值（CupertinoThemeData 不会自己按高对比解析动态色）；
     // 普通档仍传动态色，保持既有行为不变。
@@ -60,18 +74,19 @@ abstract final class LifeTokens {
       scaffoldBackgroundColor: barBg,
     );
     final t = base.textTheme;
+    TextStyle styled(TextStyle style) => _bolder(_withCjk(style), boldText);
     return base.copyWith(
       textTheme: CupertinoTextThemeData(
         primaryColor: brand,
-        textStyle: _withCjk(t.textStyle),
-        actionTextStyle: _withCjk(t.actionTextStyle),
-        actionSmallTextStyle: _withCjk(t.actionSmallTextStyle),
-        tabLabelTextStyle: _withCjk(t.tabLabelTextStyle),
-        navTitleTextStyle: _withCjk(t.navTitleTextStyle),
-        navLargeTitleTextStyle: _withCjk(t.navLargeTitleTextStyle),
-        navActionTextStyle: _withCjk(t.navActionTextStyle),
-        pickerTextStyle: _withCjk(t.pickerTextStyle),
-        dateTimePickerTextStyle: _withCjk(t.dateTimePickerTextStyle),
+        textStyle: styled(t.textStyle),
+        actionTextStyle: styled(t.actionTextStyle),
+        actionSmallTextStyle: styled(t.actionSmallTextStyle),
+        tabLabelTextStyle: styled(t.tabLabelTextStyle),
+        navTitleTextStyle: styled(t.navTitleTextStyle),
+        navLargeTitleTextStyle: styled(t.navLargeTitleTextStyle),
+        navActionTextStyle: styled(t.navActionTextStyle),
+        pickerTextStyle: styled(t.pickerTextStyle),
+        dateTimePickerTextStyle: styled(t.dateTimePickerTextStyle),
       ),
     );
   }
@@ -83,6 +98,7 @@ abstract final class LifeTokens {
   static ThemeData materialIsland([
     Brightness brightness = Brightness.light,
     bool highContrast = false,
+    bool boldText = false,
   ]) {
     Color r(CupertinoDynamicColor c) =>
         _resolve(c, brightness, highContrast: highContrast);
@@ -103,7 +119,8 @@ abstract final class LifeTokens {
       scaffoldBackgroundColor: r(surface),
     );
     return base.copyWith(
-      textTheme: base.textTheme.apply(fontFamilyFallback: cjkFontFallback),
+      textTheme: _materialTextTheme(
+          base.textTheme.apply(fontFamilyFallback: cjkFontFallback), boldText),
       appBarTheme: AppBarTheme(
         centerTitle: false,
         backgroundColor: Colors.transparent,
@@ -112,4 +129,33 @@ abstract final class LifeTokens {
       ),
     );
   }
+}
+
+/// Material 岛的 `TextTheme` 字重提升（`TextTheme.apply` 没有 `fontWeightDelta`，
+/// 只有 `TextStyle.apply` 有；这里逐槽位过一遍）。
+TextTheme _materialTextTheme(TextTheme t, bool boldText) {
+  TextStyle? f(TextStyle? s) {
+    if (s == null || !boldText) return s;
+    // `TextStyle.apply(fontWeightDelta:)` 断言原 style 必须有 fontWeight，
+    // 而 TextTheme 的槽位不少是 null（= 默认 w400）——这类直接给 w600。
+    if (s.fontWeight == null) return s.copyWith(fontWeight: FontWeight.w600);
+    return s.apply(fontWeightDelta: 200);
+  }
+  return TextTheme(
+    displayLarge: f(t.displayLarge),
+    displayMedium: f(t.displayMedium),
+    displaySmall: f(t.displaySmall),
+    headlineLarge: f(t.headlineLarge),
+    headlineMedium: f(t.headlineMedium),
+    headlineSmall: f(t.headlineSmall),
+    titleLarge: f(t.titleLarge),
+    titleMedium: f(t.titleMedium),
+    titleSmall: f(t.titleSmall),
+    bodyLarge: f(t.bodyLarge),
+    bodyMedium: f(t.bodyMedium),
+    bodySmall: f(t.bodySmall),
+    labelLarge: f(t.labelLarge),
+    labelMedium: f(t.labelMedium),
+    labelSmall: f(t.labelSmall),
+  );
 }

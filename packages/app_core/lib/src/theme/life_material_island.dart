@@ -16,8 +16,10 @@ class LifeMaterialIsland extends StatelessWidget {
     final brightness = CupertinoTheme.maybeBrightnessOf(context) ?? Brightness.light;
     // 提高对比度：岛内静态色同样要切高对比档（#348）。
     final highContrast = MediaQuery.maybeHighContrastOf(context) ?? false;
+    // 粗体文本：岛内同样跟随（#353）。
+    final boldText = MediaQuery.maybeBoldTextOf(context) ?? false;
     return Theme(
-      data: LifeTokens.materialIsland(brightness, highContrast),
+      data: LifeTokens.materialIsland(brightness, highContrast, boldText),
       child: Material(type: MaterialType.transparency, child: child),
     );
   }
