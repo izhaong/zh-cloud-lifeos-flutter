@@ -39,4 +39,39 @@ abstract final class CalendarTokens {
     color: Color(0xFFF2F2F7),
     darkColor: Color(0xFF1C1C1E),
   );
+  /// 卡片/浮层表面：亮 FFFFFF / 暗 1C1C1E。
+  static const surface = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFFFFFFF),
+    darkColor: Color(0xFF1C1C1E),
+  );
+
+  /// 更淡一级的正文色：亮 3C3C43 / 暗 EBEBF5（原代码写死的 3C3C43 是暗色取值）。
+  static const labelSubtle = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFF3C3C43),
+    darkColor: Color(0xFFEBEBF5),
+  );
+
+  /// 次级窗口底：亮 F7F7F9 / 暗 000000。
+  static const windowBackground = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFF7F7F9),
+    darkColor: Color(0xFF000000),
+  );
+
+  /// 三级灰：亮 C7C7CC / 暗 48484A（Apple systemGrey3）。
+  static const grey3 = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFC7C7CC),
+    darkColor: Color(0xFF48484A),
+  );
+
+  /// 分隔线（不透明档）：亮 C6C6C8 / 暗 38383A（Apple separator）。
+  static const separator = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFC6C6C8),
+    darkColor: Color(0xFF38383A),
+  );
+
+  /// 输入框/胶囊底：亮 E9E9EB / 暗 2C2C2E。
+  static const chipBackground = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFE9E9EB),
+    darkColor: Color(0xFF2C2C2E),
+  );
 }

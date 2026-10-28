@@ -1,3 +1,4 @@
+import '../design/calendar_tokens.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:app_core/app_core.dart';
@@ -51,7 +52,7 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
             controller: _controller,
             placeholder: 'https://example.com/calendar.ics',
             decoration: BoxDecoration(
-              color: const Color(0xFFE9E9EB),
+              color: CalendarTokens.chipBackground,
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -62,7 +63,7 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
             child: Text(
               '本地版只保存地址，不发起网络请求；登录后同步（F-17）。',
               key: Key('subscription_login_hint'),
-              style: TextStyle(fontSize: 12, color: Color(0xFF8E8E93)),
+              style: TextStyle(fontSize: 12, color: CalendarTokens.labelSecondary),
             ),
           ),
           if (_error != null)
@@ -70,7 +71,7 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
               alignment: Alignment.centerLeft,
               child: Text(
                 _error!,
-                style: const TextStyle(fontSize: 12, color: Color(0xFFFF3B30)),
+                style: const TextStyle(fontSize: 12, color: CalendarTokens.systemRed),
               ),
             ),
         ],

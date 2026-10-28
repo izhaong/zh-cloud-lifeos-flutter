@@ -1,3 +1,4 @@
+import 'design/calendar_tokens.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -160,7 +161,7 @@ class CalendarScaffold extends ConsumerWidget {
     }
 
     final scaffold = CupertinoPageScaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: CalendarTokens.groupedBackground,
       child: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
