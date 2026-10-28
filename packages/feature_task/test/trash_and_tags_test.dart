@@ -62,6 +62,29 @@ void main() {
     expect(back.map((e) => e.id), contains('i1'));
   });
 
+  testWidgets('TC-UI-109 宽屏回收站空态：有标题与保留期说明，不再是整页空白（#163）',
+      (tester) async {
+    final repo = await seed();
+    await pumpApp(tester, repo, openListId: 'smart.trash');
+
+    expect(find.byKey(const ValueKey('trash_header')), findsOneWidget);
+    expect(find.text('项目将在删除 30 天后永久移除'), findsOneWidget);
+    expect(find.byKey(const ValueKey('trash_empty')), findsOneWidget);
+    expect(find.text('没有最近删除的提醒事项'), findsOneWidget);
+  });
+
+  testWidgets('TC-UI-109 宽屏回收站有条目：标题在场且行尾可恢复（#163）',
+      (tester) async {
+    final repo = await seed();
+    await repo.deleteItem('i1');
+    await pumpApp(tester, repo, openListId: 'smart.trash');
+
+    expect(find.byKey(const ValueKey('trash_header')), findsOneWidget);
+    expect(find.byKey(const ValueKey('trash_empty')), findsNothing);
+    expect(find.text('买牛奶'), findsOneWidget);
+    expect(find.byKey(const ValueKey('restore_i1')), findsOneWidget);
+  });
+
   testWidgets('TC-UI-117 标签浏览器：chip 出现，点选即按标签过滤', (tester) async {
     final repo = await seed();
     await pumpApp(tester, repo, openListId: 'list.a');
