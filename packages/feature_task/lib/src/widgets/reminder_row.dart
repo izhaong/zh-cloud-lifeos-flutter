@@ -88,7 +88,7 @@ class ReminderRow extends StatelessWidget {
                     : CupertinoIcons.circle,
                 color: item.isCompleted
                     ? ReminderTokens.systemBlue
-                    : CupertinoColors.systemGrey4,
+                    : CupertinoColors.systemGrey3,
                 size: dense ? 18 : 22,
               ),
             ),
@@ -147,7 +147,7 @@ class ReminderRow extends StatelessWidget {
                         : CupertinoIcons.flag,
                     color: item.isFlagged
                         ? ReminderTokens.systemOrange
-                        : CupertinoColors.systemGrey4,
+                        : CupertinoColors.systemGrey3,
                     size: 18,
                   ),
                 ),
