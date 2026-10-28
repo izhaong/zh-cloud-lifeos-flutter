@@ -974,12 +974,13 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         id: newReminderId(),
         listId: _isSmartView ? 'list.personal' : widget.list.id,
         title: title,
-        // 从「今天」/「计划」视图新建 → dueAt = 今天（命中 today 同日过滤 + scheduled 非空过滤）；
+        // 从「今天」/「计划」视图新建 → dueAt = 今天（只有日期，00:00）；
+        // Apple 快速新建不带时刻，写 now 会让它一分钟后变「已过期→紧急」（#183）。
         // 从「全部/旗标/已完成」视图新建 → 不设 dueAt（归入个人列表，全部视图可见）
         dueAt:
             (widget.list.id == 'smart.today' ||
                 widget.list.id == 'smart.scheduled')
-            ? now
+            ? DateTime(now.year, now.month, now.day)
             : null,
       ),
     );

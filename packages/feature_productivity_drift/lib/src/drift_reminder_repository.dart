@@ -1005,13 +1005,22 @@ class DriftReminderRepository
       'smart.urgent' =>
         alive &&
             (includeCompleted || !row.isCompleted) &&
-            (row.priority >= 9 ||
-                (row.dueAt != null && row.dueAt!.isBefore(now))),
+            (row.priority >= 9 || _isOverdue(row.dueAt, now)),
       'smart.completed' => alive && row.isCompleted,
       // 分配事项：本地没有 assignee 字段，协作（M4）接入前恒为空。
       'smart.assigned' => false,
       _ => alive && row.listId == listId,
     };
+  }
+
+  /// 逾期口径（与 kernel 一致，parity#183）：00:00 = 只有日期，按天比较。
+  bool _isOverdue(DateTime? due, DateTime now) {
+    if (due == null) return false;
+    if (due.hour == 0 && due.minute == 0 && due.second == 0) {
+      final day = DateTime(due.year, due.month, due.day);
+      return day.isBefore(DateTime(now.year, now.month, now.day));
+    }
+    return due.isBefore(now);
   }
 
   bool _isTodayOrOverdue(DateTime? a, DateTime b) {

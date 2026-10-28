@@ -655,17 +655,29 @@ final class InMemoryReminderRepository implements ReminderRepository {
       'smart.flagged' => alive.where(
         (e) => (includeCompleted || !e.isCompleted) && e.isFlagged,
       ),
-      // 紧急 = 已过期未完成或高优先级（含今天已过时）。
+      // 紧急 = 已过期未完成或高优先级（#183：无时刻的按天判过期）。
       'smart.urgent' => alive.where(
         (e) =>
             (includeCompleted || !e.isCompleted) &&
-            (e.priority >= 9 || (e.dueAt != null && e.dueAt!.isBefore(now))),
+            (e.priority >= 9 || _isOverdue(e.dueAt, now)),
       ),
       'smart.completed' => alive.where((e) => e.isCompleted),
       // 分配事项：本地没有 assignee 字段，协作（M4）接入前恒为空。
       'smart.assigned' => const <ReminderItem>[],
       _ => alive.where((e) => e.listId == listId),
     };
+  }
+
+  /// 是否「已过期」（parity#183）：
+  /// - 无时刻（00:00 = Apple 的「只有日期」）→ 只有**日期**早于今天才算过期；
+  /// - 有时刻 → 按时间点比较（Apple 定时提醒到点即过期）。
+  bool _isOverdue(DateTime? due, DateTime now) {
+    if (due == null) return false;
+    if (due.hour == 0 && due.minute == 0 && due.second == 0) {
+      final day = DateTime(due.year, due.month, due.day);
+      return day.isBefore(DateTime(now.year, now.month, now.day));
+    }
+    return due.isBefore(now);
   }
 
   bool _isTodayOrOverdue(DateTime? a, DateTime b) {
