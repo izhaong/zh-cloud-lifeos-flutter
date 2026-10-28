@@ -380,7 +380,7 @@ class EventInspectorHost extends StatelessWidget {
         // 可能已 deactivated，查祖先会抛「deactivated widget's ancestor」。
         height: MediaQuery.sizeOf(sheetContext).height * 0.85,
         child: ColoredBox(
-          color: CupertinoColors.systemBackground,
+          color: CupertinoColors.systemBackground.resolveFrom(sheetContext),
           child: EventInspectorPane(
             initialEvent: event,
             occurrenceStart: occurrenceStart,
@@ -530,10 +530,13 @@ class _InspectorHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: CupertinoColors.systemBackground,
+      decoration: BoxDecoration(
+        color: CupertinoColors.systemBackground.resolveFrom(context),
         border: Border(
-          bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
+          bottom: BorderSide(
+            color: CupertinoColors.separator.resolveFrom(context),
+            width: 0.5,
+          ),
         ),
       ),
       height: 44,

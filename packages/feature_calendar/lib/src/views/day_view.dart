@@ -31,9 +31,12 @@ class _AllDayBand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
+          bottom: BorderSide(
+            color: CupertinoColors.separator.resolveFrom(context),
+            width: 0.5,
+          ),
         ),
       ),
       child: child,
@@ -197,7 +200,10 @@ class CalendarDayView extends ConsumerWidget {
             ),
           ),
           if (showReminderLane) ...[
-            Container(width: 1, color: CalendarTokens.separator),
+            Container(
+              width: 1,
+              color: CalendarTokens.separator.resolveFrom(context),
+            ),
             const SizedBox(width: 220, child: DayReminderLane()),
           ],
         ],

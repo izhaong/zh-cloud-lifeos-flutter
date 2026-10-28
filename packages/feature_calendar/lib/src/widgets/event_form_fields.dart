@@ -496,9 +496,12 @@ class _FieldRow extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(width: 0.5, color: CupertinoColors.separator),
+            bottom: BorderSide(
+              width: 0.5,
+              color: CupertinoColors.separator.resolveFrom(context),
+            ),
           ),
         ),
         child: Row(
@@ -552,9 +555,12 @@ class _SwitchRow extends StatelessWidget {
       onTap: () => onChanged(!value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(width: 0.5, color: CupertinoColors.separator),
+            bottom: BorderSide(
+              width: 0.5,
+              color: CupertinoColors.separator.resolveFrom(context),
+            ),
           ),
         ),
         child: Row(
@@ -604,9 +610,12 @@ class _TextFieldRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(width: 0.5, color: CupertinoColors.separator),
+          bottom: BorderSide(
+            width: 0.5,
+            color: CupertinoColors.separator.resolveFrom(context),
+          ),
         ),
       ),
       child: CupertinoTextField(
@@ -717,7 +726,7 @@ class _TimeZoneDialogState extends State<_TimeZoneDialog> {
               key: const Key('event_timezone_search'),
               placeholder: '搜索时区',
               decoration: BoxDecoration(
-                color: CalendarTokens.chipBackground,
+                color: CalendarTokens.chipBackground.resolveFrom(context),
                 borderRadius: BorderRadius.circular(8),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -739,11 +748,11 @@ class _TimeZoneDialogState extends State<_TimeZoneDialog> {
                         horizontal: 8,
                         vertical: 10,
                       ),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
                             width: 0.5,
-                            color: CupertinoColors.separator,
+                            color: CupertinoColors.separator.resolveFrom(context),
                           ),
                         ),
                       ),
@@ -958,7 +967,7 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                 controller: _interval,
                 keyboardType: TextInputType.number,
                 decoration: BoxDecoration(
-                  color: CalendarTokens.chipBackground,
+                  color: CalendarTokens.chipBackground.resolveFrom(context),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -988,7 +997,7 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                           decoration: BoxDecoration(
                             color: _c.weekdays.contains(d)
                                 ? CalendarTokens.systemBlue
-                                : CalendarTokens.chipBackground,
+                                : CalendarTokens.chipBackground.resolveFrom(context),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -1070,7 +1079,7 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                   controller: _count,
                   keyboardType: TextInputType.number,
                   decoration: BoxDecoration(
-                    color: CalendarTokens.chipBackground,
+                    color: CalendarTokens.chipBackground.resolveFrom(context),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -1341,9 +1350,12 @@ class _AlertRow extends StatelessWidget {
       onTap: onToggle,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            bottom: BorderSide(width: 0.5, color: CupertinoColors.separator),
+            bottom: BorderSide(
+              width: 0.5,
+              color: CupertinoColors.separator.resolveFrom(context),
+            ),
           ),
         ),
         child: Row(

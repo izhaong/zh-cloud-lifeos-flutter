@@ -38,7 +38,7 @@ class DayReminderLane extends ConsumerWidget {
 
     return Container(
       key: const Key('day_reminder_lane'),
-      color: CalendarTokens.windowBackground,
+      color: CalendarTokens.windowBackground.resolveFrom(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

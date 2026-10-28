@@ -72,7 +72,7 @@ class _QuickEventDialogState extends State<_QuickEventDialog> {
             autofocus: true,
             placeholder: '例如：明天下午3点开会',
             decoration: BoxDecoration(
-              color: CalendarTokens.chipBackground,
+              color: CalendarTokens.chipBackground.resolveFrom(context),
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
