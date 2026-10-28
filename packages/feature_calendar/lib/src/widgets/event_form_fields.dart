@@ -1,3 +1,4 @@
+import '../design/calendar_tokens.dart';
 import 'package:cupertino_calendar_picker/cupertino_calendar_picker.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -465,7 +466,7 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
             padding: EdgeInsets.all(8),
             child: Text(
               '标题不能为空',
-              style: TextStyle(color: Color(0xFFFF3B30), fontSize: 12),
+              style: TextStyle(color: CalendarTokens.systemRed, fontSize: 12),
             ),
           ),
       ],
@@ -568,7 +569,7 @@ class _SwitchRow extends StatelessWidget {
                       subtitle!,
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF8E8E93),
+                        color: CalendarTokens.labelSecondary,
                       ),
                     ),
                 ],
@@ -716,7 +717,7 @@ class _TimeZoneDialogState extends State<_TimeZoneDialog> {
               key: const Key('event_timezone_search'),
               placeholder: '搜索时区',
               decoration: BoxDecoration(
-                color: const Color(0xFFE9E9EB),
+                color: CalendarTokens.chipBackground,
                 borderRadius: BorderRadius.circular(8),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -957,7 +958,7 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                 controller: _interval,
                 keyboardType: TextInputType.number,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE9E9EB),
+                  color: CalendarTokens.chipBackground,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -986,8 +987,8 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                           ),
                           decoration: BoxDecoration(
                             color: _c.weekdays.contains(d)
-                                ? const Color(0xFF007AFF)
-                                : const Color(0xFFE9E9EB),
+                                ? CalendarTokens.systemBlue
+                                : CalendarTokens.chipBackground,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -1069,7 +1070,7 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                   controller: _count,
                   keyboardType: TextInputType.number,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE9E9EB),
+                    color: CalendarTokens.chipBackground,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.symmetric(
@@ -1132,7 +1133,7 @@ class _EditorLabel extends StatelessWidget {
       padding: const EdgeInsets.only(top: 10, bottom: 4),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93)),
+        style: const TextStyle(fontSize: 12, color: CalendarTokens.labelSecondary),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import '../design/calendar_tokens.dart';
 import 'package:app_core/app_core.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -196,7 +197,7 @@ class CalendarDayView extends ConsumerWidget {
             ),
           ),
           if (showReminderLane) ...[
-            Container(width: 1, color: const Color(0xFFC6C6C8)),
+            Container(width: 1, color: CalendarTokens.separator),
             const SizedBox(width: 220, child: DayReminderLane()),
           ],
         ],

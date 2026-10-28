@@ -1,3 +1,4 @@
+import '../design/calendar_tokens.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:app_core/app_core.dart';
 
@@ -71,7 +72,7 @@ class _QuickEventDialogState extends State<_QuickEventDialog> {
             autofocus: true,
             placeholder: '例如：明天下午3点开会',
             decoration: BoxDecoration(
-              color: const Color(0xFFE9E9EB),
+              color: CalendarTokens.chipBackground,
               borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -85,7 +86,7 @@ class _QuickEventDialogState extends State<_QuickEventDialog> {
                 : '${parsed.title} · '
                       '${formatEventWall(parsed.startAt, widget.timeZone, allDay: parsed.allDay)}',
             key: const Key('quick_event_preview'),
-            style: const TextStyle(fontSize: 12, color: Color(0xFF8E8E93)),
+            style: const TextStyle(fontSize: 12, color: CalendarTokens.labelSecondary),
           ),
         ],
       ),

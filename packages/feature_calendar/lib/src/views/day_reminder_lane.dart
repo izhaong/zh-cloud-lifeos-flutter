@@ -1,3 +1,4 @@
+import '../design/calendar_tokens.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kalender/kalender.dart' as kalender;
@@ -37,7 +38,7 @@ class DayReminderLane extends ConsumerWidget {
 
     return Container(
       key: const Key('day_reminder_lane'),
-      color: const Color(0xFFF7F7F9),
+      color: CalendarTokens.windowBackground,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -48,7 +49,7 @@ class DayReminderLane extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF8E8E93),
+                color: CalendarTokens.labelSecondary,
               ),
             ),
           ),
@@ -60,7 +61,7 @@ class DayReminderLane extends ConsumerWidget {
                       '没有提醒事项',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Color(0xFFC7C7CC),
+                        color: CalendarTokens.grey3,
                       ),
                     ),
                   )
@@ -102,7 +103,7 @@ class _LaneReminderRow extends StatelessWidget {
             width: 42,
             child: Text(
               time,
-              style: const TextStyle(fontSize: 11, color: Color(0xFF8E8E93)),
+              style: const TextStyle(fontSize: 11, color: CalendarTokens.labelSecondary),
             ),
           ),
           Expanded(
@@ -112,7 +113,7 @@ class _LaneReminderRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 13,
-                color: const Color(0xFF3C3C43),
+                color: CalendarTokens.labelSubtle,
                 decoration:
                     item.isCompleted ? TextDecoration.lineThrough : null,
               ),
@@ -137,7 +138,7 @@ class _HollowCircle extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF007AFF), width: 1.5),
+        border: Border.all(color: CalendarTokens.systemBlue, width: 1.5),
       ),
     );
   }

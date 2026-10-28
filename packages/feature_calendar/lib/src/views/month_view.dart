@@ -1,3 +1,4 @@
+import '../design/calendar_tokens.dart';
 import 'package:app_core/app_core.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -200,14 +201,15 @@ class _MonthDayHeader extends StatelessWidget {
       alignment: Alignment.center,
       decoration: isToday
           ? const BoxDecoration(
-              color: Color(0xFFFF3B30),
+              color: CalendarTokens.systemRed,
               shape: BoxShape.circle,
             )
           : null,
       child: Text(
         '${date.day}',
         style: TextStyle(
-          color: isToday ? const Color(0xFFFFFFFF) : null,
+          // 红圈上的字必须恒为白（surface 在暗色下是深色，会造成红底深字）
+          color: isToday ? CupertinoColors.white : null,
           fontWeight: isToday ? FontWeight.w600 : null,
         ),
       ),
@@ -232,8 +234,8 @@ class _MonthDayHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 9,
               color: isFirst
-                  ? const Color(0xFFFF3B30)
-                  : const Color(0xFF8E8E93),
+                  ? CalendarTokens.systemRed
+                  : CalendarTokens.labelSecondary,
             ),
           ),
         ],
@@ -263,8 +265,8 @@ class _MonthWeekDayHeader extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             color: isWeekend
-                ? const Color(0xFF8E8E93)
-                : const Color(0xFF3C3C43),
+                ? CalendarTokens.labelSecondary
+                : CalendarTokens.labelSubtle,
           ),
         ),
       ),

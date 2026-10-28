@@ -5,6 +5,7 @@
 /// Cupertino 化（#130）：底部弹层 + 行式开关 + ActionSheet 下拉。
 library;
 
+import '../design/calendar_tokens.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -320,7 +321,7 @@ class _Row extends StatelessWidget {
                       subtitle!,
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF8E8E93),
+                        color: CalendarTokens.labelSecondary,
                       ),
                     ),
                 ],
@@ -382,7 +383,7 @@ class _SwitchRow extends StatelessWidget {
                       subtitle!,
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF8E8E93),
+                        color: CalendarTokens.labelSecondary,
                       ),
                     ),
                 ],
@@ -411,7 +412,7 @@ class _SectionHeader extends StatelessWidget {
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF8E8E93),
+          color: CalendarTokens.labelSecondary,
         ),
       ),
     );
