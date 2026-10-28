@@ -101,7 +101,11 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
           kalenderController: _controller,
           views: const [
             kalender.MonthViewParts(
-              header: SizedBox.shrink(),
+              // #164：原先把表头换成 SizedBox.shrink()，月视图完全没有星期行
+              header: KeyedSubtree(
+                key: Key('month_weekday_header'),
+                child: kalender.MonthHeader(),
+              ),
               body: kalender.MonthBody(
                 tileComponents: kalender.TileComponents(
                   tileBuilder: monthEventTileBuilder,
@@ -111,6 +115,12 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
           ],
           components: kalender.KalenderComponents(
             monthComponents: kalender.MonthComponents(
+              // 星期名固定用中文单字（kalender 默认走 intl，zh 数据未初始化会抛错；
+              // 英文全名问题见 #193）
+              headerComponents: kalender.MonthHeaderComponents(
+                weekDayHeaderBuilder: (context, date) =>
+                    _MonthWeekDayHeader(date: date),
+              ),
               bodyComponents: kalender.MonthBodyComponents(
                 monthDayHeaderBuilder: (context, date) =>
                     _MonthDayHeader(date: date, chinese: chinese),
@@ -160,7 +170,8 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
   }
 }
 
-/// 月格日期头：日期数字 +（CHINESE 时）农历日；初一红色（TC-CAL-UI-115）。
+/// 月格日期头：日期数字 +（CHINESE 时）农历日；初一红色（TC-CAL-UI-115）；
+/// 当天（本地日）用红底白字圆点标记（#164）。
 class _MonthDayHeader extends StatelessWidget {
   const _MonthDayHeader({required this.date, required this.chinese});
 
@@ -169,10 +180,32 @@ class _MonthDayHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    final number = Container(
+      key: isToday ? const Key('month-today') : null,
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: isToday
+          ? const BoxDecoration(
+              color: Color(0xFFFF3B30),
+              shape: BoxShape.circle,
+            )
+          : null,
+      child: Text(
+        '${date.day}',
+        style: TextStyle(
+          color: isToday ? const Color(0xFFFFFFFF) : null,
+          fontWeight: isToday ? FontWeight.w600 : null,
+        ),
+      ),
+    );
     if (!chinese) {
       return Padding(
         padding: const EdgeInsets.all(2),
-        child: Text('${date.day}'),
+        child: number,
       );
     }
     final label = lunarDayLabel(date);
@@ -183,7 +216,7 @@ class _MonthDayHeader extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${date.day}'),
+          number,
           Text(
             label,
             style: TextStyle(
@@ -194,6 +227,36 @@ class _MonthDayHeader extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// 月视图星期行：中文单字，周末灰色（Apple 月视图同款）。
+class _MonthWeekDayHeader extends StatelessWidget {
+  const _MonthWeekDayHeader({required this.date});
+
+  final DateTime date;
+
+  static const _names = ['一', '二', '三', '四', '五', '六', '日'];
+
+  @override
+  Widget build(BuildContext context) {
+    final isWeekend = date.weekday == DateTime.saturday ||
+        date.weekday == DateTime.sunday;
+    return Padding(
+      key: ValueKey('month_weekday_${date.weekday}'),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Center(
+        child: Text(
+          _names[date.weekday - 1],
+          style: TextStyle(
+            fontSize: 12,
+            color: isWeekend
+                ? const Color(0xFF8E8E93)
+                : const Color(0xFF3C3C43),
+          ),
+        ),
       ),
     );
   }

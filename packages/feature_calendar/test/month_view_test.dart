@@ -55,6 +55,26 @@ void main() {
     expect(find.byKey(const Key('calendar_month_view')), findsOneWidget);
   });
 
+  // #164：月视图要有星期行（中文单字），当天要有红底圆点标记
+  testWidgets('#164 月视图星期行与当天高亮', (tester) async {
+    final now = DateTime.now();
+    await pumpMonth(tester);
+
+    expect(
+      find.byKey(const Key('month_weekday_header')),
+      findsOneWidget,
+      reason: '月视图缺星期表头（旧实现 header 被换成 SizedBox.shrink）',
+    );
+    for (final label in ['一', '二', '三', '四', '五', '六', '日']) {
+      expect(find.text(label), findsWidgets, reason: '星期 $label 缺失');
+    }
+    expect(
+      find.byKey(const Key('month-today')),
+      findsOneWidget,
+      reason: '当天（${now.day}）没有高亮标记',
+    );
+  });
+
   // TC-CAL-UI-112：一条全天、一条 10:00 → 色条都用日历颜色
   testWidgets('TC-CAL-UI-112 色条用日历颜色', (tester) async {
     final container = ProviderContainer(overrides: []);
