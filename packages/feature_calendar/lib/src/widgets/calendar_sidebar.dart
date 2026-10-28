@@ -42,7 +42,10 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
           child: ListView(
             children: [
               for (final entry in groups.entries) ...[
-                LifeSectionHeader(title: entry.key),
+                LifeSectionHeader(
+                  title: entry.key,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                ),
                 for (final c in entry.value) _CalendarRow(calendar: c),
               ],
               // F-15：「其他」组固定行——已安排的提醒事项（默认勾选）

@@ -86,6 +86,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
             const LifeSectionHeader(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
               title: '通用',
               key: Key('settings_section_general'),
             ),
@@ -155,6 +156,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
                   _save(copyCalendarPreference(pref, showHolidays: v)),
             ),
             const LifeSectionHeader(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
               title: '提醒',
               key: Key('settings_section_reminders'),
             ),
@@ -207,6 +209,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               ),
             ),
             const LifeSectionHeader(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
               title: '高级',
               key: Key('settings_section_advanced'),
             ),
@@ -234,6 +237,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
                   _save(copyCalendarPreference(pref, openEventsInWindow: v)),
             ),
             const LifeSectionHeader(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
               title: '账户',
               key: Key('settings_section_account'),
             ),
