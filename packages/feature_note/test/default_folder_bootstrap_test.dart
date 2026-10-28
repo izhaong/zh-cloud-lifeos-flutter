@@ -1,5 +1,4 @@
 import 'package:feature_note/feature_note.dart';
-import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// parity#155：空库首启必须有可写文件夹，且「新建文件夹」是幂等的。
