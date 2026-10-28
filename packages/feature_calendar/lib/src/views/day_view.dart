@@ -54,6 +54,8 @@ class CalendarDayView extends ConsumerWidget {
 
     final controller = kalender.KalenderController(
       viewConfiguration: kalender.MultiDayViewConfiguration.singleDay(
+        // 表头/网格跟随锚点（#168：未传时 kalender 恒取 now）
+        initialDateTime: anchor,
         timeOfDayRange: kalender.KalenderTimeRange(
           start: kalender.KalenderTime(hour: config.day.startHour, minute: 0),
           end: kalender.KalenderTime(hour: config.day.endHour - 1, minute: 59),
@@ -177,8 +179,14 @@ class CalendarWeekView extends ConsumerWidget {
         const [];
 
     final kalenderConfig = config.week.isWorkWeek
-        ? kalender.MultiDayViewConfiguration.workWeek(numberOfDays: 5)
-        : kalender.MultiDayViewConfiguration.week(numberOfDays: 7);
+        ? kalender.MultiDayViewConfiguration.workWeek(
+            numberOfDays: 5,
+            initialDateTime: anchor,
+          )
+        : kalender.MultiDayViewConfiguration.week(
+            numberOfDays: 7,
+            initialDateTime: anchor,
+          );
     final controller = kalender.KalenderController(
       viewConfiguration: kalenderConfig,
     );
