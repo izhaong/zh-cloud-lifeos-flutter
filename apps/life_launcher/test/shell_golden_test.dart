@@ -48,6 +48,16 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('桌面 1280 暗色（golden 基线；同夹具只改明暗）', (tester) async {
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    await pumpAt(tester, const Size(1280, 800));
+    await expectLater(
+      find.byType(CupertinoApp),
+      matchesGoldenFile('goldens/desktop_1280_shell_dark.png'),
+    );
+  });
+
   testWidgets('iPhone 375（golden 基线；挂钟注入固定 2026-10-26）', (tester) async {
     await pumpAt(tester, const Size(375, 812));
     await expectLater(

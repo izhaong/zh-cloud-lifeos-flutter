@@ -138,6 +138,18 @@ void main() {
       );
     });
 
+    testWidgets('桌面 1280 月视图 暗色（golden 基线；同夹具只改明暗）', (
+      tester,
+    ) async {
+      tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
+      addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+      await pumpAt(tester, const Size(1280, 800), CalendarViewMode.month);
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/desktop_1280_month_dark.png'),
+      );
+    });
+
     testWidgets('桌面 1280 月视图 + 侧栏（golden 基线；挂钟已注入固定 2026-10-26，确定性）', (
       tester,
     ) async {
