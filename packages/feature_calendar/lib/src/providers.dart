@@ -39,6 +39,12 @@ final visibleCalendarIdsProvider = Provider<Set<String>>((ref) {
 final anchorDateProvider =
     NotifierProvider<AnchorDateNotifier, DateTime>(AnchorDateNotifier.new);
 
+/// 可注入的挂钟（#331）。
+///
+/// 生产默认 `DateTime.now`；测试 override 成固定时刻，让月/年视图的「今天」高亮
+/// 与 golden 基线**确定化**——否则图会随执行日期变，golden 当门禁会在无关 PR 上变红。
+final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
 class AnchorDateNotifier extends Notifier<DateTime> {
   @override
   DateTime build() {

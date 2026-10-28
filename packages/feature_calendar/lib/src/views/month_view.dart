@@ -129,7 +129,11 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
               ),
               bodyComponents: kalender.MonthBodyComponents(
                 monthDayHeaderBuilder: (context, date) =>
-                    _MonthDayHeader(date: date, chinese: chinese),
+                    _MonthDayHeader(
+                      date: date,
+                      chinese: chinese,
+                      today: ref.watch(clockProvider)(),
+                    ),
               ),
             ),
           ),
@@ -185,16 +189,24 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
 /// 月格日期头：日期数字 +（CHINESE 时）农历日；初一红色（TC-CAL-UI-115）；
 /// 当天（本地日）用红底白字圆点标记（#164）。
 class _MonthDayHeader extends StatelessWidget {
-  const _MonthDayHeader({required this.date, required this.chinese});
+  const _MonthDayHeader({
+    required this.date,
+    required this.chinese,
+    required this.today,
+  });
 
   final DateTime date;
   final bool chinese;
 
+  /// 「今天」（由 [clockProvider] 注入，生产=挂钟，测试=固定时刻）。
+  final DateTime today;
+
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
     final isToday =
-        date.year == now.year && date.month == now.month && date.day == now.day;
+        date.year == today.year &&
+        date.month == today.month &&
+        date.day == today.day;
     final number = Container(
       key: isToday ? const Key('month-today') : null,
       width: 22,
