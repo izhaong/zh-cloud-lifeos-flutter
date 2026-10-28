@@ -20,7 +20,7 @@ class CalendarYearView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final anchor = ref.watch(anchorDateProvider);
     final year = anchor.year;
-    final today = DateTime.now();
+    final today = ref.watch(clockProvider)();
     // 全年 occurrence 一次取齐（12 个月窗）；点聚合按「日期 → 去重颜色」。
     final occurrences =
         ref

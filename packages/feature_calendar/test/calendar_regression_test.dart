@@ -87,6 +87,8 @@ void main() {
           calendarRepositoryProvider.overrideWithValue(repo),
           sidebarPrefsProvider.overrideWith((ref) => null),
           kalenderEventsControllerProvider.overrideWithValue(controller),
+          // #331：钉死挂钟——月/年视图的「今天」高亮直接取它，golden 才能确定化。
+          clockProvider.overrideWithValue(() => DateTime(2026, 10, 26)),
         ],
       );
       container
@@ -114,7 +116,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('iPhone 375 日视图（golden 基线；随系统时钟变化，走查前 --update-goldens 重录）', (
+    testWidgets('iPhone 375 日视图（golden 基线；挂钟已注入固定 2026-10-26，确定性）', (
       tester,
     ) async {
       await pumpAt(tester, const Size(375, 812), CalendarViewMode.day);
@@ -123,9 +125,9 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/iphone_375_day.png'),
       );
-    }, skip: true);
+    });
 
-    testWidgets('iPad 834 周视图（golden 基线；随系统时钟变化，走查前 --update-goldens 重录）', (
+    testWidgets('iPad 834 周视图（golden 基线；挂钟已注入固定 2026-10-26，确定性）', (
       tester,
     ) async {
       await pumpAt(tester, const Size(834, 1112), CalendarViewMode.week);
@@ -134,9 +136,9 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/ipad_834_week.png'),
       );
-    }, skip: true);
+    });
 
-    testWidgets('桌面 1280 月视图 + 侧栏（golden 基线；随系统时钟变化，走查前 --update-goldens 重录）', (
+    testWidgets('桌面 1280 月视图 + 侧栏（golden 基线；挂钟已注入固定 2026-10-26，确定性）', (
       tester,
     ) async {
       await pumpAt(tester, const Size(1280, 800), CalendarViewMode.month);
@@ -145,7 +147,7 @@ void main() {
         find.byType(MaterialApp),
         matchesGoldenFile('goldens/desktop_1280_month.png'),
       );
-    }, skip: true);
+    });
   });
 }
 
