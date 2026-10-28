@@ -47,16 +47,40 @@ List<String> allTimeZoneNames() {
   return names.toList()..sort();
 }
 
-/// 设备本地时区（flutter_timezone）；测试/无插件环境回退 UTC。
+/// 设备本地时区（IANA 名）。
+///
+/// 兜底链（#297）：
+/// 1. `flutter_timezone` 的 identifier（桌面/移动可用）；
+/// 2. 该 id 不在 tz 库里 → 用当前 **UTC 偏移**合成 `Etc/GMT∓N`
+///    （Web 上插件不可用、Dart 的 `timeZoneName` 只有 "EDT" 这类缩写，都不入 tz 库）；
+/// 3. 连偏移都取不到 → `UTC`。
+///
+/// 之前只有第 1 步 + 直接回退 `UTC`，于是 Web 端新建事件写成 UTC，网格按本地
+/// （EDT）画、详情按事件时区（UTC）显示，同一事件差 4 小时（#297）。
 Future<String> deviceTimeZoneName() async {
+  _ensureTimeZones();
   try {
     final info = await FlutterTimezone.getLocalTimezone();
     final id = info.identifier;
-    _ensureTimeZones();
-    return tz.timeZoneDatabase.locations.containsKey(id) ? id : 'UTC';
+    if (tz.timeZoneDatabase.locations.containsKey(id)) return id;
+    return _fallbackZoneFromOffset(DateTime.now().timeZoneOffset) ?? 'UTC';
   } catch (_) {
-    return 'UTC';
+    return _fallbackZoneFromOffset(DateTime.now().timeZoneOffset) ?? 'UTC';
   }
+}
+
+/// 由当前 UTC 偏移合成固定偏移时区名（`Etc/GMT+N` 的符号与常识相反）。
+///
+/// 只在拿不到 IANA 名时兜底：它不跟随夏令时（同一 session 内偏移正确），
+/// 但比一律 `UTC` 准确得多。非整小时偏移（如 +05:30）返回 null。
+String? _fallbackZoneFromOffset(Duration offset) {
+  final minutes = offset.inMinutes;
+  if (minutes % 60 != 0) return null;
+  final hours = minutes ~/ 60;
+  // Etc/GMT-4 = UTC+4；Etc/GMT+4 = UTC−4
+  final name = hours == 0 ? 'Etc/GMT' : 'Etc/GMT${hours > 0 ? '-' : '+'}${hours.abs()}';
+  _ensureTimeZones();
+  return tz.timeZoneDatabase.locations.containsKey(name) ? name : null;
 }
 
 /// 全天归一：按 `timeZone` 把开始归到当地 00:00、结束归到次日 00:00（转 UTC）。
