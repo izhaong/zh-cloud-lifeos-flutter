@@ -61,8 +61,11 @@ class _CloudLoginPageState extends ConsumerState<CloudLoginPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(CupertinoIcons.cloud_fill,
-                  size: 56, color: Color(0xFF007AFF)),
+              Icon(
+                CupertinoIcons.cloud_fill,
+                size: 56,
+                color: CupertinoColors.systemBlue.resolveFrom(context),
+              ),
               const SizedBox(height: 12),
               const Text(
                 '云同步',
@@ -70,10 +73,14 @@ class _CloudLoginPageState extends ConsumerState<CloudLoginPage> {
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 '登录后多端同步提醒事项；跳过不影响本地使用',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                style: TextStyle(
+                  fontSize: 13,
+                  // 8E8E93（Apple systemGrey 亮色）→ 语义色，暗色随系统解算
+                  color: CupertinoColors.systemGrey.resolveFrom(context),
+                ),
               ),
               const SizedBox(height: 24),
               CupertinoTextField(
@@ -94,7 +101,10 @@ class _CloudLoginPageState extends ConsumerState<CloudLoginPage> {
                 Text(
                   _error!,
                   key: const ValueKey('login_error'),
-                  style: const TextStyle(fontSize: 13, color: Color(0xFFFF3B30)),
+                  style: TextStyle(
+                  fontSize: 13,
+                  color: CupertinoColors.systemRed.resolveFrom(context),
+                ),
                 ),
               ],
               const SizedBox(height: 24),

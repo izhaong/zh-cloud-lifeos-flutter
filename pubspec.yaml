@@ -34,8 +34,8 @@ melos:
       description: 全仓单元/Widget 测试
     ui-boundary:
       # 先自检再跑真实扫描：新尺首跑必须先证明「每条判据都能判红」（Epic #126 C4）
-      # --max-hex 是「只减不增」的棘轮：当前基线 105（2026-10-28 重算，只算 UI 层字面色）
-      run: dart run scripts/check_ui_boundary.dart --selftest && dart run scripts/check_ui_boundary.dart --max-hex 105
+      # --max-hex 是「只减不增」的棘轮：当前基线 101（2026-10-28 清掉 task_cloud/launcher 的 4 处后）
+      run: dart run scripts/check_ui_boundary.dart --selftest && dart run scripts/check_ui_boundary.dart --max-hex 101
       description: UI 边界检查（Material 白名单 / SDK Cupertino / fromSeed / 裸 hex 计数）
     gen:
       run: dart run melos exec --depends-on=build_runner -- dart run build_runner build

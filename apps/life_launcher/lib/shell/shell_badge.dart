@@ -19,7 +19,7 @@ class ShellBadge extends StatelessWidget {
         '$count',
         textAlign: TextAlign.center,
         style: const TextStyle(
-          color: Color(0xFFFFFFFF),
+          color: CupertinoColors.white,
           fontSize: 11,
           fontWeight: FontWeight.w600,
           height: 1.2,
