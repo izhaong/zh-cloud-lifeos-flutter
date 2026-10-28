@@ -3,6 +3,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:intl/intl.dart';
 
 import '../design/reminder_tokens.dart';
+import 'package:app_core/app_core.dart';
 
 /// 提醒行（Apple 提醒事项样式）：完成圆圈 + 标题 + 列表名/日期/旗标/优先级展示。
 ///
@@ -177,15 +178,15 @@ class ReminderRow extends StatelessWidget {
   Future<void> _showDeleteMenu(BuildContext context) async {
     final selected = await showCupertinoModalPopup<String>(
       context: context,
-      builder: (ctx) => CupertinoActionSheet(
+      builder: (ctx) => LifeActionSheet(
         actions: [
-          CupertinoActionSheetAction(
+          LifeActionSheetAction(
             isDestructiveAction: true,
             onPressed: () => Navigator.of(ctx).pop('delete'),
             child: const Text('删除提醒'),
           ),
         ],
-        cancelButton: CupertinoActionSheetAction(
+        cancelButton: LifeActionSheetAction(
           isDefaultAction: true,
           onPressed: () => Navigator.of(ctx).pop(),
           child: const Text('取消'),

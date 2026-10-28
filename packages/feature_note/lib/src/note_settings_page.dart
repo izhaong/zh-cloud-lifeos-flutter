@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import 'providers.dart';
+import 'package:app_core/app_core.dart';
 
 /// 记录设置（F-13）：默认文件夹与排序方式，本地偏好。
 class NoteSettingsPage extends ConsumerWidget {
@@ -25,22 +26,22 @@ class NoteSettingsPage extends ConsumerWidget {
     Future<void> pickDefaultFolder() async {
       final selected = await showCupertinoModalPopup<String>(
         context: context,
-        builder: (sheetContext) => CupertinoActionSheet(
+        builder: (sheetContext) => LifeActionSheet(
           key: const Key('note_default_folder_sheet'),
           actions: [
-            CupertinoActionSheetAction(
+            LifeActionSheetAction(
               onPressed: () => Navigator.of(sheetContext).pop(''),
               child: const Text('当前文件夹'),
             ),
             for (final folder in folders)
               if (!folder.smart)
-                CupertinoActionSheetAction(
+                LifeActionSheetAction(
                   key: ValueKey('note_default_folder_${folder.id}'),
                   onPressed: () => Navigator.of(sheetContext).pop(folder.id),
                   child: Text(folder.name),
                 ),
           ],
-          cancelButton: CupertinoActionSheetAction(
+          cancelButton: LifeActionSheetAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(sheetContext).pop(),
             child: const Text('取消'),
