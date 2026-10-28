@@ -151,6 +151,9 @@ Future<void> main() async {
               ),
         ),
         pinnedTabsServiceProvider.overrideWithValue(PinnedTabsService(prefs)),
+        // #254：日历侧栏显隐（☰）声明持久化到 shared_preferences，但组合根一直
+        // 没注入——`SidebarVisibleNotifier` 读到 null 就永远回落「显示」且静默不写。
+        sidebarPrefsProvider.overrideWithValue(prefs),
         authPortProvider.overrideWithValue(authPort),
         syncPortProvider.overrideWithValue(taskSyncCoordinator),
       ],
