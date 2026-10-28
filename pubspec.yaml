@@ -9,6 +9,7 @@ environment:
 workspace:
   - apps/life_launcher
   - packages/app_core
+  - packages/app_ui
   - packages/life_link
   - packages/feature_productivity_kernel
   - packages/feature_productivity_drift

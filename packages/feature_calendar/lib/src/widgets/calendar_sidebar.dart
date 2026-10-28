@@ -2,6 +2,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:app_core/app_core.dart';
+import 'package:app_ui/app_ui.dart';
 
 import '../providers.dart';
 import '../design/calendar_tokens.dart';
@@ -41,7 +42,10 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
           child: ListView(
             children: [
               for (final entry in groups.entries) ...[
-                _GroupHeader(title: entry.key),
+                LifeSectionHeader(
+                  title: entry.key,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                ),
                 for (final c in entry.value) _CalendarRow(calendar: c),
               ],
               // F-15：「其他」组固定行——已安排的提醒事项（默认勾选）
@@ -153,27 +157,6 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
     if (created != null) {
       await ref.read(calendarRepositoryProvider).upsertCalendar(created);
     }
-  }
-}
-
-class _GroupHeader extends StatelessWidget {
-  const _GroupHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: CalendarTokens.labelSecondary,
-        ),
-      ),
-    );
   }
 }
 
