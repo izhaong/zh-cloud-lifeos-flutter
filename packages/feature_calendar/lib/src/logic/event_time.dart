@@ -66,9 +66,13 @@ Future<String> deviceTimeZoneName() async {
   _ensureTimeZones();
   try {
     final info = await FlutterTimezone.getLocalTimezone();
-    final id = info.identifier;
-    if (tz.timeZoneDatabase.locations.containsKey(id)) return id;
-    return _fallbackZoneFromOffset(DateTime.now().timeZoneOffset) ?? 'UTC';
+    // 插件给的名字/浏览器给的名字都只在 tz 库里认得时才算数；都不认才谈
+    // 固定偏移兜底。自审修正：此前「插件返回不认识的名字」会直接跳到偏移兜底，
+    // 绕过浏览器真名，等于 Web 上 #302 白做。
+    return _zoneFromName(info.identifier) ??
+        _zoneFromName(browserTimeZoneName()) ??
+        _fallbackZoneFromOffset(DateTime.now().timeZoneOffset) ??
+        'UTC';
   } catch (_) {
     // 插件不可用（Web 最常见）→ 先问浏览器要真名，再谈偏移兜底。
     return _zoneFromName(browserTimeZoneName()) ??
