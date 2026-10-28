@@ -22,12 +22,16 @@ class EventFormFields extends ConsumerStatefulWidget {
     super.key,
     required this.event,
     required this.onChanged,
+    this.showTitleRequired = false,
   });
 
   final CalendarEvent event;
 
   /// 字段变更回调（父层持有草稿；保存由 Inspector 触发 upsertEvent）。
   final ValueChanged<CalendarEvent> onChanged;
+
+  /// 是否展示「标题不能为空」提示（#177：仅在保存尝试后由 Inspector 置真）。
+  final bool showTitleRequired;
 
   @override
   ConsumerState<EventFormFields> createState() => _EventFormFieldsState();
@@ -343,12 +347,38 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
             ),
           ),
         ),
-        // 8. 行程时间
+        // 8. 行程时间（#188：Apple 预设 无/5/15/30/60/90/120）
         _FieldRow(
           rowKey: const Key('event_field_travel'),
           title: '行程时间',
-          trailing: Text(
-            _e.travelMinutes == null ? '无' : '${_e.travelMinutes} 分钟',
+          trailing: CupertinoButton(
+            key: const Key('event_field_travel_dropdown'),
+            minimumSize: Size.zero,
+            padding: EdgeInsets.zero,
+            onPressed: () async {
+              final minutes = await _showOptionSheet<int>([
+                (value: 0, label: '无'),
+                for (final m in const [5, 15, 30, 60, 90, 120])
+                  (value: m, label: '$m 分钟'),
+              ], isSelected: (v) {
+                if (v == 0) {
+                  return _e.travelMinutes == null;
+                }
+                return v == _e.travelMinutes;
+              });
+              if (minutes == null || !mounted) {
+                return;
+              }
+              _emit(
+                minutes == 0
+                    ? _copyWith(_e, clearTravel: true)
+                    : _copyWith(_e, travelMinutes: minutes),
+              );
+            },
+            child: Text(
+              _e.travelMinutes == null ? '无' : '${_e.travelMinutes} 分钟',
+              style: const TextStyle(fontSize: 15),
+            ),
           ),
         ),
         // 9. 提醒（多选；F-11）
@@ -428,7 +458,7 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
           maxLines: 3,
           onChanged: (v) => _emit(_copyWith(_e, notes: v)),
         ),
-        if (titleEmpty)
+        if (titleEmpty && widget.showTitleRequired)
           const Padding(
             key: Key('event_field_title_required_hint'),
             padding: EdgeInsets.all(8),
@@ -601,6 +631,8 @@ CalendarEvent _copyWith(
   bool? isPrivate,
   String? url,
   String? notes,
+  int? travelMinutes,
+  bool clearTravel = false,
 }) {
   return CalendarEvent(
     id: e.id,
@@ -622,7 +654,7 @@ CalendarEvent _copyWith(
     originalStartAt: e.originalStartAt,
     status: e.status,
     availability: availability ?? e.availability,
-    travelMinutes: e.travelMinutes,
+    travelMinutes: clearTravel ? null : (travelMinutes ?? e.travelMinutes),
     isPrivate: isPrivate ?? e.isPrivate,
     alerts: e.alerts,
     invitees: e.invitees,
