@@ -40,6 +40,51 @@ void main() {
     repo = _MutableRepo();
   });
 
+  // #181：日视图提醒 → 右侧 lane 有条目 + 时间轴空心圆标记
+  testWidgets('#181 日视图提醒投影到 lane 与时间轴', (tester) async {
+    final reminders = InMemoryReminderRepository(seedSampleData: false);
+    await reminders.upsertList(
+      const ReminderList(id: 'list.a', title: '列表A'),
+    );
+    final now = DateTime.now();
+    await reminders.upsertItem(ReminderItem(
+      id: 'r1',
+      listId: 'list.a',
+      title: '取快递',
+      dueAt: DateTime(now.year, now.month, now.day, 10),
+    ));
+
+    prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(repo),
+          sidebarPrefsProvider.overrideWithValue(prefs),
+          kalenderEventsControllerProvider.overrideWithValue(controller),
+          calendarReminderRepositoryProvider.overrideWithValue(reminders),
+        ],
+        child: lifeTestHost(
+          const Scaffold(
+            body: CalendarScaffold(initialViewMode: CalendarViewMode.day),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('lane_reminder_r1')),
+      findsOneWidget,
+      reason: '右侧提醒栏没有渲染当天提醒（旧实现是 SizedBox.expand 占位）',
+    );
+    expect(find.text('取快递'), findsWidgets);
+    expect(
+      find.byKey(const Key('reminder_marker_r1')),
+      findsOneWidget,
+      reason: '时间轴没有出现空心圆标记',
+    );
+  });
+
   // TC-CAL-UI-101：切到日 → 日视图 Key calendar_day_view
   testWidgets('TC-CAL-UI-101 切到日视图', (tester) async {
     await pumpCalendar(tester, mode: CalendarViewMode.day);
