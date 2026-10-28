@@ -45,9 +45,12 @@ class DriftReminderRepository
     final lists$ = _db.select(_db.reminderLists).watch();
     final items$ = _db.select(_db.reminderItems).watch();
     // 跨日刷新：now 不能在建流时冻结——与日界 tick 合并，每次发射重算
-    return _combineLatest3<List<ReminderList>, List<ReminderItem>, DateTime,
-        List<kernel.ReminderList>>(
-        lists$, items$, _dayTicks(), (listRows, itemRows, _) {
+    return _combineLatest3<
+      List<ReminderList>,
+      List<ReminderItem>,
+      DateTime,
+      List<kernel.ReminderList>
+    >(lists$, items$, _dayTicks(), (listRows, itemRows, _) {
       final now = _now;
       return [
         for (final smart in smartLists)
@@ -71,7 +74,10 @@ class DriftReminderRepository
   }
 
   @override
-  Stream<List<kernel.ReminderItem>> watchItems({String? listId}) {
+  Stream<List<kernel.ReminderItem>> watchItems({
+    String? listId,
+    bool includeCompleted = false,
+  }) {
     final query = _db.select(_db.reminderItems)
       // 排序契约（与 InMemory 一致）：sortOrder asc, id asc
       ..orderBy([
@@ -83,12 +89,22 @@ class DriftReminderRepository
       // 回收窗行不进普通列表（软删只在 smart.trash 出现）
       query.where((t) => t.deletedAt.isNull());
     }
-    return _combineLatest2<List<ReminderItem>, DateTime,
-        List<kernel.ReminderItem>>(query.watch(), _dayTicks(), (rows, _) {
+    return _combineLatest2<
+      List<ReminderItem>,
+      DateTime,
+      List<kernel.ReminderItem>
+    >(query.watch(), _dayTicks(), (rows, _) {
       final now = _now;
       return List<kernel.ReminderItem>.unmodifiable(
         rows
-            .where((row) => _matches(row, listId, now))
+            .where(
+              (row) => _matches(
+                row,
+                listId,
+                now,
+                includeCompleted: includeCompleted,
+              ),
+            )
             .map(_toModel)
             .toList(growable: false),
       );
@@ -142,19 +158,20 @@ class DriftReminderRepository
     await _db.transaction(() async {
       // 防复活（cursor PR#12）：软删行只经 restoreItem 恢复；
       // 对已删条目的全量回写（deletedAt 丢失）保留回收窗标记
-      final existing = await (_db.select(_db.reminderItems)
-            ..where((t) => t.id.equals(item.id)))
-          .getSingleOrNull();
-      await _db.into(_db.reminderItems).insertOnConflictUpdate(
-            _companionFrom(item),
-          );
+      final existing = await (_db.select(
+        _db.reminderItems,
+      )..where((t) => t.id.equals(item.id))).getSingleOrNull();
+      await _db
+          .into(_db.reminderItems)
+          .insertOnConflictUpdate(_companionFrom(item));
       if (existing != null &&
           existing.deletedAt != null &&
           item.deletedAt == null) {
-        await (_db.update(_db.reminderItems)
-              ..where((t) => t.id.equals(item.id)))
-            .write(
-                ReminderItemsCompanion(deletedAt: Value(existing.deletedAt)));
+        await (_db.update(
+          _db.reminderItems,
+        )..where((t) => t.id.equals(item.id))).write(
+          ReminderItemsCompanion(deletedAt: Value(existing.deletedAt)),
+        );
       }
       await _enqueueOutbox([item.id]);
     });
@@ -163,9 +180,9 @@ class DriftReminderRepository
   @override
   Future<void> toggleCompleted(String itemId) async {
     await _db.transaction(() async {
-      final row = await (_db.select(_db.reminderItems)
-            ..where((t) => t.id.equals(itemId)))
-          .getSingleOrNull();
+      final row = await (_db.select(
+        _db.reminderItems,
+      )..where((t) => t.id.equals(itemId))).getSingleOrNull();
       if (row == null) return;
       final cur = _toModel(row);
       final rule = cur.recurrenceRule;
@@ -174,34 +191,41 @@ class DriftReminderRepository
         // T-04（cursor R1）：与 InMemory 同口径——next 越过 recurrenceUntil
         // 当天结束 → 真完成不滚动；否则滚动
         final until = cur.recurrenceUntil;
-        final pastEnd = until != null &&
+        final pastEnd =
+            until != null &&
             next.isAfter(
-                DateTime(until.year, until.month, until.day, 23, 59, 59, 999));
+              DateTime(until.year, until.month, until.day, 23, 59, 59, 999),
+            );
         if (pastEnd) {
-          await (_db.update(_db.reminderItems)
-                ..where((t) => t.id.equals(itemId)))
-              .write(ReminderItemsCompanion(
-            isCompleted: const Value(true),
-            completedAt: Value(_now),
-          ));
+          await (_db.update(
+            _db.reminderItems,
+          )..where((t) => t.id.equals(itemId))).write(
+            ReminderItemsCompanion(
+              isCompleted: const Value(true),
+              completedAt: Value(_now),
+            ),
+          );
         } else {
-          await (_db.update(_db.reminderItems)
-                ..where((t) => t.id.equals(itemId)))
-              .write(ReminderItemsCompanion(
-            dueAt: Value(next),
-            isCompleted: const Value(false),
-            completedAt: const Value(null),
-          ));
+          await (_db.update(
+            _db.reminderItems,
+          )..where((t) => t.id.equals(itemId))).write(
+            ReminderItemsCompanion(
+              dueAt: Value(next),
+              isCompleted: const Value(false),
+              completedAt: const Value(null),
+            ),
+          );
         }
       } else {
         // 完成时间联动（服务端 completedAt 对齐）：完成记当下，取消清空
-        await (_db.update(_db.reminderItems)
-              ..where((t) => t.id.equals(itemId)))
-            .write(ReminderItemsCompanion(
-          isCompleted: Value(!cur.isCompleted),
-          completedAt:
-              Value(!cur.isCompleted ? _now : null),
-        ));
+        await (_db.update(
+          _db.reminderItems,
+        )..where((t) => t.id.equals(itemId))).write(
+          ReminderItemsCompanion(
+            isCompleted: Value(!cur.isCompleted),
+            completedAt: Value(!cur.isCompleted ? _now : null),
+          ),
+        );
       }
       await _enqueueOutbox([itemId]);
     });
@@ -210,14 +234,12 @@ class DriftReminderRepository
   @override
   Future<void> toggleFlagged(String itemId) async {
     await _db.transaction(() async {
-      final row = await (_db.select(_db.reminderItems)
-            ..where((t) => t.id.equals(itemId)))
-          .getSingleOrNull();
+      final row = await (_db.select(
+        _db.reminderItems,
+      )..where((t) => t.id.equals(itemId))).getSingleOrNull();
       if (row == null) return;
-      await (_db.update(_db.reminderItems)
-            ..where((t) => t.id.equals(itemId)))
-          .write(
-              ReminderItemsCompanion(isFlagged: Value(!row.isFlagged)));
+      await (_db.update(_db.reminderItems)..where((t) => t.id.equals(itemId)))
+          .write(ReminderItemsCompanion(isFlagged: Value(!row.isFlagged)));
       await _enqueueOutbox([itemId]);
     });
   }
@@ -246,12 +268,14 @@ class DriftReminderRepository
 
       for (final r in rows) {
         if (selfOrDescendant(r.id)) {
-          await (_db.update(_db.reminderItems)
-                ..where((t) => t.id.equals(r.id)))
-              .write(ReminderItemsCompanion(
-            listId: Value(targetListId),
-            sectionId: const Value(null), // 分区随列表（TC-API-118）
-          ));
+          await (_db.update(
+            _db.reminderItems,
+          )..where((t) => t.id.equals(r.id))).write(
+            ReminderItemsCompanion(
+              listId: Value(targetListId),
+              sectionId: const Value(null), // 分区随列表（TC-API-118）
+            ),
+          );
           await _enqueueOutbox([r.id]);
         }
       }
@@ -263,8 +287,7 @@ class DriftReminderRepository
     // 软删级联（TC-UI-109）：本条 + 后代进 30 天回收窗（与 InMemory 同语义）
     final cascade = await _cascadeFrom(itemId);
     await _db.transaction(() async {
-      await (_db.update(_db.reminderItems)
-            ..where((t) => t.id.isIn(cascade)))
+      await (_db.update(_db.reminderItems)..where((t) => t.id.isIn(cascade)))
           .write(ReminderItemsCompanion(deletedAt: Value(_now)));
       await _enqueueOutbox(cascade);
     });
@@ -274,13 +297,12 @@ class DriftReminderRepository
   Future<void> restoreItem(String itemId) async {
     await _db.transaction(() async {
       final cascade = await _cascadeFrom(itemId);
-      final target = await (_db.select(_db.reminderItems)
-            ..where((t) => t.id.equals(itemId)))
-          .getSingleOrNull();
+      final target = await (_db.select(
+        _db.reminderItems,
+      )..where((t) => t.id.equals(itemId))).getSingleOrNull();
       if (target == null) return;
       final lists = await _db.select(_db.reminderLists).get();
-      final listAlive =
-          lists.any((l) => l.id == target.listId && !l.isSmart);
+      final listAlive = lists.any((l) => l.id == target.listId && !l.isSmart);
       String? fallback;
       if (!listAlive) {
         for (final l in lists) {
@@ -291,15 +313,17 @@ class DriftReminderRepository
         }
       }
       if (fallback != null) {
-        await (_db.update(_db.reminderItems)
-              ..where((t) => t.id.isIn(cascade)))
-            .write(ReminderItemsCompanion(
-                listId: Value(fallback), deletedAt: const Value(null)));
+        await (_db.update(
+          _db.reminderItems,
+        )..where((t) => t.id.isIn(cascade))).write(
+          ReminderItemsCompanion(
+            listId: Value(fallback),
+            deletedAt: const Value(null),
+          ),
+        );
       } else {
-        await (_db.update(_db.reminderItems)
-              ..where((t) => t.id.isIn(cascade)))
-            .write(
-                const ReminderItemsCompanion(deletedAt: Value(null)));
+        await (_db.update(_db.reminderItems)..where((t) => t.id.isIn(cascade)))
+            .write(const ReminderItemsCompanion(deletedAt: Value(null)));
       }
       await _enqueueOutbox(cascade);
     });
@@ -307,19 +331,19 @@ class DriftReminderRepository
 
   @override
   Future<int> purgeExpiredDeleted() async {
-    final cutoff =
-        _now.subtract(kernel.InMemoryReminderRepository.recycleWindow);
+    final cutoff = _now.subtract(
+      kernel.InMemoryReminderRepository.recycleWindow,
+    );
     // 查后删：避免 drift 版本比较方法差异，语义与 InMemory 一致
     final rows = await _db.select(_db.reminderItems).get();
     final expired = rows
-        .where((r) =>
-            r.deletedAt != null && r.deletedAt!.isBefore(cutoff))
+        .where((r) => r.deletedAt != null && r.deletedAt!.isBefore(cutoff))
         .map((r) => r.id)
         .toSet();
     if (expired.isEmpty) return 0;
-    return await (_db.delete(_db.reminderItems)
-          ..where((t) => t.id.isIn(expired)))
-        .go();
+    return await (_db.delete(
+      _db.reminderItems,
+    )..where((t) => t.id.isIn(expired))).go();
   }
 
   Future<Set<String>> _cascadeFrom(String itemId) async {
@@ -348,19 +372,21 @@ class DriftReminderRepository
   Future<void> _enqueueOutbox(Iterable<String> itemIds) async {
     final outbox = DriftSyncOutbox(_db);
     for (final id in itemIds) {
-      final row = await (_db.select(_db.reminderItems)
-            ..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+      final row = await (_db.select(
+        _db.reminderItems,
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
       if (row == null) continue;
       final at = _now;
-      await outbox.enqueue(kernel.SyncOutboxEntry(
-        entityType: 'task',
-        entityId: id,
-        operation: row.deletedAt != null ? 'delete' : 'upsert',
-        payload: kernel.taskSyncPayload(_toModel(row)),
-        clientMutationId: 'task-$id-${at.microsecondsSinceEpoch}',
-        clientUpdatedAt: at.millisecondsSinceEpoch,
-      ));
+      await outbox.enqueue(
+        kernel.SyncOutboxEntry(
+          entityType: 'task',
+          entityId: id,
+          operation: row.deletedAt != null ? 'delete' : 'upsert',
+          payload: kernel.taskSyncPayload(_toModel(row)),
+          clientMutationId: 'task-$id-${at.microsecondsSinceEpoch}',
+          clientUpdatedAt: at.millisecondsSinceEpoch,
+        ),
+      );
     }
   }
 
@@ -405,7 +431,8 @@ class DriftReminderRepository
 
   Future<void> _applyInboundUpsert(kernel.SyncIncomingChange c) async {
     final existing = await _findByServerId(c.entityId);
-    final listId = c.payload['listId']?.toString() ??
+    final listId =
+        c.payload['listId']?.toString() ??
         (existing?.listId ?? await _firstOwnListId());
     if (listId == null) return; // 无处安放（既没载荷 listId、本地也没自有列表）
     final model = kernel.reminderItemFromSyncPayload(
@@ -424,12 +451,12 @@ class DriftReminderRepository
     if (target == null) return; // 本地没有这条：幂等跳过
     final at = c.payload['deletedAt'] is num
         ? DateTime.fromMillisecondsSinceEpoch(
-            (c.payload['deletedAt'] as num).toInt())
+            (c.payload['deletedAt'] as num).toInt(),
+          )
         : _now;
     // 与服务端 applier 同口径：软删入 30 天回收窗，且删父级联整树入窗
     final cascade = await _cascadeFrom(target.id);
-    await (_db.update(_db.reminderItems)
-          ..where((t) => t.id.isIn(cascade)))
+    await (_db.update(_db.reminderItems)..where((t) => t.id.isIn(cascade)))
         .write(ReminderItemsCompanion(deletedAt: Value(at)));
   }
 
@@ -437,39 +464,39 @@ class DriftReminderRepository
   /// 先按 remoteId（服务端 id）找——离线建的行本地 id 是 UUID，回填后 remoteId
   /// 才是服务端 id；找不到再按 id 相等兜底（历史数据把服务端 id 直接当本地 id 用）。
   Future<ReminderItem?> _findByServerId(String entityId) async {
-    final byRemote = await (_db.select(_db.reminderItems)
-          ..where((t) => t.remoteId.equals(entityId)))
-        .get();
+    final byRemote = await (_db.select(
+      _db.reminderItems,
+    )..where((t) => t.remoteId.equals(entityId))).get();
     if (byRemote.isNotEmpty) return byRemote.first;
-    return (_db.select(_db.reminderItems)
-          ..where((t) => t.id.equals(entityId)))
-        .getSingleOrNull();
+    return (_db.select(
+      _db.reminderItems,
+    )..where((t) => t.id.equals(entityId))).getSingleOrNull();
   }
 
   /// 清单行 → kernel 模型（`itemCount` 由 watcher 派生，这里不需要）。
   kernel.ReminderList _listModelFrom(ReminderList row) => kernel.ReminderList(
-        id: row.id,
-        title: row.title,
-        colorArgb: row.colorArgb,
-        isSmart: row.isSmart,
-        sortOrder: row.sortOrder,
-        sections: _sortedSections(_decodeSections(row.sectionsJson)),
-        groupName: row.groupName,
-        listType: kernel.ReminderListType.fromId(row.listType),
-        smartFilter: _decodeSmartFilter(row.smartFilter),
-        remoteId: row.remoteId,
-      );
+    id: row.id,
+    title: row.title,
+    colorArgb: row.colorArgb,
+    isSmart: row.isSmart,
+    sortOrder: row.sortOrder,
+    sections: _sortedSections(_decodeSections(row.sectionsJson)),
+    groupName: row.groupName,
+    listType: kernel.ReminderListType.fromId(row.listType),
+    smartFilter: _decodeSmartFilter(row.smartFilter),
+    remoteId: row.remoteId,
+  );
 
   /// 清单版临时 ID 映射：先按 remoteId 找，找不到再按 id 兜底（历史数据把
   /// 服务端 id 直接当本地 id 用），与 [_findByServerId] 同口径。
   Future<ReminderList?> _findListByServerId(String entityId) async {
-    final byRemote = await (_db.select(_db.reminderLists)
-          ..where((t) => t.remoteId.equals(entityId)))
-        .get();
+    final byRemote = await (_db.select(
+      _db.reminderLists,
+    )..where((t) => t.remoteId.equals(entityId))).get();
     if (byRemote.isNotEmpty) return byRemote.first;
-    return (_db.select(_db.reminderLists)
-          ..where((t) => t.id.equals(entityId)))
-        .getSingleOrNull();
+    return (_db.select(
+      _db.reminderLists,
+    )..where((t) => t.id.equals(entityId))).getSingleOrNull();
   }
 
   Future<void> _applyInboundListUpsert(kernel.SyncIncomingChange c) async {
@@ -482,7 +509,9 @@ class DriftReminderRepository
       entityId: c.entityId,
       existing: row == null ? null : _listModelFrom(row),
     );
-    await _db.into(_db.reminderLists).insertOnConflictUpdate(
+    await _db
+        .into(_db.reminderLists)
+        .insertOnConflictUpdate(
           ReminderListsCompanion.insert(
             id: model.id,
             title: model.title,
@@ -491,8 +520,9 @@ class DriftReminderRepository
             groupName: Value(model.groupName),
             listType: Value(model.listType.id),
             smartFilter: Value(_encodeSmartFilter(model.smartFilter)),
-            sectionsJson:
-                Value(_encodeSections(_sortedSections(model.sections))),
+            sectionsJson: Value(
+              _encodeSections(_sortedSections(model.sections)),
+            ),
             isSmart: Value(model.isSmart),
             remoteId: Value(model.remoteId),
           ),
@@ -504,12 +534,11 @@ class DriftReminderRepository
     if (row == null) return; // 幂等：本地没有这条
     // 与本地 deleteList 同口径：条目随清单进回收窗（软删），再删清单行。
     // 服务端级联下推的条目 delete 再落一次也只是重写 deletedAt，幂等。
-    await (_db.update(_db.reminderItems)
-          ..where((t) => t.listId.equals(row.id)))
+    await (_db.update(_db.reminderItems)..where((t) => t.listId.equals(row.id)))
         .write(ReminderItemsCompanion(deletedAt: Value(_now)));
-    await (_db.delete(_db.reminderLists)
-          ..where((t) => t.id.equals(row.id)))
-        .go();
+    await (_db.delete(
+      _db.reminderLists,
+    )..where((t) => t.id.equals(row.id))).go();
   }
 
   Future<void> _applyInboundSectionUpsert(kernel.SyncIncomingChange c) async {
@@ -549,12 +578,11 @@ class DriftReminderRepository
         .where((e) => !doomedIds.contains(e.id))
         .toList(growable: false);
     // 级联：挂靠条目兜底「未分区」（与本地 deleteSection 同语义）
-    final rows = await (_db.select(_db.reminderItems)
-          ..where((t) => t.listId.equals(row.id) & t.sectionId.isNotNull()))
-        .get();
+    final rows = await (_db.select(
+      _db.reminderItems,
+    )..where((t) => t.listId.equals(row.id) & t.sectionId.isNotNull())).get();
     for (final r in rows.where((e) => doomedIds.contains(e.sectionId))) {
-      await (_db.update(_db.reminderItems)
-            ..where((t) => t.id.equals(r.id)))
+      await (_db.update(_db.reminderItems)..where((t) => t.id.equals(r.id)))
           .write(const ReminderItemsCompanion(sectionId: Value(null)));
     }
     await _writeSections(row.id, kept);
@@ -570,14 +598,16 @@ class DriftReminderRepository
   }) async {
     final at = _now;
     final entityId = list.remoteId ?? list.id;
-    await DriftSyncOutbox(_db).enqueue(kernel.SyncOutboxEntry(
-      entityType: 'list',
-      entityId: entityId,
-      operation: deleted ? 'delete' : 'upsert',
-      payload: kernel.listSyncPayload(list),
-      clientMutationId: 'list-$entityId-${at.microsecondsSinceEpoch}',
-      clientUpdatedAt: at.millisecondsSinceEpoch,
-    ));
+    await DriftSyncOutbox(_db).enqueue(
+      kernel.SyncOutboxEntry(
+        entityType: 'list',
+        entityId: entityId,
+        operation: deleted ? 'delete' : 'upsert',
+        payload: kernel.listSyncPayload(list),
+        clientMutationId: 'list-$entityId-${at.microsecondsSinceEpoch}',
+        clientUpdatedAt: at.millisecondsSinceEpoch,
+      ),
+    );
   }
 
   /// 分区变更登记进发件箱；[listId] 传服务端清单 ID（有 remoteId 用它）。
@@ -588,14 +618,16 @@ class DriftReminderRepository
   }) async {
     final at = _now;
     final entityId = section.remoteId ?? section.id;
-    await DriftSyncOutbox(_db).enqueue(kernel.SyncOutboxEntry(
-      entityType: 'task_section',
-      entityId: entityId,
-      operation: deleted ? 'delete' : 'upsert',
-      payload: kernel.sectionSyncPayload(listId: listId, section: section),
-      clientMutationId: 'task_section-$entityId-${at.microsecondsSinceEpoch}',
-      clientUpdatedAt: at.millisecondsSinceEpoch,
-    ));
+    await DriftSyncOutbox(_db).enqueue(
+      kernel.SyncOutboxEntry(
+        entityType: 'task_section',
+        entityId: entityId,
+        operation: deleted ? 'delete' : 'upsert',
+        payload: kernel.sectionSyncPayload(listId: listId, section: section),
+        clientMutationId: 'task_section-$entityId-${at.microsecondsSinceEpoch}',
+        clientUpdatedAt: at.millisecondsSinceEpoch,
+      ),
+    );
   }
 
   Future<String?> _firstOwnListId() async {
@@ -616,7 +648,9 @@ class DriftReminderRepository
       }
     }
     await _db.transaction(() async {
-      await _db.into(_db.reminderLists).insertOnConflictUpdate(
+      await _db
+          .into(_db.reminderLists)
+          .insertOnConflictUpdate(
             ReminderListsCompanion.insert(
               id: list.id,
               title: list.title,
@@ -635,9 +669,9 @@ class DriftReminderRepository
             ),
           );
       // flutter#144 / TC-SYNC-106 出站半边：清单变更也要进发件箱
-      final row = await (_db.select(_db.reminderLists)
-            ..where((t) => t.id.equals(list.id)))
-          .getSingleOrNull();
+      final row = await (_db.select(
+        _db.reminderLists,
+      )..where((t) => t.id.equals(list.id))).getSingleOrNull();
       if (row != null) await _enqueueListOutbox(_listModelFrom(row));
     });
   }
@@ -651,12 +685,14 @@ class DriftReminderRepository
       if (decoded is List) {
         return decoded
             .whereType<Map>()
-            .map((m) => kernel.ReminderSection(
-                  id: m['id'] as String,
-                  title: m['title'] as String,
-                  sortOrder: (m['sortOrder'] as num?)?.toInt() ?? 0,
-                  remoteId: m['remoteId'] as String?,
-                ))
+            .map(
+              (m) => kernel.ReminderSection(
+                id: m['id'] as String,
+                title: m['title'] as String,
+                sortOrder: (m['sortOrder'] as num?)?.toInt() ?? 0,
+                remoteId: m['remoteId'] as String?,
+              ),
+            )
             .toList(growable: false);
       }
     } catch (_) {}
@@ -685,22 +721,22 @@ class DriftReminderRepository
     });
   }
 
-  String _encodeSections(List<kernel.ReminderSection> sections) =>
-      jsonEncode([
-        for (final s in sections)
-          {
-            'id': s.id,
-            'title': s.title,
-            'sortOrder': s.sortOrder,
-            'remoteId': s.remoteId,
-          },
-      ]);
+  String _encodeSections(List<kernel.ReminderSection> sections) => jsonEncode([
+    for (final s in sections)
+      {
+        'id': s.id,
+        'title': s.title,
+        'sortOrder': s.sortOrder,
+        'remoteId': s.remoteId,
+      },
+  ]);
 
   /// 分区排序契约（sortOrder asc, id asc）。
   List<kernel.ReminderSection> _sortedSections(
     List<kernel.ReminderSection> sections,
   ) {
-    final list = [...sections]..sort((a, b) {
+    final list = [...sections]
+      ..sort((a, b) {
         final byOrder = a.sortOrder.compareTo(b.sortOrder);
         return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
       });
@@ -711,11 +747,13 @@ class DriftReminderRepository
     String listId,
     List<kernel.ReminderSection> sections,
   ) async {
-    await (_db.update(_db.reminderLists)
-          ..where((t) => t.id.equals(listId)))
-        .write(ReminderListsCompanion(
-      sectionsJson: Value(_encodeSections(_sortedSections(sections))),
-    ));
+    await (_db.update(
+      _db.reminderLists,
+    )..where((t) => t.id.equals(listId))).write(
+      ReminderListsCompanion(
+        sectionsJson: Value(_encodeSections(_sortedSections(sections))),
+      ),
+    );
   }
 
   @override
@@ -723,9 +761,9 @@ class DriftReminderRepository
     required String listId,
     required kernel.ReminderSection section,
   }) async {
-    final row = await (_db.select(_db.reminderLists)
-          ..where((t) => t.id.equals(listId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.reminderLists,
+    )..where((t) => t.id.equals(listId))).getSingleOrNull();
     if (row == null) return;
     final sections = [..._decodeSections(row.sectionsJson)];
     final i = sections.indexWhere((e) => e.id == section.id);
@@ -748,14 +786,12 @@ class DriftReminderRepository
     required String listId,
     required List<String> sectionIds,
   }) async {
-    final row = await (_db.select(_db.reminderLists)
-          ..where((t) => t.id.equals(listId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.reminderLists,
+    )..where((t) => t.id.equals(listId))).getSingleOrNull();
     if (row == null) return;
     final sections = _decodeSections(row.sectionsJson);
-    final byId = {
-      for (final s in sections) s.id: s,
-    };
+    final byId = {for (final s in sections) s.id: s};
     final ordered = <kernel.ReminderSection>[];
     final seen = <String>{};
     for (final id in sectionIds) {
@@ -782,23 +818,24 @@ class DriftReminderRepository
     required String listId,
     required String sectionId,
   }) async {
-    final row = await (_db.select(_db.reminderLists)
-          ..where((t) => t.id.equals(listId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.reminderLists,
+    )..where((t) => t.id.equals(listId))).getSingleOrNull();
     if (row == null) return;
     final all = _decodeSections(row.sectionsJson);
     final doomed = all.where((e) => e.id == sectionId).toList(growable: false);
-    final sections =
-        all.where((e) => e.id != sectionId).toList(growable: false);
+    final sections = all
+        .where((e) => e.id != sectionId)
+        .toList(growable: false);
     // 级联：挂靠条目兜底「未分区」（drift where 多条件：先查后逐条更新）
-    final rows = await (_db.select(_db.reminderItems)
-          ..where((t) => t.listId.equals(listId) & t.sectionId.isNotNull()))
-        .get();
-    final targeted =
-        rows.where((r) => r.sectionId == sectionId).toList(growable: false);
+    final rows = await (_db.select(
+      _db.reminderItems,
+    )..where((t) => t.listId.equals(listId) & t.sectionId.isNotNull())).get();
+    final targeted = rows
+        .where((r) => r.sectionId == sectionId)
+        .toList(growable: false);
     for (final r in targeted) {
-      await (_db.update(_db.reminderItems)
-            ..where((t) => t.id.equals(r.id)))
+      await (_db.update(_db.reminderItems)..where((t) => t.id.equals(r.id)))
           .write(const ReminderItemsCompanion(sectionId: Value(null)));
       await _enqueueOutbox([r.id]);
     }
@@ -818,19 +855,19 @@ class DriftReminderRepository
       throw ArgumentError('智能列表不可删除');
     }
     await _db.transaction(() async {
-      final doomed = await (_db.select(_db.reminderItems)
-            ..where((t) => t.listId.equals(listId)))
-          .get();
+      final doomed = await (_db.select(
+        _db.reminderItems,
+      )..where((t) => t.listId.equals(listId))).get();
       // 条目随列表进回收窗（软删；TC-UI-109），与 InMemory 同语义
       await (_db.update(_db.reminderItems)
             ..where((t) => t.listId.equals(listId)))
           .write(ReminderItemsCompanion(deletedAt: Value(_now)));
-      final gone = await (_db.select(_db.reminderLists)
-            ..where((t) => t.id.equals(listId)))
-          .getSingleOrNull();
-      await (_db.delete(_db.reminderLists)
-            ..where((t) => t.id.equals(listId)))
-          .go();
+      final gone = await (_db.select(
+        _db.reminderLists,
+      )..where((t) => t.id.equals(listId))).getSingleOrNull();
+      await (_db.delete(
+        _db.reminderLists,
+      )..where((t) => t.id.equals(listId))).go();
       await _enqueueOutbox([for (final r in doomed) r.id]);
       // flutter#144：清单本体也要出站记 delete（条目级联已各自记过，不重复）
       if (gone != null) {
@@ -862,21 +899,27 @@ class DriftReminderRepository
     }
 
     void listen() {
-      subs.add(a.listen((v) {
-        latestA = v;
-        hasA = true;
-        emit();
-      }));
-      subs.add(b.listen((v) {
-        latestB = v;
-        hasB = true;
-        emit();
-      }));
-      subs.add(c.listen((v) {
-        latestC = v;
-        hasC = true;
-        emit();
-      }));
+      subs.add(
+        a.listen((v) {
+          latestA = v;
+          hasA = true;
+          emit();
+        }),
+      );
+      subs.add(
+        b.listen((v) {
+          latestB = v;
+          hasB = true;
+          emit();
+        }),
+      );
+      subs.add(
+        c.listen((v) {
+          latestC = v;
+          hasC = true;
+          emit();
+        }),
+      );
     }
 
     controller = StreamController<R>.broadcast(
@@ -933,26 +976,37 @@ class DriftReminderRepository
         .length;
   }
 
-  bool _matches(ReminderItem row, String? listId, DateTime now) {
+  bool _matches(
+    ReminderItem row,
+    String? listId,
+    DateTime now, {
+    bool includeCompleted = false,
+  }) {
     // 回收窗（TC-UI-109）：软删行只在 smart.trash 出现
     final alive = row.deletedAt == null;
     if (listId == null) return alive;
     return switch (listId) {
       'smart.trash' =>
         row.deletedAt != null &&
-            row.deletedAt!.isAfter(now.subtract(
-                kernel.InMemoryReminderRepository.recycleWindow)),
+            row.deletedAt!.isAfter(
+              now.subtract(kernel.InMemoryReminderRepository.recycleWindow),
+            ),
       // 今天 = 今天到期 + 已过期未完成（Apple 口径，TC-UI-101）。
       'smart.today' =>
-        alive && !row.isCompleted && _isTodayOrOverdue(row.dueAt, now),
-      'smart.scheduled' => alive && !row.isCompleted && row.dueAt != null,
-      'smart.all' => alive && !row.isCompleted,
-      'smart.flagged' => alive && !row.isCompleted && row.isFlagged,
+        alive &&
+            (includeCompleted || !row.isCompleted) &&
+            _isTodayOrOverdue(row.dueAt, now),
+      'smart.scheduled' =>
+        alive && (includeCompleted || !row.isCompleted) && row.dueAt != null,
+      'smart.all' => alive && (includeCompleted || !row.isCompleted),
+      'smart.flagged' =>
+        alive && (includeCompleted || !row.isCompleted) && row.isFlagged,
       // 紧急 = 已过期未完成或高优先级（含今天已过时）。
-      'smart.urgent' => alive &&
-          !row.isCompleted &&
-          (row.priority >= 9 ||
-              (row.dueAt != null && row.dueAt!.isBefore(now))),
+      'smart.urgent' =>
+        alive &&
+            (includeCompleted || !row.isCompleted) &&
+            (row.priority >= 9 ||
+                (row.dueAt != null && row.dueAt!.isBefore(now))),
       'smart.completed' => alive && row.isCompleted,
       // 分配事项：本地没有 assignee 字段，协作（M4）接入前恒为空。
       'smart.assigned' => false,

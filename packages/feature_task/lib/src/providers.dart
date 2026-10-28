@@ -22,10 +22,11 @@ final reminderListsProvider = StreamProvider<List<ReminderList>>((ref) {
 
 /// 条目流家族：`ref.watch(itemsForListProvider(listId))`；
 /// 智能列表（`smart.` 前缀）由仓库按语义过滤。
-final itemsForListProvider =
-    StreamProvider.family<List<ReminderItem>, String?>((ref, listId) {
-  return ref.watch(reminderRepositoryProvider).watchItems(listId: listId);
-});
+final itemsForListProvider = StreamProvider.family<List<ReminderItem>, String?>(
+  (ref, listId) {
+    return ref.watch(reminderRepositoryProvider).watchItems(listId: listId);
+  },
+);
 
 /// 任务偏好端口（TC-UI-120 的持久半边，flutter#124 卡 4）。
 ///
@@ -33,17 +34,20 @@ final itemsForListProvider =
 /// 偏好缺失不该让界面崩。真实组合根必须 override 成 Drift 实现
 /// （`DriftTaskPreferenceRepository`），否则改动只在内存里、重启即丢。
 final taskPreferenceRepositoryProvider = Provider<TaskPreferenceRepository>(
-    (ref) => InMemoryTaskPreferenceRepository(),
-    name: 'taskPreferenceRepositoryProvider');
+  (ref) => InMemoryTaskPreferenceRepository(),
+  name: 'taskPreferenceRepositoryProvider',
+);
 
 /// 当前任务偏好（无行回契约默认；`.value` 在首帧即可读，UI 不等流）。
 final taskPreferenceProvider = StreamProvider<TaskPreference>(
-    (ref) => ref.watch(taskPreferenceRepositoryProvider).watchPreference());
+  (ref) => ref.watch(taskPreferenceRepositoryProvider).watchPreference(),
+);
 
 /// 全局搜索词（macOS 工具栏搜索 / ⌘F 聚焦；空串 = 不过滤）。
 /// Riverpod 3 无 StateProvider，用最小 Notifier 承载可变搜索态。
-final searchQueryProvider =
-    NotifierProvider<SearchQueryNotifier, String>(SearchQueryNotifier.new);
+final searchQueryProvider = NotifierProvider<SearchQueryNotifier, String>(
+  SearchQueryNotifier.new,
+);
 
 class SearchQueryNotifier extends Notifier<String> {
   @override
@@ -55,8 +59,9 @@ class SearchQueryNotifier extends Notifier<String> {
 /// Pad/客户端提醒侧栏显隐（线框：隐藏后主区铺满，可再显示）。
 ///
 /// 卡 4b（TC-UI-304/308/309）：视图态写进本地偏好行，冷启动/重开后读回。
-final sidebarVisibleProvider =
-    NotifierProvider<SidebarVisibleNotifier, bool>(SidebarVisibleNotifier.new);
+final sidebarVisibleProvider = NotifierProvider<SidebarVisibleNotifier, bool>(
+  SidebarVisibleNotifier.new,
+);
 
 class SidebarVisibleNotifier extends Notifier<bool>
     with _PreferenceBacked<bool> {
@@ -80,102 +85,116 @@ class SidebarVisibleNotifier extends Notifier<bool>
 /// （TC-UI-108：默认隐藏已完成；`smart.completed` 完成卡恒显示）。
 final filteredItemsForListProvider =
     StreamProvider.family<List<ReminderItem>, String?>((ref, listId) {
-  final query = ref.watch(searchQueryProvider).trim().toLowerCase();
-  final showCompleted =
-      ref.watch(showCompletedProvider) || listId == 'smart.completed';
-  final repo = ref.watch(reminderRepositoryProvider);
+      final query = ref.watch(searchQueryProvider).trim().toLowerCase();
+      final showCompleted =
+          ref.watch(showCompletedProvider) || listId == 'smart.completed';
+      final repo = ref.watch(reminderRepositoryProvider);
 
-  // TC-UI-116 自定义智能列表（smart.custom.*）：filter 从列表元数据读取，
-  // 命中集 = 全部未完成条目 ∩ SmartListFilter（首期标签+旗标）。
-  // Stream.multi：onCancel 统一取消内层订阅（cursor PR#15 阻断1——
-  // 旧 StreamController 版无 dispose，搜索重建 provider 时内层 listen 泄漏叠加）。
-  if (listId != null && listId.startsWith('smart.custom.')) {
-    return Stream.multi((listener) {
-      SmartListFilter? latestFilter;
-      List<ReminderItem>? latestAll;
-      var hasFilter = false;
-      var hasAll = false;
+      // TC-UI-116 自定义智能列表（smart.custom.*）：filter 从列表元数据读取，
+      // 命中集 = 全部未完成条目 ∩ SmartListFilter（首期标签+旗标）。
+      // Stream.multi：onCancel 统一取消内层订阅（cursor PR#15 阻断1——
+      // 旧 StreamController 版无 dispose，搜索重建 provider 时内层 listen 泄漏叠加）。
+      if (listId != null && listId.startsWith('smart.custom.')) {
+        return Stream.multi((listener) {
+          SmartListFilter? latestFilter;
+          List<ReminderItem>? latestAll;
+          var hasFilter = false;
+          var hasAll = false;
 
-      void emit() {
-        if (hasFilter && hasAll) {
-          final f = latestFilter;
-          final all = latestAll!;
-          listener.addSync(
-            f == null
-                ? const <ReminderItem>[]
-                : all.where(f.matches).toList(growable: false),
-          );
-        }
+          void emit() {
+            if (hasFilter && hasAll) {
+              final f = latestFilter;
+              final all = latestAll!;
+              listener.addSync(
+                f == null
+                    ? const <ReminderItem>[]
+                    : all.where(f.matches).toList(growable: false),
+              );
+            }
+          }
+
+          final subs = [
+            repo.watchLists().listen((lists) {
+              latestFilter = lists
+                  .where((e) => e.id == listId)
+                  .firstOrNull
+                  ?.smartFilter;
+              hasFilter = true;
+              emit();
+            }),
+            repo.watchItems(listId: null).listen((all) {
+              latestAll = all;
+              hasAll = true;
+              emit();
+            }),
+          ];
+          // onCancel：取消两个内层订阅，防泄漏（生命周期归 Stream.multi 管）
+          listener
+            ..onCancel = () {
+              for (final s in subs) {
+                s.cancel();
+              }
+            }
+            ..onPause = () {
+              for (final s in subs) {
+                s.pause();
+              }
+            }
+            ..onResume = () {
+              for (final s in subs) {
+                s.resume();
+              }
+            };
+        });
       }
 
-      final subs = [
-        repo.watchLists().listen((lists) {
-          latestFilter = lists
-              .where((e) => e.id == listId)
-              .firstOrNull
-              ?.smartFilter;
-          hasFilter = true;
-          emit();
-        }),
-        repo.watchItems(listId: null).listen((all) {
-          latestAll = all;
-          hasAll = true;
-          emit();
-        }),
-      ];
-      // onCancel：取消两个内层订阅，防泄漏（生命周期归 Stream.multi 管）
-      listener
-        ..onCancel = () {
-          for (final s in subs) {
-            s.cancel();
-          }
-        }
-        ..onPause = () {
-          for (final s in subs) {
-            s.pause();
-          }
-        }
-        ..onResume = () {
-          for (final s in subs) {
-            s.resume();
-          }
-        };
+      // parity#180：智能列表的完成过滤在仓库层，必须把开关透传下去，
+      // 否则「显示已完成」打开后仓库仍不返回已完成项，UI 过滤无从显示。
+      return repo
+          .watchItems(listId: listId, includeCompleted: showCompleted)
+          .map((items) {
+            var out = items;
+            if (!showCompleted) {
+              // 隐藏已完成条目 = 隐藏其整棵子树（cursor PR#11 意见1：只藏父行会让
+              // 子任务因 parentId 不在结果集而被孤儿提升为顶层渲染）。
+              final byId = {for (final e in items) e.id: e};
+              bool subtreeHidden(String id) {
+                var cursor = byId[id];
+                for (var depth = 0; depth < 64 && cursor != null; depth++) {
+                  if (cursor.isCompleted && cursor.parentId == null)
+                    return true;
+                  cursor = cursor.parentId == null
+                      ? null
+                      : byId[cursor.parentId];
+                }
+                return false;
+              }
+
+              out = items
+                  .where((e) => !subtreeHidden(e.id))
+                  .toList(growable: false);
+            }
+            if (query.isEmpty) {
+              return List<ReminderItem>.unmodifiable(out);
+            }
+            return List<ReminderItem>.unmodifiable(
+              out
+                  .where(
+                    (e) =>
+                        e.title.toLowerCase().contains(query) ||
+                        (e.notes ?? '').toLowerCase().contains(query) ||
+                        e.tags.any((t) => t.toLowerCase().contains(query)),
+                  )
+                  .toList(growable: false),
+            );
+          });
     });
-  }
-
-  return repo.watchItems(listId: listId).map((items) {
-    var out = items;
-    if (!showCompleted) {
-      // 隐藏已完成条目 = 隐藏其整棵子树（cursor PR#11 意见1：只藏父行会让
-      // 子任务因 parentId 不在结果集而被孤儿提升为顶层渲染）。
-      final byId = {for (final e in items) e.id: e};
-      bool subtreeHidden(String id) {
-        var cursor = byId[id];
-        for (var depth = 0; depth < 64 && cursor != null; depth++) {
-          if (cursor.isCompleted && cursor.parentId == null) return true;
-          cursor = cursor.parentId == null ? null : byId[cursor.parentId];
-        }
-        return false;
-      }
-
-      out = items.where((e) => !subtreeHidden(e.id)).toList(growable: false);
-    }
-    if (query.isEmpty) {
-      return List<ReminderItem>.unmodifiable(out);
-    }
-    return List<ReminderItem>.unmodifiable(out
-        .where((e) =>
-            e.title.toLowerCase().contains(query) ||
-            (e.notes ?? '').toLowerCase().contains(query) ||
-            e.tags.any((t) => t.toLowerCase().contains(query)))
-        .toList(growable: false));
-  });
-});
 
 /// 「显示已完成」列表内开关（线框图2 工具行「显示」；TC-UI-108）。
 /// 卡 4b：视图态持久（TC-UI-308），默认仍 false——`list_toolbar_test.dart` 钉的就是默认隐藏。
-final showCompletedProvider =
-    NotifierProvider<ShowCompletedNotifier, bool>(ShowCompletedNotifier.new);
+final showCompletedProvider = NotifierProvider<ShowCompletedNotifier, bool>(
+  ShowCompletedNotifier.new,
+);
 
 class ShowCompletedNotifier extends Notifier<bool>
     with _PreferenceBacked<bool> {
@@ -200,13 +219,14 @@ enum ListSortMode { manual, dueDate, title, priority }
 
 /// 卡 4b：排序模式持久（TC-UI-308）。未知存量串按 manual 处理，不炸界面。
 ListSortMode listSortModeFromId(String? id) => ListSortMode.values.firstWhere(
-      (m) => m.name == id,
-      orElse: () => ListSortMode.manual,
-    );
+  (m) => m.name == id,
+  orElse: () => ListSortMode.manual,
+);
 
 final listSortModeProvider =
     NotifierProvider<ListSortModeNotifier, ListSortMode>(
-        ListSortModeNotifier.new);
+      ListSortModeNotifier.new,
+    );
 
 class ListSortModeNotifier extends Notifier<ListSortMode>
     with _PreferenceBacked<ListSortMode> {
@@ -230,7 +250,8 @@ class ListSortModeNotifier extends Notifier<ListSortMode>
 /// 按标签折叠正是用户点的那一下语义，隔天仍折叠同一个桶。
 final collapsedKeysProvider =
     NotifierProvider<CollapsedKeysNotifier, Set<String>>(
-        CollapsedKeysNotifier.new);
+      CollapsedKeysNotifier.new,
+    );
 
 class CollapsedKeysNotifier extends Notifier<Set<String>>
     with _PreferenceBacked<Set<String>> {
@@ -295,7 +316,8 @@ mixin _PreferenceBacked<T> on Notifier<T> {
 /// 最近一次「完成」前的条目快照，供一步撤销（TC-UI-122）。重做不做。
 final completionUndoProvider =
     NotifierProvider<CompletionUndoNotifier, ReminderItem?>(
-        CompletionUndoNotifier.new);
+      CompletionUndoNotifier.new,
+    );
 
 class CompletionUndoNotifier extends Notifier<ReminderItem?> {
   Timer? _timer;
@@ -335,20 +357,19 @@ Future<void> completeReminder(WidgetRef ref, ReminderItem item) {
 /// `items` 现算，父行在「今天/计划」里永远显示不出 `1/2`。
 final subtaskProgressProvider =
     StreamProvider<Map<String, ({int done, int total})>>((ref) {
-      return ref
-          .watch(reminderRepositoryProvider)
-          .watchItems(listId: null)
-          .map((items) {
-            final byParent = <String, ({int done, int total})>{};
-            for (final e in items) {
-              final parent = e.parentId;
-              if (parent == null || e.deletedAt != null) continue;
-              final cur = byParent[parent] ?? (done: 0, total: 0);
-              byParent[parent] = (
-                done: cur.done + (e.isCompleted ? 1 : 0),
-                total: cur.total + 1,
-              );
-            }
-            return byParent;
-          });
+      return ref.watch(reminderRepositoryProvider).watchItems(listId: null).map(
+        (items) {
+          final byParent = <String, ({int done, int total})>{};
+          for (final e in items) {
+            final parent = e.parentId;
+            if (parent == null || e.deletedAt != null) continue;
+            final cur = byParent[parent] ?? (done: 0, total: 0);
+            byParent[parent] = (
+              done: cur.done + (e.isCompleted ? 1 : 0),
+              total: cur.total + 1,
+            );
+          }
+          return byParent;
+        },
+      );
     }, name: 'subtaskProgressProvider');

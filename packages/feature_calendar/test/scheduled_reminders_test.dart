@@ -254,7 +254,10 @@ class _ReminderRepo implements ReminderRepository {
   final _lists = StreamController<List<ReminderList>>.broadcast();
 
   @override
-  Stream<List<ReminderItem>> watchItems({String? listId}) async* {
+  Stream<List<ReminderItem>> watchItems({
+    String? listId,
+    bool includeCompleted = false,
+  }) async* {
     yield List<ReminderItem>.unmodifiable(items);
     yield* _items.stream;
   }
