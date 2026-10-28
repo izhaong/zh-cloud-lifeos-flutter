@@ -321,9 +321,26 @@ void main() {
     expect(moved.day, 15);
     expect(moved.month, anchor.month, reason: '同月内跳日');
   });
+  // parity#204：侧栏行统一勾选框，不再出现开关（开关只留在详情页「忽略提醒」）
+  testWidgets('侧栏不再用开关，节假日行同样走勾选框', (tester) async {
+    await seed(tester);
+    await pumpSidebar(tester);
+
+    expect(
+      find.byType(CupertinoSwitch),
+      findsNothing,
+      reason: '同一列不应混用开关与勾选框',
+    );
+    expect(
+      find.byType(CupertinoCheckbox),
+      findsWidgets,
+      reason: '日历行仍用勾选框控制显隐',
+    );
+  });
 }
 
 /// 可变假仓库（F-04 侧栏交互；F-05+ 逐步充实）。
+
 class _MutableRepo implements CalendarRepository {
   final List<Calendar> list = [];
   final List<Calendar> saved = [];
