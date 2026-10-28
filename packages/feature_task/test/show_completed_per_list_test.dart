@@ -121,4 +121,27 @@ void main() {
     expect(container.read(showCompletedProvider), isTrue,
         reason: '全局那一格仍写「最后一次」（服务端同步契约不变）');
   });
+
+  testWidgets('「还原默认」把按列表的记忆一起清掉（TC-UI-309 不回归）', (tester) async {
+    SharedPreferences.setMockInitialValues(const {});
+    final prefs = await SharedPreferences.getInstance();
+    final container = ProviderContainer(
+      overrides: [
+        reminderRepositoryProvider.overrideWithValue(await seed()),
+        taskViewPrefsProvider.overrideWithValue(prefs),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    container.read(showCompletedByListProvider.notifier).setFor('list.a', true);
+    expect(container.read(showCompletedByListProvider)['list.a'], isTrue);
+
+    container.read(showCompletedByListProvider.notifier).reset();
+    expect(
+      container.read(showCompletedByListProvider),
+      isEmpty,
+      reason: '还原默认后不得残留任何按列表的「显示已完成」记忆',
+    );
+    expect(prefs.getString('lifeos.task.showCompletedByList'), isNull);
+  });
 }

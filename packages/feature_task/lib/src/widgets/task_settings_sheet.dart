@@ -166,7 +166,11 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                     color: ReminderTokens.systemBlue,
                   ),
                   title: const Text('还原默认设置'),
-                  onTap: () => _save(TaskPreference.defaults),
+                  onTap: () {
+                    // #256：按列表的「显示已完成」记忆也属于视图态，一并清零
+                    ref.read(showCompletedByListProvider.notifier).reset();
+                    _save(TaskPreference.defaults);
+                  },
                 ),
                 CupertinoListTile(
                   key: const ValueKey('settings_cloud_login'),

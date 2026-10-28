@@ -242,6 +242,13 @@ class ShowCompletedByListNotifier extends Notifier<Map<String, bool>> {
 
   bool forList(String? listId) =>
       listId == null ? false : (state[listId] ?? false);
+
+  /// #256 审查：「还原默认」必须连按列表的记忆一起清，否则过滤仍按旧状态
+  /// 显示已完成（TC-UI-309 要求视图态整体回默认）。
+  void reset() {
+    state = const {};
+    ref.read(taskViewPrefsProvider)?.remove(_prefsKey);
+  }
 }
 
 /// 「显示已完成」列表内开关（线框图2 工具行「显示」；TC-UI-108）。

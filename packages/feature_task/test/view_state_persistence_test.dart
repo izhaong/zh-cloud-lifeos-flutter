@@ -189,6 +189,16 @@ void main() {
     await tester.pumpAndSettle();
     expect((await prefs.watchPreference().first).collapsedKeys, isNotEmpty);
 
+    // #256：先在该列表打开「显示已完成」，让按列表的记忆有值
+    await tester.tap(find.byKey(const ValueKey('toggle_show_completed')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('显示已完成').last);
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(TaskScaffold)),
+    );
+    expect(container.read(showCompletedByListProvider), isNotEmpty);
+
     // 打开设置弹层点还原
     await tester.tap(find.byKey(const ValueKey('sidebar_settings')));
     await tester.pumpAndSettle();
@@ -200,5 +210,10 @@ void main() {
     expect(back.showCompleted, isFalse);
     expect(back.sortMode, 'manual');
     expect(back.sidebarVisible, isTrue);
+    expect(
+      container.read(showCompletedByListProvider),
+      isEmpty,
+      reason: '还原默认要连按列表的「显示已完成」记忆一起清（#256）',
+    );
   });
 }
