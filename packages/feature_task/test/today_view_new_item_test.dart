@@ -59,10 +59,19 @@ void main() {
     );
     expect(find.text('没有提醒'), findsNothing, reason: '空态应让位');
 
-    // 仓库中项确实带 dueAt=今天
+    // 仓库中项确实带 dueAt=今天，且**只有日期**（parity#183）
     final all = await repo.watchItems().first;
     final item = all.singleWhere((e) => e.title == '测试今日新建');
     expect(item.dueAt, isNotNull, reason: '今日视图新建必须设 dueAt');
+    expect(item.dueAt!.hour, 0, reason: '快速新建不带时刻，写 00:00 表示只有日期');
+    expect(item.dueAt!.minute, 0);
+
+    // 行副标题只显示「今天」，不显示 22:33 这类时刻
+    expect(find.textContaining('今天'), findsWidgets);
+    final now = DateTime.now();
+    final hhmm =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    expect(find.textContaining(hhmm), findsNothing, reason: '不应把创建时刻写进 dueAt');
   });
 
   testWidgets('计划视图新建项 → 带 dueAt 出现在计划视图', (tester) async {
