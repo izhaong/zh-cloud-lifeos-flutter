@@ -33,6 +33,40 @@ void main() {
     expect(repo.visibility[kHolidayCalendarId], isFalse);
   });
 
+  // #182：订阅后启动只落过订阅当年的数据，跨年/换设备时整年缺失；
+  // 且旧路径按 UTC 墙钟构时刻，东八区会把节日挂到前一天。
+  test('#182 已订阅节假日 → 启动补齐当年数据且按设备时区落库', () async {
+    final repo = _Repo();
+    await repo.upsertCalendar(const Calendar(
+      id: kHolidayCalendarId,
+      title: kHolidayCalendarTitle,
+      colorArgb: kHolidayColorArgb,
+      kind: CalendarKind.holiday,
+      isVisible: false,
+      isDefault: false,
+    ));
+
+    await refreshSubscribedHolidays(repo, year: 2026, timeZone: 'Asia/Shanghai');
+
+    final newYear = repo.events.where(
+      (e) =>
+          e.startAt.microsecondsSinceEpoch ==
+          utcFromWall(DateTime(2026, 1, 1), 'Asia/Shanghai')
+              .microsecondsSinceEpoch,
+    );
+    expect(newYear, isNotEmpty, reason: '启动时补齐已订阅节假日的当年数据');
+    expect(newYear.single.timeZone, 'Asia/Shanghai',
+        reason: '按设备时区落库，UTC 墙钟会把节日挪到前一天');
+    expect(repo.visibility, isEmpty, reason: '补齐不能改写用户已关的可见性');
+  });
+
+  test('#182 未订阅节假日 → 启动补齐不建日历也不写事件', () async {
+    final repo = _Repo();
+    await refreshSubscribedHolidays(repo, year: 2026, timeZone: 'Asia/Shanghai');
+    expect(repo.calendars, isEmpty);
+    expect(repo.events, isEmpty);
+  });
+
   testWidgets('TC-CAL-UI-160 未登录订阅只存 URL 且提示登录后', (tester) async {
     final repo = _Repo();
     final container = ProviderContainer(
