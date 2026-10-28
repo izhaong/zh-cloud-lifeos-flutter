@@ -15,7 +15,10 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final repo = InMemoryReminderRepository();
+    final repo = InMemoryReminderRepository()
+      // #333 审查指出：`smart.today` 的过滤用仓储内部时钟，不设它就会与分组时钟脱节
+      // （例如在夹具日期之前跑，「周报」会被滤掉）。
+      ..nowForTest = fixed;
     await repo.upsertItem(
       ReminderItem(
         id: 'r-overdue',

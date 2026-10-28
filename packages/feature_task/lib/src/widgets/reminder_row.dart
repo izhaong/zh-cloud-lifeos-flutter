@@ -13,6 +13,7 @@ class ReminderRow extends StatelessWidget {
   const ReminderRow({
     super.key,
     required this.item,
+    this.now,
     required this.onToggleCompleted,
     this.onToggleFlagged,
     this.onTap,
@@ -24,6 +25,11 @@ class ReminderRow extends StatelessWidget {
   });
 
   final ReminderItem item;
+
+  /// 「现在」（由 [clockProvider] 注入；生产=null 即取挂钟，测试=固定时刻）。
+  /// #333 审查指出：这里原先直接 `DateTime.now()`，导致到期/过期文案与样式
+  /// 不跟注入时钟，golden 跨日会漂。
+  final DateTime? now;
   final String? listName;
   final VoidCallback onToggleCompleted;
   final VoidCallback? onToggleFlagged;
@@ -202,7 +208,7 @@ class ReminderRow extends StatelessWidget {
   ) {
     if (dueAt == null) return null;
     final locale = Localizations.localeOf(context).toString();
-    final now = DateTime.now();
+    final now = this.now ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     if (dueAt.isBefore(today)) {
       return (

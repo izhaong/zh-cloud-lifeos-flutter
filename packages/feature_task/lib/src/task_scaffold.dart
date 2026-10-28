@@ -420,6 +420,7 @@ class _HomeSearchResults extends ConsumerWidget {
                 if (i > 0) const _Hairline(indent: 56),
                 ReminderRow(
                   item: items[i],
+                  now: ref.read(clockProvider)(),
                   onToggleCompleted: () => completeReminder(ref, items[i]),
                   onToggleFlagged: () => repo.toggleFlagged(items[i].id),
                   onTap: () => onSelectItem?.call(items[i]),
@@ -966,6 +967,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     final progress = ref.watch(subtaskProgressProvider).value?[item.id];
     final row = ReminderRow(
       item: item,
+      now: ref.read(clockProvider)(),
       listName: listName,
       subtaskDone: progress?.done ?? 0,
       subtaskTotal: progress?.total ?? 0,
@@ -1001,6 +1003,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
             padding: const EdgeInsets.only(left: 40),
             child: ReminderRow(
               item: sub,
+              now: ref.read(clockProvider)(),
               listName: listName,
               dense: true,
               onToggleCompleted: () => completeReminder(ref, sub),
