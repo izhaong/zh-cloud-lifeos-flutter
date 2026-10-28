@@ -50,8 +50,8 @@ Future<void> main() async {
   final calendarRepository = openDefaultDriftCalendarRepository(db);
   // TC-UI-120（flutter#124 卡 4）：设置弹层四档落 Drift，重启后读回同一行
   final taskPreferenceRepository = DriftTaskPreferenceRepository(db);
-  // F-03：记录仓库（Drift 实现随 F-04 落地前先 InMemory；组合根单点切换）
-  final noteRepository = InMemoryNoteRepository();
+  // F-03 / #280：记录仓库接回 Drift（此前长期是 InMemory，重启即丢全部笔录）
+  final noteRepository = DriftNoteRepository(db);
   // parity#156：首启/空库兜底一条默认日历，避免「没有可用日历，无法保存」
   await ensureDefaultCalendar(calendarRepository);
   // parity#155：首启/空库兜底一个可写文件夹，避免「先新建一个文件夹」死路

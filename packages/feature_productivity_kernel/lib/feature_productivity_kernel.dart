@@ -16,6 +16,7 @@ export 'src/models/note_folder.dart';
 export 'src/models/note_tag.dart';
 export 'src/models/window_size_class.dart';
 export 'src/logic/occurrence_expander.dart';
+export 'src/logic/note_rules.dart';
 export 'src/ports/reminder_repository.dart';
 export 'src/ports/sync_outbox.dart';
 export 'src/ports/task_preference_repository.dart';

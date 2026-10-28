@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import '../models/note.dart';
 import '../models/note_folder.dart';
+import '../logic/note_rules.dart';
 import '../models/note_tag.dart';
 
 /// 记录数据端口（契约 §5；开源包唯一数据入口，禁止依赖 HTTP）。
@@ -319,62 +320,13 @@ final class InMemoryNoteRepository implements NoteRepository {
   // ---- Delta 解析（公开静态：Drift/UI 复用同一口径） ----
 
   /// ops[].insert 串接（与服务端 QuillDeltaParser 同口径；TC-NOTE-KR-102）。
-  static String extractPlainText(String bodyDelta) {
-    final ops = _parseOps(bodyDelta);
-    if (ops == null) return '';
-    final sb = StringBuffer();
-    for (final op in ops) {
-      final insert = op['insert'];
-      if (insert is String) sb.write(insert);
-    }
-    return sb.toString();
-  }
+  static String extractPlainText(String bodyDelta) =>
+      extractNotePlainText(bodyDelta);
 
   /// attributes.list 非空计 total、checked 计 done（TC-NOTE-KR-105）。
   ///
   /// 兼容两种落点：Quill 行属性在行尾 `\n` op 上；内核夹具把 list 挂在文本 op 上。
   /// 同一行两处都带相同 list 时只计一次（以 `\n` 为准）。
-  static List<int> countChecklist(String bodyDelta) {
-    final ops = _parseOps(bodyDelta);
-    if (ops == null) return const [0, 0];
-    var total = 0;
-    var done = 0;
-    for (var i = 0; i < ops.length; i++) {
-      final insert = ops[i]['insert'];
-      if (insert is! String) continue;
-      final attrs = ops[i]['attributes'];
-      final list = attrs is Map ? attrs['list'] : null;
-      if (list is! String || list.isEmpty) continue;
-      final isLineEnd = insert.endsWith('\n');
-      if (!isLineEnd) {
-        // 下一 op 是带同一 list 的行尾 → 由行尾计数，跳过避免重复
-        final nextInsert =
-            i + 1 < ops.length ? ops[i + 1]['insert'] : null;
-        final nextAttrs =
-            i + 1 < ops.length ? ops[i + 1]['attributes'] : null;
-        final nextList = nextAttrs is Map ? nextAttrs['list'] : null;
-        if (nextInsert is String &&
-            nextInsert.endsWith('\n') &&
-            nextList != null) {
-          continue;
-        }
-      }
-      total++;
-      if (list == 'checked') done++;
-    }
-    return [total, done];
-  }
-
-  static List<Map>? _parseOps(String bodyDelta) {
-    if (bodyDelta.trim().isEmpty) return null;
-    try {
-      final decoded = jsonDecode(bodyDelta);
-      if (decoded is! Map) return null;
-      final ops = decoded['ops'];
-      if (ops is! List) return null;
-      return ops.whereType<Map>().toList(growable: false);
-    } catch (_) {
-      return null;
-    }
-  }
+  static List<int> countChecklist(String bodyDelta) =>
+      countNoteChecklist(bodyDelta);
 }
