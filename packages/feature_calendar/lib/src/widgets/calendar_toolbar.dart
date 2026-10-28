@@ -46,12 +46,9 @@ class CalendarToolbar extends ConsumerWidget {
         ? Row(
             children: [
               const SizedBox(width: 4),
-              Text(
+              _compactTitleText(
+                context,
                 _compactTitle(anchor, ref.watch(viewModeProvider)),
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
               ),
               _ToolbarIconButton(
                 tooltip: '上一页',
@@ -384,4 +381,22 @@ class _QuickCreateButton extends StatelessWidget {
       },
     );
   }
+}
+
+/// 紧凑档标题（#351）。
+///
+/// 大字号（辅助功能「更大的文字」）下这一行会横向溢出 102px——标题原本无界，
+/// 而旁边还有上一页/今天/下一页/菜单/搜索/新建。
+/// 这里**只在大字号时**把标题变成可收缩 + 省略号：1.0 字号下不进 Flexible，
+/// 布局与视觉像素不变（否则 1.0 的 golden 会漂 0.63%）。
+Widget _compactTitleText(BuildContext context, String text) {
+  const style = TextStyle(fontSize: 17, fontWeight: FontWeight.w600);
+  const threshold = 22.0; // 17 × ≈1.3：进入「需要让位」的字号区间
+  final scaled = MediaQuery.textScalerOf(context).scale(style.fontSize!);
+  if (scaled <= threshold) {
+    return Text(text, style: style);
+  }
+  return Flexible(
+    child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
+  );
 }
