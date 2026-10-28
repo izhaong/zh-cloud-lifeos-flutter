@@ -14,6 +14,28 @@ import 'widgets/task_settings_sheet.dart';
 import 'widgets/task_shortcuts.dart';
 import 'widgets/task_sidebar.dart';
 
+/// 智能视图新建的落点（#245）。
+///
+/// Apple：智能列表里新建提醒落到账户的 **Default List**；默认列表未设置或
+/// 已失效（指向被删的列表）时用第一个可用自有列表。此前写死 `list.personal`，
+/// 既无视用户设置，又在该列表不存在时生成不可见的孤儿条目。
+///
+/// [lists] 可含智能列表（会被过滤）；无任何自有列表时回退旧行为，保证
+/// 依旧写在一个明确的 id 上（由仓库/服务端兜底）。
+String resolveSmartCreateListId({
+  required List<ReminderList> lists,
+  String? preferredId,
+}) {
+  final own = lists.where((l) => !l.isSmart).toList(growable: false);
+  if (preferredId != null && own.any((l) => l.id == preferredId)) {
+    return preferredId;
+  }
+  if (own.isNotEmpty) {
+    return own.first.id;
+  }
+  return 'list.personal';
+}
+
 /// 任务区自适应脚手架：单一逻辑内容，按 [WindowSizeClass] 只换外壳布局。
 ///
 /// - compact：单栏（首页列表视图；进列表/详情由路由栈推入）
@@ -973,7 +995,16 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     await repo.upsertItem(
       ReminderItem(
         id: newReminderId(),
-        listId: _isSmartView ? 'list.personal' : widget.list.id,
+        listId: _isSmartView
+            ? resolveSmartCreateListId(
+                lists: (ref.read(reminderListsProvider).value ??
+                        const <ReminderList>[]),
+                preferredId: ref
+                    .read(taskPreferenceProvider)
+                    .value
+                    ?.defaultListId,
+              )
+            : widget.list.id,
         title: title,
         // 从「今天」/「计划」视图新建 → dueAt = 今天（只有日期，00:00）；
         // Apple 快速新建不带时刻，写 now 会让它一分钟后变「已过期→紧急」（#183）。
@@ -990,7 +1021,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   }
 
   Future<void> _openNewItemDialog() async {
-    // TODO(reminders-parity): 智能视图内的新建提醒应引导选择目标列表（P1）
+    // 智能视图的落点在 [_submitDraft] 里按「默认列表 → 首个自有列表」解析
+    // （#245；Apple：智能列表里新建落到设置的 Default List）。
     setState(() => _showDraft = true);
   }
 
