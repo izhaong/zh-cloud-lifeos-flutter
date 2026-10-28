@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import '../design/calendar_tokens.dart';
 import 'package:cupertino_calendar_picker/cupertino_calendar_picker.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
@@ -727,7 +728,7 @@ class _TimeZoneDialogState extends State<_TimeZoneDialog> {
               placeholder: '搜索时区',
               decoration: BoxDecoration(
                 color: CalendarTokens.chipBackground.resolveFrom(context),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(LifeRadius.md),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               onChanged: (v) => setState(() => _query = v),
@@ -968,7 +969,7 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                 keyboardType: TextInputType.number,
                 decoration: BoxDecoration(
                   color: CalendarTokens.chipBackground.resolveFrom(context),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(LifeRadius.md),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 onChanged: (v) => _c.interval = int.tryParse(v) ?? 1,
@@ -998,7 +999,7 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                             color: _c.weekdays.contains(d)
                                 ? CalendarTokens.systemBlue
                                 : CalendarTokens.chipBackground.resolveFrom(context),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(LifeRadius.sm),
                           ),
                           child: Text(
                             kWeekdayCodes[d - 1],
@@ -1082,7 +1083,7 @@ class _RecurrenceEditorDialogState extends State<_RecurrenceEditorDialog> {
                   keyboardType: TextInputType.number,
                   decoration: BoxDecoration(
                     color: CalendarTokens.chipBackground.resolveFrom(context),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(LifeRadius.md),
                   ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,

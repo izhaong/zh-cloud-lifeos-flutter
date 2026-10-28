@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import 'dart:convert';
 
 import 'package:app_core/app_core.dart';
@@ -518,7 +519,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                           color: CupertinoColors.tertiarySystemFill.resolveFrom(
                             context,
                           ),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(LifeRadius.sm),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(8, 3, 4, 3),

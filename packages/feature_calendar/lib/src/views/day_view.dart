@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import '../design/calendar_tokens.dart';
 import 'package:app_core/app_core.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
@@ -474,7 +475,7 @@ Widget dayEventTileBuilder(
     padding: const EdgeInsets.fromLTRB(5, 3, 3, 3),
     decoration: BoxDecoration(
       color: color.withAlpha(60),
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(LifeRadius.xs),
       border: BorderDirectional(start: BorderSide(width: 3, color: color)),
     ),
     alignment: Alignment.topLeft,

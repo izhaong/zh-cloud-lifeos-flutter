@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -121,7 +122,7 @@ class _MiniMonthCard extends StatelessWidget {
           color: isCurrentMonth
               ? CalendarTokens.systemBlue.withAlpha(20)
               : CupertinoColors.white,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(LifeRadius.md),
           border: isCurrentMonth
               ? Border.all(color: CalendarTokens.systemBlue)
               : Border.all(color: CalendarTokens.hairline.resolveFrom(context)),
