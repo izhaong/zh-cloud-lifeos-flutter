@@ -81,6 +81,13 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
   bool _saving = false; // 在途互斥：连点保存不重复 upsert
   bool _duplicating = false; // #252：连点「复制」不生成多份
 
+  /// #252：面板当前编辑的是「复制出来的独立副本」。
+  ///
+  /// 副本不再是原重复系列的那一次 occurrence：保存/删除都必须按**整条**
+  /// 处理，不能拿原件的 rrule + occurrenceStart 去问 THIS/FUTURE 作用域
+  /// （那会去改原系列，或在副本上抛「THIS 编辑要求主记录已存在」）。
+  bool _detachedFromOrigin = false;
+
   /// 重复事件编辑/删除的作用域选择（F-10 TC-CAL-UI-151/152）。
   Future<EditScope?> _askScope(String title) {
     return showCupertinoDialog<EditScope>(
@@ -114,7 +121,8 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     if (_isNewDraft || _saving) {
       return;
     }
-    final recurring = (widget.initialEvent.rrule ?? '').isNotEmpty;
+    final recurring = (widget.initialEvent.rrule ?? '').isNotEmpty &&
+        !_detachedFromOrigin;
     var scope = EditScope.all;
     if (recurring && widget.occurrenceStart != null) {
       final picked = await _askScope('删除重复日程');
@@ -130,7 +138,8 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
           .deleteEvent(
             _draft.id,
             scope: scope,
-            occurrenceStart: scope == EditScope.all
+            occurrenceStart:
+                (scope == EditScope.all || _detachedFromOrigin)
                 ? null
                 : widget.occurrenceStart,
           );
@@ -158,7 +167,8 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     }
     // F-10：已有重复日程 → 先选作用域（仅此 / 及之后 / 所有）
     var scope = EditScope.all;
-    final recurring = (widget.initialEvent.rrule ?? '').isNotEmpty;
+    final recurring = (widget.initialEvent.rrule ?? '').isNotEmpty &&
+        !_detachedFromOrigin;
     if (!_isNewDraft && recurring && widget.occurrenceStart != null) {
       final picked = await _askScope('编辑重复日程');
       if (picked == null || !mounted) {
@@ -216,7 +226,9 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
       await repo.upsertEvent(
         toSave,
         scope: scope,
-        occurrenceStart: scope == EditScope.all ? null : widget.occurrenceStart,
+        occurrenceStart: (scope == EditScope.all || _detachedFromOrigin)
+            ? null
+            : widget.occurrenceStart,
       );
       await ref.read(calendarAlertSchedulerProvider).scheduleEvent(toSave);
       // 面板已被关闭（sheet/route pop）则不再触发 onSaved（防二次 pop）
@@ -252,6 +264,7 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
       setState(() {
         _draft = copy;
         _saveAttempted = false;
+        _detachedFromOrigin = true;
       });
       widget.onDraftChanged?.call(copy);
     } finally {

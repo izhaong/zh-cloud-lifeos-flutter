@@ -121,6 +121,64 @@ void main() {
     expect(copy.startAt, event.startAt);
     expect(copy.uid, copy.id);
   });
+
+  testWidgets('重复日程复制后保存按整条处理（不再问作用域，不误改原系列）', (tester) async {
+    SharedPreferences.setMockInitialValues(const {});
+    final repo = _Repo();
+    final controller = kalender.DefaultEventsController();
+    final container = ProviderContainer(
+      overrides: [
+        calendarRepositoryProvider.overrideWithValue(repo),
+        sidebarPrefsProvider.overrideWith((ref) => null),
+        kalenderEventsControllerProvider.overrideWithValue(controller),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final occurrenceStart = DateTime.utc(2026, 10, 24, 10);
+    final recurring = CalendarEvent(
+      id: 'e1',
+      calendarId: 'c1',
+      uid: 'u1',
+      title: '每周例会',
+      startAt: occurrenceStart,
+      endAt: DateTime.utc(2026, 10, 24, 11),
+      timeZone: 'UTC',
+      rrule: 'FREQ=WEEKLY',
+      updatedAt: DateTime.utc(2026, 10, 24),
+    );
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: lifeTestHost(
+          Scaffold(
+            body: EventInspectorPane(
+              initialEvent: recurring,
+              occurrenceStart: occurrenceStart,
+              onSaved: () {},
+              onClose: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('event_inspector_duplicate')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('event_inspector_save')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('编辑重复日程'),
+      findsNothing,
+      reason: '复制出来的副本是独立记录，不该再问 THIS/FUTURE 作用域',
+    );
+    expect(repo.lastScope, EditScope.all, reason: '副本按整条保存');
+    expect(repo.lastOccurrenceStart, isNull,
+        reason: '不能把原件的 occurrenceStart 带到副本上（会改坏原系列）');
+  });
 }
 
 class _Repo implements CalendarRepository {
@@ -143,12 +201,18 @@ class _Repo implements CalendarRepository {
   Stream<CalendarPreference> watchPreference() =>
       Stream.value(const CalendarPreference());
 
+  /// 最近一次 upsert 的作用域参数（#252 审查：独立副本不能再走 THIS/FUTURE）。
+  EditScope? lastScope;
+  DateTime? lastOccurrenceStart;
+
   @override
   Future<String> upsertEvent(
     CalendarEvent e, {
     EditScope scope = EditScope.all,
     DateTime? occurrenceStart,
   }) async {
+    lastScope = scope;
+    lastOccurrenceStart = occurrenceStart;
     events.removeWhere((x) => x.id == e.id);
     events.add(e);
     return e.id;
