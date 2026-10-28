@@ -92,6 +92,38 @@ class CalendarViewCallbacks {
     return alignedStart && alignedEnd && !end.isBefore(start.add(const Duration(days: 1)));
   }
 
+  /// #240：拖选是否跨了多个**本地日**（周视图横向拖过列边界即算）。
+  static bool spansMultipleDays(DateTime start, DateTime end) {
+    return DateTime(end.year, end.month, end.day)
+        .isAfter(DateTime(start.year, start.month, start.day));
+  }
+
+  /// #240：多日拖选的**排他终点**。
+  ///
+  /// Apple：拖进周三即周三也在所选范围内，但草稿 endAt 是排他边界，所以
+  /// 终点非零点时要补到次日零点。终点正好落在零点时不补（否则多算一天）。
+  static DateTime inclusiveAllDayEnd(DateTime end) {
+    final endDay = DateTime(end.year, end.month, end.day);
+    final atMidnight = end.hour == 0 && end.minute == 0 && end.second == 0;
+    return atMidnight ? endDay : endDay.add(const Duration(days: 1));
+  }
+
+  /// 拖拽创建分派（#240；两个视图的 onEventCreate 都走这里）。
+  ///
+  /// - 全天区拖选（两端零点且跨天）→ 全天草稿，保留拖选终点（parity#228）；
+  /// - 定时网格里跨多日横拖 → 覆盖所选日期的**多日全天**草稿（Apple 周视图
+  ///   语义，矩阵 E2）；此前这里按「起始 + 偏好默认时长」造 1 小时，把终点丢了；
+  /// - 同日内拖选 → 仍按 TC-CAL-UI-130「时长=偏好默认」。
+  CalendarEvent onDragCreate(DateTime startLocal, DateTime endLocal) {
+    if (looksLikeAllDayRange(startLocal, endLocal)) {
+      return onAllDayDraftCreate(startLocal, endLocal);
+    }
+    if (spansMultipleDays(startLocal, endLocal)) {
+      return onAllDayDraftCreate(startLocal, inclusiveAllDayEnd(endLocal));
+    }
+    return onDraftCreate(startLocal.toUtc(), endLocal.toUtc());
+  }
+
   /// TC-CAL-UI-139 / E2：全天区拖多日 → 跨天全天草稿。
   ///
   /// kalender 的 `onEventCreate` 对「全天区」拖拽给的是 isAllDay 事件，

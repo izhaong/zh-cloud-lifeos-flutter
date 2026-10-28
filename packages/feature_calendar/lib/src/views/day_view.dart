@@ -17,6 +17,29 @@ final _dayTapTracker = CalendarDoubleTapTracker();
 /// 周视图双击创建节拍器（#225）。
 final _weekTapTracker = CalendarDoubleTapTracker();
 
+/// 全天带容器（#240）：在 kalender 的 MultiDayHeader 下沿补一条发丝线。
+///
+/// 空态（没有任何全天/跨日事件）时 kalender 仍会占位（tileHeight×2），但没有
+/// 任何可见边界，用户会把这块空白当成定时网格的一部分，于是「往全天区拖」这个
+/// 手势没有落点。分隔线只是视觉锚点，不改命中区（拖拽仍由 kalender 处理）。
+class _AllDayBand extends StatelessWidget {
+  const _AllDayBand({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
 /// 日视图（契约 §5.4/§8.3；F-05）。
 ///
 /// kalender singleDay 配置；纵轴随偏好 dayStartHour/dayEndHour（TC-CAL-UI-106）；
@@ -111,9 +134,13 @@ class CalendarDayView extends ConsumerWidget {
                 // header（全天/跨日条）与 body（定时条）都要传——审查 R1 意见
                 views: const [
                   kalender.MultiDayViewParts(
-                    header: kalender.MultiDayHeader(
-                      tileComponents: kalender.TileComponents(
-                        tileBuilder: dayEventTileBuilder,
+                    // #240：全天带即使空着也要有下沿分隔线，否则用户看不出
+                    // 表头下这块是可拖拽/双击的全天区。
+                    header: _AllDayBand(
+                      child: kalender.MultiDayHeader(
+                        tileComponents: kalender.TileComponents(
+                          tileBuilder: dayEventTileBuilder,
+                        ),
                       ),
                     ),
                     body: kalender.MultiDayBody(
@@ -133,23 +160,13 @@ class CalendarDayView extends ConsumerWidget {
                     onDraftCreate: viewCallbacks.onDraftCreate,
                     onDayTap: viewCallbacks.onDayTap,
                   ),
+                  // parity#228 + #240：拖拽创建的分派（全天区 / 跨多日 / 同日）
+                  // 集中在回调里，两个视图共用同一判据。
                   onEventCreate: (event) {
-                    // parity#228：全天区拖多日要得到跨天全天草稿，而不是
-                    // 「开始那天 00:00–01:00」的定时草稿。
-                    if (CalendarViewCallbacks.looksLikeAllDayRange(
+                    viewCallbacks.onDragCreate(
                       event.start.toLocal(),
                       event.end.toLocal(),
-                    )) {
-                      viewCallbacks.onAllDayDraftCreate(
-                        event.start.toLocal(),
-                        event.end.toLocal(),
-                      );
-                    } else {
-                      viewCallbacks.onDraftCreate(
-                        event.start.toUtc(),
-                        event.end.toUtc(),
-                      );
-                    }
+                    );
                     return event;
                   },
                   onEventChanged: (event, updated) {
@@ -319,9 +336,11 @@ class CalendarWeekView extends ConsumerWidget {
           // #200：显式传 tileComponents（header 全天区 + body 定时区），去默认「Tile」
           views: const [
             kalender.MultiDayViewParts(
-              header: kalender.MultiDayHeader(
-                tileComponents: kalender.TileComponents(
-                  tileBuilder: dayEventTileBuilder,
+              header: _AllDayBand(
+                child: kalender.MultiDayHeader(
+                  tileComponents: kalender.TileComponents(
+                    tileBuilder: dayEventTileBuilder,
+                  ),
                 ),
               ),
               body: kalender.MultiDayBody(
@@ -339,20 +358,11 @@ class CalendarWeekView extends ConsumerWidget {
               onDraftCreate: viewCallbacks.onDraftCreate,
               onDayTap: viewCallbacks.onDayTap,
             ),
+            // #240：跨多日横拖要得到覆盖所选日期的多日全天草稿（E2）
             onEventCreate: (event) {
-              if (CalendarViewCallbacks.looksLikeAllDayRange(
+              viewCallbacks.onDragCreate(
                 event.start.toLocal(),
                 event.end.toLocal(),
-              )) {
-                viewCallbacks.onAllDayDraftCreate(
-                  event.start.toLocal(),
-                  event.end.toLocal(),
-                );
-                return event;
-              }
-              viewCallbacks.onDraftCreate(
-                event.start.toUtc(),
-                event.end.toUtc(),
               );
               return event;
             },
