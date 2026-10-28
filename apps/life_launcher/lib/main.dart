@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'router/life_router.dart';
 import 'notifications/local_calendar_alert_scheduler.dart';
+import 'notifications/local_reminder_alert_scheduler.dart';
 import 'shell/pinned_tabs_service.dart';
 import 'shell_providers.dart';
 
@@ -90,6 +91,12 @@ Future<void> main() async {
   final calendarAlertScheduler = await LocalCalendarAlertScheduler.create(
     calendarRepository,
   );
+  // #260：提醒事项到点提醒（Apple 对等；此前任务侧完全没有通知）
+  final reminderAlertScheduler = await LocalReminderAlertScheduler.create(
+    repository,
+    taskPreferenceRepository,
+  );
+  await reminderAlertScheduler.start();
   // F-17：日历云侧（同步 / 收件箱 / 导入导出），与任务共用同一会话存储
   final calendarSyncPort = RestCalendarSyncPort(dio: dio, store: sessionStore);
   final calendarCollabPort = RestCalendarCollabPort(
@@ -131,6 +138,9 @@ Future<void> main() async {
         calendarReminderRepositoryProvider.overrideWithValue(repository),
         calendarAlertSchedulerProvider.overrideWithValue(
           calendarAlertScheduler,
+        ),
+        reminderAlertSchedulerProvider.overrideWithValue(
+          reminderAlertScheduler,
         ),
         calendarCollabPortProvider.overrideWithValue(calendarCollabPort),
         calendarSyncCoordinatorProvider.overrideWithValue(
