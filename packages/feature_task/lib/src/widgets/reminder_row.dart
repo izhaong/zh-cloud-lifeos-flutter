@@ -87,8 +87,8 @@ class ReminderRow extends StatelessWidget {
                     ? CupertinoIcons.check_mark_circled_solid
                     : CupertinoIcons.circle,
                 color: item.isCompleted
-                    ? const Color(0xFF007AFF)
-                    : const Color(0xFFC7C7CC),
+                    ? ReminderTokens.systemBlue
+                    : CupertinoColors.systemGrey3,
                 size: dense ? 18 : 22,
               ),
             ),
@@ -146,8 +146,8 @@ class ReminderRow extends StatelessWidget {
                         ? CupertinoIcons.flag_fill
                         : CupertinoIcons.flag,
                     color: item.isFlagged
-                        ? const Color(0xFFFF9500)
-                        : const Color(0xFFC7C7CC),
+                        ? ReminderTokens.systemOrange
+                        : CupertinoColors.systemGrey3,
                     size: 18,
                   ),
                 ),
@@ -245,9 +245,9 @@ class ReminderRow extends StatelessWidget {
 
   static Color _priorityColor(int priority) {
     return switch (priority) {
-      >= 9 => const Color(0xFFFF3B30),
-      >= 5 => const Color(0xFFFF9500),
-      _ => const Color(0xFF34C759),
+      >= 9 => ReminderTokens.systemRed,
+      >= 5 => ReminderTokens.systemOrange,
+      _ => ReminderTokens.systemGreen,
     };
   }
 }
