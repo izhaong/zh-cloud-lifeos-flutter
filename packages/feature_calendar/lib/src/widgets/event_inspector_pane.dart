@@ -79,6 +79,7 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
   bool get _isNewDraft => _draft.id == kDraftEventId;
 
   bool _saving = false; // 在途互斥：连点保存不重复 upsert
+  bool _duplicating = false; // #252：连点「复制」不生成多份
 
   /// 重复事件编辑/删除的作用域选择（F-10 TC-CAL-UI-151/152）。
   Future<EditScope?> _askScope(String title) {
@@ -229,6 +230,35 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     }
   }
 
+  /// #252：复制当前日程（矩阵 D18 / Apple ⌘D 语义）。
+  ///
+  /// 副本必须是**新的主记录**：换 id/uid、sequence 归零、revision 归 1，并清掉
+  /// 例外归属（parentEventId / originalStartAt）与排除日期（exdates）——
+  /// 继承这些会把副本挂成某条重复记录的例外，行为不可预期。
+  /// 时间为「当前草稿」的起止（Apple 复制不改时间），提醒与日历原样保留。
+  Future<void> _duplicate() async {
+    if (_isNewDraft || _saving || _duplicating) return;
+    final repo = ref.read(calendarRepositoryProvider);
+    var copy = duplicateEventCopy(_draft, newCalendarEventId());
+    if (copy.allDay) {
+      copy = normalizeAllDay(copy);
+    }
+    setState(() => _duplicating = true);
+    try {
+      await repo.upsertEvent(copy);
+      await ref.read(calendarAlertSchedulerProvider).scheduleEvent(copy);
+      if (!mounted) return;
+      // 停在副本上（Apple 复制后选中的是副本），用户可立即改标题
+      setState(() {
+        _draft = copy;
+        _saveAttempted = false;
+      });
+      widget.onDraftChanged?.call(copy);
+    } finally {
+      if (mounted) setState(() => _duplicating = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return KeyedSubtree(
@@ -238,6 +268,8 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
           _InspectorHeader(
             title: _draft.title.trim().isEmpty ? '新建日程' : _draft.title,
             showDelete: !_isNewDraft,
+            showDuplicate: !_isNewDraft,
+            onDuplicate: _duplicate,
             onDelete: _delete,
             onSave: _save,
             onClose: widget.onClose,
@@ -358,6 +390,35 @@ class EventInspectorHost extends StatelessWidget {
   }
 }
 
+/// #252：日程副本（矩阵 D18）。纯函数，便于单测钉住「哪些字段必须重置」。
+CalendarEvent duplicateEventCopy(CalendarEvent source, String newId) =>
+    CalendarEvent(
+      id: newId,
+      calendarId: source.calendarId,
+      // 新 uid：服务端/iCal 侧副本是独立事件，不能复用原件 uid
+      uid: newId,
+      title: source.title,
+      location: source.location,
+      url: source.url,
+      notes: source.notes,
+      startAt: source.startAt,
+      endAt: source.endAt,
+      allDay: source.allDay,
+      timeZone: source.timeZone,
+      isFloating: source.isFloating,
+      rrule: source.rrule,
+      // 副本是新主记录：不得继承例外归属与排除日期
+      status: source.status,
+      availability: source.availability,
+      travelMinutes: source.travelMinutes,
+      isPrivate: source.isPrivate,
+      alerts: source.alerts,
+      invitees: source.invitees,
+      sequence: 0,
+      revision: 1,
+      updatedAt: DateTime.now().toUtc(),
+    );
+
 /// 日历事件 id 工厂（kernel 只提供 reminder/list 工厂；事件侧对齐命名）。
 String newCalendarEventId() =>
     'cal_${DateTime.now().microsecondsSinceEpoch}_'
@@ -434,6 +495,8 @@ class _InspectorHeader extends StatelessWidget {
   const _InspectorHeader({
     required this.title,
     required this.showDelete,
+    required this.showDuplicate,
+    required this.onDuplicate,
     required this.onDelete,
     required this.onSave,
     required this.onClose,
@@ -441,6 +504,8 @@ class _InspectorHeader extends StatelessWidget {
 
   final String title;
   final bool showDelete;
+  final bool showDuplicate;
+  final VoidCallback onDuplicate;
   final VoidCallback onDelete;
   final VoidCallback onSave;
   final VoidCallback? onClose;
@@ -468,6 +533,19 @@ class _InspectorHeader extends StatelessWidget {
                 CupertinoIcons.delete,
                 size: 22,
                 color: CupertinoColors.systemRed,
+              ),
+            ),
+          // #252：复制日程（矩阵 D18；Apple ⌘D）。新建草稿没有可复制的源，隐藏。
+          if (showDuplicate)
+            CupertinoButton(
+              key: const Key('event_inspector_duplicate'),
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: onDuplicate,
+              child: const Icon(
+                CupertinoIcons.doc_on_doc,
+                size: 20,
+                color: CupertinoColors.systemBlue,
               ),
             ),
           Expanded(
