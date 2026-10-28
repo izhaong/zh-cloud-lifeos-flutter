@@ -45,6 +45,12 @@ void main() {
     await firstRepo.upsertNote(
       note('n1', title: '持久化验证', text: '正文一行'),
     );
+    // #361：并行负载下（`melos run verify` 里 analyze 与 test 同时跑）这里偶发
+    // `CouldNotRollBackException: … database has already been closed`——
+    // drift 的内部事务/通知微任务还没落完，close() 就撞上回滚。
+    // 关库前先把挂起的微任务冲干净（这个测试要证明的是「重开后还能读到」，
+    // 不是「close 的时序鲁棒性」）。
+    await pumpEventQueue();
     await first.close();
 
     final second = LifeProductivityDb(NativeDatabase(file));
