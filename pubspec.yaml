@@ -33,6 +33,14 @@ melos:
     test:
       run: dart run melos exec --dir-exists=test -- flutter test
       description: 全仓单元/Widget 测试
+    # 合前一条命令：静态分析（fatal-infos）→ UI 尺子（先自检再扫）→ 逐包测试
+    verify:
+      run: >-
+        dart run melos exec -- flutter analyze --fatal-infos &&
+        dart run scripts/check_ui_boundary.dart --selftest &&
+        dart run scripts/check_ui_boundary.dart --max-hex 0 &&
+        dart run melos exec --dir-exists=test -- flutter test
+      description: 合前门禁（analyze + UI 边界 + 全包测试）
     ui-boundary:
       # 先自检再跑真实扫描：新尺首跑必须先证明「每条判据都能判红」（Epic #126 C4）
       # --max-hex 是「只减不增」的棘轮：当前基线 76（#268 收紧 C3 为 Color(0x…) 字面色，并清 reminder_row 的 7 处）
