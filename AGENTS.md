@@ -23,7 +23,8 @@ cd apps/life_launcher && flutter run -d macos
 dart analyze
 flutter test   # 在各 package / app 目录，或 dart run melos run test
 dart run melos run verify   # 合前门禁：analyze(--fatal-infos) + UI 边界(先自检) + 全包测试
-dart run scripts/golden_sheet.dart   # 目视走查：把 12 张 golden 拼成一页（build/golden-sheet/index.html）
+dart run scripts/golden_sheet.dart   # 目视走查：把 16 张 golden 拼成一页（build/golden-sheet/index.html）
+dart run scripts/check_skipped_tests.dart   # 守卫：测试不得被静默 skip（已在 melos run verify 里）
 ```
 
 ### CI 现状（#322，2026-10-28 核实）
