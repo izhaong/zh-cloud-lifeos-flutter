@@ -51,15 +51,22 @@ List<CalendarOccurrence> expandOccurrences(
     }
 
     // rrule 包要求 UTC DateTime 与 'RRULE:' 前缀（契约 §2.2 存储无前缀）。
+    // 视图递给本函数的窗口是本地墙钟（anchorDateProvider 用 DateTime(y,m,d)），
+    // 原样交给 getInstances 会撞 after/before 的 isUtc 断言，整个展开流抛异常，
+    // 表现就是「设了重复的日程在日/月视图一并消失」（flutter #292）。
+    // 这里只把三个入参换成同一瞬间的 UTC 值，瞬间比较语义不变。
     final rule = RecurrenceRule.fromString('RRULE:${master.rrule}');
     final duration = master.endAt.difference(master.startAt);
+    final seed = master.startAt.toUtc();
+    final windowFrom = from.toUtc();
+    final windowTo = to.toUtc();
     // getInstances 的 before 断言要求 to >= 种子；种子已在窗外则无需展开。
-    if (!master.startAt.isBefore(to)) continue;
+    if (!seed.isBefore(windowTo)) continue;
     final instances = rule.getInstances(
-      start: master.startAt,
-      after: from.isAfter(master.startAt) ? from : null,
+      start: seed,
+      after: windowFrom.isAfter(seed) ? windowFrom : null,
       includeAfter: true,
-      before: to,
+      before: windowTo,
     );
     for (final start in instances) {
       if (_containsInstant(master.exdates, start)) continue; // TC-CAL-KR-208
