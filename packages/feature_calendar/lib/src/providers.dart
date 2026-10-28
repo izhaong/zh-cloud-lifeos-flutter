@@ -177,17 +177,27 @@ final occurrencesProvider = StreamProvider.family<List<CalendarOccurrence>,
   final colorByCalendar = {
     for (final c in calendars) c.id: c.colorArgb,
   };
+  // #283：侧栏勾选必须真正过滤主视图。此前 occurrencesProvider 只按搜索词过滤，
+  // 「取消勾选」只写入 isVisible、画面不动，勾选框与视图状态互相矛盾。
+  // 日历列表还没加载（空）时不过滤，避免首帧把所有事件闪没。
+  final visibleIds = ref.watch(visibleCalendarIdsProvider);
+  final filterByVisibility = calendars.isNotEmpty;
   final showReminders = ref.watch(scheduledRemindersVisibleProvider);
   final reminderItems =
       ref.watch(reminderItemsForCalendarProvider).value ?? const <ReminderItem>[];
   final reminderLists =
       ref.watch(reminderListsForCalendarProvider).value ?? const <ReminderList>[];
   return ref.watch(calendarRepositoryProvider).watchEvents(from: from, to: to).map((events) {
-    final filtered = query.trim().isEmpty
+    var filtered = filterByVisibility
         ? events
-        : events
-            .where((e) => matchesCalendarSearch(e, query))
-            .toList(growable: false);
+            .where((e) => visibleIds.contains(e.calendarId))
+            .toList(growable: false)
+        : events;
+    if (query.trim().isNotEmpty) {
+      filtered = filtered
+          .where((e) => matchesCalendarSearch(e, query))
+          .toList(growable: false);
+    }
     final occurrences = expandOccurrences(filtered,
         from: from, to: to, colorByCalendar: colorByCalendar);
     if (!showReminders) {
