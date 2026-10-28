@@ -39,8 +39,4 @@ abstract final class CalendarTokens {
     color: Color(0xFFF2F2F7),
     darkColor: Color(0xFF1C1C1E),
   );
-
-  /// 选中底色：systemBlue 的 8% 叠加（保留原 `.withAlpha(20)` 观感）。
-  static Color selectedFill(BuildContext context) =>
-      systemBlue.withAlpha(20);
 }
