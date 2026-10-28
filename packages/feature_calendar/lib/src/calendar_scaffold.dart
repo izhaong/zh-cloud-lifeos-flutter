@@ -98,6 +98,7 @@ class CalendarScaffold extends ConsumerWidget {
       return CalendarViewCallbacks(
         repo: repo,
         preference: preference,
+        timeZone: ref.read(deviceTimeZoneProvider).value ?? 'UTC',
         reminderRepository: ref.read(calendarReminderRepositoryProvider),
         setDraft: (draft) => openDraft(draft, null, contentWidth),
         openOccurrence: (draft, occurrenceStart) =>
