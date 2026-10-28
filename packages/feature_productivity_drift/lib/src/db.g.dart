@@ -633,6 +633,370 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
   }
 }
 
+class $ReminderSectionsTable extends ReminderSections
+    with TableInfo<$ReminderSectionsTable, ReminderSection> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReminderSectionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _listIdMeta = const VerificationMeta('listId');
+  @override
+  late final GeneratedColumn<String> listId = GeneratedColumn<String>(
+    'list_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteIdMeta = const VerificationMeta(
+    'remoteId',
+  );
+  @override
+  late final GeneratedColumn<String> remoteId = GeneratedColumn<String>(
+    'remote_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    listId,
+    id,
+    title,
+    sortOrder,
+    remoteId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reminder_sections';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReminderSection> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('list_id')) {
+      context.handle(
+        _listIdMeta,
+        listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_listIdMeta);
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('remote_id')) {
+      context.handle(
+        _remoteIdMeta,
+        remoteId.isAcceptableOrUnknown(data['remote_id']!, _remoteIdMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {listId, id};
+  @override
+  ReminderSection map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReminderSection(
+      listId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}list_id'],
+      )!,
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      remoteId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}remote_id'],
+      ),
+    );
+  }
+
+  @override
+  $ReminderSectionsTable createAlias(String alias) {
+    return $ReminderSectionsTable(attachedDatabase, alias);
+  }
+}
+
+class ReminderSection extends DataClass implements Insertable<ReminderSection> {
+  /// 所属清单（本地 id）。
+  final String listId;
+
+  /// 分区本地 id（同一清单内唯一）。
+  final String id;
+  final String title;
+
+  /// 分区排序（升序；同值按 id 升序兜底）。
+  final int sortOrder;
+
+  /// 服务端分区 ID（flutter#144 / TC-SYNC-106；NULL = 纯本地未同步）。
+  final String? remoteId;
+  const ReminderSection({
+    required this.listId,
+    required this.id,
+    required this.title,
+    required this.sortOrder,
+    this.remoteId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['list_id'] = Variable<String>(listId);
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    map['sort_order'] = Variable<int>(sortOrder);
+    if (!nullToAbsent || remoteId != null) {
+      map['remote_id'] = Variable<String>(remoteId);
+    }
+    return map;
+  }
+
+  ReminderSectionsCompanion toCompanion(bool nullToAbsent) {
+    return ReminderSectionsCompanion(
+      listId: Value(listId),
+      id: Value(id),
+      title: Value(title),
+      sortOrder: Value(sortOrder),
+      remoteId: remoteId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteId),
+    );
+  }
+
+  factory ReminderSection.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReminderSection(
+      listId: serializer.fromJson<String>(json['listId']),
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      remoteId: serializer.fromJson<String?>(json['remoteId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'listId': serializer.toJson<String>(listId),
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'remoteId': serializer.toJson<String?>(remoteId),
+    };
+  }
+
+  ReminderSection copyWith({
+    String? listId,
+    String? id,
+    String? title,
+    int? sortOrder,
+    Value<String?> remoteId = const Value.absent(),
+  }) => ReminderSection(
+    listId: listId ?? this.listId,
+    id: id ?? this.id,
+    title: title ?? this.title,
+    sortOrder: sortOrder ?? this.sortOrder,
+    remoteId: remoteId.present ? remoteId.value : this.remoteId,
+  );
+  ReminderSection copyWithCompanion(ReminderSectionsCompanion data) {
+    return ReminderSection(
+      listId: data.listId.present ? data.listId.value : this.listId,
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      remoteId: data.remoteId.present ? data.remoteId.value : this.remoteId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReminderSection(')
+          ..write('listId: $listId, ')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('remoteId: $remoteId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(listId, id, title, sortOrder, remoteId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReminderSection &&
+          other.listId == this.listId &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.sortOrder == this.sortOrder &&
+          other.remoteId == this.remoteId);
+}
+
+class ReminderSectionsCompanion extends UpdateCompanion<ReminderSection> {
+  final Value<String> listId;
+  final Value<String> id;
+  final Value<String> title;
+  final Value<int> sortOrder;
+  final Value<String?> remoteId;
+  final Value<int> rowid;
+  const ReminderSectionsCompanion({
+    this.listId = const Value.absent(),
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.remoteId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReminderSectionsCompanion.insert({
+    required String listId,
+    required String id,
+    required String title,
+    this.sortOrder = const Value.absent(),
+    this.remoteId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : listId = Value(listId),
+       id = Value(id),
+       title = Value(title);
+  static Insertable<ReminderSection> custom({
+    Expression<String>? listId,
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<int>? sortOrder,
+    Expression<String>? remoteId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (listId != null) 'list_id': listId,
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (remoteId != null) 'remote_id': remoteId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReminderSectionsCompanion copyWith({
+    Value<String>? listId,
+    Value<String>? id,
+    Value<String>? title,
+    Value<int>? sortOrder,
+    Value<String?>? remoteId,
+    Value<int>? rowid,
+  }) {
+    return ReminderSectionsCompanion(
+      listId: listId ?? this.listId,
+      id: id ?? this.id,
+      title: title ?? this.title,
+      sortOrder: sortOrder ?? this.sortOrder,
+      remoteId: remoteId ?? this.remoteId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (listId.present) {
+      map['list_id'] = Variable<String>(listId.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (remoteId.present) {
+      map['remote_id'] = Variable<String>(remoteId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReminderSectionsCompanion(')
+          ..write('listId: $listId, ')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('remoteId: $remoteId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $ReminderItemsTable extends ReminderItems
     with TableInfo<$ReminderItemsTable, ReminderItem> {
   @override
@@ -8014,6 +8378,9 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
   _$LifeProductivityDb(QueryExecutor e) : super(e);
   $LifeProductivityDbManager get managers => $LifeProductivityDbManager(this);
   late final $ReminderListsTable reminderLists = $ReminderListsTable(this);
+  late final $ReminderSectionsTable reminderSections = $ReminderSectionsTable(
+    this,
+  );
   late final $ReminderItemsTable reminderItems = $ReminderItemsTable(this);
   late final $CalendarsTable calendars = $CalendarsTable(this);
   late final $CalendarEventsTable calendarEvents = $CalendarEventsTable(this);
@@ -8036,6 +8403,7 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     reminderLists,
+    reminderSections,
     reminderItems,
     calendars,
     calendarEvents,
@@ -8361,6 +8729,225 @@ typedef $$ReminderListsTableProcessedTableManager =
         BaseReferences<_$LifeProductivityDb, $ReminderListsTable, ReminderList>,
       ),
       ReminderList,
+      PrefetchHooks Function()
+    >;
+typedef $$ReminderSectionsTableCreateCompanionBuilder =
+    ReminderSectionsCompanion Function({
+      required String listId,
+      required String id,
+      required String title,
+      Value<int> sortOrder,
+      Value<String?> remoteId,
+      Value<int> rowid,
+    });
+typedef $$ReminderSectionsTableUpdateCompanionBuilder =
+    ReminderSectionsCompanion Function({
+      Value<String> listId,
+      Value<String> id,
+      Value<String> title,
+      Value<int> sortOrder,
+      Value<String?> remoteId,
+      Value<int> rowid,
+    });
+
+class $$ReminderSectionsTableFilterComposer
+    extends Composer<_$LifeProductivityDb, $ReminderSectionsTable> {
+  $$ReminderSectionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get listId => $composableBuilder(
+    column: $table.listId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReminderSectionsTableOrderingComposer
+    extends Composer<_$LifeProductivityDb, $ReminderSectionsTable> {
+  $$ReminderSectionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get listId => $composableBuilder(
+    column: $table.listId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get remoteId => $composableBuilder(
+    column: $table.remoteId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReminderSectionsTableAnnotationComposer
+    extends Composer<_$LifeProductivityDb, $ReminderSectionsTable> {
+  $$ReminderSectionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get listId =>
+      $composableBuilder(column: $table.listId, builder: (column) => column);
+
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<String> get remoteId =>
+      $composableBuilder(column: $table.remoteId, builder: (column) => column);
+}
+
+class $$ReminderSectionsTableTableManager
+    extends
+        RootTableManager<
+          _$LifeProductivityDb,
+          $ReminderSectionsTable,
+          ReminderSection,
+          $$ReminderSectionsTableFilterComposer,
+          $$ReminderSectionsTableOrderingComposer,
+          $$ReminderSectionsTableAnnotationComposer,
+          $$ReminderSectionsTableCreateCompanionBuilder,
+          $$ReminderSectionsTableUpdateCompanionBuilder,
+          (
+            ReminderSection,
+            BaseReferences<
+              _$LifeProductivityDb,
+              $ReminderSectionsTable,
+              ReminderSection
+            >,
+          ),
+          ReminderSection,
+          PrefetchHooks Function()
+        > {
+  $$ReminderSectionsTableTableManager(
+    _$LifeProductivityDb db,
+    $ReminderSectionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReminderSectionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReminderSectionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReminderSectionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> listId = const Value.absent(),
+                Value<String> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReminderSectionsCompanion(
+                listId: listId,
+                id: id,
+                title: title,
+                sortOrder: sortOrder,
+                remoteId: remoteId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String listId,
+                required String id,
+                required String title,
+                Value<int> sortOrder = const Value.absent(),
+                Value<String?> remoteId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReminderSectionsCompanion.insert(
+                listId: listId,
+                id: id,
+                title: title,
+                sortOrder: sortOrder,
+                remoteId: remoteId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ReminderSectionsTable, ReminderSection>(table),
+                  BaseReferences<
+                    _$LifeProductivityDb,
+                    $ReminderSectionsTable,
+                    ReminderSection
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReminderSectionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LifeProductivityDb,
+      $ReminderSectionsTable,
+      ReminderSection,
+      $$ReminderSectionsTableFilterComposer,
+      $$ReminderSectionsTableOrderingComposer,
+      $$ReminderSectionsTableAnnotationComposer,
+      $$ReminderSectionsTableCreateCompanionBuilder,
+      $$ReminderSectionsTableUpdateCompanionBuilder,
+      (
+        ReminderSection,
+        BaseReferences<
+          _$LifeProductivityDb,
+          $ReminderSectionsTable,
+          ReminderSection
+        >,
+      ),
+      ReminderSection,
       PrefetchHooks Function()
     >;
 typedef $$ReminderItemsTableCreateCompanionBuilder =
@@ -11894,6 +12481,8 @@ class $LifeProductivityDbManager {
   $LifeProductivityDbManager(this._db);
   $$ReminderListsTableTableManager get reminderLists =>
       $$ReminderListsTableTableManager(_db, _db.reminderLists);
+  $$ReminderSectionsTableTableManager get reminderSections =>
+      $$ReminderSectionsTableTableManager(_db, _db.reminderSections);
   $$ReminderItemsTableTableManager get reminderItems =>
       $$ReminderItemsTableTableManager(_db, _db.reminderItems);
   $$CalendarsTableTableManager get calendars =>

@@ -156,7 +156,7 @@ void main() {
     expect(noteRow.checklistTotal, 0, reason: 'V9 清单计数默认 0');
     expect(noteRow.revision, 0);
 
-    expect(db9.schemaVersion, 14);
+    expect(db9.schemaVersion, 15);
     await db9.close();
   });
 

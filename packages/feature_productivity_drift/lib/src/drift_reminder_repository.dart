@@ -44,14 +44,18 @@ class DriftReminderRepository
   Stream<List<kernel.ReminderList>> watchLists() {
     final lists$ = _db.select(_db.reminderLists).watch();
     final items$ = _db.select(_db.reminderItems).watch();
+    // #169：分区独立成表 —— watch 它，任一分区行变动都能推出新快照。
+    final sections$ = _db.select(_db.reminderSections).watch();
     // 跨日刷新：now 不能在建流时冻结——与日界 tick 合并，每次发射重算
-    return _combineLatest3<
+    return _combineLatest4<
       List<ReminderList>,
       List<ReminderItem>,
+      List<ReminderSection>,
       DateTime,
       List<kernel.ReminderList>
-    >(lists$, items$, _dayTicks(), (listRows, itemRows, _) {
+    >(lists$, items$, sections$, _dayTicks(), (listRows, itemRows, sectionRows, _) {
       final now = _now;
+      final byList = _groupSections(sectionRows);
       return [
         for (final smart in smartLists)
           smart.copyWith(itemCount: _count(itemRows, smart.id, now)),
@@ -63,7 +67,7 @@ class DriftReminderRepository
             isSmart: row.isSmart,
             itemCount: _count(itemRows, row.id, now),
             sortOrder: row.sortOrder,
-            sections: _sortedSections(_decodeSections(row.sectionsJson)),
+            sections: _sortedSections(byList[row.id] ?? const []),
             groupName: row.groupName,
             listType: kernel.ReminderListType.fromId(row.listType),
             smartFilter: _decodeSmartFilter(row.smartFilter),
@@ -474,13 +478,19 @@ class DriftReminderRepository
   }
 
   /// 清单行 → kernel 模型（`itemCount` 由 watcher 派生，这里不需要）。
-  kernel.ReminderList _listModelFrom(ReminderList row) => kernel.ReminderList(
+  ///
+  /// #169：分区不再从 `sections_json` 读——调用方按需传入已读出的行
+  /// （出站载荷根本不带分区，这些调用方传默认空即可）。
+  kernel.ReminderList _listModelFrom(
+    ReminderList row, {
+    List<kernel.ReminderSection> sections = const [],
+  }) => kernel.ReminderList(
     id: row.id,
     title: row.title,
     colorArgb: row.colorArgb,
     isSmart: row.isSmart,
     sortOrder: row.sortOrder,
-    sections: _sortedSections(_decodeSections(row.sectionsJson)),
+    sections: _sortedSections(sections),
     groupName: row.groupName,
     listType: kernel.ReminderListType.fromId(row.listType),
     smartFilter: _decodeSmartFilter(row.smartFilter),
@@ -520,9 +530,8 @@ class DriftReminderRepository
             groupName: Value(model.groupName),
             listType: Value(model.listType.id),
             smartFilter: Value(_encodeSmartFilter(model.smartFilter)),
-            sectionsJson: Value(
-              _encodeSections(_sortedSections(model.sections)),
-            ),
+            // #169：分区是独立行（task_section 实体各自入站），清单载荷不带
+            // 分区集合，这里绝不整块覆盖——旧实现是这里把对方分区盖掉的。
             isSmart: Value(model.isSmart),
             remoteId: Value(model.remoteId),
           ),
@@ -536,6 +545,7 @@ class DriftReminderRepository
     // 服务端级联下推的条目 delete 再落一次也只是重写 deletedAt，幂等。
     await (_db.update(_db.reminderItems)..where((t) => t.listId.equals(row.id)))
         .write(ReminderItemsCompanion(deletedAt: Value(_now)));
+    await _deleteSectionsOf(row.id);
     await (_db.delete(
       _db.reminderLists,
     )..where((t) => t.id.equals(row.id))).go();
@@ -546,21 +556,17 @@ class DriftReminderRepository
     if (listId == null) return;
     final row = await _findListByServerId(listId);
     if (row == null) return; // 归属清单还没到：跳过（服务端按批重推）
-    final sections = [..._decodeSections(row.sectionsJson)];
-    final i = sections.indexWhere(
-      (e) => e.remoteId == c.entityId || e.id == c.entityId,
+    final existing = await _findSectionRow(
+      listId: row.id,
+      remoteIdOrId: c.entityId,
     );
     final section = kernel.reminderSectionFromSyncPayload(
       c.payload,
       entityId: c.entityId,
-      existing: i >= 0 ? sections[i] : null,
+      existing: existing,
     );
-    if (i >= 0) {
-      sections[i] = section;
-    } else {
-      sections.add(section);
-    }
-    await _writeSections(row.id, sections);
+    // #169：只写这一行，不读改写整块分区集合。
+    await _upsertSectionRow(row.id, section);
   }
 
   Future<void> _applyInboundSectionDelete(kernel.SyncIncomingChange c) async {
@@ -568,24 +574,19 @@ class DriftReminderRepository
     if (listId == null) return;
     final row = await _findListByServerId(listId);
     if (row == null) return;
-    final all = _decodeSections(row.sectionsJson);
-    final doomedIds = all
-        .where((e) => e.remoteId == c.entityId || e.id == c.entityId)
-        .map((e) => e.id)
-        .toSet();
-    if (doomedIds.isEmpty) return; // 幂等
-    final kept = all
-        .where((e) => !doomedIds.contains(e.id))
-        .toList(growable: false);
+    final doomed = await _findSectionRow(
+      listId: row.id,
+      remoteIdOrId: c.entityId,
+    );
+    if (doomed == null) return; // 幂等：本地没有这条分区
     // 级联：挂靠条目兜底「未分区」（与本地 deleteSection 同语义）
-    final rows = await (_db.select(
-      _db.reminderItems,
-    )..where((t) => t.listId.equals(row.id) & t.sectionId.isNotNull())).get();
-    for (final r in rows.where((e) => doomedIds.contains(e.sectionId))) {
-      await (_db.update(_db.reminderItems)..where((t) => t.id.equals(r.id)))
-          .write(const ReminderItemsCompanion(sectionId: Value(null)));
-    }
-    await _writeSections(row.id, kept);
+    await (_db.update(_db.reminderItems)
+          ..where((t) =>
+              t.listId.equals(row.id) & t.sectionId.equals(doomed.id)))
+        .write(const ReminderItemsCompanion(sectionId: Value(null)));
+    await (_db.delete(_db.reminderSections)
+          ..where((t) => t.listId.equals(row.id) & t.id.equals(doomed.id)))
+        .go();
   }
 
   /// 清单变更登记进发件箱（flutter#144 / TC-SYNC-106 出站半边）。
@@ -659,44 +660,103 @@ class DriftReminderRepository
               groupName: Value(list.groupName),
               listType: Value(list.listType.id),
               smartFilter: Value(_encodeSmartFilter(list.smartFilter)),
-              // cursor PR#15 阻断2：分区与智能标记必须随列表落库——
-              // 否则 grocery 预置分区/custom 智能列表入库即丢。
-              sectionsJson: Value(
-                _encodeSections(_sortedSections(list.sections)),
-              ),
               isSmart: Value(list.isSmart),
               remoteId: Value(list.remoteId),
             ),
           );
+      // cursor PR#15 阻断2：分区必须随列表落库（grocery 预置 8 分区）——
+      // #169：改成一行一个分区的整集合替换（这是「清单全量回写」语义，
+      // 不参与并发合并；单条分区编辑走 upsertSection 的单行写）。
+      await _replaceSections(list.id, list.sections);
       // flutter#144 / TC-SYNC-106 出站半边：清单变更也要进发件箱
       final row = await (_db.select(
         _db.reminderLists,
       )..where((t) => t.id.equals(list.id))).getSingleOrNull();
-      if (row != null) await _enqueueListOutbox(_listModelFrom(row));
+      if (row != null) {
+        await _enqueueListOutbox(
+          _listModelFrom(row, sections: list.sections),
+        );
+      }
     });
   }
 
   // ---- 手动分区（TC-KR-118；元数据 JSON 列，条目 sectionId 挂靠）----
 
-  List<kernel.ReminderSection> _decodeSections(String? raw) {
-    if (raw == null || raw.isEmpty) return const [];
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is List) {
-        return decoded
-            .whereType<Map>()
-            .map(
-              (m) => kernel.ReminderSection(
-                id: m['id'] as String,
-                title: m['title'] as String,
-                sortOrder: (m['sortOrder'] as num?)?.toInt() ?? 0,
-                remoteId: m['remoteId'] as String?,
-              ),
-            )
-            .toList(growable: false);
+  /// 分区行 → kernel 模型（排序契约由调用方 [_sortedSections] 保证）。
+  kernel.ReminderSection _sectionModel(ReminderSection row) =>
+      kernel.ReminderSection(
+        id: row.id,
+        title: row.title,
+        sortOrder: row.sortOrder,
+        remoteId: row.remoteId,
+      );
+
+  /// 某清单的全部分区行（按 sortOrder asc, id asc 由 [_sortedSections] 收口）。
+  Future<List<kernel.ReminderSection>> _readSections(String listId) async {
+    final rows = await (_db.select(_db.reminderSections)
+          ..where((t) => t.listId.equals(listId)))
+        .get();
+    return _sortedSections(rows.map(_sectionModel).toList(growable: false));
+  }
+
+  /// 按 remoteId 或本地 id 找分区行（入站合并用：服务端只认 remoteId）。
+  Future<kernel.ReminderSection?> _findSectionRow({
+    required String listId,
+    required String remoteIdOrId,
+  }) async {
+    final rows = await (_db.select(_db.reminderSections)
+          ..where((t) => t.listId.equals(listId)))
+        .get();
+    for (final r in rows) {
+      if (r.remoteId == remoteIdOrId || r.id == remoteIdOrId) {
+        return _sectionModel(r);
       }
-    } catch (_) {}
-    return const [];
+    }
+    return null;
+  }
+
+  /// #169：单行写入 —— 只碰这一条分区，不读改写整个集合。
+  Future<void> _upsertSectionRow(
+    String listId,
+    kernel.ReminderSection section,
+  ) async {
+    await _db.into(_db.reminderSections).insertOnConflictUpdate(
+          ReminderSectionsCompanion.insert(
+            listId: listId,
+            id: section.id,
+            title: section.title,
+            sortOrder: Value(section.sortOrder),
+            remoteId: Value(section.remoteId),
+          ),
+        );
+  }
+
+  /// 整集合替换（清单全量回写 / 迁移场景；不是并发合并路径）。
+  Future<void> _replaceSections(
+    String listId,
+    List<kernel.ReminderSection> sections,
+  ) async {
+    final wanted = _sortedSections(sections);
+    final existing = await (_db.select(_db.reminderSections)
+          ..where((t) => t.listId.equals(listId)))
+        .get();
+    final keep = {for (final s in wanted) s.id};
+    for (final row in existing) {
+      if (!keep.contains(row.id)) {
+        await (_db.delete(_db.reminderSections)
+              ..where((t) => t.listId.equals(listId) & t.id.equals(row.id)))
+            .go();
+      }
+    }
+    for (final s in wanted) {
+      await _upsertSectionRow(listId, s);
+    }
+  }
+
+  Future<void> _deleteSectionsOf(String listId) async {
+    await (_db.delete(
+      _db.reminderSections,
+    )..where((t) => t.listId.equals(listId))).go();
   }
 
   kernel.SmartListFilter? _decodeSmartFilter(String? raw) {
@@ -721,15 +781,16 @@ class DriftReminderRepository
     });
   }
 
-  String _encodeSections(List<kernel.ReminderSection> sections) => jsonEncode([
-    for (final s in sections)
-      {
-        'id': s.id,
-        'title': s.title,
-        'sortOrder': s.sortOrder,
-        'remoteId': s.remoteId,
-      },
-  ]);
+  /// 分区行按清单分组（watchLists 组装用；#169）。
+  Map<String, List<kernel.ReminderSection>> _groupSections(
+    List<ReminderSection> rows,
+  ) {
+    final out = <String, List<kernel.ReminderSection>>{};
+    for (final row in rows) {
+      (out[row.listId] ??= <kernel.ReminderSection>[]).add(_sectionModel(row));
+    }
+    return out;
+  }
 
   /// 分区排序契约（sortOrder asc, id asc）。
   List<kernel.ReminderSection> _sortedSections(
@@ -743,19 +804,6 @@ class DriftReminderRepository
     return list;
   }
 
-  Future<void> _writeSections(
-    String listId,
-    List<kernel.ReminderSection> sections,
-  ) async {
-    await (_db.update(
-      _db.reminderLists,
-    )..where((t) => t.id.equals(listId))).write(
-      ReminderListsCompanion(
-        sectionsJson: Value(_encodeSections(_sortedSections(sections))),
-      ),
-    );
-  }
-
   @override
   Future<void> upsertSection({
     required String listId,
@@ -765,15 +813,9 @@ class DriftReminderRepository
       _db.reminderLists,
     )..where((t) => t.id.equals(listId))).getSingleOrNull();
     if (row == null) return;
-    final sections = [..._decodeSections(row.sectionsJson)];
-    final i = sections.indexWhere((e) => e.id == section.id);
-    if (i >= 0) {
-      sections[i] = section;
-    } else {
-      sections.add(section);
-    }
     await _db.transaction(() async {
-      await _writeSections(listId, sections);
+      // #169：只写这一行。并发改同一清单的不同分区互不覆盖。
+      await _upsertSectionRow(listId, section);
       await _enqueueSectionOutbox(
         listId: row.remoteId ?? listId,
         section: section,
@@ -790,7 +832,7 @@ class DriftReminderRepository
       _db.reminderLists,
     )..where((t) => t.id.equals(listId))).getSingleOrNull();
     if (row == null) return;
-    final sections = _decodeSections(row.sectionsJson);
+    final sections = await _readSections(listId);
     final byId = {for (final s in sections) s.id: s};
     final ordered = <kernel.ReminderSection>[];
     final seen = <String>{};
@@ -806,7 +848,10 @@ class DriftReminderRepository
       }
     }
     await _db.transaction(() async {
-      await _writeSections(listId, ordered);
+      // #169：按行改 sortOrder（不删不重插，避免与并发写他人分区打架）。
+      for (final s in ordered) {
+        await _upsertSectionRow(listId, s);
+      }
       for (final s in ordered) {
         await _enqueueSectionOutbox(listId: row.remoteId ?? listId, section: s);
       }
@@ -822,11 +867,8 @@ class DriftReminderRepository
       _db.reminderLists,
     )..where((t) => t.id.equals(listId))).getSingleOrNull();
     if (row == null) return;
-    final all = _decodeSections(row.sectionsJson);
+    final all = await _readSections(listId);
     final doomed = all.where((e) => e.id == sectionId).toList(growable: false);
-    final sections = all
-        .where((e) => e.id != sectionId)
-        .toList(growable: false);
     // 级联：挂靠条目兜底「未分区」（drift where 多条件：先查后逐条更新）
     final rows = await (_db.select(
       _db.reminderItems,
@@ -839,7 +881,10 @@ class DriftReminderRepository
           .write(const ReminderItemsCompanion(sectionId: Value(null)));
       await _enqueueOutbox([r.id]);
     }
-    await _writeSections(listId, sections);
+    // #169：只删这一行。
+    await (_db.delete(_db.reminderSections)
+          ..where((t) => t.listId.equals(listId) & t.id.equals(sectionId)))
+        .go();
     for (final d in doomed) {
       await _enqueueSectionOutbox(
         listId: row.remoteId ?? listId,
@@ -865,6 +910,8 @@ class DriftReminderRepository
       final gone = await (_db.select(
         _db.reminderLists,
       )..where((t) => t.id.equals(listId))).getSingleOrNull();
+      // #169：分区行随清单清理（防同 id 重建列表时出现幽灵分区）。
+      await _deleteSectionsOf(listId);
       await (_db.delete(
         _db.reminderLists,
       )..where((t) => t.id.equals(listId))).go();
@@ -878,48 +925,51 @@ class DriftReminderRepository
 
   // ---- 内部 ----
 
-  /// 轻量 combineLatest：两侧都有值后，任一侧更新即合并发射。
-  static Stream<R> _combineLatest3<A, B, C, R>(
+  /// 四路 combineLatest（watchLists：清单 + 条目 + 分区 + 日界 tick）。
+  static Stream<R> _combineLatest4<A, B, C, D, R>(
     Stream<A> a,
     Stream<B> b,
     Stream<C> c,
-    R Function(A, B, C) combine,
+    Stream<D> d,
+    R Function(A, B, C, D) combine,
   ) {
     late StreamController<R> controller;
     A? latestA;
     B? latestB;
     C? latestC;
-    var hasA = false, hasB = false, hasC = false;
+    D? latestD;
+    var hasA = false, hasB = false, hasC = false, hasD = false;
     final subs = <StreamSubscription<dynamic>>[];
 
     void emit() {
-      if (hasA && hasB && hasC) {
-        controller.add(combine(latestA as A, latestB as B, latestC as C));
+      if (hasA && hasB && hasC && hasD) {
+        controller.add(
+          combine(latestA as A, latestB as B, latestC as C, latestD as D),
+        );
       }
     }
 
     void listen() {
-      subs.add(
-        a.listen((v) {
-          latestA = v;
-          hasA = true;
-          emit();
-        }),
-      );
-      subs.add(
-        b.listen((v) {
-          latestB = v;
-          hasB = true;
-          emit();
-        }),
-      );
-      subs.add(
-        c.listen((v) {
-          latestC = v;
-          hasC = true;
-          emit();
-        }),
-      );
+      subs.add(a.listen((v) {
+        latestA = v;
+        hasA = true;
+        emit();
+      }));
+      subs.add(b.listen((v) {
+        latestB = v;
+        hasB = true;
+        emit();
+      }));
+      subs.add(c.listen((v) {
+        latestC = v;
+        hasC = true;
+        emit();
+      }));
+      subs.add(d.listen((v) {
+        latestD = v;
+        hasD = true;
+        emit();
+      }));
     }
 
     controller = StreamController<R>.broadcast(
@@ -929,12 +979,13 @@ class DriftReminderRepository
           s.cancel();
         }
         subs.clear();
-        hasA = hasB = hasC = false;
+        hasA = hasB = hasC = hasD = false;
       },
     );
     return controller.stream;
   }
 
+  /// 轻量 combineLatest：两侧都有值后，任一侧更新即合并发射。
   static Stream<R> _combineLatest2<A, B, R>(
     Stream<A> a,
     Stream<B> b,
