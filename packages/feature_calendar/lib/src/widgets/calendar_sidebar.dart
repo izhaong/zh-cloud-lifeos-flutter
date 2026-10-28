@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:app_core/app_core.dart';
 
 import '../providers.dart';
+import '../design/calendar_tokens.dart';
 import '../logic/event_time.dart';
 import '../logic/local_holidays.dart';
 import 'calendar_shortcuts.dart';
@@ -36,7 +37,7 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
         key: const Key('calendar_sidebar'),
         width: widget.width,
         child: ColoredBox(
-          color: const Color(0xFFF2F2F7),
+          color: CalendarTokens.groupedBackground,
           child: ListView(
             children: [
               for (final entry in groups.entries) ...[
@@ -49,7 +50,7 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                 leading: const Icon(
                   CupertinoIcons.circle,
                   size: 18,
-                  color: Color(0xFF8E8E93),
+                  color: CalendarTokens.labelSecondary,
                 ),
                 title: '已安排的提醒事项',
                 value: ref.watch(scheduledRemindersVisibleProvider),
@@ -64,7 +65,7 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                 leading: const Icon(
                   CupertinoIcons.calendar_badge_minus,
                   size: 18,
-                  color: Color(0xFF8E8E93),
+                  color: CalendarTokens.labelSecondary,
                 ),
                 title: '中国大陆节假日',
                 value:
@@ -169,7 +170,7 @@ class _GroupHeader extends StatelessWidget {
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF8E8E93),
+          color: CalendarTokens.labelSecondary,
         ),
       ),
     );
@@ -204,7 +205,7 @@ class _CalendarRow extends ConsumerWidget {
                 CalendarKind.local => CupertinoIcons.calendar,
               },
               size: 16,
-              color: const Color(0xFF8E8E93),
+              color: CalendarTokens.labelSecondary,
             ),
             if (calendar.lastRefreshError != null) ...[
               const SizedBox(width: 6),
@@ -213,7 +214,7 @@ class _CalendarRow extends ConsumerWidget {
                 key: Key('cal-refresh-error-${calendar.id}'),
                 semanticLabel: '刷新失败',
                 size: 14,
-                color: const Color(0xFFFF3B30),
+                color: CalendarTokens.systemRed,
               ),
             ],
             const SizedBox(width: 6),
@@ -228,7 +229,7 @@ class _CalendarRow extends ConsumerWidget {
               child: const Icon(
                 CupertinoIcons.info,
                 size: 16,
-                color: Color(0xFF8E8E93),
+                color: CalendarTokens.labelSecondary,
               ),
             ),
             SizedBox(
