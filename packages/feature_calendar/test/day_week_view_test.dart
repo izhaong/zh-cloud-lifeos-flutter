@@ -228,6 +228,36 @@ void main() {
     expect(find.text('团队周会'), findsOneWidget,
         reason: '#184: 事件卡必须显示事件标题');
   });
+
+  // #184 审查 R1：全天/跨日条走 MultiDayHeader，也必须用自定义 builder
+  testWidgets('#184 日视图全天事件卡同样渲染标题（无 Tile 占位）', (tester) async {
+    await repo.savePreference(
+      const CalendarPreference(dayStartHour: 8, dayEndHour: 20),
+    );
+    await repo.upsertEvent(
+      CalendarEvent(
+        id: 'e184a',
+        calendarId: 'c1',
+        uid: 'u184a',
+        title: '全天例会',
+        startAt: DateTime.utc(2026, 10, 24),
+        endAt: DateTime.utc(2026, 10, 25),
+        allDay: true,
+        timeZone: 'UTC',
+        updatedAt: DateTime.utc(2026, 10, 24),
+      ),
+    );
+    await pumpCalendar(tester, mode: CalendarViewMode.day);
+    containerOf(
+      tester,
+    ).read(anchorDateProvider.notifier).set(DateTime(2026, 10, 24));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tile'), findsNothing,
+        reason: '#184 R1: 全天区不得出现默认占位「Tile」');
+    expect(find.byKey(const Key('day-event-e184a')), findsOneWidget);
+    expect(find.text('全天例会'), findsOneWidget);
+  });
 }
 
 /// 取当前测试树里的 Riverpod 容器。

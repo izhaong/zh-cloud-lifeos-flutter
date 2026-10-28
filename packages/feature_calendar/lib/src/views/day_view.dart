@@ -77,9 +77,15 @@ class CalendarDayView extends ConsumerWidget {
               child: kalender.KalenderView(
                 eventsController: eventsController,
                 kalenderController: controller,
-                // #184：显式传 tileComponents，避免 kalender 默认「Tile」占位文案
+                // #184：显式传 tileComponents，避免 kalender 默认「Tile」占位文案；
+                // header（全天/跨日条）与 body（定时条）都要传——审查 R1 意见
                 views: const [
                   kalender.MultiDayViewParts(
+                    header: kalender.MultiDayHeader(
+                      tileComponents: kalender.TileComponents(
+                        tileBuilder: dayEventTileBuilder,
+                      ),
+                    ),
                     body: kalender.MultiDayBody(
                       tileComponents: kalender.TileComponents(
                         tileBuilder: dayEventTileBuilder,
