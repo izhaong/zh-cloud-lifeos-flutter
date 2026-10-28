@@ -166,8 +166,9 @@ final filteredItemsForListProvider =
               bool subtreeHidden(String id) {
                 var cursor = byId[id];
                 for (var depth = 0; depth < 64 && cursor != null; depth++) {
-                  if (cursor.isCompleted && cursor.parentId == null)
+                  if (cursor.isCompleted && cursor.parentId == null) {
                     return true;
+                  }
                   cursor = cursor.parentId == null
                       ? null
                       : byId[cursor.parentId];

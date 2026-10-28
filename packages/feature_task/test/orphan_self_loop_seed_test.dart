@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
-import 'support/life_test_app.dart';
 
 /// TC-KR-105（子任务平铺契约）客户端半边收口：
 /// `task_scaffold.dart` 的顶层兜底分支（行 1086「孤儿（父不在结果集）或自环
@@ -18,7 +17,7 @@ void main() {
     view.resetDevicePixelRatio();
   });
 
-  Future<InMemoryReminderRepository> _seed() async {
+  Future<InMemoryReminderRepository> seed() async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(const ReminderList(id: 'list.a', title: '列表A'));
     await repo.upsertItem(
@@ -38,22 +37,22 @@ void main() {
     return repo;
   }
 
-  Future<void> _pump(WidgetTester tester, ReminderRepository repo) async {
+  Future<void> pump(WidgetTester tester, ReminderRepository repo) async {
     final view = TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view.physicalSize = const Size(1366, 1024);
     view.devicePixelRatio = 1.0;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-        child: MaterialApp(home: TaskScaffold(openListId: 'list.a')),
+        child: const MaterialApp(home: TaskScaffold(openListId: 'list.a')),
       ),
     );
     await tester.pumpAndSettle();
   }
 
   testWidgets('TC-KR-105 孤儿与自环按顶层渲染（不丢、不环）', (tester) async {
-    final repo = await _seed();
-    await _pump(tester, repo);
+    final repo = await seed();
+    await pump(tester, repo);
 
     // 全部四条均渲染：父/子/孤儿/自环
     expect(find.text('父'), findsOneWidget);
@@ -78,7 +77,7 @@ void main() {
     await repo.upsertItem(
       const ReminderItem(id: 'solo', listId: 'list.a', title: '自环', parentId: 'solo'),
     );
-    await _pump(tester, repo);
+    await pump(tester, repo);
 
     // 不无限递归 → 恰好一个「自环」文本（若递归会渲染多份或卡死）
     expect(find.text('自环'), findsOneWidget);
