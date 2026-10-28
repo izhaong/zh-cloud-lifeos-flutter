@@ -97,6 +97,9 @@ class CalendarDayView extends ConsumerWidget {
               child: kalender.KalenderView(
                 eventsController: eventsController,
                 kalenderController: controller,
+                // #193：kalender 默认用自己的 locale（null→intl 默认 en_US），
+                // 不传会把中文界面的星期名渲染成 Mon…Sun
+                locale: Localizations.localeOf(context),
                 // #184：显式传 tileComponents，避免 kalender 默认「Tile」占位文案；
                 // header（全天/跨日条）与 body（定时条）都要传——审查 R1 意见
                 views: const [
@@ -269,6 +272,8 @@ class CalendarWeekView extends ConsumerWidget {
         child: kalender.KalenderView(
           eventsController: eventsController,
           kalenderController: controller,
+          // #193：周视图列头同走 kalender 自己的 locale，必须显式传应用语言
+          locale: Localizations.localeOf(context),
           // #200：显式传 tileComponents（header 全天区 + body 定时区），去默认「Tile」
           views: const [
             kalender.MultiDayViewParts(
