@@ -208,7 +208,8 @@ class _MonthDayHeader extends StatelessWidget {
       child: Text(
         '${date.day}',
         style: TextStyle(
-          color: isToday ? CalendarTokens.surface : null,
+          // 红圈上的字必须恒为白（surface 在暗色下是深色，会造成红底深字）
+          color: isToday ? CupertinoColors.white : null,
           fontWeight: isToday ? FontWeight.w600 : null,
         ),
       ),
