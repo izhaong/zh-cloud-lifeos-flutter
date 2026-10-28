@@ -212,14 +212,18 @@ class CalendarWeekView extends ConsumerWidget {
     );
 
     eventsController.clearEvents();
+    // #200：装载 CalendarEventTile（带标题/日历色），周视图 tile 才能渲染内容
     eventsController.addEvents([
       for (final o in occurrences)
         if (o.source != OccurrenceSource.holiday)
-          kalender.KalenderEvent(
+          CalendarEventTile(
             id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
             start: o.start.toUtc(),
             end: o.end.toUtc(),
             isAllDay: o.allDay,
+            kernelEventId: o.eventId,
+            colorArgb: o.colorArgb,
+            title: o.title,
           ),
     ]);
 
@@ -229,7 +233,21 @@ class CalendarWeekView extends ConsumerWidget {
         child: kalender.KalenderView(
           eventsController: eventsController,
           kalenderController: controller,
-          views: const [kalender.MultiDayViewParts()],
+          // #200：显式传 tileComponents（header 全天区 + body 定时区），去默认「Tile」
+          views: const [
+            kalender.MultiDayViewParts(
+              header: kalender.MultiDayHeader(
+                tileComponents: kalender.TileComponents(
+                  tileBuilder: dayEventTileBuilder,
+                ),
+              ),
+              body: kalender.MultiDayBody(
+                tileComponents: kalender.TileComponents(
+                  tileBuilder: dayEventTileBuilder,
+                ),
+              ),
+            ),
+          ],
           callbacks: kalender.KalenderCallbacks(
             onEventCreate: (event) {
               viewCallbacks.onDraftCreate(
