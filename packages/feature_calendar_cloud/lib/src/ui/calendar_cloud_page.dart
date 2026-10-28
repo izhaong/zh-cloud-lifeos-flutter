@@ -3,6 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../collab/rest_calendar_collab_port.dart';
 import '../sync/calendar_sync_coordinator.dart';
+import '../sync/calendar_sync_models.dart';
+
+/// 加载失败的面向用户文案（#165：不得回显异常类名/状态码）。
+String _friendlyLoadError(Object? error) {
+  if (error is CalendarSyncException && error.isUnauthorized) {
+    return '登录后可查看（当前未登录）';
+  }
+  return '暂时不可用，请稍后重试';
+}
 
 /// 组合根注入（未登录/未配置时为 null）。
 final calendarCollabPortProvider = Provider<CalendarCollabPort?>((ref) => null);
@@ -133,7 +142,12 @@ class _InboxTabState extends State<_InboxTab> {
           return const Center(child: CupertinoActivityIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('收件箱加载失败：${snapshot.error}'));
+          return Center(
+            child: Text(
+              '收件箱${_friendlyLoadError(snapshot.error)}',
+              key: const Key('inbox_load_failed'),
+            ),
+          );
         }
         final rows = snapshot.data ?? const [];
         if (rows.isEmpty) {
@@ -218,7 +232,12 @@ class _SharedTabState extends State<_SharedTab> {
           return const Center(child: CupertinoActivityIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('共享日历加载失败：${snapshot.error}'));
+          return Center(
+            child: Text(
+              '共享日历${_friendlyLoadError(snapshot.error)}',
+              key: const Key('shared_load_failed'),
+            ),
+          );
         }
         final rows = (snapshot.data ?? const [])
             .where((c) => c['kind']?.toString() == 'SHARED')

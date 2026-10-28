@@ -67,15 +67,32 @@ void main() {
         find.byKey(const Key('calendar_cloud_message')));
     expect(message.data, contains('导出链接'));
   });
+
+  // parity#165：未登录（401）不得回显内部异常类名，给面向用户的未登录说明
+  testWidgets('#165 未登录收件箱显示友好文案，不暴露异常类名', (tester) async {
+    port.inboxError = CalendarSyncException('未登录', statusCode: 401);
+    await pumpPage(tester);
+
+    expect(find.text('收件箱登录后可查看（当前未登录）'), findsOneWidget);
+    expect(find.textContaining('CalendarSyncException'), findsNothing,
+        reason: '#165: 不得回显异常类型名与状态码');
+  });
 }
 
 class _CollabPort implements CalendarCollabPort {
   List<Map<String, dynamic>> inbox = [];
   List<Map<String, dynamic>> calendars = [];
   final List<(int, bool)> responded = [];
+  CalendarSyncException? inboxError;
 
   @override
-  Future<List<Map<String, dynamic>>> inboxList() async => inbox;
+  Future<List<Map<String, dynamic>>> inboxList() async {
+    final err = inboxError;
+    if (err != null) {
+      throw err;
+    }
+    return inbox;
+  }
 
   @override
   Future<void> respondShare(int shareId, {required bool accept}) async {
