@@ -206,7 +206,11 @@ class CalendarScaffold extends ConsumerWidget {
             if (expanded && draft != null && !inspectorRouteActive) {
               content = Row(
                 children: [
-                  content,
+                  // #197：必须用 Expanded 包裹——content（侧栏+主视图 Row，
+                  // 内含 Expanded）作为非 flex 子项会拿到无界宽度，内层
+                  // Expanded 布局直接抛 RenderFlex 异常，整骨架渲染中断，
+                  // 表现为「创建后什么都不出现」。
+                  Expanded(child: content),
                   const _VerticalHairline(),
                   SizedBox(
                     width: 320,
