@@ -279,8 +279,8 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
           onChanged: (v) => _emit(_copyWith(_e, location: v)),
         ),
         // 3. 全天开关（切换即按契约 §2.2 归一，TC-CAL-UI-140）
-        _SwitchRow(
-          rowKey: const Key('event_field_all_day'),
+        LifeSwitchRow(
+          key: const Key('event_field_all_day'),
           title: '全天',
           value: _e.allDay,
           onChanged: (v) => _emit(setAllDay(_e, v)),
@@ -315,8 +315,8 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
         ),
         // 6.1 浮动时间（仅偏好 timeZoneSupport=true 时显示，TC-CAL-UI-140）
         if (pref.timeZoneSupport)
-          _SwitchRow(
-            rowKey: const Key('event_field_floating'),
+          LifeSwitchRow(
+            key: const Key('event_field_floating'),
             title: '浮动时间',
             subtitle: '不随时区换算',
             value: _e.isFloating,
@@ -440,8 +440,8 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
           ),
         ),
         // 12. 私密
-        _SwitchRow(
-          rowKey: const Key('event_field_private'),
+        LifeSwitchRow(
+          key: const Key('event_field_private'),
           title: '私密',
           value: _e.isPrivate,
           onChanged: (v) => _emit(_copyWith(_e, isPrivate: v)),
@@ -533,65 +533,6 @@ class _FieldRow extends StatelessWidget {
 }
 
 /// 带副标题的开关行（整行 key 供测试 tap；开关自身也可点）。
-class _SwitchRow extends StatelessWidget {
-  const _SwitchRow({
-    required this.rowKey,
-    required this.title,
-    required this.value,
-    required this.onChanged,
-    this.subtitle,
-  });
-
-  final Key rowKey;
-  final String title;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      key: rowKey,
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onChanged(!value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              width: 0.5,
-              color: CupertinoColors.separator.resolveFrom(context),
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 16)),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: CalendarTokens.labelSecondary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            CupertinoSwitch(value: value, onChanged: onChanged),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 文本字段行（key 落在 CupertinoTextField 上供 enterText）。
 class _TextFieldRow extends StatelessWidget {
   const _TextFieldRow({
     required this.fieldKey,

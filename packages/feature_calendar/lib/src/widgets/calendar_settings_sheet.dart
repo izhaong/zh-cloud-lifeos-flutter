@@ -5,7 +5,6 @@
 /// Cupertino 化（#130）：底部弹层 + 行式开关 + ActionSheet 下拉。
 library;
 
-import '../design/calendar_tokens.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -128,14 +127,14 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               onChanged: (v) =>
                   _save(copyCalendarPreference(pref, dayEndHour: v)),
             ),
-            _SwitchRow(
+            LifeSwitchRow(
               key: const Key('settings_show_week_numbers'),
               title: '显示周数',
               value: pref.showWeekNumbers,
               onChanged: (v) =>
                   _save(copyCalendarPreference(pref, showWeekNumbers: v)),
             ),
-            _SwitchRow(
+            LifeSwitchRow(
               key: const Key('settings_alternate_calendar'),
               title: '备用历法（农历）',
               value: pref.alternateCalendar == AlternateCalendar.chinese,
@@ -148,7 +147,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
                 ),
               ),
             ),
-            _SwitchRow(
+            LifeSwitchRow(
               key: const Key('settings_show_holidays'),
               title: '显示节假日',
               value: pref.showHolidays,
@@ -213,7 +212,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               title: '高级',
               key: Key('settings_section_advanced'),
             ),
-            _SwitchRow(
+            LifeSwitchRow(
               key: const Key('settings_time_zone_support'),
               title: '时区支持',
               subtitle: '开启后日程表单显示浮动时间',
@@ -221,7 +220,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               onChanged: (v) =>
                   _save(copyCalendarPreference(pref, timeZoneSupport: v)),
             ),
-            _Row(
+            LifeSettingsRow(
               key: const Key('settings_display_time_zone'),
               title: '显示时区',
               trailing: Text(
@@ -229,7 +228,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
                 style: const TextStyle(fontSize: 15),
               ),
             ),
-            _SwitchRow(
+            LifeSwitchRow(
               key: const Key('settings_open_in_window'),
               title: '在独立窗口打开日程',
               value: pref.openEventsInWindow,
@@ -241,13 +240,13 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               title: '账户',
               key: Key('settings_section_account'),
             ),
-            const _Row(
+            const LifeSettingsRow(
               key: Key('settings_account_note'),
               title: '未登录，数据只在本机',
               subtitle: '登录后可在多设备同步（F-17）',
             ),
             if (ref.watch(calendarSyncTriggerProvider) != null)
-              _Row(
+              LifeSettingsRow(
                 key: const Key('settings_sync_now'),
                 title: '立即同步',
                 trailing: CupertinoButton(
@@ -273,7 +272,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
     required Map<T, String> items,
     required ValueChanged<T> onChanged,
   }) {
-    return _Row(
+    return LifeSettingsRow(
       key: key,
       title: title,
       onTap: () async {
@@ -288,124 +287,3 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
 }
 
 /// 设置行：标题（+副标题）+ 可收缩 trailing + 底部细线；整行可点。
-class _Row extends StatelessWidget {
-  const _Row({
-    super.key,
-    required this.title,
-    this.subtitle,
-    this.trailing,
-    this.onTap,
-  });
-
-  final String title;
-  final String? subtitle;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              width: 0.5,
-              color: CupertinoColors.separator.resolveFrom(context),
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 16)),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: CalendarTokens.labelSecondary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (trailing != null) ...[
-              const SizedBox(width: 8),
-              Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: trailing!,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 开关行（整行 key 供测试 tap）。
-class _SwitchRow extends StatelessWidget {
-  const _SwitchRow({
-    super.key,
-    required this.title,
-    required this.value,
-    required this.onChanged,
-    this.subtitle,
-  });
-
-  final String title;
-  final String? subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => onChanged(!value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              width: 0.5,
-              color: CupertinoColors.separator.resolveFrom(context),
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontSize: 16)),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: CalendarTokens.labelSecondary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            CupertinoSwitch(value: value, onChanged: onChanged),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
