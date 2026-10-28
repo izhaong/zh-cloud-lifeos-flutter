@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/native.dart';
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -29,13 +31,31 @@ void main() {
         clientUpdatedAt: DateTime(2026, 10, 20).millisecondsSinceEpoch,
       );
 
-  test('落库后重新打开库仍能读到（真持久化，不是内存态）', () async {
-    await repo.upsertFolder(const NoteFolder(id: 'f1', name: '默认'));
-    await repo.upsertNote(note('n1', title: '持久化验证'));
+  test('落盘后**关库重开同一个文件**仍能读到（真持久化，等价客户端重启）', () async {
+    // 审查指出：早先这版只是对同一个 NativeDatabase.memory() 实例再建一次
+    // Repository，那证明的是「仓储能读同一连接」，不是持久化。改成文件库 +
+    // 关库重开，才等价「客户端重启后还在」（#305 的 TC-NOTE-UI-116）。
+    final dir = await Directory.systemTemp.createTemp('note_persist');
+    final file = File('${dir.path}/notes.db');
+    addTearDown(() => dir.deleteSync(recursive: true));
 
-    final reopened = DriftNoteRepository(db);
-    final notes = await reopened.watchNotes().first;
+    final first = LifeProductivityDb(NativeDatabase(file));
+    final firstRepo = DriftNoteRepository(first);
+    await firstRepo.upsertFolder(const NoteFolder(id: 'f1', name: '默认'));
+    await firstRepo.upsertNote(
+      note('n1', title: '持久化验证', text: '正文一行'),
+    );
+    await first.close();
+
+    final second = LifeProductivityDb(NativeDatabase(file));
+    addTearDown(second.close);
+    final notes = await DriftNoteRepository(second).watchNotes().first;
     expect(notes.single.title, '持久化验证');
+    expect(
+      notes.single.bodyText.trim(),
+      '正文一行',
+      reason: '预期是「正文可读」，不能只断言标题还在',
+    );
   });
 
   test('保存归一：正文抽纯文本（TC-NOTE-KR-102）', () async {
