@@ -111,13 +111,13 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     );
     await showCupertinoDialog<void>(
       context: context,
-      builder: (dialogContext) => CupertinoAlertDialog(
+      builder: (dialogContext) => LifeAlertDialog(
         title: const Text('导出 Markdown'),
         content: SingleChildScrollView(
           child: Text(markdown, key: const ValueKey('note_export_text')),
         ),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('关闭'),
@@ -131,7 +131,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     final controller = TextEditingController();
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (dialogContext) => CupertinoAlertDialog(
+      builder: (dialogContext) => LifeAlertDialog(
         title: const Text('导入 Markdown'),
         content: CupertinoTextField(
           key: const ValueKey('note_import_text'),
@@ -140,11 +140,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
           placeholder: '# 标题\n正文',
         ),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('取消'),
           ),
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const ValueKey('note_import_submit'),
             isDefaultAction: true,
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -184,7 +184,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     final submitted = await showCupertinoDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setLocalState) => CupertinoAlertDialog(
+        builder: (context, setLocalState) => LifeAlertDialog(
           title: const Text('共享备忘录'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -215,11 +215,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ],
           ),
           actions: [
-            CupertinoDialogAction(
+            LifeDialogAction(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('取消'),
             ),
-            CupertinoDialogAction(
+            LifeDialogAction(
               key: const ValueKey('note_share_submit'),
               isDefaultAction: true,
               onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -256,7 +256,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     final passwordController = TextEditingController();
     final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (dialogContext) => CupertinoAlertDialog(
+      builder: (dialogContext) => LifeAlertDialog(
         title: const Text('锁定备忘录'),
         content: CupertinoTextField(
           key: const ValueKey('note_lock_password'),
@@ -265,11 +265,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
           placeholder: '设置密码',
         ),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('取消'),
           ),
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const ValueKey('note_lock_confirm'),
             isDefaultAction: true,
             onPressed: () => Navigator.of(
@@ -379,10 +379,10 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   Future<void> _infoDialog(String message) {
     return showCupertinoDialog<void>(
       context: context,
-      builder: (dialogContext) => CupertinoAlertDialog(
+      builder: (dialogContext) => LifeAlertDialog(
         content: Text(message),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('好'),

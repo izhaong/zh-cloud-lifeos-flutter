@@ -1,5 +1,6 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:app_core/app_core.dart';
 
 import '../shell_providers.dart';
 import 'app_registry.dart';
@@ -181,11 +182,11 @@ class _MoreViewState extends ConsumerState<_MoreView> {
   Future<void> _showCatalogPlaceholder(BuildContext context) {
     return showCupertinoDialog<void>(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
+      builder: (ctx) => LifeAlertDialog(
         title: const Text('LifeOS App Store'),
         content: const Text('目录客户端 Phase 5'),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('好'),

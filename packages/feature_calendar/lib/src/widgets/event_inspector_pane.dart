@@ -2,6 +2,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_core/app_core.dart';
 
 import '../providers.dart';
 import '../logic/event_time.dart';
@@ -83,22 +84,22 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
   Future<EditScope?> _askScope(String title) {
     return showCupertinoDialog<EditScope>(
       context: context,
-      builder: (ctx) => CupertinoAlertDialog(
+      builder: (ctx) => LifeAlertDialog(
         key: const Key('repeat_scope_dialog'),
         title: Text(title),
         content: const Text('此日程属于重复系列，请选择改动范围。'),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const Key('scope_this'),
             onPressed: () => Navigator.of(ctx).pop(EditScope.thisOnly),
             child: const Text('仅此日程'),
           ),
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const Key('scope_future'),
             onPressed: () => Navigator.of(ctx).pop(EditScope.thisAndFuture),
             child: const Text('此日程及之后'),
           ),
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const Key('scope_all'),
             onPressed: () => Navigator.of(ctx).pop(EditScope.all),
             child: const Text('所有日程'),

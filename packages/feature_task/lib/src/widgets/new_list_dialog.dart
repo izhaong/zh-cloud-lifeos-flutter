@@ -1,6 +1,7 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_core/app_core.dart';
 
 /// 新建列表弹窗（名称 + 颜色 + 图标 + 类型；图4 全字段，TC-UI-115/316）。
 ///
@@ -30,7 +31,7 @@ Future<void> showNewListDialog(
   return showCupertinoDialog<void>(
     context: context,
     builder: (context) => StatefulBuilder(
-      builder: (context, setState) => CupertinoAlertDialog(
+      builder: (context, setState) => LifeAlertDialog(
         title: const Text('新列表'),
         content: SingleChildScrollView(
           child: Column(
@@ -132,11 +133,11 @@ Future<void> showNewListDialog(
           ),
         ),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('取消'),
           ),
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const ValueKey('new_list_submit'),
             isDefaultAction: true,
             onPressed: () {

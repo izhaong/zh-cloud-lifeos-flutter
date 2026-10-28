@@ -4,6 +4,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_core/app_core.dart';
 
 import 'note_editor_page.dart';
 import 'note_recycle_page.dart';
@@ -197,7 +198,7 @@ class NoteScaffold extends ConsumerWidget {
     final bodyController = TextEditingController();
     await showCupertinoDialog<void>(
       context: context,
-      builder: (dialogContext) => CupertinoAlertDialog(
+      builder: (dialogContext) => LifeAlertDialog(
         title: const Text('快速记录'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -217,11 +218,11 @@ class NoteScaffold extends ConsumerWidget {
           ],
         ),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('取消'),
           ),
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const ValueKey('note_quick_save'),
             onPressed: () async {
               final title = titleController.text.trim();
@@ -260,7 +261,7 @@ class NoteScaffold extends ConsumerWidget {
     final passwordController = TextEditingController();
     final unlocked = await showCupertinoDialog<bool>(
       context: context,
-      builder: (dialogContext) => CupertinoAlertDialog(
+      builder: (dialogContext) => LifeAlertDialog(
         title: const Text('解锁备忘录'),
         content: CupertinoTextField(
           key: const ValueKey('note_unlock_password'),
@@ -269,11 +270,11 @@ class NoteScaffold extends ConsumerWidget {
           placeholder: '输入密码',
         ),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('取消'),
           ),
-          CupertinoDialogAction(
+          LifeDialogAction(
             key: const ValueKey('note_unlock_confirm'),
             onPressed: () => Navigator.of(
               dialogContext,
@@ -372,10 +373,10 @@ class NoteScaffold extends ConsumerWidget {
   Future<void> _infoDialog(BuildContext context, String message) {
     return showCupertinoDialog<void>(
       context: context,
-      builder: (dialogContext) => CupertinoAlertDialog(
+      builder: (dialogContext) => LifeAlertDialog(
         content: Text(message),
         actions: [
-          CupertinoDialogAction(
+          LifeDialogAction(
             isDefaultAction: true,
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('好'),

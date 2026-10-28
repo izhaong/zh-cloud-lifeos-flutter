@@ -2,6 +2,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_core/app_core.dart';
 
 import '../design/reminder_tokens.dart';
 import '../providers.dart';
@@ -178,12 +179,12 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     if (!mounted) return;
     final target = await showCupertinoDialog<ReminderList>(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
+      builder: (context) => LifeAlertDialog(
         key: const ValueKey('move_to_list_dialog'),
         title: const Text('移动到列表'),
         actions: [
           for (final l in lists)
-            CupertinoDialogAction(
+            LifeDialogAction(
               key: ValueKey('move_target_${l.id}'),
               onPressed: () => Navigator.of(context).pop(l),
               child: Row(

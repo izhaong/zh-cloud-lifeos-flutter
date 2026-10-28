@@ -7,4 +7,5 @@ export 'src/network/api_client.dart';
 export 'src/sync/sync_port.dart';
 export 'src/theme/life_material_island.dart';
 export 'src/theme/life_tokens.dart';
+export 'src/theme/life_dialogs.dart';
 export 'src/providers.dart';

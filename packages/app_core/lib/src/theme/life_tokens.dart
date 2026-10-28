@@ -28,6 +28,9 @@ abstract final class LifeTokens {
   static TextStyle _withCjk(TextStyle style) =>
       style.copyWith(fontFamilyFallback: cjkFontFallback);
 
+  /// #234：Cupertino 弹层用 SDK 常量样式，需单独挂回退。
+  static const dialogTextStyle = TextStyle(fontFamilyFallback: cjkFontFallback);
+
   /// 根主题：业务 UI 默认走 Cupertino。亮度由调用方按系统值传入，
   /// 缺省保持亮档（与原行为一致）。
   static CupertinoThemeData cupertino([Brightness brightness = Brightness.light]) {

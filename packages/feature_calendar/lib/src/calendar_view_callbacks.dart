@@ -2,6 +2,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:app_core/app_core.dart';
 
 import 'logic/event_time.dart';
 import 'providers.dart';
@@ -261,17 +262,17 @@ Future<void> confirmDeleteReminder(
 ) async {
   final ok = await showCupertinoDialog<bool>(
     context: context,
-    builder: (ctx) => CupertinoAlertDialog(
+    builder: (ctx) => LifeAlertDialog(
       key: const Key('reminder_delete_dialog'),
       title: const Text('删除提醒'),
       content: Text('「${occurrence.title}」将移到提醒事项的最近删除。'),
       actions: [
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('reminder_delete_cancel'),
           onPressed: () => Navigator.of(ctx).pop(false),
           child: const Text('取消'),
         ),
-        CupertinoDialogAction(
+        LifeDialogAction(
           key: const Key('reminder_delete_confirm'),
           isDestructiveAction: true,
           onPressed: () => Navigator.of(ctx).pop(true),
