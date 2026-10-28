@@ -17,6 +17,7 @@ class CalendarSyncReport {
     this.conflicts = 0,
     this.skipped = false,
     this.unauthorized = false,
+    this.shareChanged = false,
   });
 
   final int pulled;
@@ -24,6 +25,13 @@ class CalendarSyncReport {
   final int conflicts;
   final bool skipped;
   final bool unauthorized;
+
+  /// 本轮 pull 里有 `entityType=share` 的变更（#365）。
+  ///
+  /// share 不是客户端可编辑实体，本地不落库；它的语义是「共享关系变了」——
+  /// 服务端会在同一事务里建/删**影子日历**，所以调用方应据此用 REST 列表补一次
+  /// 日历列表（见 `life_launcher` 的组合根），而不是等下一轮增量。
+  final bool shareChanged;
 }
 
 class CalendarSyncCoordinator {
@@ -59,11 +67,14 @@ class CalendarSyncCoordinator {
       return const CalendarSyncReport(skipped: true);
     }
     var pulled = 0;
+    var shareChanged = false;
     try {
       final pull = await _port.pull(deviceId: _deviceId, cursor: _cursor);
       if (pull != null) {
         _cursor = pull.nextCursor ?? _cursor;
-        pulled = await _applyPull(pull);
+        final appliedResult = await _applyPull(pull);
+        pulled = appliedResult.applied;
+        shareChanged = appliedResult.shareChanged;
       }
     } on CalendarSyncException catch (e) {
       if (e.isUnauthorized) {
@@ -74,7 +85,7 @@ class CalendarSyncCoordinator {
 
     final batch = _pending ?? await _buildLocalMutations();
     if (batch.isEmpty) {
-      return CalendarSyncReport(pulled: pulled);
+      return CalendarSyncReport(pulled: pulled, shareChanged: shareChanged);
     }
     final key =
         _pendingKey ?? 'cal-$_deviceId-${_clock().microsecondsSinceEpoch}';
@@ -88,7 +99,8 @@ class CalendarSyncCoordinator {
           changes: current,
         );
         if (result == null) {
-          return CalendarSyncReport(pulled: pulled, skipped: true);
+          return CalendarSyncReport(
+              pulled: pulled, skipped: true, shareChanged: shareChanged);
         }
         if (result.conflicts.isEmpty) {
           await _applyAccepted(current, result.accepted);
@@ -98,6 +110,7 @@ class CalendarSyncCoordinator {
             pulled: pulled,
             pushed: result.accepted.length,
             conflicts: conflicts,
+            shareChanged: shareChanged,
           );
         }
         conflicts = result.conflicts.length;
@@ -127,7 +140,8 @@ class CalendarSyncCoordinator {
 
   // ---- pull ----
 
-  Future<int> _applyPull(CalendarPullResult pull) async {
+  Future<({int applied, bool shareChanged})> _applyPull(
+      CalendarPullResult pull) async {
     final calendars = await _repository.watchCalendars().first;
     final events = await _repository
         .watchEvents(from: DateTime.utc(1970), to: DateTime.utc(2100))
@@ -141,6 +155,7 @@ class CalendarSyncCoordinator {
         if (e.remoteId != null) e.remoteId!: e,
     };
     var applied = 0;
+    var shareChanged = false;
     for (final change in [...pull.changes, ...pull.tombstones]) {
       final isDelete = change.operation.toUpperCase() == 'DELETE';
       switch (change.entityType) {
@@ -176,6 +191,12 @@ class CalendarSyncCoordinator {
               applied++;
             }
           }
+        case 'share':
+          // #365：此前 switch 没有 share 分支，也没有 default —— share 变更被**静默丢弃**。
+          // 这里不落本地（share 不是可编辑实体），只把「共享关系变了」暴露出去，
+          // 由调用方用 REST 列表重拉影子日历。
+          shareChanged = true;
+          applied++;
         case 'preference':
           if (!isDelete && change.payload.isNotEmpty) {
             final current = await _repository.watchPreference().first;
@@ -184,7 +205,7 @@ class CalendarSyncCoordinator {
           }
       }
     }
-    return applied;
+    return (applied: applied, shareChanged: shareChanged);
   }
 
   Calendar _calendarFrom(CalendarPullChange change, Calendar? existing) {
