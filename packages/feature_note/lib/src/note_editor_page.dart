@@ -306,6 +306,23 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     }
   }
 
+  /// 清单开关（parity#202）：把当前行/选区切成 `list: unchecked`；
+  /// 已是清单（unchecked/checked）则取消回普通段落。
+  void _toggleChecklist() {
+    final current = _body
+        .getSelectionStyle()
+        .attributes[quill.Attribute.list.key]
+        ?.value;
+    final isChecklist = current == 'unchecked' || current == 'checked';
+    _body.formatSelection(
+      quill.Attribute.clone(
+        quill.Attribute.list,
+        isChecklist ? null : 'unchecked',
+      ),
+    );
+    _body.updateSelection(_body.selection, quill.ChangeSource.local);
+  }
+
   Future<void> _insertImage() async {
     final path = await ref.read(noteImagePickerProvider)();
     if (path == null) {
@@ -420,6 +437,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               semanticLabel: '加粗',
               icon: CupertinoIcons.bold,
               onPressed: () => _body.formatSelection(quill.Attribute.bold),
+            ),
+            // parity#202：清单入口（Apple 格式菜单的「清单」）；此前只能靠
+            // 导入 Markdown 的 `- [ ]` 才能造出清单行。
+            _EditorAction(
+              key: const ValueKey('note_editor_checklist'),
+              semanticLabel: '清单',
+              icon: CupertinoIcons.list_bullet,
+              onPressed: _toggleChecklist,
             ),
             CupertinoButton(
               key: const ValueKey('note_editor_save'),
