@@ -154,6 +154,8 @@ Future<void> main() async {
         // #254：日历侧栏显隐（☰）声明持久化到 shared_preferences，但组合根一直
         // 没注入——`SidebarVisibleNotifier` 读到 null 就永远回落「显示」且静默不写。
         sidebarPrefsProvider.overrideWithValue(prefs),
+        // #256：任务区本地视图记忆（按列表「显示已完成」）也走同一份 prefs
+        taskViewPrefsProvider.overrideWithValue(prefs),
         authPortProvider.overrideWithValue(authPort),
         syncPortProvider.overrideWithValue(taskSyncCoordinator),
       ],
