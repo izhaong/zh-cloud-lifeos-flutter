@@ -9,10 +9,14 @@ import 'package:flutter/widgets.dart';
 class TaskShortcutsController extends ChangeNotifier {
   int _newReminderTicket = 0;
   int _focusSearchTicket = 0;
+  int _newListTicket = 0;
 
   /// 自增票据：监听方对比上次处理的票号判断新事件。
   int get newReminderTicket => _newReminderTicket;
   int get focusSearchTicket => _focusSearchTicket;
+
+  /// #249：⌘⇧N（Apple：文件 ▸ 新建列表）。
+  int get newListTicket => _newListTicket;
 
   void requestNewReminder() {
     _newReminderTicket++;
@@ -21,6 +25,11 @@ class TaskShortcutsController extends ChangeNotifier {
 
   void requestFocusSearch() {
     _focusSearchTicket++;
+    notifyListeners();
+  }
+
+  void requestNewList() {
+    _newListTicket++;
     notifyListeners();
   }
 }
@@ -53,6 +62,13 @@ class _TaskShortcutsState extends State<TaskShortcuts> {
 
   @override
   Widget build(BuildContext context) {
+    // 已有外层控制器（壳层包了一层 / 测试注入）时直接复用，不再建第二层：
+    // 两层 scope 会让下层监听挂在列表内容区自己的控制器上，而按键走了外层，
+    // 表现就是「某些快捷键进来没反应」（#249 排查中确认）。
+    if (context.dependOnInheritedWidgetOfExactType<_TaskShortcutsScope>() !=
+        null) {
+      return widget.child;
+    }
     return _TaskShortcutsScope(
       controller: _controller,
       child: Shortcuts(
@@ -61,6 +77,9 @@ class _TaskShortcutsState extends State<TaskShortcuts> {
               _NewReminderIntent(),
           SingleActivator(LogicalKeyboardKey.keyF, meta: true):
               _FocusSearchIntent(),
+          // #249：Apple ⇧⌘N = 新建列表（TC-UI-316 的快捷键入口）
+          SingleActivator(LogicalKeyboardKey.keyN, meta: true, shift: true):
+              _NewListIntent(),
         },
         child: Actions(
           actions: <Type, Action<Intent>>{
@@ -73,6 +92,12 @@ class _TaskShortcutsState extends State<TaskShortcuts> {
             _FocusSearchIntent: CallbackAction<_FocusSearchIntent>(
               onInvoke: (_) {
                 _controller.requestFocusSearch();
+                return null;
+              },
+            ),
+            _NewListIntent: CallbackAction<_NewListIntent>(
+              onInvoke: (_) {
+                _controller.requestNewList();
                 return null;
               },
             ),
@@ -103,4 +128,9 @@ class _NewReminderIntent extends Intent {
 
 class _FocusSearchIntent extends Intent {
   const _FocusSearchIntent();
+}
+
+/// #249：⌘⇧N → 新建列表。
+class _NewListIntent extends Intent {
+  const _NewListIntent();
 }
