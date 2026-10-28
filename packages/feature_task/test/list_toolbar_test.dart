@@ -101,6 +101,58 @@ void main() {
     expect(find.text('苹果'), findsOneWidget);
   });
 
+  testWidgets('TC-UI-111 排序「按创建日期」：新→旧，缺创建时间排最后', (tester) async {
+    final repo = await seed();
+    // 手动序契约是 sortOrder asc, id asc；给两档 10/20 才保证「切换前 香蕉 在前」可归因
+    await repo.upsertItem(ReminderItem(
+      id: 'c-old',
+      listId: 'list.a',
+      title: '旧创建',
+      sortOrder: 10,
+      createdAt: DateTime(2026, 1, 5),
+    ));
+    await repo.upsertItem(ReminderItem(
+      id: 'c-new',
+      listId: 'list.a',
+      title: '新创建',
+      sortOrder: 20,
+      createdAt: DateTime(2026, 9, 5),
+    ));
+    await pumpApp(tester, repo: repo);
+
+    // 手动序（插入序）：香蕉 仍在 新创建 之前 —— 证明切换前用的不是创建时间
+    expect(
+      tester.getTopLeft(find.text('香蕉')).dy <
+          tester.getTopLeft(find.text('新创建')).dy,
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('sort_menu')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('按创建日期'),
+      findsOneWidget,
+      reason: 'Apple mac/13 四档缺一档即对等受损（flutter #278）',
+    );
+    await tester.tap(find.text('按创建日期').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getTopLeft(find.text('新创建')).dy <
+          tester.getTopLeft(find.text('旧创建')).dy,
+      isTrue,
+      reason: 'Apple 口径：最新的排最前',
+    );
+    expect(
+      tester.getTopLeft(find.text('旧创建')).dy <
+          tester.getTopLeft(find.text('香蕉')).dy,
+      isTrue,
+      reason: '存量行没有创建时间 ⇒ 排最后，不瞎猜顺序',
+    );
+    expect(find.text('香蕉'), findsOneWidget); // 切换不丢条目
+    expect(find.text('旧创建'), findsOneWidget);
+  });
+
   testWidgets('清除已完成：删除当前列表全部已完成顶层条目', (tester) async {
     final repo = await seed();
     await pumpApp(tester, repo: repo);

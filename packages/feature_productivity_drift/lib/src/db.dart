@@ -95,6 +95,9 @@ class ReminderItems extends Table {
   /// 进入最近删除的时间（A10 本地回收窗；null = 未删）。V3（Issue #3）。
   DateTimeColumn get deletedAt => dateTime().nullable()();
 
+  /// 创建时间（服务端 create_time 权威；null = 老数据）。V16（flutter #278）。
+  DateTimeColumn get createdAt => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 
@@ -349,7 +352,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -468,6 +471,11 @@ class LifeProductivityDb extends _$LifeProductivityDb {
                   'ON reminder_sections (list_id, sort_order)'),
             );
             await _backfillSections(m);
+          }
+          if (from < 16 && to >= 16) {
+            // V16（flutter #278 / Apple mac/13 四档排序）：任务创建时间落列。
+            // 存量行留 null（服务端没回溯过创建时间），排序时排最后而不是瞎猜。
+            await m.addColumn(reminderItems, reminderItems.createdAt);
           }
         },
       );

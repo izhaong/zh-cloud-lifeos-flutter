@@ -165,9 +165,17 @@ class DriftReminderRepository
       final existing = await (_db.select(
         _db.reminderItems,
       )..where((t) => t.id.equals(item.id))).getSingleOrNull();
+      // 新建即落创建时间（本地兜底，服务端 create_time 到 pull 后覆盖）；
+      // 存量行没这个值时不回填「此刻」，否则老任务会被排到新任务前面（#278）。
+      final createdAt =
+          item.createdAt ??
+          existing?.createdAt ??
+          (existing == null ? _now : null);
       await _db
           .into(_db.reminderItems)
-          .insertOnConflictUpdate(_companionFrom(item));
+          .insertOnConflictUpdate(
+            _companionFrom(item).copyWith(createdAt: Value(createdAt)),
+          );
       if (existing != null &&
           existing.deletedAt != null &&
           item.deletedAt == null) {
@@ -1100,6 +1108,7 @@ class DriftReminderRepository
       completedAt: row.completedAt,
       sectionId: row.sectionId,
       deletedAt: row.deletedAt,
+      createdAt: row.createdAt,
     );
   }
 
@@ -1122,6 +1131,7 @@ class DriftReminderRepository
       completedAt: Value(item.completedAt),
       sectionId: Value(item.sectionId),
       deletedAt: Value(item.deletedAt),
+      createdAt: Value(item.createdAt),
     );
   }
 

@@ -158,6 +158,8 @@ ReminderItem reminderItemFromSyncPayload(
     sortOrder: asInt(payload['sortOrder']) ?? existing?.sortOrder ?? 0,
     remoteId: entityId,
     completedAt: asDate(payload['completedAt']) ?? existing?.completedAt,
+    // 服务端 create_time 权威（双键 camel/snake 同 isFlagged 口径）；缺键保本地值。
+    createdAt: asDate(pick('createTime', 'create_time')) ?? existing?.createdAt,
     sectionId: asString(pick('sectionId', 'section_id')) ??
         existing?.sectionId,
     deletedAt: asDate(payload['deletedAt']) ?? existing?.deletedAt,

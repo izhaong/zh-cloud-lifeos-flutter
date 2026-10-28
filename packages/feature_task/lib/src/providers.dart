@@ -276,7 +276,7 @@ class ShowCompletedNotifier extends Notifier<bool>
 
 /// 列表内排序模式（线框图2 工具行「排序」；TC-UI-111。
 /// manual = 仓库排序契约 `sortOrder asc, id asc`）。
-enum ListSortMode { manual, dueDate, title, priority }
+enum ListSortMode { manual, dueDate, createdDate, title, priority }
 
 /// 卡 4b：排序模式持久（TC-UI-308）。未知存量串按 manual 处理，不炸界面。
 ListSortMode listSortModeFromId(String? id) => ListSortMode.values.firstWhere(

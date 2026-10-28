@@ -39,6 +39,7 @@ final class ReminderItem extends Equatable {
     this.completedAt,
     this.sectionId,
     this.deletedAt,
+    this.createdAt,
   });
 
   final String id;
@@ -79,6 +80,10 @@ final class ReminderItem extends Equatable {
 
   /// 进入「最近删除」的时间（A10/TC-API-110 本地侧；null = 未在回收窗）。
   final DateTime? deletedAt;
+
+  /// 创建时间（服务端 `create_time` 权威；null = 老数据/未同步够）。
+  /// 「按创建日期排序」档的数据源（Apple mac/13 四档之一）。
+  final DateTime? createdAt;
 
   bool get isSubtask => parentId != null;
 
@@ -169,6 +174,8 @@ final class ReminderItem extends Equatable {
           : deletedAt is _Unset
               ? this.deletedAt
               : deletedAt as DateTime?,
+      // 创建时间不进 copyWith 参数：它是服务端插入时刻，编辑不许改写（#539/#278）。
+      createdAt: createdAt,
     );
   }
 
@@ -191,6 +198,7 @@ final class ReminderItem extends Equatable {
         sectionId,
         deletedAt,
         recurrenceUntil,
+        createdAt,
       ];
 }
 

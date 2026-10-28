@@ -121,6 +121,9 @@ void main() {
         // V14（flutter#144）：reminder_lists 新增 remote_id；降到 v6 基线
     // 须一并移除，否则重开时 from<14 的加列与现存列冲突（duplicate column）
     seed.customStatement('ALTER TABLE reminder_lists DROP COLUMN remote_id');
+    // V16（flutter#278）：reminder_items 新增 created_at；降到 v6 基线
+    // 须一并移除，否则重开时 from<16 的加列与现存列冲突（duplicate column）
+    seed.customStatement('ALTER TABLE reminder_items DROP COLUMN created_at');
     seed.customStatement('PRAGMA user_version = 6');
     await seed.close();
 
@@ -324,6 +327,8 @@ void main() {
         // V14（flutter#144）：reminder_lists 新增 remote_id；降到 v9 基线
     // 须一并移除，否则重开时 from<14 的加列与现存列冲突（duplicate column）
     seed.customStatement('ALTER TABLE reminder_lists DROP COLUMN remote_id');
+    // V16（flutter#278）：reminder_items 新增 created_at；降到 v9 基线同样须移除
+    seed.customStatement('ALTER TABLE reminder_items DROP COLUMN created_at');
     seed.customStatement('PRAGMA user_version = 9');
     await seed.close();
 
