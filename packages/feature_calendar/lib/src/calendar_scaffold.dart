@@ -104,6 +104,11 @@ class CalendarScaffold extends ConsumerWidget {
       );
     }
 
+    // 内容区实测宽（LayoutBuilder 每帧回写）：openDraft 的断点判定必须与
+    // build 尾部第三栏用同一把尺——真实壳层有左轨，MediaQuery 整窗宽比内容
+    // 宽大，1200–1439 窗宽带会误判 expanded 导致草稿悬空（#197 审查 R1）。
+    var measuredContentWidth = 0.0;
+
     // F-12：⌘N 与工具栏「＋」打开同一个快速事件输入框
     Future<void> openQuickEvent() async {
       final zone = ref.read(deviceTimeZoneProvider).value ?? 'UTC';
@@ -126,7 +131,7 @@ class CalendarScaffold extends ConsumerWidget {
         timeZone: zone,
         updatedAt: DateTime.now().toUtc(),
       );
-      openDraft(draft, null, MediaQuery.sizeOf(context).width);
+      openDraft(draft, null, measuredContentWidth);
     }
 
     // F-15：＋ → 新建提醒（快速输入复用 F-12；写入 ReminderRepository）
@@ -167,6 +172,7 @@ class CalendarScaffold extends ConsumerWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
+            measuredContentWidth = width;
             final compact = width < 600; // 契约 §8.5 iPhone 档
             final expanded = width >= 1200;
             final viewCallbacks = viewCallbacksOf(width);
