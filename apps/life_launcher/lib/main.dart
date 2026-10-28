@@ -238,10 +238,12 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
     final brightness = dispatcher.platformBrightness;
     // Apple「提高对比度」：辅助功能开关，色值要切到高对比档（#348）。
     final highContrast = dispatcher.accessibilityFeatures.highContrast;
+    // Apple「粗体文本」：同一组辅助功能开关，主题层提字重（#353）。
+    final boldText = dispatcher.accessibilityFeatures.boldText;
     return CupertinoApp.router(
       title: 'LifeOS 生活台',
       debugShowCheckedModeBanner: false,
-      theme: LifeTokens.cupertino(brightness, highContrast),
+      theme: LifeTokens.cupertino(brightness, highContrast, boldText),
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
       localizationsDelegates: const [
