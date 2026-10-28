@@ -46,7 +46,6 @@ class CalendarDayView extends ConsumerWidget {
     // dependOnInherited 异常并中断整棵 build（第三栏 Inspector 挂不上）。
     final loadedEvents = [
       for (final o in occurrences)
-        if (o.source != OccurrenceSource.holiday)
           if (o.source == OccurrenceSource.reminder)
             ReminderMarkerEvent(
               id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
@@ -231,7 +230,6 @@ class CalendarWeekView extends ConsumerWidget {
     // #200：装载 CalendarEventTile（带标题/日历色）；#197：延后到帧末（见日视图）
     final loadedEvents = [
       for (final o in occurrences)
-        if (o.source != OccurrenceSource.holiday)
           if (o.source == OccurrenceSource.reminder)
             ReminderMarkerEvent(
               id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',

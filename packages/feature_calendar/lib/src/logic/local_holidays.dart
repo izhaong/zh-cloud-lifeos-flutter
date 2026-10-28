@@ -115,3 +115,24 @@ Future<Calendar> saveLocalSubscription(
   await repository.upsertCalendar(calendar);
   return calendar;
 }
+
+/// 已订阅节假日时按设备时区补齐当年数据（#182：UTC 墙钟会把节日挪到前一天，
+/// 且跨年不补会整年缺失）。未订阅则什么都不做。
+Future<void> refreshSubscribedHolidays(
+  CalendarRepository repository, {
+  int? year,
+  String? timeZone,
+}) async {
+  final calendars = await repository.watchCalendars().first;
+  final existing =
+      calendars.where((c) => c.id == kHolidayCalendarId).firstOrNull;
+  if (existing == null) {
+    return;
+  }
+  await ensureLocalHolidayCalendar(
+    repository,
+    year: year ?? DateTime.now().year,
+    timeZone: timeZone ?? await deviceTimeZoneName(),
+    visible: existing.isVisible,
+  );
+}

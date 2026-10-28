@@ -3,6 +3,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
+import '../logic/event_time.dart';
 import '../logic/local_holidays.dart';
 import 'calendar_shortcuts.dart';
 import 'subscription_dialog.dart';
@@ -70,6 +71,8 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                     await ensureLocalHolidayCalendar(
                       repo,
                       year: DateTime.now().year,
+                      // #182：按设备时区落库，避免 UTC 墙钟把节日挪到前一天
+                      timeZone: await deviceTimeZoneName(),
                     );
                   } else {
                     await repo.setVisibility(

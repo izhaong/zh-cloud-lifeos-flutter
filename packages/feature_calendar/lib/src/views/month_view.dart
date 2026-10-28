@@ -81,7 +81,6 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
         const <CalendarOccurrence>[];
     widget.eventsController.replaceEvents([
       for (final o in occurrences)
-        if (o.source != OccurrenceSource.holiday)
           CalendarEventTile(
             id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
             start: o.start.toUtc(),
