@@ -119,7 +119,7 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
       ..sort();
 
     return ColoredBox(
-      color: ReminderTokens.sidebarBg,
+      color: CupertinoDynamicColor.resolve(ReminderTokens.sidebarBg, context),
       child: Column(
         children: [
           // 顶部工具条（图2：新建列表｜隐藏侧栏｜⚙设置）
@@ -313,10 +313,10 @@ class _SectionLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: ReminderTokens.labelSecondary,
+          color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
         ),
       ),
     );
@@ -341,7 +341,7 @@ class _MyListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isTrash ? ReminderTokens.labelSecondary : Color(list.colorArgb);
+    final color = isTrash ? CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context) : Color(list.colorArgb);
     final icon = isTrash
         ? CupertinoIcons.trash
         : customSmart
@@ -387,15 +387,15 @@ class _MyListRow extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                    color: ReminderTokens.labelPrimary,
+                    color: CupertinoDynamicColor.resolve(ReminderTokens.labelPrimary, context),
                   ),
                 ),
               ),
               Text(
                 '${list.itemCount}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: ReminderTokens.labelSecondary,
+                  color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
                 ),
               ),
             ],
@@ -430,12 +430,12 @@ class _SuggestedListRow extends StatelessWidget {
               const Icon(CupertinoIcons.cart_fill,
                   color: ReminderTokens.systemGreen, size: 20),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
                   '建议列表：日常采购',
                   style: TextStyle(
                     fontSize: 13,
-                    color: ReminderTokens.labelPrimary,
+                    color: CupertinoDynamicColor.resolve(ReminderTokens.labelPrimary, context),
                   ),
                 ),
               ),
@@ -489,19 +489,19 @@ class _GroupHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: ReminderTokens.labelSecondary,
+                  color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
                 ),
               ),
               if (count > 0) ...[
                 const SizedBox(width: 4),
                 Text(
                   '$count',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: ReminderTokens.labelSecondary,
+                    color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
                   ),
                 ),
               ],
@@ -511,7 +511,7 @@ class _GroupHeader extends StatelessWidget {
                     ? CupertinoIcons.chevron_down
                     : CupertinoIcons.chevron_up,
                 size: 14,
-                color: ReminderTokens.labelSecondary,
+                color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
               ),
             ],
           ),

@@ -328,3 +328,27 @@ Future<void> completeReminder(WidgetRef ref, ReminderItem item) {
   }
   return repo.toggleCompleted(item.id);
 }
+
+/// 子任务进度（parity#166）：父 id → (已完成数, 总数)。
+///
+/// 不依赖当前列表的过滤结果——智能视图会按 dueAt 过滤掉子任务，若从
+/// `items` 现算，父行在「今天/计划」里永远显示不出 `1/2`。
+final subtaskProgressProvider =
+    StreamProvider<Map<String, ({int done, int total})>>((ref) {
+      return ref
+          .watch(reminderRepositoryProvider)
+          .watchItems(listId: null)
+          .map((items) {
+            final byParent = <String, ({int done, int total})>{};
+            for (final e in items) {
+              final parent = e.parentId;
+              if (parent == null || e.deletedAt != null) continue;
+              final cur = byParent[parent] ?? (done: 0, total: 0);
+              byParent[parent] = (
+                done: cur.done + (e.isCompleted ? 1 : 0),
+                total: cur.total + 1,
+              );
+            }
+            return byParent;
+          });
+    }, name: 'subtaskProgressProvider');
