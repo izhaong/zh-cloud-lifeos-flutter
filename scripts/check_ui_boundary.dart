@@ -39,6 +39,9 @@ const _materialAllowed = <String>{
   'packages/app_core/lib/src/theme/life_tokens.dart',
   // Material 岛宿主。
   'packages/app_core/lib/src/theme/life_material_island.dart',
+  // 测试宿主（#293）：只给各包 test/ 用，不进生产路径；它必须提供 MaterialApp
+  // 祖先，否则 kalender/quill 等 Material 岛的 widget 测试无处可挂。
+  'packages/app_core/lib/test_support.dart',
 };
 
 const _materialMarkers = <String>[
