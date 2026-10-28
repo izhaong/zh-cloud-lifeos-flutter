@@ -58,7 +58,7 @@ String? _argValue(List<String> args, String name) {
 }
 
 /// 一次扫描的结果（selftest 与真实门禁共用同一套判据）。
-class BarkResult {
+class UiBoundaryResult {
   int scanned = 0;
   final List<String> violations = [];
   final List<String> pending = [];
@@ -73,8 +73,8 @@ bool _isComment(String line) {
 
 final _bareHex = RegExp(r'0x[Ff]{2}[0-9A-Fa-f]{6}');
 
-BarkResult scanBoundary(String root, {bool strict = false}) {
-  final result = BarkResult();
+UiBoundaryResult scanBoundary(String root, {bool strict = false}) {
+  final result = UiBoundaryResult();
   for (final rel in _discoverScanRoots(root)) {
     final isPending = _pendingPackages.any(
       (p) => rel == '$p/lib' || rel.startsWith('$p/'),
