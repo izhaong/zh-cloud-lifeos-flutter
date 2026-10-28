@@ -23,9 +23,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
-        child: lifeTestHost(
-          const TaskScaffold(openListId: 'smart.today'),
-        ),
+        child: lifeTestHost(const TaskScaffold(openListId: 'smart.today')),
       ),
     );
     await tester.pumpAndSettle();
@@ -49,11 +47,7 @@ void main() {
     await repo.toggleFlagged('r1');
     await tester.pumpAndSettle();
 
-    expect(
-      flaggedCount(),
-      baseline + 1,
-      reason: '旗标切换后计数必须立即 +1，不需重载',
-    );
+    expect(flaggedCount(), baseline + 1, reason: '旗标切换后计数必须立即 +1，不需重载');
 
     await repo.toggleFlagged('r1');
     await tester.pumpAndSettle();
