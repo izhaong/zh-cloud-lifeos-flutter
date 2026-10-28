@@ -363,6 +363,31 @@ void main() {
         reason: '#200: 周视图事件卡必须用自定义 builder 渲染');
     expect(find.text('周会'), findsOneWidget, reason: '#200: 事件卡必须显示标题');
   });
+
+  // #179：周视图必须消费「显示周数」偏好——关闭后不渲染周序号（TC-CAL-UI-109）
+  testWidgets('#179 周视图「显示周数」关闭时不渲染周序号', (tester) async {
+    await pumpCalendar(tester, mode: CalendarViewMode.week);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byType(kalender.WeekNumber),
+      findsNothing,
+      reason: '#179: 默认 showWeekNumbers=false，周视图不得出现周序号',
+    );
+  });
+
+  // #179：打开偏好后周视图跟随月视图渲染周序号
+  testWidgets('#179 周视图「显示周数」打开时渲染周序号', (tester) async {
+    await repo.savePreference(const CalendarPreference(showWeekNumbers: true));
+    await pumpCalendar(tester, mode: CalendarViewMode.week);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byType(kalender.WeekNumber),
+      findsOneWidget,
+      reason: '#179: showWeekNumbers=true 时周视图须显示周序号（与月视图一致）',
+    );
+  });
 }
 
 /// 取当前测试树里的 Riverpod 容器。

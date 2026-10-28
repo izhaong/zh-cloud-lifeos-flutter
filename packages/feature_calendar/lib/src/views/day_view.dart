@@ -212,6 +212,9 @@ class CalendarWeekView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(calendarViewConfigurationsProvider);
     final anchor = ref.watch(anchorDateProvider);
+    // #179：周视图消费「显示周数」偏好（月视图已接，周视图此前恒渲染周数）
+    final showWeekNumbers =
+        ref.watch(preferenceProvider).value?.showWeekNumbers ?? false;
     final occurrences =
         ref
             .watch(
@@ -274,6 +277,17 @@ class CalendarWeekView extends ConsumerWidget {
           kalenderController: controller,
           // #193：周视图列头同走 kalender 自己的 locale，必须显式传应用语言
           locale: Localizations.localeOf(context),
+          // #179：MultiDay 头部默认恒渲染 WeekNumber；关闭偏好时以空 widget
+          // 顶替（kalender 无 showWeekNumbers 字段，只能从 builder 层关）。
+          components: kalender.KalenderComponents(
+            multiDayComponents: kalender.MultiDayComponents(
+              headerComponents: kalender.MultiDayHeaderComponents(
+                weekNumberBuilder: showWeekNumbers
+                    ? null
+                    : (context, range) => const SizedBox.shrink(),
+              ),
+            ),
+          ),
           // #200：显式传 tileComponents（header 全天区 + body 定时区），去默认「Tile」
           views: const [
             kalender.MultiDayViewParts(
