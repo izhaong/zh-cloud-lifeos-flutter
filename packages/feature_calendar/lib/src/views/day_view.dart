@@ -20,10 +20,14 @@ class CalendarDayView extends ConsumerWidget {
     super.key,
     required this.viewCallbacks,
     required this.eventsController,
+    this.showReminderLane = true,
   });
 
   final CalendarViewCallbacks viewCallbacks;
   final kalender.DefaultEventsController eventsController;
+
+  /// #185：右栏是宽档特性；紧凑档由外壳传 false（叶子组件不读断点）。
+  final bool showReminderLane;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -143,8 +147,10 @@ class CalendarDayView extends ConsumerWidget {
               ),
             ),
           ),
-          Container(width: 1, color: const Color(0xFFC6C6C8)),
-          const SizedBox(width: 220, child: DayReminderLane()),
+          if (showReminderLane) ...[
+            Container(width: 1, color: const Color(0xFFC6C6C8)),
+            const SizedBox(width: 220, child: DayReminderLane()),
+          ],
         ],
       ),
     );

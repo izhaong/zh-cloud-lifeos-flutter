@@ -187,6 +187,7 @@ class CalendarScaffold extends ConsumerWidget {
                 Expanded(
                   child: _MainView(
                     mode: mode,
+                    compact: compact,
                     viewCallbacks: viewCallbacks,
                     eventsController: eventsController,
                   ),
@@ -282,11 +283,15 @@ class CalendarScaffold extends ConsumerWidget {
 class _MainView extends ConsumerWidget {
   const _MainView({
     required this.mode,
+    required this.compact,
     required this.viewCallbacks,
     required this.eventsController,
   });
 
   final CalendarViewMode mode;
+
+  /// #185：断点只在外壳取值；叶子视图按此开关决定是否挂宽档专属栏。
+  final bool compact;
   final CalendarViewCallbacks viewCallbacks;
   final kalender.DefaultEventsController eventsController;
 
@@ -297,6 +302,7 @@ class _MainView extends ConsumerWidget {
       CalendarViewMode.day => CalendarDayView(
         viewCallbacks: viewCallbacks,
         eventsController: eventsController,
+        showReminderLane: !compact,
       ),
       CalendarViewMode.week => CalendarWeekView(
         viewCallbacks: viewCallbacks,
