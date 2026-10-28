@@ -435,3 +435,10 @@ final subtaskProgressProvider =
         },
       );
     }, name: 'subtaskProgressProvider');
+
+/// 可注入的挂钟（#333）。
+///
+/// 生产默认 `DateTime.now`；测试 override 成固定时刻，让「已过期/今天/上午/下午」
+/// 分组与 golden 基线**确定化**——与 `feature_calendar` 的 `clockProvider` 同形状
+/// （不急着抽到 `app_core`：等第三个模块也要用时再说）。
+final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
