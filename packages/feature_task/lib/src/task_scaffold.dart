@@ -237,7 +237,7 @@ class _CompactPane extends ConsumerWidget {
             ),
             decoration: BoxDecoration(
               color: CupertinoDynamicColor.resolve(ReminderTokens.separator, context),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(LifeRadius.lg),
             ),
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
           ),
@@ -309,7 +309,7 @@ class _CompactPane extends ConsumerWidget {
             Container(
               decoration: BoxDecoration(
                 color: CupertinoColors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(LifeRadius.xl),
               ),
               clipBehavior: Clip.antiAlias,
               child: Column(
@@ -411,7 +411,7 @@ class _HomeSearchResults extends ConsumerWidget {
         return Container(
           decoration: BoxDecoration(
             color: CupertinoColors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(LifeRadius.xl),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -1109,7 +1109,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                       CupertinoColors.systemBackground,
                       context,
                     ),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(LifeRadius.md),
                     border: Border.all(
                       width: 0.5,
                       color: CupertinoDynamicColor.resolve(
@@ -1718,7 +1718,7 @@ class _HomeListRow extends StatelessWidget {
               height: 24,
               decoration: BoxDecoration(
                 color: color,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(LifeRadius.sm),
               ),
               child: Icon(icon, color: CupertinoColors.white, size: 15),
             ),

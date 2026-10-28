@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import 'dart:convert';
 
 import 'package:cupertino_ui/cupertino_ui.dart';
@@ -462,7 +463,7 @@ class _NoteList extends StatelessWidget {
             placeholder: '搜索',
             decoration: BoxDecoration(
               color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(LifeRadius.md),
             ),
           ),
         ),
@@ -493,7 +494,7 @@ class _NoteList extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(LifeRadius.lg),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(12),

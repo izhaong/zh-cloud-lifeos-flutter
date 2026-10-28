@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -506,7 +507,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               color: CupertinoColors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(LifeRadius.xl),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Column(
@@ -673,7 +674,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               color: CupertinoColors.white,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(LifeRadius.xl),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(

@@ -296,7 +296,7 @@ class _TagChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       minimumSize: Size.zero,
       color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(LifeRadius.xl),
       onPressed: onTap,
       child: Text(
         label,
@@ -363,14 +363,14 @@ class _MyListRow extends StatelessWidget {
         padding: EdgeInsets.zero,
         minimumSize: Size.zero,
         alignment: Alignment.centerLeft,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(LifeRadius.md),
         onPressed: onTap,
         child: Container(
           decoration: BoxDecoration(
             color: selected
                 ? ReminderTokens.systemBlue.withValues(alpha: 0.10)
                 : null,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(LifeRadius.md),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           child: Row(
@@ -428,7 +428,7 @@ class _SuggestedListRow extends StatelessWidget {
         padding: EdgeInsets.zero,
         minimumSize: Size.zero,
         alignment: Alignment.centerLeft,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(LifeRadius.md),
         onPressed: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),

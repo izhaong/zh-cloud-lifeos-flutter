@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -50,7 +51,7 @@ Future<void> showNewListDialog(
                 decoration: BoxDecoration(
                   color:
                       CupertinoColors.tertiarySystemFill.resolveFrom(context),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(LifeRadius.md),
                 ),
               ),
               const SizedBox(height: 16),

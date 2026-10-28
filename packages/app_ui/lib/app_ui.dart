@@ -5,4 +5,5 @@
 library;
 
 export 'src/design/life_colors.dart';
+export 'src/design/life_metrics.dart';
 export 'src/life_section_header.dart';

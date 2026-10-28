@@ -17,6 +17,8 @@ dependencies:
 
   app_core:
     path: ../app_core
+  app_ui:
+    path: ../app_ui
 
   cupertino_ui: ^1.1.4
   flutter_riverpod: ^3.4.3

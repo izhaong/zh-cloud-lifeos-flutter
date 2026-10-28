@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import '../design/calendar_tokens.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:app_core/app_core.dart';
@@ -73,7 +74,7 @@ class _QuickEventDialogState extends State<_QuickEventDialog> {
             placeholder: '例如：明天下午3点开会',
             decoration: BoxDecoration(
               color: CalendarTokens.chipBackground.resolveFrom(context),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(LifeRadius.md),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             onChanged: (_) => setState(() {}),

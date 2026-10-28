@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import '../design/calendar_tokens.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -53,7 +54,7 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
             placeholder: 'https://example.com/calendar.ics',
             decoration: BoxDecoration(
               color: CalendarTokens.chipBackground.resolveFrom(context),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(LifeRadius.md),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           ),
