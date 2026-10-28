@@ -12,6 +12,7 @@ import '../shell/app_registry.dart';
 import '../shell/life_shell.dart';
 import '../shell/more_page.dart';
 import '../shell/placeholder_page.dart';
+import '../shell/route_not_found_page.dart';
 import '../shell_providers.dart';
 
 /// 全仓唯一 GoRouter：单一逻辑路由表；断点只换外壳布局，不换路由结构。
@@ -20,6 +21,24 @@ import '../shell_providers.dart';
 /// - 旧 `/tasks*` 重定向到壳内路径（兼容深链）
 ///
 /// 分支序与 [installedApps] 注册表一致（「更多」恒最末 = [LifeShell.moreBranchIndex]）。
+/// 路由重定向的纯函数（便于单测；parity#187）。
+///
+/// - `/task`、`/tasks` → `/`：任务分支挂在根路径，此前没有同名深链，
+///   手输/收藏 `#/task` 会直接落到 go_router 的英文 404；
+/// - 旧 `/tasks/list/<id>` → `/list/<id>`；
+/// - 冷启动落在 `/` 但任务未固定 → 首个固定分支或 `/more`。
+String? lifeRedirect(String loc, List<String> pinnedIds) {
+  if (loc == '/task' || loc == '/tasks') return '/';
+  if (loc.startsWith('/tasks/list/')) {
+    final id = loc.substring('/tasks/list/'.length);
+    return '/list/$id';
+  }
+  if (loc == '/' && !pinnedIds.contains('task')) {
+    return pinnedIds.isEmpty ? '/more' : appById(pinnedIds.first).branchPath;
+  }
+  return null;
+}
+
 GoRouter buildLifeRouter(WidgetRef ref) {
   final pinned = ref
       .read(pinnedTabsServiceProvider)
@@ -27,22 +46,15 @@ GoRouter buildLifeRouter(WidgetRef ref) {
       .map(appById)
       .toList();
 
+  final pinnedIds = [for (final e in pinned) e.id];
+
   return GoRouter(
     initialLocation: '/',
-    redirect: (context, state) {
-      final loc = state.matchedLocation;
-      // 兼容旧全屏路径 → 壳内
-      if (loc == '/tasks') return '/';
-      if (loc.startsWith('/tasks/list/')) {
-        final id = loc.substring('/tasks/list/'.length);
-        return '/list/$id';
-      }
-      // 冷启动落在 '/' 且任务未固定 → 跳首个固定分支或 /more
-      if (loc == '/' && !pinned.any((e) => e.id == 'task')) {
-        return pinned.isEmpty ? '/more' : pinned.first.branchPath;
-      }
-      return null;
-    },
+    redirect: (context, state) => lifeRedirect(state.matchedLocation, pinnedIds),
+    // parity#187：未知路由给中文 Cupertino 兜底，且不回显 GoException 原文
+    errorBuilder: (context, state) => RouteNotFoundPage(
+      onHome: () => context.go('/'),
+    ),
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
