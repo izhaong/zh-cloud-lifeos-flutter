@@ -1,3 +1,4 @@
+// TC-CAL-UI-501：搜索面板与快捷键（⌘F 打开、Esc 关闭、结果定位）。
 import 'dart:async';
 
 import 'package:feature_calendar/feature_calendar.dart';

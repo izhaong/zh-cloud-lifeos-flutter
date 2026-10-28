@@ -1,3 +1,4 @@
+// TC-CAL-KR-511：设备时区兜底链（flutter_timezone → 浏览器 → GMT 偏移 → UTC）。
 import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_calendar/src/logic/device_zone_stub.dart';
 import 'package:flutter_test/flutter_test.dart';

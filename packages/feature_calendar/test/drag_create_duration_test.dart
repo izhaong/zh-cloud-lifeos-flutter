@@ -1,3 +1,4 @@
+// TC-CAL-UI-215：拖拽创建时长 = 拖出来的长度；双击回落默认时长（#294）。
 import 'package:feature_calendar/feature_calendar.dart';
 import 'package:flutter_test/flutter_test.dart';
 

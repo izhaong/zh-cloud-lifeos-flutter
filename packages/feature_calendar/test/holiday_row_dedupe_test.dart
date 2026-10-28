@@ -1,3 +1,4 @@
+// TC-CAL-UI-216：节假日日历在侧栏只出现一行（订阅 + 内置不重复）。
 import 'dart:async';
 
 import 'package:feature_calendar/feature_calendar.dart';
