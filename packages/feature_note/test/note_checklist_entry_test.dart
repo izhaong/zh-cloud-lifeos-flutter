@@ -69,19 +69,33 @@ void main() {
       contains('"list":"unchecked"'),
       reason: '点「清单」后该行必须带 list 属性',
     );
+
+    // #237：清单按 Apple 备忘录口径**行内单次渲染**——勾选框就在该行行首，
+    // 不存在把同一份清单另列一遍的镜像面板。
+    expect(
+      find.byType(quill.QuillCheckboxPoint),
+      findsOneWidget,
+      reason: '转成清单行后，行首必须出现一个 quill 行内勾选框',
+    );
+    expect(
+      find.byKey(const ValueKey('note_checklist_2')),
+      findsNothing,
+      reason: '镜像清单面板已移除（#237）：清单只在 quill 行内渲染一次',
+    );
     expect(
       find.byType(CupertinoCheckbox),
-      findsWidgets,
-      reason: '清单面板要出现勾选框',
+      findsNothing,
+      reason: '勾选框由 quill 行内 leading 提供，面板那份重复控件不该再存在',
     );
-
-    // #222：面板行必须显示该行文字，不能再出现只有勾选框的空壳行
-    final panelRow = find.byKey(const ValueKey('note_checklist_2'));
-    expect(panelRow, findsOneWidget, reason: '清单面板每行一项');
     expect(
-      find.descendant(of: panelRow, matching: find.text('买菜')),
+      find.text('买菜', findRichText: true),
       findsOneWidget,
-      reason: '旧实现取换行符文字，面板行恒为空',
+      reason: '同一条目出现两次就是 #237 的重复渲染（面板 Text + quill 行内 RichText）',
+    );
+    expect(
+      find.text('米饭', findRichText: true),
+      findsOneWidget,
+      reason: '未转成清单的行同样只该出现一次',
     );
 
     await tester.tap(find.byKey(const ValueKey('note_editor_save')));

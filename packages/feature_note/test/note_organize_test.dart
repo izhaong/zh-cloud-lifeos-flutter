@@ -1,6 +1,7 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -60,9 +61,15 @@ void main() {
     await tester.tap(find.text('购物'));
     await tester.pumpAndSettle();
 
-    // 编辑器里的清单面板展示两条
-    expect(find.byType(CupertinoCheckbox), findsNWidgets(2));
-    await tester.tap(find.byType(CupertinoCheckbox).at(1));
+    // #237：清单行内单次渲染——两条勾选行各有一个 quill 行内勾选框，
+    // 不再有把同一份清单另列一遍的镜像面板（所以这里也不该再有 CupertinoCheckbox）。
+    expect(find.byType(quill.QuillCheckboxPoint), findsNWidgets(2));
+    expect(
+      find.byType(CupertinoCheckbox),
+      findsNothing,
+      reason: '镜像清单面板已移除（#237）',
+    );
+    await tester.tap(find.byType(quill.QuillCheckboxPoint).at(1));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('note_editor_save')));
     await tester.pumpAndSettle();
