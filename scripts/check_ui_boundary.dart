@@ -125,7 +125,7 @@ UiBoundaryResult scanBoundary(String root, {bool strict = false}) {
             '$relPath:${i + 1}  ColorScheme.fromSeed（应逐字段显式 ColorScheme）',
           );
         }
-        // C3：裸 hex 计数（尺子；本次不阻断，由 --max-hex 收口）
+        // C3：字面色（`Color(0x…)`）计数（尺子；本次不阻断，由 --max-hex 收口）
         if (countHex) {
           final hexCount = _bareHex.allMatches(line).length;
           if (hexCount > 0) {
@@ -210,7 +210,8 @@ const systemBlue = Color(0xFF007AFF);
       'C1 SDK Cupertino 导入': all.contains('SDK Cupertino'),
       'C2 fromSeed': all.contains('ColorScheme.fromSeed'),
       'Material 越界': all.contains('Material 越界'),
-      // 坏样本里 UI 文件 2 处（fromSeed 的 seed + 裸色），令牌目录那 1 处被排除
+      // 坏样本里 UI 文件 1 处（`Color(0xFF007AFF)` 字面色）；
+      // `fromSeed(seedColor: 0xFF…)` 的 int seed 由 C2 单独判，不计入 C3；令牌目录那 1 处被排除
       'C3 字面色（Color() 形式，排除令牌/数据层）':
           (result.hexByPackage['demo'] ?? 0) == 1,
     };
