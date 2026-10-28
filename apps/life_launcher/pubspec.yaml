@@ -63,7 +63,6 @@ dependencies:
   cached_network_image: ^3.4.1
   flutter_animate: ^4.5.2
   flutter_svg: ^2.3.0
-  google_fonts: ^8.2.1
   material_symbols_icons: ^4.2960.0
 
   collection: any
