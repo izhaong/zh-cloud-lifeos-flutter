@@ -43,9 +43,11 @@ class CalendarScaffold extends ConsumerWidget {
       ref.read(draftOccurrenceStartProvider.notifier).set(null);
     }
 
+    // 保存后只清草稿：关页由 EventInspectorHost 用自己的路由 context 完成。
+    // 这里再 pop 会在 expanded 第三栏（无路由可 pop）把壳分支根页 pop 掉，
+    // 触发 go_router 断言白屏（#154）。
     void saveAndClose() {
       clearDraft();
-      Navigator.of(context).pop(); // 唯一 pop：保存路径
     }
 
     // 草稿落位 + 三档呈现（F-08）。断点口径与内容区一致：由 LayoutBuilder

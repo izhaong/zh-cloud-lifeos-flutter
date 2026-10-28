@@ -288,15 +288,22 @@ class EventInspectorHost extends StatelessWidget {
     VoidCallback? onDismissed,
     DateTime? occurrenceStart,
   }) {
+    // 关页必须用本路由自己的 context（resolve 到 push 它的那层 Navigator）。
+    // 用外层 context 会落到壳分支 Navigator，pop 掉分支根页 → go_router
+    // currentConfiguration.isNotEmpty 断言白屏（#154）。
     return Navigator.of(context)
         .push(
           CupertinoPageRoute<void>(
-            builder: (_) => CupertinoPageScaffold(
+            builder: (routeContext) => CupertinoPageScaffold(
               child: SafeArea(
                 child: EventInspectorPane(
                   initialEvent: event,
                   occurrenceStart: occurrenceStart,
-                  onSaved: onSaved,
+                  onSaved: () {
+                    onSaved();
+                    Navigator.of(routeContext).pop();
+                  },
+                  onClose: () => Navigator.of(routeContext).pop(),
                 ),
               ),
             ),
@@ -313,17 +320,24 @@ class EventInspectorHost extends StatelessWidget {
     VoidCallback? onDismissed,
     DateTime? occurrenceStart,
   }) {
+    // 同上：sheet 由 rootNavigator 承载，关闭只能用 sheet 自己的 context，
+    // 否则 pop 到壳分支根页 → 白屏（#154）。
     return showCupertinoModalPopup<void>(
       context: context,
-      builder: (_) => SizedBox(
-        height: MediaQuery.of(context).size.height * 0.85,
+      builder: (sheetContext) => SizedBox(
+        // 用 sheet 自己的 context 读尺寸：外层 context 在页面重建/卸载后
+        // 可能已 deactivated，查祖先会抛「deactivated widget's ancestor」。
+        height: MediaQuery.sizeOf(sheetContext).height * 0.85,
         child: ColoredBox(
           color: CupertinoColors.systemBackground,
           child: EventInspectorPane(
             initialEvent: event,
             occurrenceStart: occurrenceStart,
-            onSaved: onSaved,
-            onClose: () => Navigator.of(context).pop(),
+            onSaved: () {
+              onSaved();
+              Navigator.of(sheetContext).pop();
+            },
+            onClose: () => Navigator.of(sheetContext).pop(),
           ),
         ),
       ),
