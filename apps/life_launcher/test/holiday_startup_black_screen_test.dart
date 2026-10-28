@@ -3,7 +3,7 @@ import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/main.dart' show runNonFatalStartupStep;
+import 'package:life_launcher/main.dart' show runNonFatalStartupStep;
 
 /// #230 回归：订阅过「中国大陆节假日」后，macOS/持久库端每次启动都纯黑。
 ///
