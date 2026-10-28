@@ -184,7 +184,8 @@ class _MoreViewState extends ConsumerState<_MoreView> {
       context: context,
       builder: (ctx) => LifeAlertDialog(
         title: const Text('LifeOS App Store'),
-        content: const Text('目录客户端 Phase 5'),
+        // #238：面向用户的占位说明，不暴露内部阶段编号（Phase 5）
+        content: const Text('应用目录正在建设中，将在后续版本提供。'),
         actions: [
           LifeDialogAction(
             isDefaultAction: true,

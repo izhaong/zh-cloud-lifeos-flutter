@@ -56,5 +56,20 @@ void main() {
       findsNothing,
       reason: '设计文档的内部行号不得出现在界面',
     );
+
+    // #238 续：点进目录占位弹层也不能把内部阶段编号（Phase N）泄漏给用户
+    await tester.tap(find.text('添加更多应用'));
+    await tester.pumpAndSettle();
+    expect(find.text('LifeOS App Store'), findsOneWidget);
+    expect(
+      find.textContaining('Phase'),
+      findsNothing,
+      reason: '内部阶段编号不得出现在用户可见文案里',
+    );
+    expect(
+      find.textContaining('正在建设中'),
+      findsOneWidget,
+      reason: '占位说明要面向用户描述现状',
+    );
   });
 }
