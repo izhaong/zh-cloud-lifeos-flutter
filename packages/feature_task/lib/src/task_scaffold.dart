@@ -761,6 +761,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   TaskShortcutsController? _shortcuts;
   int _lastNewTicket = 0;
   int _lastSearchTicket = 0;
+  int _lastNewListTicket = 0;
+  bool _newListDialogOpen = false;
 
   @override
   void initState() {
@@ -772,6 +774,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       _shortcuts = controller;
       _lastNewTicket = controller.newReminderTicket;
       _lastSearchTicket = controller.focusSearchTicket;
+      _lastNewListTicket = controller.newListTicket;
       controller.addListener(_onShortcut);
     });
   }
@@ -786,6 +789,19 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     if (controller.focusSearchTicket != _lastSearchTicket) {
       _lastSearchTicket = controller.focusSearchTicket;
       _searchFocus.requestFocus();
+    }
+    if (controller.newListTicket != _lastNewListTicket) {
+      _lastNewListTicket = controller.newListTicket;
+      // #249：⌘⇧N 与侧栏「新建列表」走同一条落库路径（TC-UI-316）。
+      // 连按不叠弹层：已开着就忽略后续票据。
+      if (!_newListDialogOpen) {
+        _newListDialogOpen = true;
+        showNewListDialog(
+          context,
+          onCreate: (list) =>
+              ref.read(reminderRepositoryProvider).upsertList(list),
+        ).whenComplete(() => _newListDialogOpen = false);
+      }
     }
   }
 
