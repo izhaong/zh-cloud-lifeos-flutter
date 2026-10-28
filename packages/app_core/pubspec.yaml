@@ -11,6 +11,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # test_support.dart 的本地化宿主需要（#293）
+  flutter_localizations:
+    sdk: flutter
   life_link:
     path: ../life_link
 
