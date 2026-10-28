@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import 'logic/checklist_items.dart';
 import 'note_markdown.dart';
 import 'providers.dart';
 
@@ -597,20 +598,6 @@ class _Separator extends StatelessWidget {
   }
 }
 
-class _ChecklistItem {
-  const _ChecklistItem({
-    required this.start,
-    required this.length,
-    required this.text,
-    required this.done,
-  });
-
-  final int start;
-  final int length;
-  final String text;
-  final bool done;
-}
-
 /// 清单面板（F-06；契约 §1：checklist 由 Delta attributes.list 表达）。
 /// 勾选即改写该行 list 属性（unchecked/checked），保存后由仓库清点计数。
 class _ChecklistPanel extends StatelessWidget {
@@ -637,7 +624,7 @@ class _ChecklistPanel extends StatelessWidget {
                     value: item.done,
                     onChanged: (checked) => controller.formatText(
                       item.start,
-                      item.length,
+                      1,
                       quill.Attribute.clone(
                         quill.Attribute.list,
                         checked == true ? 'checked' : 'unchecked',
@@ -659,31 +646,8 @@ class _ChecklistPanel extends StatelessWidget {
     );
   }
 
-  List<_ChecklistItem> _items() {
-    final ops = controller.document.toDelta().toJson();
-    var offset = 0;
-    final items = <_ChecklistItem>[];
-    for (final op in ops) {
-      final insert = op['insert'];
-      if (insert is! String) {
-        continue;
-      }
-      final attrs = op['attributes'];
-      final list = attrs is Map ? attrs['list'] : null;
-      if (list is String && list.isNotEmpty) {
-        items.add(
-          _ChecklistItem(
-            start: offset,
-            length: insert.length,
-            text: insert.trim(),
-            done: list == 'checked',
-          ),
-        );
-      }
-      offset += insert.length;
-    }
-    return items;
-  }
+  List<ChecklistItem> _items() =>
+      parseChecklistItems(controller.document.toDelta().toJson());
 }
 
 /// 图片 embed（F-09）：Delta 里存 {noteImage: {path}}，开源包只渲染占位与文件名；
