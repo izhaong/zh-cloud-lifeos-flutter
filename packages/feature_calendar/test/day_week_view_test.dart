@@ -235,10 +235,26 @@ void main() {
     expect(saved.endAt, DateTime.utc(2026, 10, 22), reason: '周四 00:00 排他');
   });
 
-  // 日视图提醒栏 Key（F-15 填充）
-  testWidgets('日视图 day_reminder_lane 存在', (tester) async {
+  // 日视图提醒栏 Key（F-15 填充；#185：宽档保留）
+  testWidgets('日视图宽档保留 day_reminder_lane', (tester) async {
+    tester.view.physicalSize = const Size(900, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     await pumpCalendar(tester, mode: CalendarViewMode.day);
     expect(find.byKey(const Key('day_reminder_lane')), findsOneWidget);
+  });
+
+  // #185：紧凑档是单列全幅时间轴，不得再挂右侧空栏（契约 §8.5）
+  testWidgets('#185 紧凑档日视图不挂右侧 lane，时间轴吃满宽度', (tester) async {
+    tester.view.physicalSize = const Size(390, 812);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await pumpCalendar(tester, mode: CalendarViewMode.day);
+    expect(find.byKey(const Key('day_reminder_lane')), findsNothing);
+    final width = tester.getSize(find.byKey(const Key('calendar_day_view'))).width;
+    expect(width, closeTo(390, 0.5), reason: '紧凑档时间轴应铺满内容区');
   });
 
   // #184：日视图事件卡必须渲染标题与起止时间，禁止库默认「Tile」占位文案
