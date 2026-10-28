@@ -19,6 +19,9 @@ import 'shell_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // parity#193：kalender 的星期/日期名走 intl，必须先装载本地化数据，
+  // 否则 zh_CN 下日/周视图列头仍显示 Mon…Sun。
+  await ensureCalendarDateLocalization();
 
   /// 组合根：单点工厂切换 InMemory / Drift；偏好存储与徽标源同在此注入。
   /// M4（flutter#4）：cloud 侧 AuthPort/SyncPort 真实现注入——

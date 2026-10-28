@@ -257,6 +257,20 @@ void main() {
     expect(width, closeTo(390, 0.5), reason: '紧凑档时间轴应铺满内容区');
   });
 
+  // #193：kalender 的星期名走 intl；未装载本地化数据时 zh_CN 仍渲染 Mon…Sun
+  testWidgets('#193 日/周视图星期名本地化为中文', (tester) async {
+    await ensureCalendarDateLocalization();
+
+    await pumpCalendar(tester, mode: CalendarViewMode.day);
+    expect(find.textContaining('周'), findsWidgets, reason: '日视图列头应为「周三」这类中文');
+    expect(find.text('Tue'), findsNothing, reason: '不得残留英文星期缩写');
+
+    await pumpCalendar(tester, mode: CalendarViewMode.week);
+    expect(find.textContaining('周'), findsWidgets, reason: '周视图 7 个列头都应是中文');
+    expect(find.text('Mon'), findsNothing);
+    expect(find.text('Sun'), findsNothing);
+  });
+
   // #184：日视图事件卡必须渲染标题与起止时间，禁止库默认「Tile」占位文案
   testWidgets('#184 日视图事件卡显示标题与起止时间（无 Tile 占位）', (tester) async {
     await repo.savePreference(
