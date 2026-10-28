@@ -33,5 +33,9 @@ flutter test test/calendar_regression_test.dart --update-goldens --no-pub
 
 ## 已知边界
 
-`day_view` / `year_view` 若将来引入「当前时间红线」之类依赖时刻的元素，同样要走
-`clockProvider`，否则会在午夜前后抖动。
+1. **平台字体渲染**：golden 对字体/抗锯齿敏感，基线是在 macOS 上用 Flutter 默认字体录的。
+   在 Linux/Windows 上跑可能整张不一致——本仓 CI 目前零 runner（#322），实际只有本机跑，
+   所以暂不构成问题；**若将来接入 Linux CI，需要为每个平台各存一套基线**（或改用
+   `--platform` 分目录）。
+2. `day_view` 若将来引入「当前时间红线」之类依赖**时刻**（不只是日期）的元素，同样要走
+   `clockProvider`，否则会在午夜前后抖动。
