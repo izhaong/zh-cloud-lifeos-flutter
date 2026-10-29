@@ -405,12 +405,46 @@ class CompletionUndoNotifier extends Notifier<ReminderItem?> {
 }
 
 /// 勾选完成。未完成 → 完成时记下快照；已完成再勾只是取消完成，不记撤销。
-Future<void> completeReminder(WidgetRef ref, ReminderItem item) {
+///
+/// #418：这里同时是 `markComplete` 的消费者——开着时勾掉某父提醒的**最后一个**
+/// 子任务，会把父提醒一并标记完成（Apple「完成时标记为已完成」）；关掉时父提醒
+/// 只跟着子任务进度显示 `2/2`，不会自己变成已完成。
+Future<void> completeReminder(WidgetRef ref, ReminderItem item) async {
   final repo = ref.read(reminderRepositoryProvider);
-  if (!item.isCompleted) {
+  final justCompleted = !item.isCompleted;
+  if (justCompleted) {
     ref.read(completionUndoProvider.notifier).offer(item);
   }
-  return repo.toggleCompleted(item.id);
+  await repo.toggleCompleted(item.id);
+  final parentId = item.parentId;
+  if (!justCompleted || parentId == null) {
+    return;
+  }
+  await _cascadeParentCompleted(ref, repo, parentId);
+}
+
+Future<void> _cascadeParentCompleted(
+  WidgetRef ref,
+  ReminderRepository repo,
+  String parentId,
+) async {
+  final pref = await ref
+      .read(taskPreferenceRepositoryProvider)
+      .watchPreference()
+      .first;
+  if (!pref.markComplete) {
+    return;
+  }
+  final items = await repo.watchItems(listId: null).first;
+  final siblings = items.where((e) => e.parentId == parentId);
+  if (siblings.isEmpty || !siblings.every((e) => e.isCompleted)) {
+    return;
+  }
+  final parents = items.where((e) => e.id == parentId);
+  if (parents.isEmpty || parents.first.isCompleted) {
+    return;
+  }
+  await repo.toggleCompleted(parentId);
 }
 
 /// 子任务进度（parity#166）：父 id → (已完成数, 总数)。
