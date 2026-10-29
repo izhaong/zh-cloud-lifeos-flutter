@@ -22,6 +22,7 @@ class NoteEditorPage extends ConsumerStatefulWidget {
     this.note,
     required this.folderId,
     this.unlockedInitial = false,
+    this.unlockPassphrase,
   });
 
   final Note? note;
@@ -29,6 +30,10 @@ class NoteEditorPage extends ConsumerStatefulWidget {
 
   /// 已通过解锁口令进入（F-12）：允许把 locked 写回 false。
   final bool unlockedInitial;
+
+  /// 解锁时用的口令（#395）：已解锁的备忘录保存时要**重新加密**，
+  /// 否则一次保存就把密文换回明文，锁定等于白做。
+  final String? unlockPassphrase;
 
   @override
   ConsumerState<NoteEditorPage> createState() => _NoteEditorPageState();
@@ -287,7 +292,13 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     if (confirmed != true) {
       return;
     }
-    final delta = jsonEncode({'ops': _body.document.toDelta().toJson()});
+    // #395：锁定必须是**真加密**——此前只写 `locked: true`，正文仍以明文 JSON
+    // 落库，口令也只是「非空即可」，等于没有保护。
+    final passphrase = passwordController.text.trim();
+    final delta = NoteLockCodec.seal(
+      jsonEncode({'ops': _body.document.toDelta().toJson()}),
+      passphrase,
+    );
     await ref
         .read(noteRepositoryProvider)
         .upsertNote(
@@ -298,6 +309,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 ? existing.title
                 : _title.text.trim(),
             bodyDelta: delta,
+            // 锁定的正文不参与搜索索引（Apple 同样不索引锁定内容）
+            bodyText: '',
             pinned: existing.pinned,
             locked: true,
             tagNames: List<String>.unmodifiable(_tags),
@@ -348,16 +361,21 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     if (existing != null && existing.locked && !widget.unlockedInitial) {
       return; // 未解锁不允许覆盖密文（F-12）
     }
-    final delta = jsonEncode({'ops': _body.document.toDelta().toJson()});
+    final plainDelta = jsonEncode({'ops': _body.document.toDelta().toJson()});
+    // #395：锁定中的备忘录保存时必须重新加密（口令来自解锁步骤）。
+    final keepLocked = existing != null &&
+        existing.locked &&
+        (widget.unlockedInitial || widget.unlockPassphrase != null);
+    final delta = keepLocked
+        ? NoteLockCodec.seal(plainDelta, widget.unlockPassphrase ?? '')
+        : plainDelta;
     final note = Note(
       id: existing?.id ?? 'note-${DateTime.now().millisecondsSinceEpoch}',
       folderId: existing?.folderId ?? widget.folderId,
       title: _title.text.trim().isEmpty ? '新建备忘录' : _title.text.trim(),
       bodyDelta: delta,
       pinned: existing?.pinned ?? false,
-      locked: existing != null && existing.locked
-          ? !widget.unlockedInitial
-          : false,
+      locked: keepLocked,
       tagNames: List<String>.unmodifiable(_tags),
       sortOrder: existing?.sortOrder ?? 0,
       revision: (existing?.revision ?? 0) + 1,

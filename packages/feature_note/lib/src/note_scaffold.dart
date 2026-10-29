@@ -295,6 +295,8 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
     Note note,
   ) async {
     final passwordController = TextEditingController();
+    String? plainDelta;
+    String? passphraseUsed;
     final unlocked = await showCupertinoDialog<bool>(
       context: context,
       builder: (dialogContext) => LifeAlertDialog(
@@ -312,21 +314,47 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
           ),
           LifeDialogAction(
             key: const ValueKey('note_unlock_confirm'),
-            onPressed: () => Navigator.of(
-              dialogContext,
-            ).pop(passwordController.text.trim().isNotEmpty),
+            onPressed: () {
+              // #395：口令必须**真的校验**——此前只要非空就算解锁。
+              final passphrase = passwordController.text.trim();
+              if (passphrase.isEmpty) return;
+              try {
+                final plain = NoteLockCodec.open(note.bodyDelta, passphrase);
+                plainDelta = plain;
+                passphraseUsed = passphrase;
+                Navigator.of(dialogContext).pop(true);
+              } on NoteLockException {
+                Navigator.of(dialogContext).pop(false);
+              }
+            },
             child: const Text('解锁'),
           ),
         ],
       ),
     );
-    if (unlocked != true || !context.mounted) {
+    if (unlocked != true || !context.mounted || plainDelta == null) {
       return;
     }
+    // 解密后的正文只在内存里交给编辑器；库里仍是密文。
+    // 口令一并传入——编辑器保存时要重新加密，否则一保存就退回明文。
+    final unlockedNote = Note(
+      id: note.id,
+      folderId: note.folderId,
+      title: note.title,
+      bodyDelta: plainDelta!,
+      bodyText: note.bodyText,
+      pinned: note.pinned,
+      locked: note.locked,
+      tagNames: note.tagNames,
+      sortOrder: note.sortOrder,
+      revision: note.revision,
+      clientUpdatedAt: note.clientUpdatedAt,
+    );
     await Navigator.of(context).push(
       CupertinoPageRoute<void>(
         builder: (_) => NoteEditorPage(
-          note: note,
+          note: unlockedNote,
+          unlockPassphrase: passphraseUsed,
           folderId: note.folderId,
           unlockedInitial: true,
         ),
