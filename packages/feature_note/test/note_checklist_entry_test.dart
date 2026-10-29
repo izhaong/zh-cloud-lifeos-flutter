@@ -61,7 +61,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('note_editor_checklist')));
+    // #420：格式能力收进「格式」菜单，先开菜单再点能力项。
+    await tester.tap(find.byKey(const ValueKey('note_editor_format')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('note_format_checklist')));
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
     expect(

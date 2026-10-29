@@ -108,6 +108,63 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     }
   }
 
+  /// #420（矩阵 N02/N05）：Apple 备忘录把这些能力收在「格式」菜单里，本仓此前
+  /// 是 5 个平铺按钮——窄屏放不下、能力也找不到。菜单只列**已实现**的能力：
+  /// 表格/字号/笔在 N02 里尚未裁定为对等范围，摆成占位就是死控件（#444 的教训）。
+  Future<void> _showFormatMenu() async {
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) => LifeActionSheet(
+        key: const Key('note_editor_format_sheet'),
+        title: const Text('格式'),
+        actions: [
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_bold'),
+            onPressed: () => Navigator.of(sheetContext).pop('bold'),
+            child: const Text('加粗'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_italic'),
+            onPressed: () => Navigator.of(sheetContext).pop('italic'),
+            child: const Text('斜体'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_underline'),
+            onPressed: () => Navigator.of(sheetContext).pop('underline'),
+            child: const Text('下划线'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_link'),
+            onPressed: () => Navigator.of(sheetContext).pop('link'),
+            child: const Text('添加链接'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_checklist'),
+            onPressed: () => Navigator.of(sheetContext).pop('checklist'),
+            child: const Text('清单'),
+          ),
+        ],
+        cancelButton: LifeActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    switch (action) {
+      case 'bold':
+        _body.formatSelection(quill.Attribute.bold);
+      case 'italic':
+        _body.formatSelection(quill.Attribute.italic);
+      case 'underline':
+        _body.formatSelection(quill.Attribute.underline);
+      case 'link':
+        await _addLink();
+      case 'checklist':
+        _toggleChecklist();
+    }
+  }
+
   Future<void> _exportMarkdown() async {
     final existing = widget.note;
     if (existing == null) {
@@ -508,41 +565,14 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               icon: CupertinoIcons.photo,
               onPressed: _insertImage,
             ),
+            // #420（矩阵 N02/N05）：Apple 把加粗/斜体/下划线/链接/清单收在
+            // 「格式」菜单里；本仓此前是 5 个平铺按钮——窄屏放不下、能力也找不到。
+            // 菜单只列已实现的能力（表格/字号/笔未裁定为对等范围，不摆占位）。
             _EditorAction(
-              key: const ValueKey('note_editor_bold'),
-              semanticLabel: '加粗',
-              icon: CupertinoIcons.bold,
-              onPressed: () => _body.formatSelection(quill.Attribute.bold),
-            ),
-            // #397（矩阵 N02/N05）：BIU 是一组能力，Apple 备忘录给的是
-            // Bold/Italic/Underline + 添加链接；此前只有粗体，斜体/下划线/链接
-            // 连入口都没有。
-            _EditorAction(
-              key: const ValueKey('note_editor_italic'),
-              semanticLabel: '斜体',
-              icon: CupertinoIcons.italic,
-              onPressed: () => _body.formatSelection(quill.Attribute.italic),
-            ),
-            _EditorAction(
-              key: const ValueKey('note_editor_underline'),
-              semanticLabel: '下划线',
-              icon: CupertinoIcons.underline,
-              onPressed: () =>
-                  _body.formatSelection(quill.Attribute.underline),
-            ),
-            _EditorAction(
-              key: const ValueKey('note_editor_link'),
-              semanticLabel: '链接',
-              icon: CupertinoIcons.link,
-              onPressed: _addLink,
-            ),
-            // parity#202：清单入口（Apple 格式菜单的「清单」）；此前只能靠
-            // 导入 Markdown 的 `- [ ]` 才能造出清单行。
-            _EditorAction(
-              key: const ValueKey('note_editor_checklist'),
-              semanticLabel: '清单',
-              icon: CupertinoIcons.list_bullet,
-              onPressed: _toggleChecklist,
+              key: const ValueKey('note_editor_format'),
+              semanticLabel: '格式',
+              icon: CupertinoIcons.textformat,
+              onPressed: _showFormatMenu,
             ),
             CupertinoButton(
               key: const ValueKey('note_editor_save'),

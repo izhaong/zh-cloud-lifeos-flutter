@@ -72,7 +72,11 @@ void main() {
       isNot(contains('"italic"')),
       reason: '点之前不该已有斜体属性（否则断言恒真）',
     );
-    await tester.tap(find.byKey(const ValueKey('note_editor_italic')));
+    // #420：格式能力收进「格式」菜单，先开菜单再点能力项。
+    await tester.tap(find.byKey(const ValueKey('note_editor_format')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('note_format_italic')));
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
     expect(
       deltaJson(controller),
@@ -83,7 +87,11 @@ void main() {
 
   testWidgets('工具条「下划线」把选区标成 underline', (tester) async {
     final controller = await openEditor(tester, InMemoryNoteRepository());
-    await tester.tap(find.byKey(const ValueKey('note_editor_underline')));
+    // #420：格式能力收进「格式」菜单，先开菜单再点能力项。
+    await tester.tap(find.byKey(const ValueKey('note_editor_format')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('note_format_underline')));
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
     expect(
       deltaJson(controller),
@@ -97,7 +105,11 @@ void main() {
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '备忘录'));
     final controller = await openEditor(tester, repo);
 
-    await tester.tap(find.byKey(const ValueKey('note_editor_link')));
+    // #420：格式能力收进「格式」菜单，先开菜单再点能力项。
+    await tester.tap(find.byKey(const ValueKey('note_editor_format')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('note_format_link')));
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('note_link_url')),
@@ -135,7 +147,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('note_editor_link')));
+    // #420：格式能力收进「格式」菜单，先开菜单再点能力项。
+    await tester.tap(find.byKey(const ValueKey('note_editor_format')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('note_format_link')));
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
     expect(
