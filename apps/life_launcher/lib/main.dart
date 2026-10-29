@@ -1,5 +1,6 @@
 import 'package:app_core/app_core.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:dio/dio.dart';
 import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_calendar_cloud/feature_calendar_cloud.dart';
@@ -17,6 +18,7 @@ import 'notifications/local_calendar_alert_scheduler.dart';
 import 'notifications/local_reminder_alert_scheduler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'shell/pinned_tabs_service.dart';
+import 'shell/life_menu_bar.dart';
 import 'shell_providers.dart';
 
 /// 启动预热步骤兜底（#230）：这些步骤只做「尽力补齐」，失败不得阻断启动。
@@ -199,6 +201,7 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _menuCommands.dispose();
     super.dispose();
   }
 
@@ -224,6 +227,11 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
 
   /// 系统亮/暗切换要重建主题：令牌是 Apple 动态色，Material 岛的静态
   /// `ColorScheme` 也要按当前档位重新解算。
+  /// macOS 菜单栏命令出口（#368）：菜单在 `CupertinoApp` 之上，拿不到下层 context，
+  /// 所以用 notifier 让页面自己订阅（如任务页「新建提醒」）。
+  final ValueNotifier<LifeMenuCommand?> _menuCommands =
+      ValueNotifier<LifeMenuCommand?>(null);
+
   @override
   void didChangePlatformBrightness() => setState(() {});
 
@@ -240,7 +248,7 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
     final highContrast = dispatcher.accessibilityFeatures.highContrast;
     // Apple「粗体文本」：同一组辅助功能开关，主题层提字重（#353）。
     final boldText = dispatcher.accessibilityFeatures.boldText;
-    return CupertinoApp.router(
+    final app = CupertinoApp.router(
       title: 'LifeOS 生活台',
       debugShowCheckedModeBanner: false,
       theme: LifeTokens.cupertino(brightness, highContrast, boldText),
@@ -260,5 +268,15 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
         child: child ?? const SizedBox.shrink(),
       ),
     );
+    // #368：macOS 菜单栏整体接管（引擎默认项是英文且没有「文件」菜单）。
+    // 只在 macOS 包一层——这是平台能力差异，不是按平台分叉页面树。
+    //
+    // 用 `defaultTargetPlatform` 而不是 `dart:io Platform.isMacOS`：
+    // 后者在 widget 测试里返回**宿主**平台（macOS），而框架的 target 是 android，
+    // 于是 PlatformProvidedMenuItem 序列化时抛「Platform android has no … menu」。
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) {
+      return app;
+    }
+    return LifeMenuBar(commands: _menuCommands, child: app);
   }
 }
