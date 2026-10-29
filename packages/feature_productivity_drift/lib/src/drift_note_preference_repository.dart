@@ -38,6 +38,7 @@ class DriftNotePreferenceRepository implements kernel.NotePreferenceRepository {
             userKey: _localUserKey,
             defaultFolderId: Value(preference.defaultFolderId),
             sortMode: Value(preference.sortMode),
+            defaultTextSize: Value(preference.defaultTextSize),
             groupByDate: Value(preference.groupByDate),
             beginWith: Value(preference.beginWith),
             revision: Value((existing?.revision ?? 0) + 1),
@@ -49,6 +50,7 @@ class DriftNotePreferenceRepository implements kernel.NotePreferenceRepository {
       kernel.NotePreference(
         defaultFolderId: row.defaultFolderId,
         sortMode: row.sortMode,
+        defaultTextSize: row.defaultTextSize,
         groupByDate: row.groupByDate,
         beginWith: row.beginWith,
         revision: row.revision,

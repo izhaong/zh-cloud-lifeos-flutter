@@ -12,6 +12,7 @@ final class NotePreference extends Equatable {
     this.sortMode = 'custom',
     this.groupByDate = true,
     this.beginWith = 'nothing',
+    this.defaultTextSize = 16,
     this.revision = 1,
   });
 
@@ -20,6 +21,9 @@ final class NotePreference extends Equatable {
 
   /// 排序档位名（`custom`/`title`/`updated`；未知串按 `custom` 处理）。
   final String sortMode;
+
+  /// 默认正文文本大小（磅；#463，Apple「默认文本大小」滑块）。
+  final int defaultTextSize;
 
   /// 列表是否按日期分组（#392，Apple「按日期分组备忘录」勾选）。
   final bool groupByDate;
@@ -40,6 +44,7 @@ final class NotePreference extends Equatable {
     String? sortMode,
     bool? groupByDate,
     String? beginWith,
+    int? defaultTextSize,
     int? revision,
   }) {
     return NotePreference(
@@ -51,6 +56,7 @@ final class NotePreference extends Equatable {
       sortMode: sortMode ?? this.sortMode,
       groupByDate: groupByDate ?? this.groupByDate,
       beginWith: beginWith ?? this.beginWith,
+      defaultTextSize: defaultTextSize ?? this.defaultTextSize,
       revision: revision ?? this.revision,
     );
   }
@@ -61,6 +67,7 @@ final class NotePreference extends Equatable {
     sortMode,
     groupByDate,
     beginWith,
+    defaultTextSize,
     revision,
   ];
 }

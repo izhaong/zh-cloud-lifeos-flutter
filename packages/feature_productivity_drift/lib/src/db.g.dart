@@ -8728,6 +8728,18 @@ class $NotePreferencesTable extends NotePreferences
     requiredDuringInsert: false,
     defaultValue: const Constant('nothing'),
   );
+  static const VerificationMeta _defaultTextSizeMeta = const VerificationMeta(
+    'defaultTextSize',
+  );
+  @override
+  late final GeneratedColumn<int> defaultTextSize = GeneratedColumn<int>(
+    'default_text_size',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(16),
+  );
   static const VerificationMeta _revisionMeta = const VerificationMeta(
     'revision',
   );
@@ -8747,6 +8759,7 @@ class $NotePreferencesTable extends NotePreferences
     sortMode,
     groupByDate,
     beginWith,
+    defaultTextSize,
     revision,
   ];
   @override
@@ -8799,6 +8812,15 @@ class $NotePreferencesTable extends NotePreferences
         beginWith.isAcceptableOrUnknown(data['begin_with']!, _beginWithMeta),
       );
     }
+    if (data.containsKey('default_text_size')) {
+      context.handle(
+        _defaultTextSizeMeta,
+        defaultTextSize.isAcceptableOrUnknown(
+          data['default_text_size']!,
+          _defaultTextSizeMeta,
+        ),
+      );
+    }
     if (data.containsKey('revision')) {
       context.handle(
         _revisionMeta,
@@ -8834,6 +8856,10 @@ class $NotePreferencesTable extends NotePreferences
         DriftSqlType.string,
         data['${effectivePrefix}begin_with'],
       )!,
+      defaultTextSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}default_text_size'],
+      )!,
       revision: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}revision'],
@@ -8862,6 +8888,9 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
 
   /// 新备忘录开头格式档位名（#392，Apple「新备忘录开头格式」弹出菜单）。
   final String beginWith;
+
+  /// 默认正文文本大小（#463，Apple「默认文本大小」滑块）。存磅值 13..24。
+  final int defaultTextSize;
   final int revision;
   const NotePreference({
     required this.userKey,
@@ -8869,6 +8898,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
     required this.sortMode,
     required this.groupByDate,
     required this.beginWith,
+    required this.defaultTextSize,
     required this.revision,
   });
   @override
@@ -8881,6 +8911,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
     map['sort_mode'] = Variable<String>(sortMode);
     map['group_by_date'] = Variable<bool>(groupByDate);
     map['begin_with'] = Variable<String>(beginWith);
+    map['default_text_size'] = Variable<int>(defaultTextSize);
     map['revision'] = Variable<int>(revision);
     return map;
   }
@@ -8894,6 +8925,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
       sortMode: Value(sortMode),
       groupByDate: Value(groupByDate),
       beginWith: Value(beginWith),
+      defaultTextSize: Value(defaultTextSize),
       revision: Value(revision),
     );
   }
@@ -8909,6 +8941,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
       sortMode: serializer.fromJson<String>(json['sortMode']),
       groupByDate: serializer.fromJson<bool>(json['groupByDate']),
       beginWith: serializer.fromJson<String>(json['beginWith']),
+      defaultTextSize: serializer.fromJson<int>(json['defaultTextSize']),
       revision: serializer.fromJson<int>(json['revision']),
     );
   }
@@ -8921,6 +8954,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
       'sortMode': serializer.toJson<String>(sortMode),
       'groupByDate': serializer.toJson<bool>(groupByDate),
       'beginWith': serializer.toJson<String>(beginWith),
+      'defaultTextSize': serializer.toJson<int>(defaultTextSize),
       'revision': serializer.toJson<int>(revision),
     };
   }
@@ -8931,6 +8965,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
     String? sortMode,
     bool? groupByDate,
     String? beginWith,
+    int? defaultTextSize,
     int? revision,
   }) => NotePreference(
     userKey: userKey ?? this.userKey,
@@ -8940,6 +8975,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
     sortMode: sortMode ?? this.sortMode,
     groupByDate: groupByDate ?? this.groupByDate,
     beginWith: beginWith ?? this.beginWith,
+    defaultTextSize: defaultTextSize ?? this.defaultTextSize,
     revision: revision ?? this.revision,
   );
   NotePreference copyWithCompanion(NotePreferencesCompanion data) {
@@ -8953,6 +8989,9 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
           ? data.groupByDate.value
           : this.groupByDate,
       beginWith: data.beginWith.present ? data.beginWith.value : this.beginWith,
+      defaultTextSize: data.defaultTextSize.present
+          ? data.defaultTextSize.value
+          : this.defaultTextSize,
       revision: data.revision.present ? data.revision.value : this.revision,
     );
   }
@@ -8965,6 +9004,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
           ..write('sortMode: $sortMode, ')
           ..write('groupByDate: $groupByDate, ')
           ..write('beginWith: $beginWith, ')
+          ..write('defaultTextSize: $defaultTextSize, ')
           ..write('revision: $revision')
           ..write(')'))
         .toString();
@@ -8977,6 +9017,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
     sortMode,
     groupByDate,
     beginWith,
+    defaultTextSize,
     revision,
   );
   @override
@@ -8988,6 +9029,7 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
           other.sortMode == this.sortMode &&
           other.groupByDate == this.groupByDate &&
           other.beginWith == this.beginWith &&
+          other.defaultTextSize == this.defaultTextSize &&
           other.revision == this.revision);
 }
 
@@ -8997,6 +9039,7 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
   final Value<String> sortMode;
   final Value<bool> groupByDate;
   final Value<String> beginWith;
+  final Value<int> defaultTextSize;
   final Value<int> revision;
   final Value<int> rowid;
   const NotePreferencesCompanion({
@@ -9005,6 +9048,7 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
     this.sortMode = const Value.absent(),
     this.groupByDate = const Value.absent(),
     this.beginWith = const Value.absent(),
+    this.defaultTextSize = const Value.absent(),
     this.revision = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -9014,6 +9058,7 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
     this.sortMode = const Value.absent(),
     this.groupByDate = const Value.absent(),
     this.beginWith = const Value.absent(),
+    this.defaultTextSize = const Value.absent(),
     this.revision = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userKey = Value(userKey);
@@ -9023,6 +9068,7 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
     Expression<String>? sortMode,
     Expression<bool>? groupByDate,
     Expression<String>? beginWith,
+    Expression<int>? defaultTextSize,
     Expression<int>? revision,
     Expression<int>? rowid,
   }) {
@@ -9032,6 +9078,7 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
       if (sortMode != null) 'sort_mode': sortMode,
       if (groupByDate != null) 'group_by_date': groupByDate,
       if (beginWith != null) 'begin_with': beginWith,
+      if (defaultTextSize != null) 'default_text_size': defaultTextSize,
       if (revision != null) 'revision': revision,
       if (rowid != null) 'rowid': rowid,
     });
@@ -9043,6 +9090,7 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
     Value<String>? sortMode,
     Value<bool>? groupByDate,
     Value<String>? beginWith,
+    Value<int>? defaultTextSize,
     Value<int>? revision,
     Value<int>? rowid,
   }) {
@@ -9052,6 +9100,7 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
       sortMode: sortMode ?? this.sortMode,
       groupByDate: groupByDate ?? this.groupByDate,
       beginWith: beginWith ?? this.beginWith,
+      defaultTextSize: defaultTextSize ?? this.defaultTextSize,
       revision: revision ?? this.revision,
       rowid: rowid ?? this.rowid,
     );
@@ -9075,6 +9124,9 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
     if (beginWith.present) {
       map['begin_with'] = Variable<String>(beginWith.value);
     }
+    if (defaultTextSize.present) {
+      map['default_text_size'] = Variable<int>(defaultTextSize.value);
+    }
     if (revision.present) {
       map['revision'] = Variable<int>(revision.value);
     }
@@ -9092,6 +9144,7 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
           ..write('sortMode: $sortMode, ')
           ..write('groupByDate: $groupByDate, ')
           ..write('beginWith: $beginWith, ')
+          ..write('defaultTextSize: $defaultTextSize, ')
           ..write('revision: $revision, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -13314,6 +13367,7 @@ typedef $$NotePreferencesTableCreateCompanionBuilder =
       Value<String> sortMode,
       Value<bool> groupByDate,
       Value<String> beginWith,
+      Value<int> defaultTextSize,
       Value<int> revision,
       Value<int> rowid,
     });
@@ -13324,6 +13378,7 @@ typedef $$NotePreferencesTableUpdateCompanionBuilder =
       Value<String> sortMode,
       Value<bool> groupByDate,
       Value<String> beginWith,
+      Value<int> defaultTextSize,
       Value<int> revision,
       Value<int> rowid,
     });
@@ -13359,6 +13414,11 @@ class $$NotePreferencesTableFilterComposer
 
   ColumnFilters<String> get beginWith => $composableBuilder(
     column: $table.beginWith,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get defaultTextSize => $composableBuilder(
+    column: $table.defaultTextSize,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13402,6 +13462,11 @@ class $$NotePreferencesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get defaultTextSize => $composableBuilder(
+    column: $table.defaultTextSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get revision => $composableBuilder(
     column: $table.revision,
     builder: (column) => ColumnOrderings(column),
@@ -13435,6 +13500,11 @@ class $$NotePreferencesTableAnnotationComposer
 
   GeneratedColumn<String> get beginWith =>
       $composableBuilder(column: $table.beginWith, builder: (column) => column);
+
+  GeneratedColumn<int> get defaultTextSize => $composableBuilder(
+    column: $table.defaultTextSize,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get revision =>
       $composableBuilder(column: $table.revision, builder: (column) => column);
@@ -13482,6 +13552,7 @@ class $$NotePreferencesTableTableManager
                 Value<String> sortMode = const Value.absent(),
                 Value<bool> groupByDate = const Value.absent(),
                 Value<String> beginWith = const Value.absent(),
+                Value<int> defaultTextSize = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NotePreferencesCompanion(
@@ -13490,6 +13561,7 @@ class $$NotePreferencesTableTableManager
                 sortMode: sortMode,
                 groupByDate: groupByDate,
                 beginWith: beginWith,
+                defaultTextSize: defaultTextSize,
                 revision: revision,
                 rowid: rowid,
               ),
@@ -13500,6 +13572,7 @@ class $$NotePreferencesTableTableManager
                 Value<String> sortMode = const Value.absent(),
                 Value<bool> groupByDate = const Value.absent(),
                 Value<String> beginWith = const Value.absent(),
+                Value<int> defaultTextSize = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NotePreferencesCompanion.insert(
@@ -13508,6 +13581,7 @@ class $$NotePreferencesTableTableManager
                 sortMode: sortMode,
                 groupByDate: groupByDate,
                 beginWith: beginWith,
+                defaultTextSize: defaultTextSize,
                 revision: revision,
                 rowid: rowid,
               ),

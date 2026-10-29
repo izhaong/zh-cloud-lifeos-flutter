@@ -380,6 +380,9 @@ class NotePreferences extends Table {
   /// 新备忘录开头格式档位名（#392，Apple「新备忘录开头格式」弹出菜单）。
   TextColumn get beginWith => text().withDefault(const Constant('nothing'))();
 
+  /// 默认正文文本大小（#463，Apple「默认文本大小」滑块）。存磅值 13..24。
+  IntColumn get defaultTextSize => integer().withDefault(const Constant(16))();
+
   IntColumn get revision => integer().withDefault(const Constant(0))();
 
   @override
@@ -550,6 +553,12 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             await _addColumnIfTableExists(m, 'note_preferences',
                 notePreferences, notePreferences.beginWith);
           }
+          if (from < 22 && to >= 22) {
+            // V22（flutter #463）：默认文本大小。16 磅 = 与改造前渲染等价。
+            await _addColumnIfTableExists(m, 'note_preferences',
+                notePreferences, notePreferences.defaultTextSize);
+          }
+
           if (from < 21 && to >= 21) {
             // V21（flutter #448）：手动设定时区（null = 跟随系统，与改造前一致）。
             await _addColumnIfTableExists(m, 'task_preferences',
