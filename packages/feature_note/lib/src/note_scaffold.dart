@@ -294,6 +294,13 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
     WidgetRef ref,
     Note note,
   ) async {
+    // #410：老数据迁移。`#395` 之前「锁定」只写 `locked: true`、正文仍是明文，
+    // 于是升级后这些备忘录**永远解不开**（open() 对明文必然失败）。
+    // 检测到这种行时改走「设置新口令并就地加密」，不要求旧口令（旧口令从未生效）。
+    if (!NoteLockCodec.isSealed(note.bodyDelta)) {
+      await _migrateLegacyLock(context, ref, note);
+      return;
+    }
     final passwordController = TextEditingController();
     String? plainDelta;
     String? passphraseUsed;
@@ -430,6 +437,100 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
     Navigator.of(context).push(
       CupertinoPageRoute<void>(
         builder: (_) => NoteEditorPage(note: note, folderId: folderId),
+      ),
+    );
+  }
+
+  /// 旧「锁定」备忘录迁移（#410）：如实告知此前未加密，请用户设置新口令。
+  ///
+  /// 不静默加密：用户需要知道「这段内容在设置口令之前是可读的」，
+  /// 否则会误以为一直受保护。
+  Future<void> _migrateLegacyLock(
+    BuildContext context,
+    WidgetRef ref,
+    Note note,
+  ) async {
+    final passwordController = TextEditingController();
+    final passphrase = await showCupertinoDialog<String>(
+      context: context,
+      builder: (dialogContext) => LifeAlertDialog(
+        title: const Text('为这条备忘录设置密码'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text(
+                '这条备忘录此前只有「锁定」标记，正文并未加密。'
+                '设置密码后会立即加密保存。',
+                key: ValueKey('note_lock_migration_notice'),
+              ),
+            ),
+            CupertinoTextField(
+              key: const ValueKey('note_lock_migration_password'),
+              controller: passwordController,
+              obscureText: true,
+              placeholder: '输入密码',
+            ),
+          ],
+        ),
+        actions: [
+          LifeDialogAction(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          LifeDialogAction(
+            key: const ValueKey('note_lock_migration_confirm'),
+            isDefaultAction: true,
+            onPressed: () {
+              final value = passwordController.text.trim();
+              if (value.isEmpty) return;
+              Navigator.of(dialogContext).pop(value);
+            },
+            child: const Text('加密并锁定'),
+          ),
+        ],
+      ),
+    );
+    if (passphrase == null || passphrase.isEmpty || !context.mounted) {
+      return;
+    }
+    final repo = ref.read(noteRepositoryProvider);
+    final sealed = NoteLockCodec.seal(note.bodyDelta, passphrase);
+    await repo.upsertNote(Note(
+      id: note.id,
+      folderId: note.folderId,
+      title: note.title,
+      bodyDelta: sealed,
+      bodyText: '', // 锁定内容不进搜索索引（与 #395 一致）
+      pinned: note.pinned,
+      locked: true,
+      tagNames: note.tagNames,
+      sortOrder: note.sortOrder,
+      revision: note.revision + 1,
+      clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+    ));
+    if (!context.mounted) return;
+    // 迁移完直接进编辑器（用户刚证明了自己能设这个口令）
+    await Navigator.of(context).push(
+      CupertinoPageRoute<void>(
+        builder: (_) => NoteEditorPage(
+          folderId: note.folderId,
+          note: Note(
+            id: note.id,
+            folderId: note.folderId,
+            title: note.title,
+            bodyDelta: note.bodyDelta,
+            pinned: note.pinned,
+            locked: true,
+            tagNames: note.tagNames,
+            sortOrder: note.sortOrder,
+            revision: note.revision + 1,
+            clientUpdatedAt: note.clientUpdatedAt,
+          ),
+          unlockPassphrase: passphrase,
+          unlockedInitial: true,
+        ),
       ),
     );
   }
