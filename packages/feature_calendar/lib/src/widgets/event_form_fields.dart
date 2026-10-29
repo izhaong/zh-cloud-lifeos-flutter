@@ -462,12 +462,15 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
           onChanged: (v) => _emit(_copyWith(_e, notes: v)),
         ),
         if (titleEmpty && widget.showTitleRequired)
-          const Padding(
-            key: Key('event_field_title_required_hint'),
-            padding: EdgeInsets.all(8),
+          Padding(
+            key: const Key('event_field_title_required_hint'),
+            padding: const EdgeInsets.all(8),
             child: Text(
               '标题不能为空',
-              style: TextStyle(color: CalendarTokens.systemRed, fontSize: 12),
+              style: TextStyle(
+                color: CupertinoColors.systemRed.resolveFrom(context),
+                fontSize: 12,
+              ),
             ),
           ),
       ],

@@ -243,7 +243,7 @@ class _CalendarRow extends ConsumerWidget {
                 key: Key('cal-refresh-error-${calendar.id}'),
                 semanticLabel: '刷新失败',
                 size: 14,
-                color: CalendarTokens.systemRed,
+                color: CupertinoColors.systemRed.resolveFrom(context),
               ),
             ],
             const SizedBox(width: 6),

@@ -124,7 +124,9 @@ class _MiniMonthCard extends StatelessWidget {
               : CupertinoColors.white,
           borderRadius: BorderRadius.circular(LifeRadius.md),
           border: isCurrentMonth
-              ? Border.all(color: CalendarTokens.systemBlue)
+              ? Border.all(
+                  color: CupertinoColors.systemBlue.resolveFrom(context),
+                )
               : Border.all(color: CalendarTokens.hairline.resolveFrom(context)),
         ),
         child: Column(
@@ -161,7 +163,7 @@ class _MiniMonthCard extends StatelessWidget {
                 children: [
                   for (var i = 0; i < leadBlanks; i++) const SizedBox(),
                   for (var day = 1; day <= daysInMonth; day++)
-                    _dayCell(day, isTodayMonth && today.day == day),
+                    _dayCell(context, day, isTodayMonth && today.day == day),
                 ],
               ),
             ),
@@ -171,7 +173,7 @@ class _MiniMonthCard extends StatelessWidget {
     );
   }
 
-  Widget _dayCell(int day, bool isToday) {
+  Widget _dayCell(BuildContext context, int day, bool isToday) {
     final date = DateTime(year, month, day);
     final dots = dotsByDate[date]?.take(3).toList() ?? const <int>[];
     // 小格子（约 16px）内 Column 会溢出：用 FittedBox 缩放内容并禁点行膨胀
@@ -183,9 +185,9 @@ class _MiniMonthCard extends StatelessWidget {
           Container(
             key: isToday ? Key('year_today_${month}_$day') : null,
             decoration: isToday
-                ? const BoxDecoration(
+                ? BoxDecoration(
                     shape: BoxShape.circle,
-                    color: CalendarTokens.systemRed,
+                    color: CupertinoColors.systemRed.resolveFrom(context),
                   )
                 : null,
             padding: isToday ? const EdgeInsets.all(1) : null,
