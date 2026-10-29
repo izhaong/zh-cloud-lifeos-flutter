@@ -373,6 +373,13 @@ class NotePreferences extends Table {
   /// 排序档位名（`custom`/`title`/`updated`）。
   TextColumn get sortMode => text().withDefault(const Constant('custom'))();
 
+  /// 列表按日期分组（#392，Apple「按日期分组备忘录」）。默认 true = 老用户升级后
+  /// 列表样子不变（V17 起就一直分组着）。
+  BoolColumn get groupByDate => boolean().withDefault(const Constant(true))();
+
+  /// 新备忘录开头格式档位名（#392，Apple「新备忘录开头格式」弹出菜单）。
+  TextColumn get beginWith => text().withDefault(const Constant('nothing'))();
+
   IntColumn get revision => integer().withDefault(const Constant(0))();
 
   @override
@@ -385,7 +392,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   /// 幂等加列（#451/#446 共用）。
   ///
@@ -533,6 +540,15 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // V16（flutter #278 / Apple mac/13 四档排序）：任务创建时间落列。
             // 存量行留 null（服务端没回溯过创建时间），排序时排最后而不是瞎猜。
             await m.addColumn(reminderItems, reminderItems.createdAt);
+          }
+          if (from < 22 && to >= 22) {
+            // V22（flutter #392 / TC-NOTE-UI-111）：设置页补 Apple 的两条可比条目
+            // ——「按日期分组备忘录」勾选与「新备忘录开头格式」弹出菜单。
+            // 默认 true/nothing = 老用户升级后列表样子与新建行为都不变。
+            await _addColumnIfTableExists(m, 'note_preferences',
+                notePreferences, notePreferences.groupByDate);
+            await _addColumnIfTableExists(m, 'note_preferences',
+                notePreferences, notePreferences.beginWith);
           }
           if (from < 21 && to >= 21) {
             // V21（flutter #448）：手动设定时区（null = 跟随系统，与改造前一致）。

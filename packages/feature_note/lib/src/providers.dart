@@ -194,15 +194,53 @@ final notePreferenceProvider = StreamProvider<NotePreference>(
   (ref) => ref.watch(notePreferenceRepositoryProvider).watchPreference(),
 );
 
-/// 记录设置（默认文件夹 + 排序；本地偏好，不落服务端）。
+/// 新备忘录开头格式（#392，Apple「新备忘录开头格式」弹出菜单四档）。
+///
+/// `nothing` = 空白正文（老行为）；`title`/`body` 只挪光标；`checklist` 真的往
+/// 正文种一个未勾选清单项——所以这四档都有可观察后果，不摆空控件。
+enum NoteBeginWithMode { nothing, title, body, checklist }
+
+NoteBeginWithMode noteBeginWithModeFromId(String? id) =>
+    NoteBeginWithMode.values.firstWhere(
+      (m) => m.name == id,
+      orElse: () => NoteBeginWithMode.nothing,
+    );
+
+/// 记录设置（默认文件夹 + 排序 + 分组 + 开头格式；本地偏好，不落服务端）。
 class NoteSettings {
   const NoteSettings({
     this.defaultFolderId,
     this.sortMode = NoteSortMode.custom,
+    this.groupByDate = true,
+    this.beginWith = NoteBeginWithMode.nothing,
   });
 
   final String? defaultFolderId;
   final NoteSortMode sortMode;
+
+  /// 列表是否按日期分组（Apple「按日期分组备忘录」）。
+  final bool groupByDate;
+
+  final NoteBeginWithMode beginWith;
+
+  /// 设置页每次只改一格，其余格子必须原样带过；格子加到第四个之后，逐个手写
+  /// 实参的写法早晚会把某格打回默认，所以收在这里。
+  NoteSettings copyWith({
+    String? defaultFolderId,
+    bool clearDefaultFolderId = false,
+    NoteSortMode? sortMode,
+    bool? groupByDate,
+    NoteBeginWithMode? beginWith,
+  }) {
+    return NoteSettings(
+      defaultFolderId: clearDefaultFolderId
+          ? null
+          : (defaultFolderId ?? this.defaultFolderId),
+      sortMode: sortMode ?? this.sortMode,
+      groupByDate: groupByDate ?? this.groupByDate,
+      beginWith: beginWith ?? this.beginWith,
+    );
+  }
 }
 
 /// 记录设置读写（#394：改完要能重启读回）。
@@ -210,9 +248,18 @@ class NoteSettings {
 /// `Notifier.build()` 里不能起异步副作用，所以初值取流的 `.value`、再用
 /// `ref.listen` 把后续推送写回状态——与任务侧 `_PreferenceBacked` 同形状。
 class NoteSettingsNotifier extends Notifier<NoteSettings> {
+  /// 本地是否已经写过。写过之后，偏好流的回推不再覆盖本地状态。
+  ///
+  /// 四格并存之后这条必须留：一笔保存的回推带的是「只有前一格改了」的旧行，
+  /// 它在下一笔写之后才到达时，会把刚写的那格打回旧档（连点排序 + 分组 +
+  /// 开头格式即可复现）。记录偏好是本地单用户一行、不同步到服务端，
+  /// 不存在别处的写入需要靠这条回推同步，所以以本地为准是安全的。
+  bool _localWriteIssued = false;
+
   @override
   NoteSettings build() {
     ref.listen(notePreferenceProvider, (_, next) {
+      if (_localWriteIssued) return;
       state = _decode(next.value);
     });
     return _decode(ref.read(notePreferenceProvider).value);
@@ -221,11 +268,14 @@ class NoteSettingsNotifier extends Notifier<NoteSettings> {
   static NoteSettings _decode(NotePreference? p) => NoteSettings(
     defaultFolderId: p?.defaultFolderId,
     sortMode: noteSortModeFromId(p?.sortMode),
+    groupByDate: p?.groupByDate ?? true,
+    beginWith: noteBeginWithModeFromId(p?.beginWith),
   );
 
   /// 写库；其余格子从当前行原样带过，不整体覆盖成默认。
   Future<void> _write(NoteSettings next) async {
     state = next;
+    _localWriteIssued = true;
     final base =
         ref.read(notePreferenceProvider).value ?? NotePreference.defaults;
     await ref.read(notePreferenceRepositoryProvider).savePreference(
@@ -234,18 +284,31 @@ class NoteSettingsNotifier extends Notifier<NoteSettings> {
         // 「默认文件夹 = null」是「跟随当前文件夹」，只能走显式清空通道。
         clearDefaultFolderId: next.defaultFolderId == null,
         sortMode: next.sortMode.name,
+        groupByDate: next.groupByDate,
+        beginWith: next.beginWith.name,
       ),
     );
   }
 
   void setDefaultFolder(String? folderId) {
-    _write(NoteSettings(defaultFolderId: folderId, sortMode: state.sortMode));
+    _write(
+      state.copyWith(
+        defaultFolderId: folderId,
+        clearDefaultFolderId: folderId == null,
+      ),
+    );
   }
 
   void setSortMode(NoteSortMode mode) {
-    _write(
-      NoteSettings(defaultFolderId: state.defaultFolderId, sortMode: mode),
-    );
+    _write(state.copyWith(sortMode: mode));
+  }
+
+  void setGroupByDate(bool value) {
+    _write(state.copyWith(groupByDate: value));
+  }
+
+  void setBeginWith(NoteBeginWithMode mode) {
+    _write(state.copyWith(beginWith: mode));
   }
 }
 

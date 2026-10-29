@@ -12,7 +12,7 @@ void main() {
     final db = LifeProductivityDb(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 21);
+    expect(db.schemaVersion, 22);
     // 默认值体现在「插入时」而非「查询时」：
     final repo = DriftTaskPreferenceRepository(db);
     await repo.savePreference(const TaskPreference());
@@ -47,7 +47,7 @@ void main() {
     addTearDown(db.close);
     // 触发迁移（第一次查询会走 onUpgrade）
     await db.customSelect('SELECT 1').get();
-    expect(db.schemaVersion, 21);
+    expect(db.schemaVersion, 22);
 
     final repo = DriftTaskPreferenceRepository(db);
     final pref = await repo.watchPreference().first;
