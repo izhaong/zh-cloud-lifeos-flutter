@@ -121,7 +121,11 @@ Future<void> main() async {
   // 启动后静默补拉（未登录内部跳过；失败不挡本地）
   Future<void>(() async {
     try {
-      await calendarSyncCoordinator.syncOnce();
+      await _syncCalendarsThenRefreshShares(
+        coordinator: calendarSyncCoordinator,
+        collabPort: calendarCollabPort,
+        repository: calendarRepository,
+      );
     } catch (_) {
       // 离线优先：启动同步失败不影响本地可用
     }
@@ -161,7 +165,11 @@ Future<void> main() async {
         ),
         calendarSyncTriggerProvider.overrideWith(
           (ref) => () async {
-            await calendarSyncCoordinator.syncOnce();
+            await _syncCalendarsThenRefreshShares(
+              coordinator: calendarSyncCoordinator,
+              collabPort: calendarCollabPort,
+              repository: calendarRepository,
+            );
           },
         ),
         calendarInboxOpenerProvider.overrideWith(
@@ -285,5 +293,26 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
       return app;
     }
     return LifeMenuBar(commands: commands, child: app);
+  }
+}
+
+/// 跑一轮日历同步；若本轮 pull 里出现**共享关系变更**，再拉一次日历列表（#369）。
+///
+/// 服务端在共享邀请/回复/改权限/移除时会建/删**影子日历**（同一事务），而 pull 的
+/// cursor 已经推进——所以不能指望下一轮增量把影子日历带回来，必须用 REST 列表补一次。
+/// 失败不向上抛：调用方（启动/手动触发）都按「离线优先」处理。
+Future<void> _syncCalendarsThenRefreshShares({
+  required CalendarSyncCoordinator coordinator,
+  required CalendarCollabPort collabPort,
+  required CalendarRepository repository,
+}) async {
+  final report = await coordinator.syncOnce();
+  if (!report.shareChanged) {
+    return;
+  }
+  try {
+    await refreshCalendarsFromRest(port: collabPort, repository: repository);
+  } catch (_) {
+    // 影子日历没补上不影响本地可用；下一轮 pull 或手动刷新会再补
   }
 }

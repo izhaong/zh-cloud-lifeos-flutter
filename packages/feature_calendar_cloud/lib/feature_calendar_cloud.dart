@@ -11,3 +11,4 @@ export 'src/sync/calendar_sync_coordinator.dart';
 export 'src/sync/calendar_sync_models.dart';
 export 'src/sync/rest_calendar_sync_port.dart';
 export 'src/ui/calendar_cloud_page.dart';
+export 'src/sync/calendar_rest_refresh.dart';
