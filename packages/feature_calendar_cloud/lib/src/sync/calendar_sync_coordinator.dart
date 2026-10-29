@@ -208,16 +208,27 @@ class CalendarSyncCoordinator {
     return (applied: applied, shareChanged: shareChanged);
   }
 
-  Calendar _calendarFrom(CalendarPullChange change, Calendar? existing) {
-    final payload = change.payload;
+  Calendar _calendarFrom(CalendarPullChange change, Calendar? existing) =>
+      calendarFromPayload(change.payload,
+          remoteId: change.entityId, existing: existing);
+
+  /// payload → [Calendar]（pull 与 REST 列表两条通道共用，避免两套映射漂移）。
+  ///
+  /// 服务端 `LifeosCalendarSyncPayloads.calendar` 与 `/calendar/list` 的 VO 字段名一致，
+  /// 所以同一条映射能同时服务增量 pull 和「共享变化后重拉」。
+  static Calendar calendarFromPayload(
+    Map<String, dynamic> payload, {
+    required String remoteId,
+    Calendar? existing,
+  }) {
     return Calendar(
-      id: existing?.id ?? 'srv-${change.entityId}',
-      remoteId: change.entityId,
+      id: existing?.id ?? 'srv-$remoteId',
+      remoteId: remoteId,
       title: payload['title']?.toString() ?? existing?.title ?? '日历',
+      kind: _kindFrom(payload['kind']?.toString()) ?? existing?.kind ?? CalendarKind.local,
       colorArgb: _parseColor(payload['color']?.toString()) ??
           existing?.colorArgb ??
           0xFF007AFF,
-      kind: existing?.kind ?? CalendarKind.local,
       groupName: payload['groupName']?.toString() ?? existing?.groupName,
       isVisible: payload['isVisible'] is bool
           ? payload['isVisible'] as bool
@@ -233,6 +244,22 @@ class CalendarSyncCoordinator {
           existing?.revision ??
           1,
     );
+  }
+
+  /// 服务端 kind（`LOCAL` / `SHARED` / `SUBSCRIPTION` / `HOLIDAY`）→ 本地枚举。
+  static CalendarKind? _kindFrom(String? raw) {
+    switch (raw?.toUpperCase()) {
+      case 'LOCAL':
+        return CalendarKind.local;
+      case 'SHARED':
+        return CalendarKind.shared;
+      case 'SUBSCRIPTION':
+        return CalendarKind.subscription;
+      case 'HOLIDAY':
+        return CalendarKind.holiday;
+      default:
+        return null;
+    }
   }
 
   String _localCalendarId(dynamic serverCalendarId,
