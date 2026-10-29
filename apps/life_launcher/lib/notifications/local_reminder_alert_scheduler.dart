@@ -6,6 +6,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../shell/task_badge.dart' show taskBadgeCount;
+
 /// 任务提醒的真实本地通知调度（Apple：提醒到点弹通知）。
 ///
 /// 与 `LocalCalendarAlertScheduler` 同一套路：插件只在壳层依赖，feature_task
@@ -155,6 +157,10 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
       await _plugin.cancel(id: entry.value.$1);
     }
     _scheduled.clear();
+    if (_summaryScheduledAt != null) {
+      await _plugin.cancel(id: dailySummaryId);
+      _summaryScheduledAt = null;
+    }
   }
 
   Future<void> _reconcile() async {
@@ -186,6 +192,8 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
         _scheduled.remove(itemId);
       }
     }
+
+    await _reconcileDailySummary(items, prefs, now);
 
     for (final entry in capped) {
       final itemId = entry.key;
@@ -240,4 +248,61 @@ class LocalReminderAlertScheduler implements ReminderAlertScheduler {
 
   static int _notificationId(String itemId) =>
       ('task::$itemId').hashCode & 0x7FFFFFFF;
+
+  /// 「今天」汇总通知的固定 id（每条提醒各有 id，这条单独一个）。
+  static const int dailySummaryId = 0x7A11;
+
+  /// 当前已排的汇总通知触发时刻（null = 没排）。
+  DateTime? _summaryScheduledAt;
+
+  /// 排「今天」汇总（#445）。
+  ///
+  /// 口径：每天在设置时点发一条「今天有 N 条提醒」；
+  /// - **N=0 不排**（不发「今天 0 条」的噪音），并撤掉旧的；
+  /// - 时点改了要重排（旧的那条撤掉）；
+  /// - 今天该时点已过 → 从明天开始（不补发）。
+  Future<void> _reconcileDailySummary(
+    List<ReminderItem> items,
+    TaskPreference prefs,
+    DateTime now,
+  ) async {
+    final (hour, minute) = prefs.todayNotifyHourMinute;
+    var fireAt = DateTime(now.year, now.month, now.day, hour, minute);
+    if (!fireAt.isAfter(now)) {
+      fireAt = fireAt.add(const Duration(days: 1));
+    }
+    final count = taskBadgeCount(items, now: now, includeTodayDue: true);
+    if (count == 0) {
+      if (_summaryScheduledAt != null) {
+        await _plugin.cancel(id: dailySummaryId);
+        _summaryScheduledAt = null;
+      }
+      return;
+    }
+    if (_summaryScheduledAt == fireAt) return; // 时刻没变
+    if (_summaryScheduledAt != null) {
+      await _plugin.cancel(id: dailySummaryId);
+    }
+    await _ensurePermissionsRequested();
+    await _plugin.zonedSchedule(
+      id: dailySummaryId,
+      title: '提醒事项',
+      body: '今天有 $count 条提醒',
+      scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          channelId,
+          '任务提醒',
+          channelDescription: 'LifeOS 提醒事项到点提醒',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+        macOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      payload: 'daily-summary',
+    );
+    _summaryScheduledAt = fireAt;
+  }
 }

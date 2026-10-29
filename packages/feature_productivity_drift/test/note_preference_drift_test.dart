@@ -22,7 +22,7 @@ void main() {
   });
 
   test('V17：note_preferences 建表，schemaVersion 到 17', () async {
-    expect(db.schemaVersion, 19);
+    expect(db.schemaVersion, 20);
     final names =
         (await db
                 .customSelect(

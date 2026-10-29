@@ -7875,6 +7875,18 @@ class $TaskPreferencesTable extends TaskPreferences
         ),
         defaultValue: const Constant(false),
       );
+  static const VerificationMeta _todayNotifyTimeMeta = const VerificationMeta(
+    'todayNotifyTime',
+  );
+  @override
+  late final GeneratedColumn<String> todayNotifyTime = GeneratedColumn<String>(
+    'today_notify_time',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('09:00'),
+  );
   static const VerificationMeta _showCompletedMeta = const VerificationMeta(
     'showCompleted',
   );
@@ -7951,6 +7963,7 @@ class $TaskPreferencesTable extends TaskPreferences
     suggestLists,
     badgeIncludesTodayDue,
     allDayRemindersOverdue,
+    todayNotifyTime,
     showCompleted,
     sortMode,
     sidebarVisible,
@@ -8031,6 +8044,15 @@ class $TaskPreferencesTable extends TaskPreferences
         ),
       );
     }
+    if (data.containsKey('today_notify_time')) {
+      context.handle(
+        _todayNotifyTimeMeta,
+        todayNotifyTime.isAcceptableOrUnknown(
+          data['today_notify_time']!,
+          _todayNotifyTimeMeta,
+        ),
+      );
+    }
     if (data.containsKey('show_completed')) {
       context.handle(
         _showCompletedMeta,
@@ -8107,6 +8129,10 @@ class $TaskPreferencesTable extends TaskPreferences
         DriftSqlType.bool,
         data['${effectivePrefix}all_day_reminders_overdue'],
       )!,
+      todayNotifyTime: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}today_notify_time'],
+      )!,
       showCompleted: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}show_completed'],
@@ -8149,6 +8175,9 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
   /// 全天提醒是否按「逾期」显示（#446；默认 false = 与改造前行为一致）。
   final bool allDayRemindersOverdue;
 
+  /// 「今天」汇总通知时点（#445；`HH:mm`，默认 09:00 = Apple 的默认值）。
+  final String todayNotifyTime;
+
   /// 视图态（卡 4b）：显示已完成 / 排序模式 / 侧栏显隐 / 折叠键 JSON 数组。
   final bool showCompleted;
   final String sortMode;
@@ -8163,6 +8192,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     required this.suggestLists,
     required this.badgeIncludesTodayDue,
     required this.allDayRemindersOverdue,
+    required this.todayNotifyTime,
     required this.showCompleted,
     required this.sortMode,
     required this.sidebarVisible,
@@ -8181,6 +8211,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     map['suggest_lists'] = Variable<bool>(suggestLists);
     map['badge_includes_today_due'] = Variable<bool>(badgeIncludesTodayDue);
     map['all_day_reminders_overdue'] = Variable<bool>(allDayRemindersOverdue);
+    map['today_notify_time'] = Variable<String>(todayNotifyTime);
     map['show_completed'] = Variable<bool>(showCompleted);
     map['sort_mode'] = Variable<String>(sortMode);
     map['sidebar_visible'] = Variable<bool>(sidebarVisible);
@@ -8200,6 +8231,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
       suggestLists: Value(suggestLists),
       badgeIncludesTodayDue: Value(badgeIncludesTodayDue),
       allDayRemindersOverdue: Value(allDayRemindersOverdue),
+      todayNotifyTime: Value(todayNotifyTime),
       showCompleted: Value(showCompleted),
       sortMode: Value(sortMode),
       sidebarVisible: Value(sidebarVisible),
@@ -8225,6 +8257,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
       allDayRemindersOverdue: serializer.fromJson<bool>(
         json['allDayRemindersOverdue'],
       ),
+      todayNotifyTime: serializer.fromJson<String>(json['todayNotifyTime']),
       showCompleted: serializer.fromJson<bool>(json['showCompleted']),
       sortMode: serializer.fromJson<String>(json['sortMode']),
       sidebarVisible: serializer.fromJson<bool>(json['sidebarVisible']),
@@ -8243,6 +8276,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
       'suggestLists': serializer.toJson<bool>(suggestLists),
       'badgeIncludesTodayDue': serializer.toJson<bool>(badgeIncludesTodayDue),
       'allDayRemindersOverdue': serializer.toJson<bool>(allDayRemindersOverdue),
+      'todayNotifyTime': serializer.toJson<String>(todayNotifyTime),
       'showCompleted': serializer.toJson<bool>(showCompleted),
       'sortMode': serializer.toJson<String>(sortMode),
       'sidebarVisible': serializer.toJson<bool>(sidebarVisible),
@@ -8259,6 +8293,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     bool? suggestLists,
     bool? badgeIncludesTodayDue,
     bool? allDayRemindersOverdue,
+    String? todayNotifyTime,
     bool? showCompleted,
     String? sortMode,
     bool? sidebarVisible,
@@ -8275,6 +8310,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     badgeIncludesTodayDue: badgeIncludesTodayDue ?? this.badgeIncludesTodayDue,
     allDayRemindersOverdue:
         allDayRemindersOverdue ?? this.allDayRemindersOverdue,
+    todayNotifyTime: todayNotifyTime ?? this.todayNotifyTime,
     showCompleted: showCompleted ?? this.showCompleted,
     sortMode: sortMode ?? this.sortMode,
     sidebarVisible: sidebarVisible ?? this.sidebarVisible,
@@ -8302,6 +8338,9 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
       allDayRemindersOverdue: data.allDayRemindersOverdue.present
           ? data.allDayRemindersOverdue.value
           : this.allDayRemindersOverdue,
+      todayNotifyTime: data.todayNotifyTime.present
+          ? data.todayNotifyTime.value
+          : this.todayNotifyTime,
       showCompleted: data.showCompleted.present
           ? data.showCompleted.value
           : this.showCompleted,
@@ -8326,6 +8365,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
           ..write('suggestLists: $suggestLists, ')
           ..write('badgeIncludesTodayDue: $badgeIncludesTodayDue, ')
           ..write('allDayRemindersOverdue: $allDayRemindersOverdue, ')
+          ..write('todayNotifyTime: $todayNotifyTime, ')
           ..write('showCompleted: $showCompleted, ')
           ..write('sortMode: $sortMode, ')
           ..write('sidebarVisible: $sidebarVisible, ')
@@ -8344,6 +8384,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     suggestLists,
     badgeIncludesTodayDue,
     allDayRemindersOverdue,
+    todayNotifyTime,
     showCompleted,
     sortMode,
     sidebarVisible,
@@ -8361,6 +8402,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
           other.suggestLists == this.suggestLists &&
           other.badgeIncludesTodayDue == this.badgeIncludesTodayDue &&
           other.allDayRemindersOverdue == this.allDayRemindersOverdue &&
+          other.todayNotifyTime == this.todayNotifyTime &&
           other.showCompleted == this.showCompleted &&
           other.sortMode == this.sortMode &&
           other.sidebarVisible == this.sidebarVisible &&
@@ -8376,6 +8418,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
   final Value<bool> suggestLists;
   final Value<bool> badgeIncludesTodayDue;
   final Value<bool> allDayRemindersOverdue;
+  final Value<String> todayNotifyTime;
   final Value<bool> showCompleted;
   final Value<String> sortMode;
   final Value<bool> sidebarVisible;
@@ -8390,6 +8433,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
     this.suggestLists = const Value.absent(),
     this.badgeIncludesTodayDue = const Value.absent(),
     this.allDayRemindersOverdue = const Value.absent(),
+    this.todayNotifyTime = const Value.absent(),
     this.showCompleted = const Value.absent(),
     this.sortMode = const Value.absent(),
     this.sidebarVisible = const Value.absent(),
@@ -8405,6 +8449,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
     this.suggestLists = const Value.absent(),
     this.badgeIncludesTodayDue = const Value.absent(),
     this.allDayRemindersOverdue = const Value.absent(),
+    this.todayNotifyTime = const Value.absent(),
     this.showCompleted = const Value.absent(),
     this.sortMode = const Value.absent(),
     this.sidebarVisible = const Value.absent(),
@@ -8420,6 +8465,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
     Expression<bool>? suggestLists,
     Expression<bool>? badgeIncludesTodayDue,
     Expression<bool>? allDayRemindersOverdue,
+    Expression<String>? todayNotifyTime,
     Expression<bool>? showCompleted,
     Expression<String>? sortMode,
     Expression<bool>? sidebarVisible,
@@ -8437,6 +8483,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
         'badge_includes_today_due': badgeIncludesTodayDue,
       if (allDayRemindersOverdue != null)
         'all_day_reminders_overdue': allDayRemindersOverdue,
+      if (todayNotifyTime != null) 'today_notify_time': todayNotifyTime,
       if (showCompleted != null) 'show_completed': showCompleted,
       if (sortMode != null) 'sort_mode': sortMode,
       if (sidebarVisible != null) 'sidebar_visible': sidebarVisible,
@@ -8454,6 +8501,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
     Value<bool>? suggestLists,
     Value<bool>? badgeIncludesTodayDue,
     Value<bool>? allDayRemindersOverdue,
+    Value<String>? todayNotifyTime,
     Value<bool>? showCompleted,
     Value<String>? sortMode,
     Value<bool>? sidebarVisible,
@@ -8471,6 +8519,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
           badgeIncludesTodayDue ?? this.badgeIncludesTodayDue,
       allDayRemindersOverdue:
           allDayRemindersOverdue ?? this.allDayRemindersOverdue,
+      todayNotifyTime: todayNotifyTime ?? this.todayNotifyTime,
       showCompleted: showCompleted ?? this.showCompleted,
       sortMode: sortMode ?? this.sortMode,
       sidebarVisible: sidebarVisible ?? this.sidebarVisible,
@@ -8508,6 +8557,9 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
         allDayRemindersOverdue.value,
       );
     }
+    if (todayNotifyTime.present) {
+      map['today_notify_time'] = Variable<String>(todayNotifyTime.value);
+    }
     if (showCompleted.present) {
       map['show_completed'] = Variable<bool>(showCompleted.value);
     }
@@ -8539,6 +8591,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
           ..write('suggestLists: $suggestLists, ')
           ..write('badgeIncludesTodayDue: $badgeIncludesTodayDue, ')
           ..write('allDayRemindersOverdue: $allDayRemindersOverdue, ')
+          ..write('todayNotifyTime: $todayNotifyTime, ')
           ..write('showCompleted: $showCompleted, ')
           ..write('sortMode: $sortMode, ')
           ..write('sidebarVisible: $sidebarVisible, ')
@@ -12683,6 +12736,7 @@ typedef $$TaskPreferencesTableCreateCompanionBuilder =
       Value<bool> suggestLists,
       Value<bool> badgeIncludesTodayDue,
       Value<bool> allDayRemindersOverdue,
+      Value<String> todayNotifyTime,
       Value<bool> showCompleted,
       Value<String> sortMode,
       Value<bool> sidebarVisible,
@@ -12699,6 +12753,7 @@ typedef $$TaskPreferencesTableUpdateCompanionBuilder =
       Value<bool> suggestLists,
       Value<bool> badgeIncludesTodayDue,
       Value<bool> allDayRemindersOverdue,
+      Value<String> todayNotifyTime,
       Value<bool> showCompleted,
       Value<String> sortMode,
       Value<bool> sidebarVisible,
@@ -12748,6 +12803,11 @@ class $$TaskPreferencesTableFilterComposer
 
   ColumnFilters<bool> get allDayRemindersOverdue => $composableBuilder(
     column: $table.allDayRemindersOverdue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get todayNotifyTime => $composableBuilder(
+    column: $table.todayNotifyTime,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -12821,6 +12881,11 @@ class $$TaskPreferencesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get todayNotifyTime => $composableBuilder(
+    column: $table.todayNotifyTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get showCompleted => $composableBuilder(
     column: $table.showCompleted,
     builder: (column) => ColumnOrderings(column),
@@ -12886,6 +12951,11 @@ class $$TaskPreferencesTableAnnotationComposer
 
   GeneratedColumn<bool> get allDayRemindersOverdue => $composableBuilder(
     column: $table.allDayRemindersOverdue,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get todayNotifyTime => $composableBuilder(
+    column: $table.todayNotifyTime,
     builder: (column) => column,
   );
 
@@ -12955,6 +13025,7 @@ class $$TaskPreferencesTableTableManager
                 Value<bool> suggestLists = const Value.absent(),
                 Value<bool> badgeIncludesTodayDue = const Value.absent(),
                 Value<bool> allDayRemindersOverdue = const Value.absent(),
+                Value<String> todayNotifyTime = const Value.absent(),
                 Value<bool> showCompleted = const Value.absent(),
                 Value<String> sortMode = const Value.absent(),
                 Value<bool> sidebarVisible = const Value.absent(),
@@ -12969,6 +13040,7 @@ class $$TaskPreferencesTableTableManager
                 suggestLists: suggestLists,
                 badgeIncludesTodayDue: badgeIncludesTodayDue,
                 allDayRemindersOverdue: allDayRemindersOverdue,
+                todayNotifyTime: todayNotifyTime,
                 showCompleted: showCompleted,
                 sortMode: sortMode,
                 sidebarVisible: sidebarVisible,
@@ -12985,6 +13057,7 @@ class $$TaskPreferencesTableTableManager
                 Value<bool> suggestLists = const Value.absent(),
                 Value<bool> badgeIncludesTodayDue = const Value.absent(),
                 Value<bool> allDayRemindersOverdue = const Value.absent(),
+                Value<String> todayNotifyTime = const Value.absent(),
                 Value<bool> showCompleted = const Value.absent(),
                 Value<String> sortMode = const Value.absent(),
                 Value<bool> sidebarVisible = const Value.absent(),
@@ -12999,6 +13072,7 @@ class $$TaskPreferencesTableTableManager
                 suggestLists: suggestLists,
                 badgeIncludesTodayDue: badgeIncludesTodayDue,
                 allDayRemindersOverdue: allDayRemindersOverdue,
+                todayNotifyTime: todayNotifyTime,
                 showCompleted: showCompleted,
                 sortMode: sortMode,
                 sidebarVisible: sidebarVisible,

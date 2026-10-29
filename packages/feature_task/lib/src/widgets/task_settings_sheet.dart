@@ -150,6 +150,17 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                   value: p.suggestLists,
                   onChanged: (v) => _save(p.copyWith(suggestLists: v)),
                 ),
+                // #445：「今天」汇总通知时点（消费者在 life_launcher 的通知调度器）。
+                _row(
+                  icon: CupertinoIcons.time,
+                  label: '「今天」通知时点',
+                  rowKey: 'settings_today_notify_time',
+                  onTap: () => _pickTodayNotifyTime(p),
+                  trailing: Text(
+                    p.todayNotifyTime,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
                 // #446：全天提醒是否按逾期显示（消费者在 reminder_row._dueText）。
                 _switchRow(
                   icon: CupertinoIcons.exclamationmark_circle,
@@ -208,6 +219,54 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
         ),
       ),
     );
+  }
+
+  /// 选「今天」汇总通知时点（#445）。
+  ///
+  /// 用 CupertinoDatePicker 的 time 模式：Apple 也是滚轮选时间，不做自由文本输入
+  /// （自由文本会造出 `25:99` 这种值，虽然解析层能兜回 09:00，但没必要让用户踩）。
+  Future<void> _pickTodayNotifyTime(TaskPreference current) async {
+    final (hour, minute) = current.todayNotifyHourMinute;
+    var picked = DateTime(2026, 1, 1, hour, minute);
+    final confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (popupContext) => Container(
+        height: 280,
+        color: CupertinoColors.systemBackground.resolveFrom(popupContext),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CupertinoButton(
+                  key: const Key('today_notify_cancel'),
+                  onPressed: () => Navigator.of(popupContext).pop(false),
+                  child: const Text('取消'),
+                ),
+                CupertinoButton(
+                  key: const Key('today_notify_done'),
+                  onPressed: () => Navigator.of(popupContext).pop(true),
+                  child: const Text('完成'),
+                ),
+              ],
+            ),
+            Expanded(
+              child: CupertinoDatePicker(
+                key: const Key('today_notify_picker'),
+                mode: CupertinoDatePickerMode.time,
+                use24hFormat: true,
+                initialDateTime: picked,
+                onDateTimeChanged: (value) => picked = value,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    final text =
+        '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+    _save(current.copyWith(todayNotifyTime: text));
   }
 
   Widget _row({
