@@ -8,6 +8,14 @@ import 'package:life_launcher/notifications/local_reminder_alert_scheduler.dart'
 /// #260：任务提醒到点通知的调度（真实实现，插件用假体记录）。
 class _RecordingPlugin implements FlutterLocalNotificationsPlugin {
   final List<int> scheduled = [];
+
+  /// #445：逐条提醒的通知 id（不含「今天」汇总那条）。
+  ///
+  /// 汇总通知是**独立一条**，若混在 `scheduled` 里，既有「该排几条」的断言
+  /// 会被它 +1 而误判——那些用例考的是「逐条提醒的收敛」。
+  List<int> get itemScheduled => scheduled
+      .where((id) => id != LocalReminderAlertScheduler.dailySummaryId)
+      .toList();
   final List<int> canceled = [];
 
   @override
@@ -86,7 +94,7 @@ void main() {
 
     await scheduler.rescheduleAll();
 
-    expect(plugin.scheduled, hasLength(1), reason: '只有 a 该排');
+    expect(plugin.itemScheduled, hasLength(1), reason: '只有 a 该排');
   });
 
   test('完成一条后要撤销它那条通知', () async {
@@ -103,7 +111,7 @@ void main() {
       requestPermissions: () async {},
     );
     await scheduler.rescheduleAll();
-    expect(plugin.scheduled, hasLength(2));
+    expect(plugin.itemScheduled, hasLength(2));
 
     repo.items = [
       item('a', now.add(const Duration(hours: 1))),
@@ -125,7 +133,7 @@ void main() {
       requestPermissions: () async {},
     );
     await scheduler.rescheduleAll();
-    expect(plugin.scheduled, hasLength(1));
+    expect(plugin.itemScheduled, hasLength(1));
 
     repo.items = [
       ReminderItem(
@@ -137,7 +145,7 @@ void main() {
     ];
     await scheduler.rescheduleAll();
     expect(plugin.canceled, isNotEmpty, reason: '先撤旧的');
-    expect(plugin.scheduled, hasLength(2), reason: '再排新的（正文已变）');
+    expect(plugin.itemScheduled, hasLength(2), reason: '再排新的（正文已变）');
   });
 
   test('「全天提醒时点」开关变化后自动收敛（已排的要撤掉）', () async {
@@ -155,7 +163,7 @@ void main() {
     );
     await scheduler.start();
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(plugin.scheduled, hasLength(1));
+    expect(plugin.itemScheduled, hasLength(1));
 
     prefs.setAllDayNotify(false);
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -176,6 +184,6 @@ void main() {
       requestPermissions: () async {},
     );
     await scheduler.rescheduleAll();
-    expect(plugin.scheduled, isEmpty);
+    expect(plugin.itemScheduled, isEmpty);
   });
 }

@@ -16,6 +16,7 @@ final class TaskPreference extends Equatable {
     this.suggestLists = true,
     this.badgeIncludesTodayDue = true,
     this.allDayRemindersOverdue = false,
+    this.todayNotifyTime = '09:00',
     this.showCompleted = false,
     this.sortMode = 'manual',
     this.sidebarVisible = true,
@@ -40,6 +41,24 @@ final class TaskPreference extends Equatable {
 
   /// 全天提醒是否按「逾期」显示（#446；默认 false = 与改造前行为一致）。
   final bool allDayRemindersOverdue;
+
+  /// 「今天」汇总通知时点（#445）：`HH:mm` 字符串，默认 `09:00`。
+  ///
+  /// 用字符串而不是 `DateTime`：这是**每日重复**的墙钟时刻，没有日期语义；
+  /// 存 DateTime 会让「今天 09:00」这类值随日期漂移。
+  final String todayNotifyTime;
+
+  /// 解析成 (时, 分)；非法值回落到 09:00（设置坏掉不该让通知消失）。
+  (int, int) get todayNotifyHourMinute {
+    final parts = todayNotifyTime.split(':');
+    if (parts.length != 2) return (9, 0);
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) {
+      return (9, 0);
+    }
+    return (h, m);
+  }
 
   /// 列表内「显示已完成」（TC-UI-108 默认 false）。
   final bool showCompleted;
@@ -67,6 +86,7 @@ final class TaskPreference extends Equatable {
     bool? suggestLists,
     bool? badgeIncludesTodayDue,
     bool? allDayRemindersOverdue,
+    String? todayNotifyTime,
     bool? showCompleted,
     String? sortMode,
     bool? sidebarVisible,
@@ -85,6 +105,7 @@ final class TaskPreference extends Equatable {
           badgeIncludesTodayDue ?? this.badgeIncludesTodayDue,
       allDayRemindersOverdue:
           allDayRemindersOverdue ?? this.allDayRemindersOverdue,
+      todayNotifyTime: todayNotifyTime ?? this.todayNotifyTime,
       showCompleted: showCompleted ?? this.showCompleted,
       sortMode: sortMode ?? this.sortMode,
       sidebarVisible: sidebarVisible ?? this.sidebarVisible,
@@ -101,6 +122,7 @@ final class TaskPreference extends Equatable {
         suggestLists,
         badgeIncludesTodayDue,
         allDayRemindersOverdue,
+        todayNotifyTime,
         showCompleted,
         sortMode,
         sidebarVisible,

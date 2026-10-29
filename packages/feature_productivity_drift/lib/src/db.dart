@@ -340,6 +340,9 @@ class TaskPreferences extends Table {
   BoolColumn get allDayRemindersOverdue =>
       boolean().withDefault(const Constant(false))();
 
+  /// 「今天」汇总通知时点（#445；`HH:mm`，默认 09:00 = Apple 的默认值）。
+  TextColumn get todayNotifyTime => text().withDefault(const Constant('09:00'))();
+
   /// 视图态（卡 4b）：显示已完成 / 排序模式 / 侧栏显隐 / 折叠键 JSON 数组。
   BoolColumn get showCompleted =>
       boolean().withDefault(const Constant(false))();
@@ -379,7 +382,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   /// 幂等加列（#451/#446 共用）。
   ///
@@ -528,6 +531,12 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // 存量行留 null（服务端没回溯过创建时间），排序时排最后而不是瞎猜。
             await m.addColumn(reminderItems, reminderItems.createdAt);
           }
+          if (from < 20 && to >= 20) {
+            // V20（flutter #445）：「今天」汇总通知时点。默认 09:00 与 Apple 一致。
+            await _addColumnIfTableExists(m, 'task_preferences',
+                taskPreferences, taskPreferences.todayNotifyTime);
+          }
+
           if (from < 19 && to >= 19) {
             // V19（flutter #446）：全天提醒是否显示为逾期。
             // 默认 false = 老用户升级后行为不变。
