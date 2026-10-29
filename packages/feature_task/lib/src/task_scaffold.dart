@@ -421,6 +421,12 @@ class _HomeSearchResults extends ConsumerWidget {
                 ReminderRow(
                   item: items[i],
                   now: ref.read(clockProvider)(),
+                  // #446：设置决定全天提醒是否按逾期显示
+                  allDayAsOverdue: ref
+                          .watch(taskPreferenceProvider)
+                          .value
+                          ?.allDayRemindersOverdue ??
+                      false,
                   onToggleCompleted: () => completeReminder(ref, items[i]),
                   onToggleFlagged: () => repo.toggleFlagged(items[i].id),
                   onTap: () => onSelectItem?.call(items[i]),
@@ -987,6 +993,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     final row = ReminderRow(
       item: item,
       now: ref.read(clockProvider)(),
+      allDayAsOverdue:
+          ref.watch(taskPreferenceProvider).value?.allDayRemindersOverdue ??
+              false,
       listName: listName,
       subtaskDone: progress?.done ?? 0,
       subtaskTotal: progress?.total ?? 0,
@@ -1023,6 +1032,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
             child: ReminderRow(
               item: sub,
               now: ref.read(clockProvider)(),
+              allDayAsOverdue: ref
+                      .watch(taskPreferenceProvider)
+                      .value
+                      ?.allDayRemindersOverdue ??
+                  false,
               listName: listName,
               dense: true,
               onToggleCompleted: () => completeReminder(ref, sub),

@@ -150,6 +150,15 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                   value: p.suggestLists,
                   onChanged: (v) => _save(p.copyWith(suggestLists: v)),
                 ),
+                // #446：全天提醒是否按逾期显示（消费者在 reminder_row._dueText）。
+                _switchRow(
+                  icon: CupertinoIcons.exclamationmark_circle,
+                  label: '将全天提醒显示为逾期',
+                  rowKey: 'settings_all_day_overdue',
+                  value: p.allDayRemindersOverdue,
+                  onChanged: (v) =>
+                      _save(p.copyWith(allDayRemindersOverdue: v)),
+                ),
                 // #451：徽标数量是否含今天到期（消费者在 life_launcher 的 task_badge）。
                 _switchRow(
                   icon: CupertinoIcons.bell,

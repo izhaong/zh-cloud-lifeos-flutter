@@ -369,7 +369,7 @@ void main() {
       (e) => e.id == 'v6row',
     );
     expect(back.recurrenceUntil, DateTime(2026, 12, 31));
-    expect(db8.schemaVersion, 18); // V11 发件箱、V12 游标、V13 任务偏好、V14 清单 remoteId、V15 分区行、V16 创建时间、V17 记录偏好、V18 徽标设置
+    expect(db8.schemaVersion, 19); // V11 发件箱、V12 游标、V13 任务偏好、V14 清单 remoteId、V15 分区行、V16 创建时间、V17 记录偏好、V18 徽标设置
     await db8.close();
   });
 
