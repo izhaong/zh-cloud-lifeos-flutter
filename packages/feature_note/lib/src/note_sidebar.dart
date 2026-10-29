@@ -134,17 +134,18 @@ class NoteSidebar extends ConsumerWidget {
     required int depth,
     required VoidCallback onTap,
   }) {
-    final color = CupertinoDynamicColor.withBrightness(
-      color: CupertinoColors.label.color,
-      darkColor: CupertinoColors.label.darkColor,
-    );
+    // #371：此前这里手拼 CupertinoDynamicColor.withBrightness(label.color,
+    // darkColor: label.darkColor)，再把这个**未解算**的对象塞进 TextStyle(color:)。
+    // TextStyle 不像 CupertinoListTile 的默认样式那样自动解算，暗色档会按亮档
+    // 黑色绘制 —— 黑底黑字，名称不可见。直接解算即可（label 本身就是动态色）。
+    final color = CupertinoColors.label.resolveFrom(context);
     return CupertinoListTile(
       key: key,
       padding: EdgeInsetsDirectional.only(start: 16.0 + depth * 16, end: 16),
       leading: Icon(
         smart ? CupertinoIcons.slider_horizontal_3 : CupertinoIcons.folder,
         size: 20,
-        color: selected ? CupertinoColors.systemBlue : null,
+        color: selected ? CupertinoColors.systemBlue.resolveFrom(context) : null,
       ),
       title: Text(
         name,
@@ -153,7 +154,7 @@ class NoteSidebar extends ConsumerWidget {
         style: TextStyle(
           fontSize: 15,
           fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-          color: selected ? CupertinoColors.systemBlue : color,
+          color: selected ? CupertinoColors.systemBlue.resolveFrom(context) : color,
         ),
       ),
       onTap: onTap,
