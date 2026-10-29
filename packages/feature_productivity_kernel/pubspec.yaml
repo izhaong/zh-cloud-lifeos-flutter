@@ -24,6 +24,7 @@ dependencies:
   meta: any
   rrule: ^0.2.18
   uuid: ^4.6.0
+  pointycastle: ^4.0.0
   intl: any
 
   flutter_riverpod: ^3.4.3
