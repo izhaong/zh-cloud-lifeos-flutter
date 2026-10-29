@@ -59,7 +59,6 @@ final class InMemoryNoteRepository implements NoteRepository {
 
   final _folders = <NoteFolder>[];
   final _notes = <Note>[];
-  final _tags = <NoteTag>[];
   final _emitters = <void Function()>[];
   DateTime? _nowForTest;
 
@@ -91,8 +90,21 @@ final class InMemoryNoteRepository implements NoteRepository {
       });
 
   @override
-  Stream<List<NoteTag>> watchTags() =>
-      _watch(() => List<NoteTag>.unmodifiable(_tags));
+  Stream<List<NoteTag>> watchTags() => _watch(() {
+        // #393：侧栏「标签」分区要读这里。此前 `_tags` 从来没有写入口，
+        // 参考实现恒返回空列表——落盘版 DriftNoteRepository 早已改成「从存活
+        // 笔记的 tagNames 派生」，内存版照同一口径派生，两套实现给 UI 的答案一致。
+        final names = <String>{};
+        for (final note in _notesSnapshot(null)) {
+          for (final name in note.tagNames) {
+            if (name.isNotEmpty) names.add(name);
+          }
+        }
+        final sorted = names.toList()..sort();
+        return List<NoteTag>.unmodifiable(
+          sorted.map((name) => NoteTag(id: name, name: name)),
+        );
+      });
 
   @override
   Future<String> upsertFolder(NoteFolder folder) async {
