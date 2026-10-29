@@ -9,6 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeHttp implements NoteSyncHttp {
   final List<Map<String, dynamic>> posts = [];
   Map<String, dynamic> pullResponse = const {'data': {'changes': []}};
+  Map<String, dynamic> pushResponse = const {
+    'data': {'ok': true, 'accepted': <Map<String, dynamic>>[]},
+  };
 
   @override
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
@@ -16,7 +19,8 @@ class _FakeHttp implements NoteSyncHttp {
     if (path == RestSyncPort.pullPath) {
       return pullResponse;
     }
-    return const {'data': {}};
+    // 真实服务端形态：`PushRespVO{ok, accepted, conflicts, nextCursor}`
+    return pushResponse;
   }
 }
 
@@ -199,5 +203,74 @@ void main() {
     await coordinator.syncOnce();
 
     expect(applier.applied.single.entityType, 'folder');
+  });
+
+  test('TC-NOTE-SYNC-101（#428）部分受理：只出队 accepted 的条目', () async {
+    coordinator = NoteSyncCoordinator(
+      outbox: outbox,
+      applier: applier,
+      cursors: cursors,
+      port: RestSyncPort(http: http)..session = const NoteSyncSession(token: 't', userId: '1'),
+    );
+    outbox.entries.addAll([
+      const kernel.SyncOutboxEntry(
+        entityType: 'note',
+        entityId: 'n1',
+        operation: 'upsert',
+        payload: {'id': 'n1'},
+        clientMutationId: 'm1',
+        clientUpdatedAt: 1,
+      ),
+      const kernel.SyncOutboxEntry(
+        entityType: 'note',
+        entityId: 'n2',
+        operation: 'upsert',
+        payload: {'id': 'n2'},
+        clientMutationId: 'm2',
+        clientUpdatedAt: 2,
+      ),
+    ]);
+    http.pushResponse = const {
+      'data': {
+        'ok': false,
+        'accepted': [
+          {'entityId': 'n1', 'revision': 3},
+        ],
+        'conflicts': [
+          {'entityId': 'n2', 'reason': 'CONFLICT'},
+        ],
+      },
+    };
+
+    final report = await coordinator.syncOnce();
+
+    expect(report.pushed, 1, reason: '只有 n1 被受理');
+    expect(report.rejected, 1, reason: 'n2 被拒，必须留在队列');
+    expect(outbox.entries.single.entityId, 'n2',
+        reason: '被拒的变更不能出队——出队就等于永久丢弃');
+  });
+
+  test('TC-NOTE-SYNC-101（#428）服务端没给回执 → 全批保留（宁重推不丢）', () async {
+    coordinator = NoteSyncCoordinator(
+      outbox: outbox,
+      applier: applier,
+      cursors: cursors,
+      port: RestSyncPort(http: http)..session = const NoteSyncSession(token: 't', userId: '1'),
+    );
+    outbox.entries.add(const kernel.SyncOutboxEntry(
+      entityType: 'note',
+      entityId: 'n9',
+      operation: 'upsert',
+      payload: {'id': 'n9'},
+      clientMutationId: 'm9',
+      clientUpdatedAt: 9,
+    ));
+    http.pushResponse = const {'data': <String, dynamic>{}}; // 无 ok / accepted
+
+    final report = await coordinator.syncOnce();
+
+    expect(report.pushed, 0);
+    expect(report.rejected, 1);
+    expect(outbox.entries, hasLength(1), reason: '没有明确受理就不许出队');
   });
 }

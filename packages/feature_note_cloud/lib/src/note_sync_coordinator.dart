@@ -11,13 +11,17 @@ import 'rest_sync_port.dart';
 class NoteSyncReport {
   const NoteSyncReport({
     this.pushed = 0,
+    this.rejected = 0,
     this.pulled = 0,
     this.skipped = false,
     this.shouldStop = false,
   });
 
-  /// 本次出队（服务端已接受）的条数。
+  /// 本次**出队**（服务端明确受理）的条数。
   final int pushed;
+
+  /// 服务端未受理、**留在队列**的条数（#428：不能再当成已推送）。
+  final int rejected;
 
   /// 本次落库的入站变更条数。
   final int pulled;
@@ -60,10 +64,11 @@ class NoteSyncCoordinator {
     if (_port.session == null) {
       return const NoteSyncReport(skipped: true);
     }
-    final pushed = await _pushPending();
+    final push = await _pushPending();
     final pull = await _pullAndApply();
     return NoteSyncReport(
-      pushed: pushed,
+      pushed: push.acked,
+      rejected: push.rejected,
       pulled: pull.applied,
       shouldStop: !pull.hasMore,
     );
@@ -73,10 +78,10 @@ class NoteSyncCoordinator {
   ///
   /// 服务端语义：`RestSyncPort.push` 内部已按冲突重试（最多 3 次，同一幂等键）；
   /// 它正常返回即视为本批**已被接受**，逐条出队。
-  Future<int> _pushPending() async {
+  Future<({int acked, int rejected})> _pushPending() async {
     final pending = await _outbox.pending();
     if (pending.isEmpty) {
-      return 0;
+      return (acked: 0, rejected: 0);
     }
     final now = DateTime.now().millisecondsSinceEpoch;
     final changes = <NoteSyncChange>[
@@ -89,18 +94,27 @@ class NoteSyncCoordinator {
           operation: entry.operation.toUpperCase(),
         ),
     ];
-    await _port.push(
+    final result = await _port.push(
       changes,
       clientMutationId: 'note-batch-$now',
       clientUpdatedAt: now,
     );
+    // #428：只对**服务端明确受理**的条目出队。此前无脑全出队，部分拒绝时
+    // 那条变更就永久丢了（`NotePushResult` 当时只有 attempts/conflicts）。
+    var acked = 0;
+    var rejected = 0;
     for (final entry in pending) {
+      if (!result.isAcknowledged(entry.entityId)) {
+        rejected++;
+        continue; // 留在队列，下轮重推（宁可重复推，不可丢）
+      }
       await _outbox.acknowledge(
         entityType: entry.entityType,
         entityId: entry.entityId,
       );
+      acked++;
     }
-    return pending.length;
+    return (acked: acked, rejected: rejected);
   }
 
   /// 拉增量 → 落库 →（成功后）前进游标。
