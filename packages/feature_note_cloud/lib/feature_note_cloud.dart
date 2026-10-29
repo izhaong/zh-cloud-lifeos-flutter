@@ -6,3 +6,4 @@ export 'src/note_sync_models.dart';
 export 'src/note_sync_providers.dart';
 export 'src/rest_sync_port.dart';
 export 'src/sync_http.dart';
+export 'src/note_sync_coordinator.dart';
