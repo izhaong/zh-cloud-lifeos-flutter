@@ -276,3 +276,16 @@ class SidebarVisibleNotifier extends Notifier<bool> {
 
   void toggle() => set(!state);
 }
+
+/// 订阅日历的抓取端口（#403）。
+///
+/// `feature_calendar` 是开源包、**不直接依赖 HTTP**（契约 §8）；由组合根注入实现
+/// （真实实现走 Dio），未注入时为 null → 订阅仍可保存，但会明确告诉用户「内容待同步」，
+/// 而不是像此前那样静默存个 URL 就完事。
+abstract interface class SubscriptionFetcher {
+  /// 抓取 `.ics` 文本。
+  Future<String> fetch(String url);
+}
+
+final subscriptionFetcherProvider =
+    Provider<SubscriptionFetcher?>((ref) => null);

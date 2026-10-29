@@ -146,10 +146,37 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                 rowKey: const Key('sidebar-add-subscription'),
                 icon: CupertinoIcons.link,
                 label: '添加订阅',
-                onPressed: () => showLocalSubscriptionDialog(
-                  context,
-                  repository: ref.read(calendarRepositoryProvider),
-                ),
+                onPressed: () async {
+                  // #403：保存后立即抓取并落库；未注入抓取端口时如实告知「待同步」。
+                  final result = await showLocalSubscriptionDialog(
+                    context,
+                    repository: ref.read(calendarRepositoryProvider),
+                    fetcher: ref.read(subscriptionFetcherProvider),
+                    clock: ref.read(clockProvider),
+                  );
+                  if (result == null || !context.mounted) return;
+                  final message = result.isFailure
+                      ? '订阅已保存，但内容拉取失败：${result.error}'
+                      : result.pending
+                          ? '订阅已保存，内容将在联网后同步'
+                          : '订阅已导入 ${result.imported} 个事件'
+                              '${result.skipped > 0 ? '（${result.skipped} 条暂不支持，已跳过）' : ''}';
+                  await showCupertinoDialog<void>(
+                    context: context,
+                    builder: (dialogContext) => LifeAlertDialog(
+                      title: const Text('订阅日历'),
+                      content: Text(message,
+                          key: const Key('subscription_result_message')),
+                      actions: [
+                        LifeDialogAction(
+                          isDefaultAction: true,
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          child: const Text('好'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
               const _Hairline(indent: 16),
               _SidebarActionRow(
