@@ -150,6 +150,15 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                   value: p.suggestLists,
                   onChanged: (v) => _save(p.copyWith(suggestLists: v)),
                 ),
+                // #451：徽标数量是否含今天到期（消费者在 life_launcher 的 task_badge）。
+                _switchRow(
+                  icon: CupertinoIcons.bell,
+                  label: '标记数量含今天到期',
+                  rowKey: 'settings_badge_includes_today',
+                  value: p.badgeIncludesTodayDue,
+                  onChanged: (v) =>
+                      _save(p.copyWith(badgeIncludesTodayDue: v)),
+                ),
               ],
             ),
             const SizedBox(height: 8),

@@ -8,7 +8,8 @@
 // 其中「今天」= 今天到期（含已过期的今天之前？不含——过期条目另有「逾期」概念，
 // 不计入今天的徽标，否则徽标会随着拖延越积越大，与 Apple 的口径不同）。
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
-import 'package:feature_task/feature_task.dart' show reminderRepositoryProvider;
+import 'package:feature_task/feature_task.dart'
+    show reminderRepositoryProvider, taskPreferenceProvider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 纯函数：算任务徽标数字。
@@ -48,7 +49,17 @@ final taskBadgeCountsProvider = Provider<Map<String, int>>((ref) {
       const <ReminderItem>[];
   // repository 只是为了确保未注入时能显式失败（与各 provider 的既有口径一致）
   repository.hashCode;
-  return {'task': taskBadgeCount(items, now: DateTime.now())};
+  // #451：设置项决定「今天到期」是否计入（默认 true，与 #447 初始口径一致）。
+  final includeToday = ref.watch(taskPreferenceProvider).value
+          ?.badgeIncludesTodayDue ??
+      true;
+  return {
+    'task': taskBadgeCount(
+      items,
+      now: DateTime.now(),
+      includeTodayDue: includeToday,
+    ),
+  };
 });
 
 /// 未完成提醒的流（徽标专用；不区分列表）。
