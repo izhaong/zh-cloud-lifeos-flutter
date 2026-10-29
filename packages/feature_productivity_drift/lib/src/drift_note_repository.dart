@@ -126,6 +126,13 @@ class DriftNoteRepository implements kernel.NoteRepository {
   }
 
   @override
+  Future<void> deleteFolder(String folderId) async {
+    // #373：文件夹本身不做软删（Notes 的 deletedAt 只服务「最近删除」里的笔记），
+    // 调用方要先把文件夹内的笔记 softDelete 再调这里。
+    await (_db.delete(_db.noteFolders)..where((t) => t.id.equals(folderId))).go();
+  }
+
+  @override
   Future<String> upsertNote(kernel.Note note) async {
     final normalized = kernel.normalizeNoteForSave(note);
     final existing = await (_db.select(_db.notes)

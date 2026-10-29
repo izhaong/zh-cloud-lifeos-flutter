@@ -59,6 +59,7 @@ class NoteSidebar extends ConsumerWidget {
             key: ValueKey('note_sidebar_${root.id}'),
             name: root.name,
             smart: root.smart,
+            folder: root,
             selected: selectedId == root.id,
             depth: 0,
             onTap: () =>
@@ -73,6 +74,7 @@ class NoteSidebar extends ConsumerWidget {
               key: ValueKey('note_sidebar_${child.id}'),
               name: child.name,
               smart: child.smart,
+              folder: child,
               selected: selectedId == child.id,
               depth: 1,
               onTap: () => ref
@@ -133,13 +135,14 @@ class NoteSidebar extends ConsumerWidget {
     required bool selected,
     required int depth,
     required VoidCallback onTap,
+    NoteFolder? folder,
   }) {
     // #371：此前这里手拼 CupertinoDynamicColor.withBrightness(label.color,
     // darkColor: label.darkColor)，再把这个**未解算**的对象塞进 TextStyle(color:)。
     // TextStyle 不像 CupertinoListTile 的默认样式那样自动解算，暗色档会按亮档
     // 黑色绘制 —— 黑底黑字，名称不可见。直接解算即可（label 本身就是动态色）。
     final color = CupertinoColors.label.resolveFrom(context);
-    return CupertinoListTile(
+    final tile = CupertinoListTile(
       key: key,
       padding: EdgeInsetsDirectional.only(start: 16.0 + depth * 16, end: 16),
       leading: Icon(
@@ -158,7 +161,166 @@ class NoteSidebar extends ConsumerWidget {
         ),
       ),
       onTap: onTap,
+      trailing: (folder == null || smart)
+          ? null
+          : CupertinoButton(
+              key: ValueKey('note_folder_more_${folder.id}'),
+              padding: const EdgeInsets.all(6),
+              minimumSize: Size.zero,
+              onPressed: () => _showFolderActions(context, ref, folder),
+              child: const Icon(
+                CupertinoIcons.ellipsis,
+                size: 16,
+                color: CupertinoColors.secondaryLabel,
+              ),
+            ),
     );
+    // #373：Apple 备忘录可 Control-click 文件夹 → 重新命名 / 删除。
+    // 智能文件夹（所有备忘录/最近删除等）不提供这两项——它们是内置视图。
+    if (folder == null || smart) {
+      return tile;
+    }
+    return CupertinoContextMenu(
+      key: ValueKey('note_folder_menu_${folder.id}'),
+      actions: <Widget>[
+        CupertinoContextMenuAction(
+          key: ValueKey('note_folder_rename_${folder.id}'),
+          onPressed: () {
+            Navigator.of(context).pop();
+            _renameFolder(context, ref, folder);
+          },
+          child: const Text('重新命名文件夹'),
+        ),
+        CupertinoContextMenuAction(
+          key: ValueKey('note_folder_delete_${folder.id}'),
+          isDestructiveAction: true,
+          onPressed: () {
+            Navigator.of(context).pop();
+            _deleteFolder(context, ref, folder);
+          },
+          child: const Text('删除文件夹'),
+        ),
+      ],
+      child: tile,
+    );
+  }
+
+  /// 「…」按钮的动作表（#373）。
+  ///
+  /// Apple 用 Control-click 的上下文菜单承载这两个命令；本仓也做了
+  /// `CupertinoContextMenu`，但上下文菜单在桌面端不易发现，且 widget 测试里
+  /// 难以稳定驱动（decoy 动画 + 手势仲裁），所以额外给一个显式入口——
+  /// 同一组命令、同一段实现。
+  Future<void> _showFolderActions(
+      BuildContext context, WidgetRef ref, NoteFolder folder) async {
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(folder.name),
+        actions: [
+          CupertinoActionSheetAction(
+            key: ValueKey('note_folder_action_rename_${folder.id}'),
+            onPressed: () => Navigator.of(ctx).pop('rename'),
+            child: const Text('重新命名文件夹'),
+          ),
+          CupertinoActionSheetAction(
+            key: ValueKey('note_folder_action_delete_${folder.id}'),
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(ctx).pop('delete'),
+            child: const Text('删除文件夹'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    // 弹窗关闭后 context 可能已失效（异步间隙）：两个分支各自再判一次 mounted。
+    if (action == 'rename' && context.mounted) {
+      await _renameFolder(context, ref, folder);
+    }
+    if (action == 'delete' && context.mounted) {
+      await _deleteFolder(context, ref, folder);
+    }
+  }
+
+  /// 重新命名（#373）：复用「新建文件夹」的输入弹窗，带初始值。
+  Future<void> _renameFolder(
+      BuildContext context, WidgetRef ref, NoteFolder folder) async {
+    final controller = TextEditingController(text: folder.name);
+    controller.selection =
+        TextSelection(baseOffset: 0, extentOffset: folder.name.length);
+    final name = await showCupertinoDialog<String>(
+      context: context,
+      builder: (ctx) => LifeAlertDialog(
+        title: const Text('重新命名文件夹'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            key: const ValueKey('note_rename_folder_name'),
+            controller: controller,
+            autofocus: true,
+            placeholder: '名称',
+            onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+          ),
+        ),
+        actions: [
+          LifeDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('取消'),
+          ),
+          LifeDialogAction(
+            key: const ValueKey('note_rename_folder_ok'),
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    );
+    final title = (name ?? '').trim();
+    if (title.isEmpty || title == folder.name) return;
+    await ref.read(noteRepositoryProvider).upsertFolder(NoteFolder(
+          id: folder.id,
+          parentId: folder.parentId,
+          name: title,
+          smart: folder.smart,
+          filterJson: folder.filterJson,
+          sortOrder: folder.sortOrder,
+        ));
+  }
+
+  /// 删除（#373）：Apple 语义——先把手里的笔记移入「最近删除」，再删文件夹。
+  Future<void> _deleteFolder(
+      BuildContext context, WidgetRef ref, NoteFolder folder) async {
+    final ok = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (ctx) => LifeAlertDialog(
+        title: const Text('删除文件夹'),
+        content: Text('「${folder.name}」及其中的备忘录将移到「最近删除」。'),
+        actions: [
+          LifeDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          LifeDialogAction(
+            key: const ValueKey('note_delete_folder_ok'),
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final repo = ref.read(noteRepositoryProvider);
+    final notes = await repo.watchNotes(folderId: folder.id).first;
+    for (final note in notes) {
+      await repo.softDelete(note.id);
+    }
+    await repo.deleteFolder(folder.id);
+    ref.read(selectedNoteFolderIdProvider.notifier).select(null);
   }
 
   static int _compareFolders(NoteFolder a, NoteFolder b) {
