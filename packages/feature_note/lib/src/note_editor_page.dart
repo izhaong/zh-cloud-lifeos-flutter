@@ -52,6 +52,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   late final quill.QuillController _body;
   late final List<String> _tags = [...?widget.note?.tagNames];
 
+  /// 开头格式（#392）要能把光标放到标题或正文，所以两个焦点节点自己持有
+  /// （不依赖控件内部自建的节点，否则测不到、也没法 dispose）。
+  final FocusNode _titleFocus = FocusNode(debugLabel: 'note_editor_title');
+  final FocusNode _bodyFocus = FocusNode(debugLabel: 'note_editor_body');
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +66,40 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       document: _loadDocument(widget.note?.bodyDelta),
       selection: const TextSelection.collapsed(offset: 0),
     );
+    // 只对新建生效：编辑既有备忘录时按「开头格式」重排内容会把用户数据改掉。
+    if (widget.note == null) {
+      _applyBeginWith(ref.read(noteSettingsProvider).beginWith);
+    }
+  }
+
+  /// 「新备忘录开头格式」的消费端（矩阵 N25 / TC-NOTE-UI-111）。
+  ///
+  /// 四档都要有可观察后果，否则又是个死控件：`nothing` 保持空白；
+  /// `title`/`body` 决定光标落在哪；`checklist` 往正文种一个未勾选清单项
+  /// （和「格式 → 待办」用同一个 `list` 属性，渲染与内核计数同口径）。
+  void _applyBeginWith(NoteBeginWithMode mode) {
+    switch (mode) {
+      case NoteBeginWithMode.nothing:
+        break;
+      case NoteBeginWithMode.title:
+        _focusAfterFirstFrame(_titleFocus);
+      case NoteBeginWithMode.body:
+        _focusAfterFirstFrame(_bodyFocus);
+      case NoteBeginWithMode.checklist:
+        _body.formatText(
+          0,
+          _body.document.length,
+          quill.Attribute.clone(quill.Attribute.list, 'unchecked'),
+        );
+        _focusAfterFirstFrame(_bodyFocus);
+    }
+  }
+
+  /// 焦点只能在首帧之后要：initState 里节点还没挂到焦点树上。
+  void _focusAfterFirstFrame(FocusNode node) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) node.requestFocus();
+    });
   }
 
   quill.Document _loadDocument(String? deltaJson) {
@@ -531,6 +570,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   void dispose() {
     _title.dispose();
     _tagInput.dispose();
+    _titleFocus.dispose();
+    _bodyFocus.dispose();
     _body.dispose();
     super.dispose();
   }
@@ -597,6 +638,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             CupertinoTextField(
               key: const ValueKey('note_editor_title'),
               controller: _title,
+              focusNode: _titleFocus,
               placeholder: '标题',
               decoration: null,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -674,6 +716,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               child: LifeMaterialIsland(
                 child: quill.QuillEditor.basic(
                   controller: _body,
+                  focusNode: _bodyFocus,
                   config: const quill.QuillEditorConfig(
                     placeholder: '开始记录…',
                     padding: EdgeInsets.all(16),

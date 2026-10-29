@@ -10,6 +10,8 @@ final class NotePreference extends Equatable {
   const NotePreference({
     this.defaultFolderId,
     this.sortMode = 'custom',
+    this.groupByDate = true,
+    this.beginWith = 'nothing',
     this.revision = 1,
   });
 
@@ -18,6 +20,13 @@ final class NotePreference extends Equatable {
 
   /// 排序档位名（`custom`/`title`/`updated`；未知串按 `custom` 处理）。
   final String sortMode;
+
+  /// 列表是否按日期分组（#392，Apple「按日期分组备忘录」勾选）。
+  final bool groupByDate;
+
+  /// 新建备忘录的开头格式档位名（#392，Apple「新备忘录开头格式」弹出菜单；
+  /// `nothing`/`title`/`body`/`checklist`，未知串按 `nothing` 处理）。
+  final String beginWith;
 
   /// 保存次数（每次保存 +1，与任务/日历偏好同口径）。
   final int revision;
@@ -29,6 +38,8 @@ final class NotePreference extends Equatable {
     String? defaultFolderId,
     bool clearDefaultFolderId = false,
     String? sortMode,
+    bool? groupByDate,
+    String? beginWith,
     int? revision,
   }) {
     return NotePreference(
@@ -38,10 +49,18 @@ final class NotePreference extends Equatable {
           ? null
           : (defaultFolderId ?? this.defaultFolderId),
       sortMode: sortMode ?? this.sortMode,
+      groupByDate: groupByDate ?? this.groupByDate,
+      beginWith: beginWith ?? this.beginWith,
       revision: revision ?? this.revision,
     );
   }
 
   @override
-  List<Object?> get props => [defaultFolderId, sortMode, revision];
+  List<Object?> get props => [
+    defaultFolderId,
+    sortMode,
+    groupByDate,
+    beginWith,
+    revision,
+  ];
 }

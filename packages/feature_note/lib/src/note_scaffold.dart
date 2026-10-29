@@ -69,6 +69,10 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
         ref.watch(noteFoldersProvider).value ?? const <NoteFolder>[];
     final gallery = ref.watch(noteGalleryModeProvider);
     final settings = ref.watch(noteSettingsProvider);
+    // 日期节头（#392）：设置里的「按日期分组备忘录」勾选是总闸，Apple 在
+    // 「按标题」档下自己也不摆节头，两条都得让位。
+    final groupByYear =
+        settings.groupByDate && settings.sortMode != NoteSortMode.title;
     // 排序（F-13）：custom 保持仓库序（置顶优先），title/updated 为本地偏好
     final sortedNotes = List<Note>.of(notes);
     switch (settings.sortMode) {
@@ -146,7 +150,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                         flex: 4,
                         child: _NoteList(
                           gallery: gallery,
-                          groupByYear: settings.sortMode != NoteSortMode.title,
+                          groupByYear: groupByYear,
                           emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                           onSearch: (value) => ref
                               .read(noteSearchQueryProvider.notifier)
@@ -174,7 +178,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                   )
                 : _NoteList(
                     gallery: gallery,
-                    groupByYear: settings.sortMode != NoteSortMode.title,
+                    groupByYear: groupByYear,
                     emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                     onSearch: (value) => ref
                         .read(noteSearchQueryProvider.notifier)

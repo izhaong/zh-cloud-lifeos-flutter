@@ -8701,6 +8701,33 @@ class $NotePreferencesTable extends NotePreferences
     requiredDuringInsert: false,
     defaultValue: const Constant('custom'),
   );
+  static const VerificationMeta _groupByDateMeta = const VerificationMeta(
+    'groupByDate',
+  );
+  @override
+  late final GeneratedColumn<bool> groupByDate = GeneratedColumn<bool>(
+    'group_by_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("group_by_date" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _beginWithMeta = const VerificationMeta(
+    'beginWith',
+  );
+  @override
+  late final GeneratedColumn<String> beginWith = GeneratedColumn<String>(
+    'begin_with',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('nothing'),
+  );
   static const VerificationMeta _revisionMeta = const VerificationMeta(
     'revision',
   );
@@ -8718,6 +8745,8 @@ class $NotePreferencesTable extends NotePreferences
     userKey,
     defaultFolderId,
     sortMode,
+    groupByDate,
+    beginWith,
     revision,
   ];
   @override
@@ -8755,6 +8784,21 @@ class $NotePreferencesTable extends NotePreferences
         sortMode.isAcceptableOrUnknown(data['sort_mode']!, _sortModeMeta),
       );
     }
+    if (data.containsKey('group_by_date')) {
+      context.handle(
+        _groupByDateMeta,
+        groupByDate.isAcceptableOrUnknown(
+          data['group_by_date']!,
+          _groupByDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('begin_with')) {
+      context.handle(
+        _beginWithMeta,
+        beginWith.isAcceptableOrUnknown(data['begin_with']!, _beginWithMeta),
+      );
+    }
     if (data.containsKey('revision')) {
       context.handle(
         _revisionMeta,
@@ -8782,6 +8826,14 @@ class $NotePreferencesTable extends NotePreferences
         DriftSqlType.string,
         data['${effectivePrefix}sort_mode'],
       )!,
+      groupByDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}group_by_date'],
+      )!,
+      beginWith: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}begin_with'],
+      )!,
       revision: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}revision'],
@@ -8803,11 +8855,20 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
 
   /// 排序档位名（`custom`/`title`/`updated`）。
   final String sortMode;
+
+  /// 列表按日期分组（#392，Apple「按日期分组备忘录」）。默认 true = 老用户升级后
+  /// 列表样子不变（V17 起就一直分组着）。
+  final bool groupByDate;
+
+  /// 新备忘录开头格式档位名（#392，Apple「新备忘录开头格式」弹出菜单）。
+  final String beginWith;
   final int revision;
   const NotePreference({
     required this.userKey,
     this.defaultFolderId,
     required this.sortMode,
+    required this.groupByDate,
+    required this.beginWith,
     required this.revision,
   });
   @override
@@ -8818,6 +8879,8 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
       map['default_folder_id'] = Variable<String>(defaultFolderId);
     }
     map['sort_mode'] = Variable<String>(sortMode);
+    map['group_by_date'] = Variable<bool>(groupByDate);
+    map['begin_with'] = Variable<String>(beginWith);
     map['revision'] = Variable<int>(revision);
     return map;
   }
@@ -8829,6 +8892,8 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
           ? const Value.absent()
           : Value(defaultFolderId),
       sortMode: Value(sortMode),
+      groupByDate: Value(groupByDate),
+      beginWith: Value(beginWith),
       revision: Value(revision),
     );
   }
@@ -8842,6 +8907,8 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
       userKey: serializer.fromJson<String>(json['userKey']),
       defaultFolderId: serializer.fromJson<String?>(json['defaultFolderId']),
       sortMode: serializer.fromJson<String>(json['sortMode']),
+      groupByDate: serializer.fromJson<bool>(json['groupByDate']),
+      beginWith: serializer.fromJson<String>(json['beginWith']),
       revision: serializer.fromJson<int>(json['revision']),
     );
   }
@@ -8852,6 +8919,8 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
       'userKey': serializer.toJson<String>(userKey),
       'defaultFolderId': serializer.toJson<String?>(defaultFolderId),
       'sortMode': serializer.toJson<String>(sortMode),
+      'groupByDate': serializer.toJson<bool>(groupByDate),
+      'beginWith': serializer.toJson<String>(beginWith),
       'revision': serializer.toJson<int>(revision),
     };
   }
@@ -8860,6 +8929,8 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
     String? userKey,
     Value<String?> defaultFolderId = const Value.absent(),
     String? sortMode,
+    bool? groupByDate,
+    String? beginWith,
     int? revision,
   }) => NotePreference(
     userKey: userKey ?? this.userKey,
@@ -8867,6 +8938,8 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
         ? defaultFolderId.value
         : this.defaultFolderId,
     sortMode: sortMode ?? this.sortMode,
+    groupByDate: groupByDate ?? this.groupByDate,
+    beginWith: beginWith ?? this.beginWith,
     revision: revision ?? this.revision,
   );
   NotePreference copyWithCompanion(NotePreferencesCompanion data) {
@@ -8876,6 +8949,10 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
           ? data.defaultFolderId.value
           : this.defaultFolderId,
       sortMode: data.sortMode.present ? data.sortMode.value : this.sortMode,
+      groupByDate: data.groupByDate.present
+          ? data.groupByDate.value
+          : this.groupByDate,
+      beginWith: data.beginWith.present ? data.beginWith.value : this.beginWith,
       revision: data.revision.present ? data.revision.value : this.revision,
     );
   }
@@ -8886,13 +8963,22 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
           ..write('userKey: $userKey, ')
           ..write('defaultFolderId: $defaultFolderId, ')
           ..write('sortMode: $sortMode, ')
+          ..write('groupByDate: $groupByDate, ')
+          ..write('beginWith: $beginWith, ')
           ..write('revision: $revision')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(userKey, defaultFolderId, sortMode, revision);
+  int get hashCode => Object.hash(
+    userKey,
+    defaultFolderId,
+    sortMode,
+    groupByDate,
+    beginWith,
+    revision,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -8900,6 +8986,8 @@ class NotePreference extends DataClass implements Insertable<NotePreference> {
           other.userKey == this.userKey &&
           other.defaultFolderId == this.defaultFolderId &&
           other.sortMode == this.sortMode &&
+          other.groupByDate == this.groupByDate &&
+          other.beginWith == this.beginWith &&
           other.revision == this.revision);
 }
 
@@ -8907,12 +8995,16 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
   final Value<String> userKey;
   final Value<String?> defaultFolderId;
   final Value<String> sortMode;
+  final Value<bool> groupByDate;
+  final Value<String> beginWith;
   final Value<int> revision;
   final Value<int> rowid;
   const NotePreferencesCompanion({
     this.userKey = const Value.absent(),
     this.defaultFolderId = const Value.absent(),
     this.sortMode = const Value.absent(),
+    this.groupByDate = const Value.absent(),
+    this.beginWith = const Value.absent(),
     this.revision = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -8920,6 +9012,8 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
     required String userKey,
     this.defaultFolderId = const Value.absent(),
     this.sortMode = const Value.absent(),
+    this.groupByDate = const Value.absent(),
+    this.beginWith = const Value.absent(),
     this.revision = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userKey = Value(userKey);
@@ -8927,6 +9021,8 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
     Expression<String>? userKey,
     Expression<String>? defaultFolderId,
     Expression<String>? sortMode,
+    Expression<bool>? groupByDate,
+    Expression<String>? beginWith,
     Expression<int>? revision,
     Expression<int>? rowid,
   }) {
@@ -8934,6 +9030,8 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
       if (userKey != null) 'user_key': userKey,
       if (defaultFolderId != null) 'default_folder_id': defaultFolderId,
       if (sortMode != null) 'sort_mode': sortMode,
+      if (groupByDate != null) 'group_by_date': groupByDate,
+      if (beginWith != null) 'begin_with': beginWith,
       if (revision != null) 'revision': revision,
       if (rowid != null) 'rowid': rowid,
     });
@@ -8943,6 +9041,8 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
     Value<String>? userKey,
     Value<String?>? defaultFolderId,
     Value<String>? sortMode,
+    Value<bool>? groupByDate,
+    Value<String>? beginWith,
     Value<int>? revision,
     Value<int>? rowid,
   }) {
@@ -8950,6 +9050,8 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
       userKey: userKey ?? this.userKey,
       defaultFolderId: defaultFolderId ?? this.defaultFolderId,
       sortMode: sortMode ?? this.sortMode,
+      groupByDate: groupByDate ?? this.groupByDate,
+      beginWith: beginWith ?? this.beginWith,
       revision: revision ?? this.revision,
       rowid: rowid ?? this.rowid,
     );
@@ -8967,6 +9069,12 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
     if (sortMode.present) {
       map['sort_mode'] = Variable<String>(sortMode.value);
     }
+    if (groupByDate.present) {
+      map['group_by_date'] = Variable<bool>(groupByDate.value);
+    }
+    if (beginWith.present) {
+      map['begin_with'] = Variable<String>(beginWith.value);
+    }
     if (revision.present) {
       map['revision'] = Variable<int>(revision.value);
     }
@@ -8982,6 +9090,8 @@ class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
           ..write('userKey: $userKey, ')
           ..write('defaultFolderId: $defaultFolderId, ')
           ..write('sortMode: $sortMode, ')
+          ..write('groupByDate: $groupByDate, ')
+          ..write('beginWith: $beginWith, ')
           ..write('revision: $revision, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -13202,6 +13312,8 @@ typedef $$NotePreferencesTableCreateCompanionBuilder =
       required String userKey,
       Value<String?> defaultFolderId,
       Value<String> sortMode,
+      Value<bool> groupByDate,
+      Value<String> beginWith,
       Value<int> revision,
       Value<int> rowid,
     });
@@ -13210,6 +13322,8 @@ typedef $$NotePreferencesTableUpdateCompanionBuilder =
       Value<String> userKey,
       Value<String?> defaultFolderId,
       Value<String> sortMode,
+      Value<bool> groupByDate,
+      Value<String> beginWith,
       Value<int> revision,
       Value<int> rowid,
     });
@@ -13235,6 +13349,16 @@ class $$NotePreferencesTableFilterComposer
 
   ColumnFilters<String> get sortMode => $composableBuilder(
     column: $table.sortMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get groupByDate => $composableBuilder(
+    column: $table.groupByDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get beginWith => $composableBuilder(
+    column: $table.beginWith,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13268,6 +13392,16 @@ class $$NotePreferencesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get groupByDate => $composableBuilder(
+    column: $table.groupByDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get beginWith => $composableBuilder(
+    column: $table.beginWith,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get revision => $composableBuilder(
     column: $table.revision,
     builder: (column) => ColumnOrderings(column),
@@ -13293,6 +13427,14 @@ class $$NotePreferencesTableAnnotationComposer
 
   GeneratedColumn<String> get sortMode =>
       $composableBuilder(column: $table.sortMode, builder: (column) => column);
+
+  GeneratedColumn<bool> get groupByDate => $composableBuilder(
+    column: $table.groupByDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get beginWith =>
+      $composableBuilder(column: $table.beginWith, builder: (column) => column);
 
   GeneratedColumn<int> get revision =>
       $composableBuilder(column: $table.revision, builder: (column) => column);
@@ -13338,12 +13480,16 @@ class $$NotePreferencesTableTableManager
                 Value<String> userKey = const Value.absent(),
                 Value<String?> defaultFolderId = const Value.absent(),
                 Value<String> sortMode = const Value.absent(),
+                Value<bool> groupByDate = const Value.absent(),
+                Value<String> beginWith = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NotePreferencesCompanion(
                 userKey: userKey,
                 defaultFolderId: defaultFolderId,
                 sortMode: sortMode,
+                groupByDate: groupByDate,
+                beginWith: beginWith,
                 revision: revision,
                 rowid: rowid,
               ),
@@ -13352,12 +13498,16 @@ class $$NotePreferencesTableTableManager
                 required String userKey,
                 Value<String?> defaultFolderId = const Value.absent(),
                 Value<String> sortMode = const Value.absent(),
+                Value<bool> groupByDate = const Value.absent(),
+                Value<String> beginWith = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => NotePreferencesCompanion.insert(
                 userKey: userKey,
                 defaultFolderId: defaultFolderId,
                 sortMode: sortMode,
+                groupByDate: groupByDate,
+                beginWith: beginWith,
                 revision: revision,
                 rowid: rowid,
               ),
