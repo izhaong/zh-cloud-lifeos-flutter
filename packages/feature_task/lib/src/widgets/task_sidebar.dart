@@ -219,6 +219,14 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
                 ],
                 if (tags.isNotEmpty) ...[
                   const _SectionLabel('标签'),
+                  // #417：Apple 侧栏标签区首行是「所有标签」。既有筛选实现是
+                  // 「点 chip = 写全局搜索词」，所以总入口的真实行为 = 清空该词；
+                  // 不做成无行为的 Text 占位（同 #399 的缺陷类型）。
+                  _AllTagsRow(
+                    key: const ValueKey('sidebar_all_tags'),
+                    selected: ref.watch(searchQueryProvider).trim().isEmpty,
+                    onTap: () => ref.read(searchQueryProvider.notifier).set(''),
+                  ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Wrap(
@@ -309,9 +317,72 @@ class _TagChip extends StatelessWidget {
   }
 }
 
+/// 标签区首行「所有标签」（#417）：点了就把承载标签筛选的搜索词清空。
+class _AllTagsRow extends StatelessWidget {
+  const _AllTagsRow({super.key, required this.selected, required this.onTap});
+
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        alignment: Alignment.centerLeft,
+        borderRadius: BorderRadius.circular(LifeRadius.md),
+        onPressed: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: selected
+                ? ReminderTokens.systemBlue.withValues(alpha: 0.10)
+                : null,
+            borderRadius: BorderRadius.circular(LifeRadius.md),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: ReminderTokens.labelSecondary,
+                  borderRadius:
+                      BorderRadius.circular(ReminderTokens.radiusListIcon),
+                ),
+                child: const Icon(
+                  CupertinoIcons.tag,
+                  color: CupertinoColors.white,
+                  size: 15,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  '所有标签',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+              if (selected)
+                const Icon(
+                  CupertinoIcons.checkmark,
+                  size: 15,
+                  color: ReminderTokens.systemBlue,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
-
   final String text;
 
   @override
