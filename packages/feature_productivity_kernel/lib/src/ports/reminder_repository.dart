@@ -163,7 +163,13 @@ final class InMemoryReminderRepository implements ReminderRepository {
   /// 测试注入「当前时间」以冻结今天边界。
   set nowForTest(DateTime? value) => _nowForTest = value;
 
-  DateTime get _now => _nowForTest ?? DateTime.now();
+  /// 生产侧「有效当下」注入点（#448）：组合根按 `manualTimeZone` 设置。
+  ///
+  /// 测试用 `nowForTest`，生产用它；两者都不动时退回挂钟。
+  DateTime Function()? nowProvider;
+
+  DateTime get _now =>
+      _nowForTest ?? nowProvider?.call() ?? DateTime.now();
 
   /// 跨日刷新（真实 bug 修复）：智能列表「今天/计划」按本地日过滤，
   /// 但 stream 只在写操作 emit——app 跨午夜保持打开时 UI 仍是昨天的快照

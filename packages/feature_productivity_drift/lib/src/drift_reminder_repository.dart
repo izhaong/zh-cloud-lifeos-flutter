@@ -26,7 +26,10 @@ class DriftReminderRepository
   /// 测试注入「当前时间」（与 InMemory.nowForTest 对齐）。
   DateTime? nowForTest;
 
-  DateTime get _now => nowForTest ?? DateTime.now();
+  /// 生产侧「有效当下」注入点（#448），与内存实现同构。
+  DateTime Function()? nowProvider;
+
+  DateTime get _now => nowForTest ?? nowProvider?.call() ?? DateTime.now();
 
   /// 智能列表元数据（不落表，watchLists 派生时合并）。
   static const List<kernel.ReminderList> smartLists = [

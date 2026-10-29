@@ -343,6 +343,9 @@ class TaskPreferences extends Table {
   /// 「今天」汇总通知时点（#445；`HH:mm`，默认 09:00 = Apple 的默认值）。
   TextColumn get todayNotifyTime => text().withDefault(const Constant('09:00'))();
 
+  /// 手动设定的时区（#448；IANA 名，null = 跟随系统）。
+  TextColumn get manualTimeZone => text().nullable()();
+
   /// 视图态（卡 4b）：显示已完成 / 排序模式 / 侧栏显隐 / 折叠键 JSON 数组。
   BoolColumn get showCompleted =>
       boolean().withDefault(const Constant(false))();
@@ -382,7 +385,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   /// 幂等加列（#451/#446 共用）。
   ///
@@ -531,6 +534,12 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // 存量行留 null（服务端没回溯过创建时间），排序时排最后而不是瞎猜。
             await m.addColumn(reminderItems, reminderItems.createdAt);
           }
+          if (from < 21 && to >= 21) {
+            // V21（flutter #448）：手动设定时区（null = 跟随系统，与改造前一致）。
+            await _addColumnIfTableExists(m, 'task_preferences',
+                taskPreferences, taskPreferences.manualTimeZone);
+          }
+
           if (from < 20 && to >= 20) {
             // V20（flutter #445）：「今天」汇总通知时点。默认 09:00 与 Apple 一致。
             await _addColumnIfTableExists(m, 'task_preferences',

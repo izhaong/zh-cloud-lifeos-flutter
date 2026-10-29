@@ -2,7 +2,7 @@ import 'package:app_core/app_core.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:dio/dio.dart';
-import 'package:feature_calendar/feature_calendar.dart';
+import 'package:feature_calendar/feature_calendar.dart' hide clockProvider;
 import 'package:feature_calendar_cloud/feature_calendar_cloud.dart';
 import 'package:feature_note/feature_note.dart';
 import 'package:feature_productivity_drift/feature_productivity_drift.dart';
@@ -54,6 +54,11 @@ Future<void> main() async {
   /// 未登录时 currentSession=null，本地能力不受影响（离线优先红线）。
   final db = await openDefaultDatabase();
   final repository = DriftReminderRepository(db);
+  // #448：手动时区。偏好流一变就更新「有效当下」的注入点——
+  // 仓储（smart.today / 逾期判定）与 clockProvider（展示/分组）用的是同一个 now，
+  // 否则会出现「侧栏说 3 条、列表里 2 条」的自相矛盾。
+  String? manualTimeZone;
+  repository.nowProvider = () => effectiveNow(DateTime.now(), manualTimeZone);
   final calendarRepository = openDefaultDriftCalendarRepository(db);
   // TC-UI-120（flutter#124 卡 4）：设置弹层四档落 Drift，重启后读回同一行
   final taskPreferenceRepository = DriftTaskPreferenceRepository(db);
@@ -72,6 +77,10 @@ Future<void> main() async {
     '订阅节假日补齐',
     () => refreshSubscribedHolidays(calendarRepository),
   );
+  // #448：首次读取 + 持续跟踪手动时区（坏值由 effectiveNow 内部兜底）。
+  taskPreferenceRepository.watchPreference().listen((preference) {
+    manualTimeZone = preference.manualTimeZone;
+  });
   final prefs = await SharedPreferences.getInstance();
   final dio = Dio(
     BaseOptions(
@@ -177,6 +186,11 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         reminderRepositoryProvider.overrideWithValue(repository),
+        // #448：展示/分组用的「现在」与仓储同一个口径（手动时区生效后一起变）。
+        // 两个包各有一个 `clockProvider`（日历/任务），此处按前缀只覆盖任务侧。
+        clockProvider.overrideWith(
+          (ref) => () => effectiveNow(DateTime.now(), manualTimeZone),
+        ),
         // #447：生产徽标此前恒为 {}（只有测试注入过假值）→ 这里派生真实数字。
         shellBadgeCountsProvider.overrideWith(
           (ref) => ref.watch(taskBadgeCountsProvider),

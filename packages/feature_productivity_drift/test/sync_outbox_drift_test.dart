@@ -35,7 +35,7 @@ void main() {
   }
 
   test('V11：发件箱表随 schemaVersion 11 建表', () async {
-    expect(db.schemaVersion, 20,
+    expect(db.schemaVersion, 21,
         reason: 'V11 发件箱、V12 游标、V13 任务偏好（flutter#124 卡 2/3/4）');
     expect(await outbox.pending(), isEmpty);
   });
