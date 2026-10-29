@@ -388,6 +388,41 @@ void main() {
       reason: '#179: showWeekNumbers=true 时周视图须显示周序号（与月视图一致）',
     );
   });
+
+  // #406：日视图对齐 Apple——大标题（年月日）+ 星期 + 农历 + 「全天」行。
+  testWidgets('#406 日视图大标题 / 星期 / 农历 / 全天行', (tester) async {
+    await pumpCalendar(tester, mode: CalendarViewMode.day);
+
+    final header = find.byKey(const Key('day_view_header'));
+    expect(header, findsOneWidget, reason: '#406: 日视图缺 Apple 式大标题区');
+
+    expect(
+      find.descendant(
+        of: header,
+        matching: find.byWidgetPredicate((w) =>
+            w is Text &&
+            (w.data ?? '').contains('年') &&
+            (w.data ?? '').contains('月') &&
+            (w.data ?? '').contains('日')),
+      ),
+      findsOneWidget,
+      reason: '#406: 大标题应为「YYYY年M月D日」',
+    );
+
+    final now = DateTime.now();
+    const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
+    expect(
+      find.descendant(of: header, matching: find.text(weekdays[now.weekday - 1])),
+      findsOneWidget,
+      reason: '#406: 大标题旁缺星期',
+    );
+    expect(
+      find.descendant(of: header, matching: find.text(lunarDateLabel(now))),
+      findsOneWidget,
+      reason: '#406: 大标题右侧缺农历（例：丙午年九月十八）',
+    );
+    expect(find.text('全天'), findsOneWidget, reason: '#406: 日视图缺「全天」分隔行');
+  });
 }
 
 /// 取当前测试树里的 Riverpod 容器。
