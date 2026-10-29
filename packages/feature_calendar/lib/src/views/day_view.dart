@@ -9,6 +9,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 import '../calendar_view_callbacks.dart';
 import '../logic/double_tap_create.dart';
+import '../logic/lunar_label.dart';
 import '../providers.dart';
 import 'day_reminder_lane.dart';
 import 'month_view.dart' show CalendarEventTile;
@@ -25,12 +26,32 @@ final _weekTapTracker = CalendarDoubleTapTracker();
 /// 任何可见边界，用户会把这块空白当成定时网格的一部分，于是「往全天区拖」这个
 /// 手势没有落点。分隔线只是视觉锚点，不改命中区（拖拽仍由 kalender 处理）。
 class _AllDayBand extends StatelessWidget {
-  const _AllDayBand({required this.child});
+  const _AllDayBand({required this.child, this.label});
 
   final Widget child;
 
+  /// #406：日视图在带首补「全天」标签（Apple 日历全天行）；周视图暂不传。
+  final String? label;
+
   @override
   Widget build(BuildContext context) {
+    final content = label == null
+        ? child
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 8, top: 2, bottom: 2),
+                child: Text(label!,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: CupertinoColors.secondaryLabel
+                            .resolveFrom(context))),
+              ),
+              child,
+            ],
+          );
     return DecoratedBox(
       decoration: BoxDecoration(
         border: Border(
@@ -40,7 +61,89 @@ class _AllDayBand extends StatelessWidget {
           ),
         ),
       ),
-      child: child,
+      child: content,
+    );
+  }
+}
+
+/// 日视图大标题（#406，对齐 Apple 日历）：
+/// 「2026年10月29日」+ 星期 + 农历（丙午年九月十八）。
+class _DayViewHeader extends StatelessWidget {
+  const _DayViewHeader({required this.date});
+
+  final DateTime date;
+
+  static const _weekdays = [
+    '星期一',
+    '星期二',
+    '星期三',
+    '星期四',
+    '星期五',
+    '星期六',
+    '星期日',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    final label = CupertinoColors.label.resolveFrom(context);
+    final dateText = '${date.year}年${date.month}月${date.day}日';
+    final weekdayText = _weekdays[date.weekday - 1];
+    final lunarText = lunarDateLabel(date);
+    return Padding(
+      key: const Key('day_view_header'),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // 紧凑档（iPhone 375）放不下一行：日期独占一行，星期与农历下一行。
+          if (constraints.maxWidth < 430) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(dateText,
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: label)),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(weekdayText,
+                        style: TextStyle(fontSize: 12, color: secondary)),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(lunarText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: secondary)),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(dateText,
+                  style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      color: label)),
+              const SizedBox(width: 10),
+              Text(weekdayText,
+                  style: TextStyle(fontSize: 15, color: secondary)),
+              const Spacer(),
+              Flexible(
+                child: Text(lunarText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: secondary)),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -128,20 +231,36 @@ class CalendarDayView extends ConsumerWidget {
       child: Row(
         children: [
           Expanded(
-            child: LifeMaterialIsland(
-              child: kalender.KalenderView(
-                eventsController: eventsController,
-                kalenderController: controller,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DayViewHeader(date: anchor),
+                Expanded(
+                  child: LifeMaterialIsland(
+                    child: kalender.KalenderView(
+                      eventsController: eventsController,
+                      kalenderController: controller,
                 // #193：kalender 默认用自己的 locale（null→intl 默认 en_US），
                 // 不传会把中文界面的星期名渲染成 Mon…Sun
-                locale: Localizations.localeOf(context),
+                      locale: Localizations.localeOf(context),
+                      // #406：日期由外部大标题承载，隐藏 kalender 小徽标。
+                      components: kalender.KalenderComponents(
+                        multiDayComponents: kalender.MultiDayComponents(
+                          headerComponents: kalender.MultiDayHeaderComponents(
+                            dayHeaderBuilder: (context, date) =>
+                                const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
                 // #184：显式传 tileComponents，避免 kalender 默认「Tile」占位文案；
                 // header（全天/跨日条）与 body（定时条）都要传——审查 R1 意见
                 views: const [
                   kalender.MultiDayViewParts(
                     // #240：全天带即使空着也要有下沿分隔线，否则用户看不出
                     // 表头下这块是可拖拽/双击的全天区。
+                    // #406：「全天」标签由带首承载（Apple 日历全天行）。
                     header: _AllDayBand(
+                      label: '全天',
                       child: kalender.MultiDayHeader(
                         tileComponents: kalender.TileComponents(
                           tileBuilder: dayEventTileBuilder,
@@ -200,6 +319,9 @@ class CalendarDayView extends ConsumerWidget {
               ),
             ),
           ),
+        ],
+      ),
+    ),
           if (showReminderLane) ...[
             Container(
               width: 1,
