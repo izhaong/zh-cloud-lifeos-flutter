@@ -29,6 +29,12 @@ abstract interface class NoteRepository {
   /// 新增或更新文件夹，返回 id。
   Future<String> upsertFolder(NoteFolder folder);
 
+  /// 删除文件夹（#373）。
+  ///
+  /// **语义**：调用方负责先把文件夹内的笔记 [softDelete]（Apple：删除文件夹会把
+  /// 里面的备忘录移到「最近删除」），本方法只负责把文件夹本身移除。
+  Future<void> deleteFolder(String folderId);
+
   /// 新增或更新笔记（全量回写；归一纯文本/清单计数在内核做同口径），
   /// 返回 id。
   Future<String> upsertNote(Note note);
@@ -98,6 +104,12 @@ final class InMemoryNoteRepository implements NoteRepository {
     }
     _notify();
     return folder.id;
+  }
+
+  @override
+  Future<void> deleteFolder(String folderId) async {
+    _folders.removeWhere((f) => f.id == folderId);
+    _notify();
   }
 
   @override
