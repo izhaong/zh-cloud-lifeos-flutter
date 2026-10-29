@@ -1,3 +1,4 @@
+import 'dart:ui' show PlatformDispatcher;
 import 'package:app_ui/app_ui.dart';
 import '../design/calendar_tokens.dart';
 import 'package:app_core/app_core.dart';
@@ -49,12 +50,18 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
     );
   }
 
-  static kalender.MonthViewConfiguration _configFor(
+  kalender.MonthViewConfiguration _configFor(
     CalendarPreference preference,
     DateTime anchor,
   ) {
     return kalender.MonthViewConfiguration.singleMonth(
-      firstDayOfWeek: effectiveStartWeekOn(preference.startWeekOn),
+      firstDayOfWeek: effectiveStartWeekOn(
+        preference.startWeekOn,
+        // null 时回落系统区域：生产行为与「跟随系统」一致，测试可 override 钉死。
+        localeTag:
+            ref.watch(calendarLocaleTagProvider) ??
+            PlatformDispatcher.instance.locale.toLanguageTag(),
+      ),
       showWeekNumbers: preference.showWeekNumbers,
       initialDateTime: DateTime(anchor.year, anchor.month, 1),
     );

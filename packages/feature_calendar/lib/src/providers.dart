@@ -289,3 +289,9 @@ abstract interface class SubscriptionFetcher {
 
 final subscriptionFetcherProvider =
     Provider<SubscriptionFetcher?>((ref) => null);
+
+/// 周起始解析用的区域 tag（#468）。
+///
+/// 默认 `null` = 由呈现层取 `PlatformDispatcher.instance.locale`（生产行为不变）；
+/// 测试 override 成固定值（如 `zh_CN`）即可得到确定的网格起点。
+final calendarLocaleTagProvider = Provider<String?>((ref) => null);
