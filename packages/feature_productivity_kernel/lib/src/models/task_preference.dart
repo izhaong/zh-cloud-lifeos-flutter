@@ -17,6 +17,7 @@ final class TaskPreference extends Equatable {
     this.badgeIncludesTodayDue = true,
     this.allDayRemindersOverdue = false,
     this.todayNotifyTime = '09:00',
+    this.manualTimeZone,
     this.showCompleted = false,
     this.sortMode = 'manual',
     this.sidebarVisible = true,
@@ -41,6 +42,11 @@ final class TaskPreference extends Equatable {
 
   /// 全天提醒是否按「逾期」显示（#446；默认 false = 与改造前行为一致）。
   final bool allDayRemindersOverdue;
+
+  /// 手动设定的时区（#448）：IANA 名（如 `Asia/Shanghai`），null = 跟随系统。
+  ///
+  /// 消费者是 `effectiveNow()`——全仓「今天/逾期」判定的唯一入口。
+  final String? manualTimeZone;
 
   /// 「今天」汇总通知时点（#445）：`HH:mm` 字符串，默认 `09:00`。
   ///
@@ -87,6 +93,8 @@ final class TaskPreference extends Equatable {
     bool? badgeIncludesTodayDue,
     bool? allDayRemindersOverdue,
     String? todayNotifyTime,
+    String? manualTimeZone,
+    bool clearManualTimeZone = false,
     bool? showCompleted,
     String? sortMode,
     bool? sidebarVisible,
@@ -106,6 +114,9 @@ final class TaskPreference extends Equatable {
       allDayRemindersOverdue:
           allDayRemindersOverdue ?? this.allDayRemindersOverdue,
       todayNotifyTime: todayNotifyTime ?? this.todayNotifyTime,
+      manualTimeZone: clearManualTimeZone
+          ? null
+          : (manualTimeZone ?? this.manualTimeZone),
       showCompleted: showCompleted ?? this.showCompleted,
       sortMode: sortMode ?? this.sortMode,
       sidebarVisible: sidebarVisible ?? this.sidebarVisible,
@@ -123,6 +134,7 @@ final class TaskPreference extends Equatable {
         badgeIncludesTodayDue,
         allDayRemindersOverdue,
         todayNotifyTime,
+        manualTimeZone,
         showCompleted,
         sortMode,
         sidebarVisible,

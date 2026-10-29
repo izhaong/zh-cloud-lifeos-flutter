@@ -150,6 +150,18 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                   value: p.suggestLists,
                   onChanged: (v) => _save(p.copyWith(suggestLists: v)),
                 ),
+                // #448：手动设定时区（消费者是 kernel 的 `effectiveNow`，
+                // 组合根把它接到仓储的 nowProvider + clockProvider）。
+                _row(
+                  icon: CupertinoIcons.globe,
+                  label: '时区',
+                  rowKey: 'settings_manual_time_zone',
+                  onTap: () => _pickTimeZone(p),
+                  trailing: Text(
+                    p.manualTimeZone ?? '跟随系统',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
                 // #445：「今天」汇总通知时点（消费者在 life_launcher 的通知调度器）。
                 _row(
                   icon: CupertinoIcons.time,
@@ -219,6 +231,68 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
         ),
       ),
     );
+  }
+
+  /// 常用时区（IANA）。不列全库：Apple 也是一小组常用项 + 「跟随系统」。
+  static const _timeZones = <(String?, String)>[
+    (null, '跟随系统'),
+    ('Asia/Shanghai', '中国标准时间'),
+    ('Asia/Tokyo', '日本标准时间'),
+    ('Asia/Singapore', '新加坡时间'),
+    ('Europe/London', '伦敦'),
+    ('Europe/Berlin', '中欧时间'),
+    ('America/New_York', '纽约'),
+    ('America/Los_Angeles', '洛杉矶'),
+    ('Australia/Sydney', '悉尼'),
+  ];
+
+  /// 选时区（#448）。
+  Future<void> _pickTimeZone(TaskPreference current) async {
+    var index = _timeZones.indexWhere((e) => e.$1 == current.manualTimeZone);
+    if (index < 0) index = 0;
+    final confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (popupContext) => Container(
+        height: 280,
+        color: CupertinoColors.systemBackground.resolveFrom(popupContext),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CupertinoButton(
+                  key: const Key('time_zone_cancel'),
+                  onPressed: () => Navigator.of(popupContext).pop(false),
+                  child: const Text('取消'),
+                ),
+                CupertinoButton(
+                  key: const Key('time_zone_done'),
+                  onPressed: () => Navigator.of(popupContext).pop(true),
+                  child: const Text('完成'),
+                ),
+              ],
+            ),
+            Expanded(
+              child: CupertinoPicker(
+                key: const Key('time_zone_picker'),
+                itemExtent: 36,
+                scrollController: FixedExtentScrollController(initialItem: index),
+                onSelectedItemChanged: (i) => index = i,
+                children: [
+                  for (final (_, label) in _timeZones)
+                    Center(child: Text(label)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+    final zone = _timeZones[index].$1;
+    _save(zone == null
+        ? current.copyWith(clearManualTimeZone: true)
+        : current.copyWith(manualTimeZone: zone));
   }
 
   /// 选「今天」汇总通知时点（#445）。

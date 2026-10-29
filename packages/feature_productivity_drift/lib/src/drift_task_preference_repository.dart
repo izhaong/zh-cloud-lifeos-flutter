@@ -48,6 +48,7 @@ class DriftTaskPreferenceRepository
             allDayRemindersOverdue:
                 Value(preference.allDayRemindersOverdue),
             todayNotifyTime: Value(preference.todayNotifyTime),
+            manualTimeZone: Value(preference.manualTimeZone),
             showCompleted: Value(preference.showCompleted),
             sortMode: Value(preference.sortMode),
             sidebarVisible: Value(preference.sidebarVisible),
@@ -67,6 +68,7 @@ class DriftTaskPreferenceRepository
         badgeIncludesTodayDue: row.badgeIncludesTodayDue,
         allDayRemindersOverdue: row.allDayRemindersOverdue,
         todayNotifyTime: row.todayNotifyTime,
+        manualTimeZone: row.manualTimeZone,
         showCompleted: row.showCompleted,
         sortMode: row.sortMode,
         sidebarVisible: row.sidebarVisible,
