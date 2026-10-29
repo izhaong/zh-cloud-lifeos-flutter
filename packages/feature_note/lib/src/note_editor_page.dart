@@ -23,7 +23,14 @@ class NoteEditorPage extends ConsumerStatefulWidget {
     required this.folderId,
     this.unlockedInitial = false,
     this.unlockPassphrase,
+    this.embedded = false,
   });
+
+  /// 内嵌宿主（#421）：宽屏三栏里就地编辑，不画导航栏、不提供返回箭头。
+  ///
+  /// 保存模型不变（仍是显式「保存」，自动保存由 #390 单独收口），
+  /// 两张卡因此不会互相踩。
+  final bool embedded;
 
   final Note? note;
   final String folderId;
@@ -528,15 +535,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      key: const Key('note_editor_page'),
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(widget.note == null ? '新建备忘录' : '编辑备忘录'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+  /// 编辑器的动作按钮（导航栏与内嵌工具条共用，避免两套漂移）。
+  List<Widget> _actions() => [
             _EditorAction(
               key: const ValueKey('note_editor_more'),
               semanticLabel: '更多',
@@ -587,10 +587,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-      child: SafeArea(
+      ];
+
+  @override
+  Widget build(BuildContext context) {
+    final body = SafeArea(
         child: Column(
           children: [
             CupertinoTextField(
@@ -683,7 +684,37 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ),
           ],
         ),
+      );
+    if (widget.embedded) {
+      // 内嵌宿主（#421）：无导航栏、无返回箭头；动作按钮压成一行工具条，
+      // 外观向 Apple 备忘录第三栏看齐（标题就地编辑）。
+      return Column(
+        key: const Key('note_editor_embedded'),
+        children: [
+          Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: const BoxDecoration(
+              border: Border(
+                bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: _actions(),
+            ),
+          ),
+          Expanded(child: body),
+        ],
+      );
+    }
+    return CupertinoPageScaffold(
+      key: const Key('note_editor_page'),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(widget.note == null ? '新建备忘录' : '编辑备忘录'),
+        trailing: Row(mainAxisSize: MainAxisSize.min, children: _actions()),
       ),
+      child: body,
     );
   }
 }

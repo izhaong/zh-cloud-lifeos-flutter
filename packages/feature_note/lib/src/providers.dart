@@ -283,3 +283,18 @@ final class _UnavailableNoteSharePort implements NoteSharePort {
 final noteSharePortProvider = Provider<NoteSharePort>((ref) {
   return _UnavailableNoteSharePort();
 });
+
+/// 三栏宿主里「当前选中的备忘录」（#421；null = 未选/新建态）。
+///
+/// 窄屏仍是推入页，这个 provider 只在宽屏内嵌宿主里用。
+final selectedNoteIdProvider = NotifierProvider<SelectedNoteIdNotifier, String?>(
+  SelectedNoteIdNotifier.new,
+  name: 'selectedNoteIdProvider',
+);
+
+class SelectedNoteIdNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String? id) => state = id;
+}

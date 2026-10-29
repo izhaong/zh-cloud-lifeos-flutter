@@ -143,6 +143,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                       const SizedBox(width: NoteScaffold.sidebarWidth, child: NoteSidebar()),
                       const _Separator(),
                       Expanded(
+                        flex: 4,
                         child: _NoteList(
                           gallery: gallery,
                           groupByYear: settings.sortMode != NoteSortMode.title,
@@ -151,13 +152,23 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                               .read(noteSearchQueryProvider.notifier)
                               .setQuery(value),
                           notes: sortedNotes,
-                          onTap: (note) =>
-                              _openEditor(context, ref, note, folders),
+                          // #421：宽屏是**选中就地编辑**，不是推入页。
+                          onTap: (note) {
+                            ref
+                                .read(selectedNoteIdProvider.notifier)
+                                .select(note.id);
+                          },
                           onPin: (note) => _togglePin(ref, note),
                           onDelete: (note) => ref
                               .read(noteRepositoryProvider)
                               .softDelete(note.id),
                         ),
+                      ),
+                      const _Separator(),
+                      // 第三栏：内嵌编辑器（选中即编辑；未选给空态）。
+                      Expanded(
+                        flex: 5,
+                        child: _NoteEditorPane(notes: sortedNotes),
                       ),
                     ],
                   )
@@ -893,6 +904,48 @@ class _EmptyHint extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 第三栏：内嵌编辑器（#421）。
+///
+/// 未选中时给空态，而不是「空白编辑器」——Apple 备忘录在没选中时也是空态，
+/// 避免用户对着一个不知属于哪条记录的编辑器打字。
+class _NoteEditorPane extends ConsumerWidget {
+  const _NoteEditorPane({required this.notes});
+
+  final List<Note> notes;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedId = ref.watch(selectedNoteIdProvider);
+    if (selectedId == null) {
+      return const Center(
+        key: Key('note_editor_pane_empty'),
+        child: Text(
+          '选择一条备忘录，或点「快速记录」新建',
+          style: TextStyle(fontSize: 13, color: CupertinoColors.systemGrey),
+        ),
+      );
+    }
+    final note = notes.where((n) => n.id == selectedId).firstOrNull;
+    if (note == null) {
+      // 选中项被删除/移出列表：回到空态，不要把上一条的内容留在栏里。
+      return const Center(
+        key: Key('note_editor_pane_missing'),
+        child: Text(
+          '这条备忘录已不在当前列表',
+          style: TextStyle(fontSize: 13, color: CupertinoColors.systemGrey),
+        ),
+      );
+    }
+    // key 带 note.id：切换记录时重建编辑器，避免上一条的内容/光标残留。
+    return NoteEditorPage(
+      key: ValueKey('note_editor_pane_${note.id}'),
+      note: note,
+      folderId: note.folderId,
+      embedded: true,
     );
   }
 }
