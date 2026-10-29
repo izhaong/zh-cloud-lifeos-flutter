@@ -336,6 +336,10 @@ class TaskPreferences extends Table {
   BoolColumn get badgeIncludesTodayDue =>
       boolean().withDefault(const Constant(true))();
 
+  /// 全天提醒是否按「逾期」显示（#446；默认 false = 与改造前行为一致）。
+  BoolColumn get allDayRemindersOverdue =>
+      boolean().withDefault(const Constant(false))();
+
   /// 视图态（卡 4b）：显示已完成 / 排序模式 / 侧栏显隐 / 折叠键 JSON 数组。
   BoolColumn get showCompleted =>
       boolean().withDefault(const Constant(false))();
@@ -375,7 +379,31 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
+
+  /// 幂等加列（#451/#446 共用）。
+  ///
+  /// 两个坑都踩过：迁移链测试先按「当前 schema」建表再回放迁移 → `duplicate column`；
+  /// 手搓的最小旧库没有该表 → `no such table`。所以先探测再动。
+  Future<void> _addColumnIfTableExists(
+    Migrator m,
+    String table,
+    TableInfo tableInfo,
+    GeneratedColumn<Object> column,
+  ) async {
+    final tables = await m.database
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+          variables: [Variable.withString(table)],
+        )
+        .get();
+    if (tables.isEmpty) return;
+    final columns =
+        await m.database.customSelect("PRAGMA table_info('$table')").get();
+    final name = column.name;
+    if (columns.any((row) => row.data['name'] == name)) return;
+    await m.addColumn(tableInfo, column);
+  }
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -500,30 +528,21 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // 存量行留 null（服务端没回溯过创建时间），排序时排最后而不是瞎猜。
             await m.addColumn(reminderItems, reminderItems.createdAt);
           }
+          if (from < 19 && to >= 19) {
+            // V19（flutter #446）：全天提醒是否显示为逾期。
+            // 默认 false = 老用户升级后行为不变。
+            await _addColumnIfTableExists(m, 'task_preferences',
+                taskPreferences, taskPreferences.allDayRemindersOverdue);
+          }
+
           if (from < 18 && to >= 18) {
             // V18（flutter #451）：徽标「含今天到期」开关。
             // 默认 true = 老用户升级后行为不变（不因升级丢徽标）。
             //
             // **幂等**：迁移链测试会先按「当前 schema」建表再回放迁移，此时列已存在；
             // 直接 addColumn 会抛 `duplicate column name`。先查一次 PRAGMA。
-            // 先确认表存在：部分迁移链测试用手搓的最小旧库（只建自己关心的表），
-            // 对它们 PRAGMA 会返回空、addColumn 会抛 `no such table`。
-            const tableProbe = 'SELECT name FROM sqlite_master '
-                "WHERE type='table' AND name='task_preferences'";
-            final tables =
-                await m.database.customSelect(tableProbe).get();
-            // 没有该表说明是手搓的最小旧库（真实库 V13 起就有），跳过即可。
-            if (tables.isNotEmpty) {
-              final columns = await m.database
-                  .customSelect("PRAGMA table_info('task_preferences')")
-                  .get();
-              final hasColumn = columns.any(
-                  (row) => row.data['name'] == 'badge_includes_today_due');
-              if (!hasColumn) {
-                await m.addColumn(
-                    taskPreferences, taskPreferences.badgeIncludesTodayDue);
-              }
-            }
+            await _addColumnIfTableExists(m, 'task_preferences',
+                taskPreferences, taskPreferences.badgeIncludesTodayDue);
           }
 
           if (from < 17 && to >= 17) {

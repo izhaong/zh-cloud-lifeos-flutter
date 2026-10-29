@@ -15,6 +15,7 @@ final class TaskPreference extends Equatable {
     this.markComplete = false,
     this.suggestLists = true,
     this.badgeIncludesTodayDue = true,
+    this.allDayRemindersOverdue = false,
     this.showCompleted = false,
     this.sortMode = 'manual',
     this.sidebarVisible = true,
@@ -36,6 +37,9 @@ final class TaskPreference extends Equatable {
 
   /// 徽标数量是否包含「今天到期」（#451）。
   final bool badgeIncludesTodayDue;
+
+  /// 全天提醒是否按「逾期」显示（#446；默认 false = 与改造前行为一致）。
+  final bool allDayRemindersOverdue;
 
   /// 列表内「显示已完成」（TC-UI-108 默认 false）。
   final bool showCompleted;
@@ -62,6 +66,7 @@ final class TaskPreference extends Equatable {
     bool? markComplete,
     bool? suggestLists,
     bool? badgeIncludesTodayDue,
+    bool? allDayRemindersOverdue,
     bool? showCompleted,
     String? sortMode,
     bool? sidebarVisible,
@@ -78,6 +83,8 @@ final class TaskPreference extends Equatable {
       suggestLists: suggestLists ?? this.suggestLists,
       badgeIncludesTodayDue:
           badgeIncludesTodayDue ?? this.badgeIncludesTodayDue,
+      allDayRemindersOverdue:
+          allDayRemindersOverdue ?? this.allDayRemindersOverdue,
       showCompleted: showCompleted ?? this.showCompleted,
       sortMode: sortMode ?? this.sortMode,
       sidebarVisible: sidebarVisible ?? this.sidebarVisible,
@@ -93,6 +100,7 @@ final class TaskPreference extends Equatable {
         markComplete,
         suggestLists,
         badgeIncludesTodayDue,
+        allDayRemindersOverdue,
         showCompleted,
         sortMode,
         sidebarVisible,

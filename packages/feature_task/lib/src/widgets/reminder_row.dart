@@ -22,6 +22,7 @@ class ReminderRow extends StatelessWidget {
     this.listName,
     this.subtaskDone = 0,
     this.subtaskTotal = 0,
+    this.allDayAsOverdue = false,
   });
 
   final ReminderItem item;
@@ -30,6 +31,10 @@ class ReminderRow extends StatelessWidget {
   /// #333 审查指出：这里原先直接 `DateTime.now()`，导致到期/过期文案与样式
   /// 不跟注入时钟，golden 跨日会漂。
   final DateTime? now;
+
+  /// 全天提醒是否按逾期显示（#446；由设置项经调用方传入，默认 false）。
+  final bool allDayAsOverdue;
+
   final String? listName;
   final VoidCallback onToggleCompleted;
   final VoidCallback? onToggleFlagged;
@@ -210,6 +215,14 @@ class ReminderRow extends StatelessWidget {
     final locale = Localizations.localeOf(context).toString();
     final now = this.now ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    // #446：全天提醒（时分秒为 0）默认**不**标逾期——过期只在日期上体现；
+    // 打开「将全天提醒显示为逾期」后与定时提醒同待遇。
+    final isAllDay = dueAt.hour == 0 && dueAt.minute == 0 && dueAt.second == 0;
+    if (isAllDay && !allDayAsOverdue) {
+      if (dueAt.isBefore(today)) {
+        return (text: DateFormat.MMMd(locale).format(dueAt), overdue: false);
+      }
+    }
     if (dueAt.isBefore(today)) {
       return (
         text: DateFormat.MMMd(locale).format(dueAt),
