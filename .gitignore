@@ -62,3 +62,4 @@ app.*.map.json
 
 # Platform AI local
 .ai-config/bootstrap-host.yaml
+docs/ui-evidence
