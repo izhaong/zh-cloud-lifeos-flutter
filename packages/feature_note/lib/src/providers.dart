@@ -131,6 +131,9 @@ final noteSettingsProvider =
 
 /// 共享端口（F-14；接口未合并时用假端口，开源包不打网络）。
 abstract interface class NoteSharePort {
+  /// 端口是否真的能共享。假端口为 false，界面据此不摆出共享入口（#396）。
+  bool get isAvailable;
+
   Future<void> share({
     required String noteId,
     required String targetUserId,
@@ -139,6 +142,9 @@ abstract interface class NoteSharePort {
 }
 
 final class _UnavailableNoteSharePort implements NoteSharePort {
+  @override
+  bool get isAvailable => false;
+
   @override
   Future<void> share({
     required String noteId,

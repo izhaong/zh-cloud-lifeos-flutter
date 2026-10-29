@@ -419,12 +419,16 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               icon: CupertinoIcons.ellipsis,
               onPressed: _showMoreMenu,
             ),
-            _EditorAction(
-              key: const ValueKey('note_editor_share'),
-              semanticLabel: '共享',
-              icon: CupertinoIcons.person_2,
-              onPressed: _share,
-            ),
+            // #396：假端口只会 `throw UnsupportedError('共享客户端未接入')`，
+            // 入口摆出来就是必崩交互。Apple 口径「入口可用或不存在」，与任务侧
+            // 对「分配事项」的负向门禁一致。
+            if (ref.watch(noteSharePortProvider).isAvailable)
+              _EditorAction(
+                key: const ValueKey('note_editor_share'),
+                semanticLabel: '共享',
+                icon: CupertinoIcons.person_2,
+                onPressed: _share,
+              ),
             _EditorAction(
               key: const ValueKey('note_editor_lock'),
               semanticLabel: '锁定',

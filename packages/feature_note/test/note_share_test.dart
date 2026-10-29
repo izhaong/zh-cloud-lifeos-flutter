@@ -60,6 +60,30 @@ void main() {
     expect(sharedWritable, isTrue);
     expect(find.text('已共享'), findsOneWidget);
   });
+
+  // #396：假端口只会 `throw UnsupportedError('共享客户端未接入')`，入口摆出来就是
+  // 必崩交互。Apple 口径是「入口可用或不存在」，任务侧对「分配事项」用的是同一条
+  // 负向门禁（不渲染）。
+  testWidgets('共享端口未接入时不暴露共享入口', (tester) async {
+    final repo = InMemoryNoteRepository();
+    await repo.upsertFolder(const NoteFolder(id: 'f1', name: '工作'));
+    await repo.upsertNote(_note());
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [noteRepositoryProvider.overrideWithValue(repo)],
+        child: MaterialApp(
+          localizationsDelegates: const [GlobalCupertinoLocalizations.delegate],
+          home: NoteEditorPage(folderId: 'f1', note: _note()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('note_editor_share')), findsNothing);
+    // 反向对照：同一条工具栏的其它入口还在，证明「看不到共享」不是整条没渲染。
+    expect(find.byKey(const ValueKey('note_editor_lock')), findsOneWidget);
+  });
 }
 
 Note _note() => const Note(
@@ -73,6 +97,9 @@ class _FakeSharePort implements NoteSharePort {
   _FakeSharePort(this._onShare);
 
   final void Function(String noteId, String userId, bool writable) _onShare;
+
+  @override
+  bool get isAvailable => true;
 
   @override
   Future<void> share({
