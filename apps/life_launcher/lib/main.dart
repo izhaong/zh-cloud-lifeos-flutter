@@ -135,6 +135,9 @@ Future<void> main() async {
     }
   });
 
+  // #368/#375：菜单命令出口。建在这里（main 作用域）是因为 ProviderScope 的
+  // override 与 `LifeLauncherApp` 的菜单栏都要用它。
+  final menuCommands = ValueNotifier<LifeMenuAction?>(null);
   runApp(
     ProviderScope(
       overrides: [
@@ -152,6 +155,7 @@ Future<void> main() async {
           reminderAlertScheduler,
         ),
         calendarCollabPortProvider.overrideWithValue(calendarCollabPort),
+        lifeMenuCommandsProvider.overrideWithValue(menuCommands),
         calendarSyncCoordinatorProvider.overrideWithValue(
           calendarSyncCoordinator,
         ),
@@ -178,13 +182,18 @@ Future<void> main() async {
         authPortProvider.overrideWithValue(authPort),
         syncPortProvider.overrideWithValue(taskSyncCoordinator),
       ],
-      child: const LifeLauncherApp(),
+      child: LifeLauncherApp(menuCommands: menuCommands),
     ),
   );
 }
 
 class LifeLauncherApp extends ConsumerStatefulWidget {
-  const LifeLauncherApp({super.key});
+  const LifeLauncherApp({super.key, this.menuCommands});
+
+  /// 菜单命令出口（#368/#375）——在 `main()` 里建，同时注入 ProviderScope 与菜单栏。
+  ///
+  /// 可空：widget 测试/非 macOS 没有菜单栏，此时不建总线（页面侧订阅会拿到 null）。
+  final ValueNotifier<LifeMenuAction?>? menuCommands;
 
   @override
   ConsumerState<LifeLauncherApp> createState() => _LifeLauncherAppState();
@@ -201,7 +210,6 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _menuCommands.dispose();
     super.dispose();
   }
 
@@ -227,11 +235,6 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
 
   /// 系统亮/暗切换要重建主题：令牌是 Apple 动态色，Material 岛的静态
   /// `ColorScheme` 也要按当前档位重新解算。
-  /// macOS 菜单栏命令出口（#368）：菜单在 `CupertinoApp` 之上，拿不到下层 context，
-  /// 所以用 notifier 让页面自己订阅（如任务页「新建提醒」）。
-  final ValueNotifier<LifeMenuCommand?> _menuCommands =
-      ValueNotifier<LifeMenuCommand?>(null);
-
   @override
   void didChangePlatformBrightness() => setState(() {});
 
@@ -277,6 +280,10 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) {
       return app;
     }
-    return LifeMenuBar(commands: _menuCommands, child: app);
+    final commands = widget.menuCommands;
+    if (commands == null) {
+      return app;
+    }
+    return LifeMenuBar(commands: commands, child: app);
   }
 }

@@ -9,3 +9,4 @@ export 'src/theme/life_material_island.dart';
 export 'src/theme/life_tokens.dart';
 export 'src/theme/life_dialogs.dart';
 export 'src/providers.dart';
+export 'src/shell/life_menu_command.dart';

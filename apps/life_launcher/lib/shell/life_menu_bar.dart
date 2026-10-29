@@ -7,27 +7,10 @@
 // 只在 macOS 生效：`PlatformMenuBar` 在其它平台是透明包装（子组件原样返回），
 // 但为免在 Web/移动端产生无谓子树，调用方只在 `Platform.isMacOS` 时包一层。
 // 这是**平台能力差异**，不是布局按平台分叉（铁律 §8 禁的是后者）。
+import 'package:app_core/app_core.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-
-/// 菜单命令的接收方（如任务页「新建提醒」）。
-///
-/// 用 [ValueNotifier] 而不是回调注入：菜单栏在 `CupertinoApp` **之上**构建，
-/// 拿不到底下的 BuildContext；notifier 让被包裹的页面自己订阅。
-@immutable
-class LifeMenuCommand {
-  const LifeMenuCommand(this.id);
-
-  /// `new-reminder` / `new-note` / `new-list`。
-  final String id;
-
-  @override
-  bool operator ==(Object other) => other is LifeMenuCommand && other.id == id;
-
-  @override
-  int get hashCode => id.hashCode;
-}
 
 class LifeMenuBar extends StatelessWidget {
   const LifeMenuBar({
@@ -40,7 +23,7 @@ class LifeMenuBar extends StatelessWidget {
   final Widget child;
 
   /// 命令出口：菜单项被选中时写入，页面侧监听并执行。
-  final ValueNotifier<LifeMenuCommand?> commands;
+  final ValueNotifier<LifeMenuAction?> commands;
 
   /// 「关于生活台」；为空时用系统 about 面板。
   final VoidCallback? onAbout;
@@ -93,7 +76,7 @@ class LifeMenuBar extends StatelessWidget {
             PlatformMenuItem(
               label: '新建提醒事项',
               shortcut: const SingleActivator(LogicalKeyboardKey.keyN, meta: true),
-              onSelected: () => commands.value = const LifeMenuCommand('new-reminder'),
+              onSelected: () => commands.value = LifeMenuAction.newReminder,
             ),
             PlatformMenuItem(
               label: '新建备忘录',
@@ -102,7 +85,7 @@ class LifeMenuBar extends StatelessWidget {
                 meta: true,
                 shift: true,
               ),
-              onSelected: () => commands.value = const LifeMenuCommand('new-note'),
+              onSelected: () => commands.value = LifeMenuAction.newNote,
             ),
           ],
         ),

@@ -17,14 +17,49 @@ import 'providers.dart';
 ///
 /// 宽屏左右分栏（侧栏 + 列表）；窄屏侧栏收进底部弹层。
 /// 不出现生态绑定文案（契约 §9）。
-class NoteScaffold extends ConsumerWidget {
+class NoteScaffold extends ConsumerStatefulWidget {
   const NoteScaffold({super.key});
 
   static const double wideBreakpoint = 600;
   static const double sidebarWidth = 220;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<NoteScaffold> createState() => _NoteScaffoldState();
+}
+
+class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
+  /// 菜单命令（#375）：菜单栏拿不到页面 context，靠 app_core 的命令总线通知。
+  ValueNotifier<LifeMenuAction?>? _menuCommands;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _menuCommands = ref.read(lifeMenuCommandsProvider);
+      _menuCommands?.addListener(_onMenuCommand);
+      _onMenuCommand(); // 命令先到、页面后挂载时补消费
+    });
+  }
+
+  /// 文件 → 新建备忘录：与导航栏「＋」同一条路径（新建空备忘录并进编辑）。
+  void _onMenuCommand() {
+    final notifier = _menuCommands;
+    if (notifier == null || notifier.value != LifeMenuAction.newNote) return;
+    if (!mounted) return;
+    notifier.value = null; // 消费即清，避免重建重复触发
+    final folders = ref.read(noteFoldersProvider).value ?? const <NoteFolder>[];
+    _openEditor(context, ref, null, folders);
+  }
+
+  @override
+  void dispose() {
+    _menuCommands?.removeListener(_onMenuCommand);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final query = ref.watch(noteSearchQueryProvider).trim();
     final searching = query.isNotEmpty;
     final notes = searching
@@ -48,7 +83,7 @@ class NoteScaffold extends ConsumerWidget {
     }
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= wideBreakpoint;
+        final wide = constraints.maxWidth >= NoteScaffold.wideBreakpoint;
         return CupertinoPageScaffold(
           key: const Key('note_scaffold'),
           navigationBar: CupertinoNavigationBar(
@@ -105,7 +140,7 @@ class NoteScaffold extends ConsumerWidget {
             child: wide
                 ? Row(
                     children: [
-                      const SizedBox(width: sidebarWidth, child: NoteSidebar()),
+                      const SizedBox(width: NoteScaffold.sidebarWidth, child: NoteSidebar()),
                       const _Separator(),
                       Expanded(
                         child: _NoteList(
