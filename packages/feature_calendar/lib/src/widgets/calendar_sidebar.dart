@@ -10,6 +10,7 @@ import '../design/calendar_tokens.dart';
 import '../logic/event_time.dart';
 import '../logic/local_holidays.dart';
 import 'calendar_shortcuts.dart';
+import 'mini_month.dart';
 import 'subscription_dialog.dart';
 
 /// 日历侧栏（契约 §5.4/§8.5；F-04）。
@@ -71,7 +72,13 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
           // #295：ColoredBox 不会解算 CupertinoDynamicColor，直接把令牌的
           // 亮色档画出来——暗色档下整条侧栏就成了「黑主区 + 白侧栏」。
           color: CalendarTokens.groupedBackground.resolveFrom(context),
-          child: ListView(
+          // #383：Apple 侧栏的迷你月历是**底部固定**的，不跟着列表滚走。
+          // 挂在 ListView 里会把「添加日历」等操作挤出视口（既有测试点不到它，
+          // 真机上也要滚到底才看得见）——所以改成 Column + Expanded。
+          child: Column(
+            children: [
+              Expanded(
+                child: ListView(
             children: [
               for (final entry in groups.entries) ...[
                 LifeSectionHeader(
@@ -149,6 +156,20 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
                 icon: CupertinoIcons.plus,
                 label: '添加日历',
                 onPressed: () => _openAddDialog(context),
+              ),
+            ],
+                ),
+              ),
+              const _Hairline(indent: 16),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(8, 8, 8, 12),
+                child: SizedBox(
+                  height: 252,
+                  child: MiniMonth(
+                    key: Key('calendar_sidebar_mini_month'),
+                    compact: true,
+                  ),
+                ),
               ),
             ],
           ),
