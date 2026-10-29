@@ -57,7 +57,7 @@ class CalendarScaffold extends ConsumerWidget {
     }
 
     // 草稿落位 + 三档呈现（F-08）。断点口径与内容区一致：由 LayoutBuilder
-    // 传入内容宽（compact 全屏 / medium sheet / expanded 第三栏）。
+    // 传入内容宽（compact 全屏 / medium sheet / expanded 第三栏；#407 expanded 阈值 1000）。
     // F-10：occurrence 打开时带上该次原始开始（重复事件作用域）
     void openDraft(
       CalendarEvent draft,
@@ -66,7 +66,7 @@ class CalendarScaffold extends ConsumerWidget {
     ) {
       ref.read(draftOccurrenceStartProvider.notifier).set(occurrenceStart);
       ref.read(draftEventProvider.notifier).setDraft(draft);
-      if (contentWidth >= 1200) {
+      if (contentWidth >= 1000) {
         return; // 第三栏由 build 尾部呈现
       }
       // 已有 sheet/全屏在途：不叠第二层编辑面
@@ -113,7 +113,8 @@ class CalendarScaffold extends ConsumerWidget {
 
     // 内容区实测宽（LayoutBuilder 每帧回写）：openDraft 的断点判定必须与
     // build 尾部第三栏用同一把尺——真实壳层有左轨，MediaQuery 整窗宽比内容
-    // 宽大，1200–1439 窗宽带会误判 expanded 导致草稿悬空（#197 审查 R1）。
+    // 宽大，1000–1439 窗宽带会误判 expanded 导致草稿悬空（#197 审查 R1；
+    // #407 按 Apple 把 expanded 阈值从 1200 降到 1000，判定仍只看实测内容宽）。
     var measuredContentWidth = 0.0;
 
     // F-12：⌘N 与工具栏「＋」打开同一个快速事件输入框
@@ -173,7 +174,7 @@ class CalendarScaffold extends ConsumerWidget {
             final width = constraints.maxWidth;
             measuredContentWidth = width;
             final compact = width < 600; // 契约 §8.5 iPhone 档
-            final expanded = width >= 1200;
+            final expanded = width >= 1000;
             final viewCallbacks = viewCallbacksOf(width);
             Widget content = Column(
               children: [
@@ -194,7 +195,7 @@ class CalendarScaffold extends ConsumerWidget {
               ],
             );
             if (!compact && sidebarVisible) {
-              // 契约 §8.5：medium 240（600–1199）、expanded 280（≥1200）
+              // 契约 §8.5：medium 240（600–999）、expanded 280（≥1000；#407）
               content = Row(
                 children: [
                   CalendarSidebar(width: expanded ? 280 : 240),
@@ -203,7 +204,7 @@ class CalendarScaffold extends ConsumerWidget {
                 ],
               );
             }
-            // F-08：expanded 档第三栏 Inspector（草稿存在时）。
+            // F-08：expanded 档第三栏 Inspector（草稿存在时；#407 起内容宽 ≥1000）。
             // 断点跨档防重复编辑面：只保留一个活动 Inspector——
             // sheet/route 打开时由 _inspectorRouteActive 标记，第三栏不挂；
             // 反之第三栏挂载期间 draft 持有唯一编辑权（pane 变更不回写 provider，

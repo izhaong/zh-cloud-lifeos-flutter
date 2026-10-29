@@ -378,6 +378,7 @@ class EventInspectorHost extends StatelessWidget {
     return showCupertinoModalPopup<void>(
       context: context,
       builder: (sheetContext) => SizedBox(
+        key: const Key('event_inspector_sheet'),
         // 用 sheet 自己的 context 读尺寸：外层 context 在页面重建/卸载后
         // 可能已 deactivated，查祖先会抛「deactivated widget's ancestor」。
         height: MediaQuery.sizeOf(sheetContext).height * 0.85,

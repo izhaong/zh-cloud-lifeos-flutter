@@ -73,9 +73,9 @@ void main() {
         reason: '#197: 保存后日视图必须出现该事件（全天区或时间轴）');
   });
 
-  // #197 审查 R1：壳层左轨挤占内容宽（MediaQuery 1600 但 LayoutBuilder 1100）
-  // → 创建后必须落到 medium sheet，不允许草稿悬空（旧代码按整窗宽误判 expanded）
-  testWidgets('#197 内容宽<1200（壳层左轨）创建走 sheet 编辑面', (tester) async {
+  // #197 审查 R1（#407 起阈值 1200→1000）：壳层左轨挤占内容宽（MediaQuery 1600 但
+  // LayoutBuilder 900）→ 仍走 medium sheet，不允许草稿悬空。
+  testWidgets('#197 内容宽<1000（壳层左轨）创建走 sheet 编辑面', (tester) async {
     final repo = _Repo();
     tester.view
       ..physicalSize = const Size(1600, 900)
@@ -85,7 +85,46 @@ void main() {
       ProviderScope(
         overrides: [calendarRepositoryProvider.overrideWithValue(repo)],
         child: lifeTestHost(
-          // 模拟壳层左轨：内容区被压缩到 1100，MediaQuery 仍是 1600
+          // 模拟壳层左轨：内容区被压缩到 900，MediaQuery 仍是 1600
+          const Center(
+            child: SizedBox(
+              width: 900,
+              height: 900,
+              child: CalendarTabEntry(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('quick_create_menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('quick_create_event')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('quick_event_input')), '团队周会');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('quick_event_create')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('event_inspector_pane')), findsOneWidget,
+        reason: '#197 R1: 内容宽<1000 时创建必须落到 sheet 编辑面，草稿不得悬空');
+    expect(find.byKey(const Key('event_inspector_sheet')), findsOneWidget,
+        reason: '#407: 内容宽<1000 时应是 sheet 形态');
+    expect(repo.upserted, isEmpty);
+  });
+
+  // #407：内容宽 1000–1199（约 1240–1440 窗宽）按 Apple 直接出右侧第三栏。
+  testWidgets('#407 内容宽 1100 创建走右侧 Inspector 第三栏', (tester) async {
+    final repo = _Repo();
+    tester.view
+      ..physicalSize = const Size(1600, 900)
+      ..devicePixelRatio = 1.0;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [calendarRepositoryProvider.overrideWithValue(repo)],
+        child: lifeTestHost(
           const Center(
             child: SizedBox(
               width: 1100,
@@ -108,7 +147,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('event_inspector_pane')), findsOneWidget,
-        reason: '#197 R1: 内容宽<1200 时创建必须落到 sheet 编辑面，草稿不得悬空');
+        reason: '#407: 内容宽 1100 应直接在第三栏出 Inspector');
+    expect(find.byKey(const Key('event_inspector_sheet')), findsNothing,
+        reason: '#407: 内容宽 ≥1000 不应再弹 sheet');
     expect(repo.upserted, isEmpty);
   });
 }
