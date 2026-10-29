@@ -23,7 +23,7 @@ void main() {
     final view =
         TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
     view
-      ..physicalSize = const Size(900, 900)
+      ..physicalSize = const Size(420, 900)
       ..devicePixelRatio = 1.0;
     await tester.pumpWidget(
       ProviderScope(
