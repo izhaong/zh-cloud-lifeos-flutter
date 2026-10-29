@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:app_ui/app_ui.dart';
 import 'dart:convert';
 
@@ -52,14 +53,38 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   late final quill.QuillController _body;
   late final List<String> _tags = [...?widget.note?.tagNames];
 
+
   /// 开头格式（#392）要能把光标放到标题或正文，所以两个焦点节点自己持有
   /// （不依赖控件内部自建的节点，否则测不到、也没法 dispose）。
   final FocusNode _titleFocus = FocusNode(debugLabel: 'note_editor_title');
   final FocusNode _bodyFocus = FocusNode(debugLabel: 'note_editor_body');
 
+  /// 自动保存（#390）：Apple 备忘录没有「保存」按钮，边写边存。
+  ///
+  /// 用 `Timer` 字段而**不是**裸 `Future.delayed`：`flutter_test` 的假时钟会因为
+  /// 未决定时器直接报 `A timer is still pending`（本仓已踩过，见 AGENTS.md）。
+  static const Duration autosaveDebounce = Duration(milliseconds: 600);
+  Timer? _autosave;
+  bool _dirty = false;
+
+  /// 当前这条备忘录的 id（新建时首个 flush 才拿到）。
+  String? _noteId;
+
+  /// 上一次落库的正文序列化结果，用来判断「文档真的变了」。
+  String _lastSavedDelta = '';
+
+  /// 仓储引用（initState 捕获）。
+  ///
+  /// **不能**在 `dispose()` 里 `ref.read`：Riverpod 会在 State 即将卸载时抛
+  /// `Bad state: Using "ref" when a widget is about to or has been unmounted is unsafe`，
+  /// 而 dispose 里恰恰要 flush 未落库的改动（#390 的核心判据之一）。
+  late final NoteRepository _repo;
+
   @override
   void initState() {
     super.initState();
+    _repo = ref.read(noteRepositoryProvider);
+    _noteId = widget.note?.id;
     _title = TextEditingController(text: widget.note?.title ?? '');
     _tagInput = TextEditingController();
     _body = quill.QuillController(
@@ -70,6 +95,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     if (widget.note == null) {
       _applyBeginWith(ref.read(noteSettingsProvider).beginWith);
     }
+    _lastSavedDelta = _deltaJson();
+    _title.addListener(_markDirty);
+    _body.addListener(_onBodyChanged);
   }
 
   /// 「新备忘录开头格式」的消费端（矩阵 N25 / TC-NOTE-UI-111）。
@@ -100,6 +128,57 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) node.requestFocus();
     });
+
+    _lastSavedDelta = _deltaJson();
+    _title.addListener(_markDirty);
+    _body.addListener(_onBodyChanged);
+  }
+
+  String _deltaJson() => jsonEncode({'ops': _body.document.toDelta().toJson()});
+
+  void _onBodyChanged() {
+    // 选区变化也走这个 listener：只有正文真变了才排保存
+    if (_deltaJson() == _lastSavedDelta) return;
+    _markDirty();
+  }
+
+  void _markDirty() {
+    _dirty = true;
+    _autosave?.cancel();
+    _autosave = Timer(autosaveDebounce, () => unawaited(_flush()));
+  }
+
+  /// 落库（不关页）。返回是否真的写了一次。
+  Future<bool> _flush() async {
+    if (!_dirty) return false;
+    final existing = widget.note;
+    if (existing != null && existing.locked && !widget.unlockedInitial) {
+      return false; // 未解锁不允许覆盖密文（F-12）
+    }
+    final plainDelta = _deltaJson();
+    final keepLocked = existing != null &&
+        existing.locked &&
+        (widget.unlockedInitial || widget.unlockPassphrase != null);
+    final delta = keepLocked
+        ? NoteLockCodec.seal(plainDelta, widget.unlockPassphrase ?? '')
+        : plainDelta;
+    final note = Note(
+      id: _noteId ?? 'note-${DateTime.now().millisecondsSinceEpoch}',
+      folderId: existing?.folderId ?? widget.folderId,
+      title: _title.text.trim().isEmpty ? '新建备忘录' : _title.text.trim(),
+      bodyDelta: delta,
+      pinned: existing?.pinned ?? false,
+      locked: keepLocked,
+      tagNames: List<String>.unmodifiable(_tags),
+      sortOrder: existing?.sortOrder ?? 0,
+      revision: (existing?.revision ?? 0) + 1,
+      clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    _noteId = note.id;
+    _lastSavedDelta = plainDelta;
+    _dirty = false;
+    await _repo.upsertNote(note);
+    return true;
   }
 
   quill.Document _loadDocument(String? deltaJson) {
@@ -286,9 +365,13 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   }
 
   Future<void> _share() async {
-    final existing = widget.note;
-    if (existing == null) {
-      await _infoDialog('先保存备忘录再共享');
+    // #390：自动保存后不再有「先保存再共享」这个前置——先把待写内容 flush 掉，
+    // 拿到 id 就能共享。仍然拿不到 id 只可能是**完全没输入过**，那才提示。
+    if (_dirty) await _flush();
+    final existingId = _noteId;
+    if (!mounted) return; // 上面 await 过，取 context 前必须复查
+    if (existingId == null) {
+      await _infoDialog('先写点内容再共享');
       return;
     }
     final userIdController = TextEditingController();
@@ -351,7 +434,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     await ref
         .read(noteSharePortProvider)
         .share(
-          noteId: existing.id,
+          noteId: existingId,
           targetUserId: targetUserId,
           writable: writable,
         );
@@ -508,37 +591,6 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     );
   }
 
-  Future<void> _save() async {
-    final existing = widget.note;
-    if (existing != null && existing.locked && !widget.unlockedInitial) {
-      return; // 未解锁不允许覆盖密文（F-12）
-    }
-    final plainDelta = jsonEncode({'ops': _body.document.toDelta().toJson()});
-    // #395：锁定中的备忘录保存时必须重新加密（口令来自解锁步骤）。
-    final keepLocked = existing != null &&
-        existing.locked &&
-        (widget.unlockedInitial || widget.unlockPassphrase != null);
-    final delta = keepLocked
-        ? NoteLockCodec.seal(plainDelta, widget.unlockPassphrase ?? '')
-        : plainDelta;
-    final note = Note(
-      id: existing?.id ?? 'note-${DateTime.now().millisecondsSinceEpoch}',
-      folderId: existing?.folderId ?? widget.folderId,
-      title: _title.text.trim().isEmpty ? '新建备忘录' : _title.text.trim(),
-      bodyDelta: delta,
-      pinned: existing?.pinned ?? false,
-      locked: keepLocked,
-      tagNames: List<String>.unmodifiable(_tags),
-      sortOrder: existing?.sortOrder ?? 0,
-      revision: (existing?.revision ?? 0) + 1,
-      clientUpdatedAt: DateTime.now().millisecondsSinceEpoch,
-    );
-    await ref.read(noteRepositoryProvider).upsertNote(note);
-    if (mounted) {
-      Navigator.of(context).pop();
-    }
-  }
-
   void _addTag() {
     final name = _tagInput.text.trim();
     if (name.isEmpty || _tags.contains(name) || _tags.length >= 32) {
@@ -548,6 +600,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
       _tags.add(name);
       _tagInput.clear();
     });
+    _markDirty(); // 标签也是内容的一部分，改了要落库
   }
 
   Future<void> _infoDialog(String message) {
@@ -568,6 +621,12 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
 
   @override
   void dispose() {
+    // 离开编辑面（推入页 pop / 三栏切换记录）必须把未落库的改动刷掉，
+    // 否则就是 #390 报的「漏点保存静默丢内容」。
+    _autosave?.cancel();
+    if (_dirty) {
+      unawaited(_flush());
+    }
     _title.dispose();
     _tagInput.dispose();
     _titleFocus.dispose();
@@ -614,19 +673,6 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               semanticLabel: '格式',
               icon: CupertinoIcons.textformat,
               onPressed: _showFormatMenu,
-            ),
-            CupertinoButton(
-              key: const ValueKey('note_editor_save'),
-              minimumSize: Size.zero,
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              onPressed: _save,
-              child: const Text(
-                '保存',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: CupertinoColors.systemBlue,
-                ),
-              ),
             ),
       ];
 
@@ -694,7 +740,10 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                             children: [
                               Text(tag, style: const TextStyle(fontSize: 13)),
                               GestureDetector(
-                                onTap: () => setState(() => _tags.remove(tag)),
+                                onTap: () {
+                                  setState(() => _tags.remove(tag));
+                                  _markDirty();
+                                },
                                 child: const Padding(
                                   padding: EdgeInsets.only(left: 2),
                                   child: Icon(

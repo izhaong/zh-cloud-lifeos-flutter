@@ -76,7 +76,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('note_editor_tag_私人')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('note_editor_save')));
+    // #390：不再有「保存」按钮——输入后等去抖窗口过去即自动落库
+    await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
     final notes = await repo.watchNotes().first;
