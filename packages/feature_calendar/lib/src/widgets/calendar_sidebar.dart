@@ -7,6 +7,7 @@ import 'package:app_ui/app_ui.dart';
 
 import '../providers.dart';
 import '../design/calendar_tokens.dart';
+import '../logic/color_input.dart';
 import '../logic/event_time.dart';
 import '../logic/local_holidays.dart';
 import 'calendar_shortcuts.dart';
@@ -456,6 +457,15 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
       widget.calendar?.colorArgb ?? kCalendarPresetColors[4].$2; // 默认蓝
   late bool _ignoreAlerts = widget.calendar?.ignoreAlerts ?? false;
 
+  /// 自定义颜色（#404）：展开「自定义」后可见十六进制输入与预览。
+  ///
+  /// 内置色板只有 7 色，Apple 允许任意颜色；Issue 明确不要求复刻色轮，
+  /// 所以这里用「十六进制输入 + 实时预览」覆盖「任意颜色」这一诉求。
+  bool _showCustomColor = false;
+  late final TextEditingController _hex = TextEditingController(
+    text: toHexColor(widget.calendar?.colorArgb ?? kCalendarPresetColors[4].$2),
+  );
+
   /// 分组名（#431）：空 = 归入「我的日历」。
   ///
   /// 此前 `groupName` **没有任何写入入口**：侧栏 `_group()` 会按它分组，
@@ -472,6 +482,7 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
 
   @override
   void dispose() {
+    _hex.dispose();
     _group.dispose();
     _title.dispose();
     super.dispose();
@@ -571,6 +582,75 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
                 ),
             ],
           ),
+          const SizedBox(height: 8),
+          // #404：自定义颜色（内置色板之外）
+          Row(
+            children: [
+              CupertinoButton(
+                key: const Key('preset-color-custom'),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                onPressed: () {
+                  setState(() {
+                    _showCustomColor = !_showCustomColor;
+                    if (_showCustomColor) {
+                      _hex.text = toHexColor(_colorArgb);
+                    }
+                  });
+                },
+                child: Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: CalendarTokens.hairline.resolveFrom(context),
+                        ),
+                        gradient: const SweepGradient(
+                          colors: kCustomColorWheel,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('自定义颜色', style: TextStyle(fontSize: 14)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (_showCustomColor) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Container(
+                  key: const Key('custom-color-preview'),
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Color(_colorArgb),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: CupertinoTextField(
+                    key: const Key('custom-color-hex'),
+                    controller: _hex,
+                    placeholder: '#RRGGBB',
+                    style: const TextStyle(fontSize: 15),
+                    onChanged: (value) {
+                      final parsed = parseHexColor(value);
+                      if (parsed == null) return; // 半输入态不打断
+                      setState(() => _colorArgb = parsed);
+                      if (isEdit) _persist();
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (isEdit) ...[
             const SizedBox(height: 8),
             Row(

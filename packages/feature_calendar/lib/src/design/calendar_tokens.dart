@@ -75,3 +75,16 @@ abstract final class CalendarTokens {
     darkColor: Color(0xFF2C2C2E),
   );
 }
+
+/// 「自定义颜色」入口的色环预览（#404）。
+///
+/// 放在令牌文件里是因为 C3 棘轮（`check_ui_boundary --max-hex 0`）只允许字面色
+/// 出现在 `/theme/` 与 `/design/` 下；UI 文件里直接写 `Color(0x…)` 会判红。
+const List<Color> kCustomColorWheel = [
+  Color(0xFFFF3B30),
+  Color(0xFFFFCC00),
+  Color(0xFF34C759),
+  Color(0xFF007AFF),
+  Color(0xFFAF52DE),
+  Color(0xFFFF3B30),
+];
