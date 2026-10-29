@@ -1015,9 +1015,19 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     );
   }
 
+  /// 防重入：Return 与「失焦提交」（#367）可能在同一帧内先后触发，
+  /// 不加锁会落两条同名条目。
+  bool _submittingDraft = false;
+
   Future<void> _submitDraft() async {
+    if (_submittingDraft) return;
     final title = _draftController.text.trim();
-    if (title.isEmpty) return; // 空标题不落库
+    if (title.isEmpty) {
+      // 空草稿失焦：直接收起，不落库（Apple：空行点到别处即消失）
+      if (_showDraft && mounted) setState(() => _showDraft = false);
+      return;
+    }
+    _submittingDraft = true;
     final repo = ref.read(reminderRepositoryProvider);
     // 智能视图内新建：必须落到对应视图的语义上——
     // today/scheduled/urgent 需要 dueAt 才能命中（smart.today 过滤 = !completed && 同日）；
@@ -1048,7 +1058,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       ),
     );
     _draftController.clear();
-    setState(() => _showDraft = false);
+    if (mounted) setState(() => _showDraft = false);
+    _submittingDraft = false;
   }
 
   Future<void> _openNewItemDialog() async {
@@ -1413,7 +1424,7 @@ class _GhostNewRow extends StatelessWidget {
 }
 
 /// 新建提醒草稿行：提交才 upsertItem 落库；空标题丢弃。
-class _DraftRow extends StatelessWidget {
+class _DraftRow extends StatefulWidget {
   const _DraftRow({
     required this.controller,
     required this.onSubmit,
@@ -1423,6 +1434,29 @@ class _DraftRow extends StatelessWidget {
   final TextEditingController controller;
   final VoidCallback onSubmit;
   final VoidCallback onCancel;
+
+  @override
+  State<_DraftRow> createState() => _DraftRowState();
+}
+
+class _DraftRowState extends State<_DraftRow> {
+  late final FocusNode _focusNode = FocusNode()..addListener(_onFocusChanged);
+
+  /// #367：Apple 语义「点到别处即提交」。
+  ///
+  /// 此前草稿行只认 Return 与提交按钮，失焦什么都不做——于是点别处后草稿行会以
+  /// 「像已存在」的形态常驻列表（右侧还挂着提交箭头），而计数又不含它。
+  void _onFocusChanged() {
+    if (_focusNode.hasFocus || !mounted) return;
+    widget.onSubmit();
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_onFocusChanged);
+    _focusNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1435,9 +1469,10 @@ class _DraftRow extends StatelessWidget {
           Expanded(
             child: CupertinoTextField(
               key: const ValueKey('draft_field'),
-              controller: controller,
+              controller: widget.controller,
+              focusNode: _focusNode,
               autofocus: true,
-              onSubmitted: (_) => onSubmit(),
+              onSubmitted: (_) => widget.onSubmit(),
               placeholder: '新提醒事项',
               decoration: const BoxDecoration(),
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1447,7 +1482,7 @@ class _DraftRow extends StatelessWidget {
             key: const ValueKey('draft_submit'),
             minimumSize: Size.zero,
             padding: const EdgeInsets.all(6),
-            onPressed: onSubmit,
+            onPressed: widget.onSubmit,
             child: const Icon(
               CupertinoIcons.arrow_up,
               size: 20,
