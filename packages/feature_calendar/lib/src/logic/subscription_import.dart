@@ -58,6 +58,18 @@ Future<SubscriptionImportResult> refreshSubscription({
   if (url == null || url.isEmpty) {
     return const SubscriptionImportResult(imported: 0, skipped: 0);
   }
+  // 归属边界（#443 ADR，`docs/lifeos/calendar/plan/adr-ics-parser-ownership.md`）：
+  //
+  // - `remoteId == null` → **客户端本地订阅**，客户端自己抓 .ics 并解析（本文件）；
+  // - `remoteId != null` → **服务端订阅**，事件随云同步下发（ical4j 在服务端解析），
+  //   客户端**不得**再抓一遍，否则同一份 .ics 会落两套事件（`sub-<uid>` +
+  //   服务端 uid），月视图里出现双份。
+  //
+  // `_buildLocalMutations` 只推 `remoteId == null && kind == local`，所以本地订阅
+  // 永远不会上传成服务端订阅——这两条路是**不相交**的，边界必须在这里守住。
+  if (calendar.remoteId != null) {
+    return const SubscriptionImportResult.pending();
+  }
   final String raw;
   try {
     raw = await fetcher.fetch(url);
