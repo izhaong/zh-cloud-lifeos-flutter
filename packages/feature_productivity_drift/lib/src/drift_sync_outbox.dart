@@ -99,11 +99,14 @@ class DriftSyncOutbox implements kernel.SyncOutbox {
 ///
 /// 任务域一个域一行；只有落库成功的游标才写回，重启后从原位续拉。
 class DriftSyncCursorStore implements kernel.SyncCursorStore {
-  DriftSyncCursorStore(this._db);
+  /// [domain] 默认 `task`（历史行为）；记录域传 `note`（#416）——
+  /// 两个域各占一行游标，互不影响。
+  DriftSyncCursorStore(this._db, {this.domain = 'task'});
 
   final LifeProductivityDb _db;
 
-  static const domain = 'task';
+  /// 域名（`task` / `note`）。
+  final String domain;
 
   @override
   Future<String?> read() async {
@@ -117,7 +120,7 @@ class DriftSyncCursorStore implements kernel.SyncCursorStore {
   Future<void> write(String cursor) =>
       _db.into(_db.syncCursorRows).insertOnConflictUpdate(
             SyncCursorRowsCompanion(
-              domain: const Value(domain),
+              domain: Value(domain),
               cursor: Value(cursor),
               updatedAt: Value(DateTime.now().millisecondsSinceEpoch),
             ),

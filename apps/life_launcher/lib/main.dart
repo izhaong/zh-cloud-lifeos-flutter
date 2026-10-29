@@ -18,6 +18,10 @@ import 'notifications/local_calendar_alert_scheduler.dart';
 import 'notifications/local_reminder_alert_scheduler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'shell/pinned_tabs_service.dart';
+import 'package:feature_note_cloud/feature_note_cloud.dart'
+    show NoteRestSyncPort, NoteSyncCoordinator;
+
+import 'note_sync_wiring.dart';
 import 'shell/life_menu_bar.dart';
 import 'shell_providers.dart';
 
@@ -107,6 +111,16 @@ Future<void> main() async {
   );
   await reminderAlertScheduler.start();
   // F-17：日历云侧（同步 / 收件箱 / 导入导出），与任务共用同一会话存储
+  // #416：记录域同步（#413 发件箱 → #414 applier → #415 协调器 → 这里接线）。
+  final noteSyncPort = NoteRestSyncPort(
+    http: DioNoteSyncHttp(dio: dio, store: sessionStore),
+  );
+  final noteSyncCoordinator = NoteSyncCoordinator(
+    outbox: DriftSyncOutbox(db),
+    applier: noteRepository as SyncApplier,
+    cursors: DriftSyncCursorStore(db, domain: 'note'),
+    port: noteSyncPort,
+  );
   final calendarSyncPort = RestCalendarSyncPort(dio: dio, store: sessionStore);
   final calendarCollabPort = RestCalendarCollabPort(
     dio: dio,
@@ -128,6 +142,19 @@ Future<void> main() async {
       );
     } catch (_) {
       // 离线优先：启动同步失败不影响本地可用
+    }
+  });
+  // #416：记录域冷启动补一轮（未登录零请求；失败不挡本地）
+  Future<void>(() async {
+    try {
+      await syncNotesOnce(
+        coordinator: noteSyncCoordinator,
+        port: noteSyncPort,
+        store: sessionStore,
+        clock: DateTime.now,
+      );
+    } catch (_) {
+      // 离线优先：未登录/断网都不挡本地能力
     }
   });
   // TC-SYNC-106/107：任务域冷启动也补一轮（先推本地、再拉增量落库）
@@ -190,18 +217,34 @@ Future<void> main() async {
         authPortProvider.overrideWithValue(authPort),
         syncPortProvider.overrideWithValue(taskSyncCoordinator),
       ],
-      child: LifeLauncherApp(menuCommands: menuCommands),
+      child: LifeLauncherApp(
+        menuCommands: menuCommands,
+        noteSyncCoordinator: noteSyncCoordinator,
+        noteSyncPort: noteSyncPort,
+        sessionStore: sessionStore,
+      ),
     ),
   );
 }
 
 class LifeLauncherApp extends ConsumerStatefulWidget {
-  const LifeLauncherApp({super.key, this.menuCommands});
+  const LifeLauncherApp({
+    super.key,
+    this.menuCommands,
+    this.noteSyncCoordinator,
+    this.noteSyncPort,
+    this.sessionStore,
+  });
 
   /// 菜单命令出口（#368/#375）——在 `main()` 里建，同时注入 ProviderScope 与菜单栏。
   ///
   /// 可空：widget 测试/非 macOS 没有菜单栏，此时不建总线（页面侧订阅会拿到 null）。
   final ValueNotifier<LifeMenuAction?>? menuCommands;
+
+  /// 记录域同步链（#416）：回前台时续一轮。可空——widget 测试与未登录场景不注入。
+  final NoteSyncCoordinator? noteSyncCoordinator;
+  final NoteRestSyncPort? noteSyncPort;
+  final SessionStore? sessionStore;
 
   @override
   ConsumerState<LifeLauncherApp> createState() => _LifeLauncherAppState();
@@ -231,12 +274,27 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
     // 回前台续一轮（TC-SYNC-107「离线改 → 联网推」的触发点）：
     // 未登录/队空内部直接返回，失败不清队也不打扰用户。
     final port = ref.read(syncPortProvider);
+    final notePort = widget.noteSyncPort;
+    final noteCoordinator = widget.noteSyncCoordinator;
+    final store = widget.sessionStore;
     Future<void>(() async {
       try {
         await port.push();
         await port.pull();
       } catch (_) {
         // 离线优先：续推失败不影响本地可用
+      }
+      if (notePort != null && noteCoordinator != null && store != null) {
+        try {
+          await syncNotesOnce(
+            coordinator: noteCoordinator,
+            port: notePort,
+            store: store,
+            clock: DateTime.now,
+          );
+        } catch (_) {
+          // 记录域同理：失败不打扰用户
+        }
       }
     });
   }
