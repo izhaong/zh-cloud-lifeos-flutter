@@ -8,6 +8,7 @@ import 'providers.dart';
 import 'calendar_view_callbacks.dart';
 import 'logic/quick_event_draft.dart';
 import 'views/day_view.dart';
+import 'views/list_view.dart';
 import 'views/month_view.dart';
 import 'views/year_view.dart';
 import 'widgets/calendar_sidebar.dart';
@@ -307,7 +308,7 @@ class _MainView extends ConsumerWidget {
         eventsController: eventsController,
       ),
       CalendarViewMode.year => const CalendarYearView(),
-      CalendarViewMode.list => const Center(child: Text('列表')),
+      CalendarViewMode.list => const CalendarListView(),
     };
     // 裸键（Delete/Esc/Return）只在主视图内生效，避免吞掉表单文本输入
     return Shortcuts(
