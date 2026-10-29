@@ -26,6 +26,7 @@ export 'src/logic/double_tap_create.dart';
 export 'src/widgets/subscription_dialog.dart';
 export 'src/widgets/calendar_settings_sheet.dart';
 export 'src/views/day_view.dart';
+export 'src/views/list_view.dart';
 export 'src/views/month_view.dart';
 export 'src/views/year_view.dart';
 export 'src/views/day_reminder_lane.dart';
