@@ -8,6 +8,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart'
     as kernel;
 
 import 'db.dart' as db;
+import 'drift_sync_outbox.dart';
 
 /// [kernel.NoteRepository] 的 Drift 实现（#280：记录本机持久化）。
 ///
@@ -122,6 +123,7 @@ class DriftNoteRepository implements kernel.NoteRepository {
             deletedAt: const Value(null),
           ),
         );
+    await _enqueueFolderOutbox([folder.id]);
     return folder.id;
   }
 
@@ -130,6 +132,8 @@ class DriftNoteRepository implements kernel.NoteRepository {
     // #373：文件夹本身不做软删（Notes 的 deletedAt 只服务「最近删除」里的笔记），
     // 调用方要先把文件夹内的笔记 softDelete 再调这里。
     await (_db.delete(_db.noteFolders)..where((t) => t.id.equals(folderId))).go();
+    // 删除后行已不在，用最小载荷记一条 delete（服务端只需 id）。
+    await _enqueueFolderOutbox([folderId], forceDeleted: true);
   }
 
   @override
@@ -147,6 +151,9 @@ class DriftNoteRepository implements kernel.NoteRepository {
     await _db.into(_db.notes).insertOnConflictUpdate(
           _noteCompanion(normalized, deletedAt: deletedAt),
         );
+    // #413：本地变更进发件箱（push 半边的前置）。此前 note 侧 0 处写 outbox，
+    // 于是 RestSyncPort 没有数据源、登录后备忘录根本不上传。
+    await _enqueueNoteOutbox([normalized.id]);
     return normalized.id;
   }
 
@@ -154,12 +161,14 @@ class DriftNoteRepository implements kernel.NoteRepository {
   Future<void> softDelete(String noteId) async {
     await (_db.update(_db.notes)..where((t) => t.id.equals(noteId)))
         .write(db.NotesCompanion(deletedAt: Value(_now)));
+    await _enqueueNoteOutbox([noteId]);
   }
 
   @override
   Future<void> restore(String noteId) async {
     await (_db.update(_db.notes)..where((t) => t.id.equals(noteId)))
         .write(const db.NotesCompanion(deletedAt: Value(null)));
+    await _enqueueNoteOutbox([noteId]);
   }
 
   @override
@@ -176,6 +185,58 @@ class DriftNoteRepository implements kernel.NoteRepository {
       }
     }
     return removed;
+  }
+
+  /// 入队一批备忘录变更（#413）。
+  ///
+  /// 与任务侧同口径：同实体未推条目由 `DriftSyncOutbox.enqueue` 合并；
+  /// 幂等键首次生成后沿用。入站落库（子卡 #414）必须**绕开**这里，
+  /// 否则 pull 写一次就顺手 enqueue，push 再推回服务端，造成无限往返。
+  Future<void> _enqueueNoteOutbox(Iterable<String> noteIds) async {
+    final outbox = DriftSyncOutbox(_db);
+    for (final id in noteIds) {
+      final row = await (_db.select(_db.notes)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
+      if (row == null) continue;
+      final at = _now;
+      final note = _noteModel(row);
+      await outbox.enqueue(
+        kernel.SyncOutboxEntry(
+          entityType: 'note',
+          entityId: id,
+          operation: row.deletedAt != null ? 'delete' : 'upsert',
+          payload: kernel.noteSyncPayload(note),
+          clientMutationId: 'note-$id-${at.microsecondsSinceEpoch}',
+          clientUpdatedAt: at.millisecondsSinceEpoch,
+        ),
+      );
+    }
+  }
+
+  /// 入队一批文件夹变更（#413）。
+  Future<void> _enqueueFolderOutbox(Iterable<String> folderIds,
+      {bool forceDeleted = false}) async {
+    final outbox = DriftSyncOutbox(_db);
+    for (final id in folderIds) {
+      final at = _now;
+      final row = forceDeleted
+          ? null
+          : await (_db.select(_db.noteFolders)..where((t) => t.id.equals(id)))
+              .getSingleOrNull();
+      if (row == null && !forceDeleted) continue;
+      await outbox.enqueue(
+        kernel.SyncOutboxEntry(
+          entityType: 'folder',
+          entityId: id,
+          operation: forceDeleted ? 'delete' : 'upsert',
+          payload: row == null
+              ? {'id': id}
+              : kernel.noteFolderSyncPayload(_folderModel(row)),
+          clientMutationId: 'folder-$id-${at.microsecondsSinceEpoch}',
+          clientUpdatedAt: at.millisecondsSinceEpoch,
+        ),
+      );
+    }
   }
 
   @override

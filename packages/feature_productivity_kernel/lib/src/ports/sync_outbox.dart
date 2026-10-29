@@ -4,6 +4,8 @@ import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
 import '../models/reminder_item.dart';
+import '../models/note.dart';
+import '../models/note_folder.dart';
 import '../models/reminder_list.dart';
 import '../models/reminder_list_type.dart';
 import '../models/reminder_section.dart';
@@ -284,3 +286,35 @@ ReminderSection reminderSectionFromSyncPayload(
     remoteId: entityId,
   );
 }
+
+/// 记录域同步载荷（#413）：备忘录 → 服务端可重建的 JSON。
+///
+/// 与 [taskSyncPayload] 同口径：日期一律 epoch 毫秒；字段名跟随服务端 VO
+/// （`lifeos_note` / `lifeos_note_folder` 的 camelCase）。
+/// `locked` 只上传标志与**密文** `bodyDelta`——明文永远不出本机（#395）。
+Map<String, dynamic> noteSyncPayload(Note note) => {
+      'id': note.id,
+      'folderId': note.folderId,
+      'title': note.title,
+      'bodyDelta': note.bodyDelta,
+      'bodyText': note.bodyText,
+      'pinned': note.pinned,
+      'locked': note.locked,
+      'checklistTotal': note.checklistTotal,
+      'checklistDone': note.checklistDone,
+      'tagNames': note.tagNames,
+      'sortOrder': note.sortOrder,
+      'deletedAt': _epochMilli(note.deletedAt),
+      'revision': note.revision,
+      'clientUpdatedAt': note.clientUpdatedAt,
+    };
+
+/// 记录域文件夹载荷（#413）。
+Map<String, dynamic> noteFolderSyncPayload(NoteFolder folder) => {
+      'id': folder.id,
+      'parentId': folder.parentId,
+      'name': folder.name,
+      'smart': folder.smart,
+      'filterJson': folder.filterJson,
+      'sortOrder': folder.sortOrder,
+    };
