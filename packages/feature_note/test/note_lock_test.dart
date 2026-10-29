@@ -123,7 +123,8 @@ void main() {
       find.byKey(const ValueKey('note_editor_title')),
       '已解锁',
     );
-    await tester.tap(find.byKey(const ValueKey('note_editor_save')));
+    // #390：不再有「保存」按钮——输入后等去抖窗口过去即自动落库
+    await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
     final saved = (await repo.watchNotes().first).single;

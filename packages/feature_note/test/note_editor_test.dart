@@ -70,7 +70,8 @@ void main() {
       reason: '编辑器控制器里已有加粗属性',
     );
 
-    await tester.tap(find.byKey(const ValueKey('note_editor_save')));
+    // #390：不再有「保存」按钮——输入后等去抖窗口过去即自动落库
+    await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
     // 回到列表：标题可见
@@ -122,7 +123,8 @@ void main() {
       find.byKey(const ValueKey('note_editor_title')),
       '新标题',
     );
-    await tester.tap(find.byKey(const ValueKey('note_editor_save')));
+    // #390：不再有「保存」按钮——输入后等去抖窗口过去即自动落库
+    await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
     expect(find.text('新标题'), findsOneWidget);

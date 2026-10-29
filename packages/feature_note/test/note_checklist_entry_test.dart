@@ -102,7 +102,8 @@ void main() {
       reason: '未转成清单的行同样只该出现一次',
     );
 
-    await tester.tap(find.byKey(const ValueKey('note_editor_save')));
+    // #390：不再有「保存」按钮——输入后等去抖窗口过去即自动落库
+    await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
     var note = (await repo.watchNotes().first).single;
     expect(note.checklistDone, 0);
@@ -121,7 +122,8 @@ void main() {
       quill.Attribute.clone(quill.Attribute.list, 'checked'),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('note_editor_save')));
+    // #390：不再有「保存」按钮——输入后等去抖窗口过去即自动落库
+    await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
     note = (await repo.watchNotes().first).single;
