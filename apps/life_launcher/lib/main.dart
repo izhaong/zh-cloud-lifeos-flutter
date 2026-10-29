@@ -23,6 +23,7 @@ import 'package:feature_note_cloud/feature_note_cloud.dart'
 
 import 'note_sync_wiring.dart';
 import 'shell/life_menu_bar.dart';
+import 'shell/task_badge.dart';
 import 'shell_providers.dart';
 
 /// 启动预热步骤兜底（#230）：这些步骤只做「尽力补齐」，失败不得阻断启动。
@@ -176,6 +177,10 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         reminderRepositoryProvider.overrideWithValue(repository),
+        // #447：生产徽标此前恒为 {}（只有测试注入过假值）→ 这里派生真实数字。
+        shellBadgeCountsProvider.overrideWith(
+          (ref) => ref.watch(taskBadgeCountsProvider),
+        ),
         taskPreferenceRepositoryProvider.overrideWithValue(
           taskPreferenceRepository,
         ),
