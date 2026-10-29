@@ -1,3 +1,5 @@
+import 'package:feature_productivity_kernel/feature_productivity_kernel.dart' as kernel;
+
 /// 同步会话（未登录 = null，零请求）。
 class NoteSyncSession {
   const NoteSyncSession({required this.token, required this.userId});
@@ -28,4 +30,17 @@ class NotePushResult {
 
   final int attempts;
   final int conflicts;
+}
+
+/// 一次 pull 的分页结果（#415）：变更向量 + 下一页游标 + 是否还有更多。
+class NotePullPage {
+  const NotePullPage({
+    required this.changes,
+    required this.nextCursor,
+    required this.hasMore,
+  });
+
+  final List<kernel.SyncIncomingChange> changes;
+  final String? nextCursor;
+  final bool hasMore;
 }
