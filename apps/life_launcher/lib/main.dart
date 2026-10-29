@@ -252,6 +252,14 @@ Future<void> main() async {
   );
 }
 
+/// 产品级 locale 声明（#387）。
+///
+/// 抽成常量是为了让测试能直接断言「声明 == 实际可达」，不必拉起整个应用。
+const Locale kAppLocale = Locale('zh', 'CN');
+
+/// 声明支持的语言。**必须与 [kAppLocale] 一致**——声明了却不可达的语言就是假能力。
+const List<Locale> kAppSupportedLocales = [Locale('zh', 'CN')];
+
 class LifeLauncherApp extends ConsumerStatefulWidget {
   const LifeLauncherApp({
     super.key,
@@ -346,8 +354,17 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
       title: 'LifeOS 生活台',
       debugShowCheckedModeBanner: false,
       theme: LifeTokens.cupertino(brightness, highContrast, boldText),
-      locale: const Locale('zh', 'CN'),
-      supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
+      // 产品裁定（#387）：LifeOS **只做中文 UI**。
+      //
+      // 此前 `supportedLocales` 里摆着 `en_US`、`locale` 又写死 `zh_CN`：
+      // 声明支持英文却在运行时不可达，是**假能力**，也让 TC-REG-104
+      //（「切英文无中文残留」）成为结构上做不到的用例。
+      //
+      // 现在只声明 zh_CN——app 自身文案是硬编码中文（142/142 个 UI 文件、
+      // 652 行字面量），全量 i18n 是另一个量级的事，需要时单独立项（含 ARB 抽取）。
+      // 随之保证的仍是：**框架文案**（日期/星期/无障碍读数）随 zh_CN 正确渲染。
+      locale: kAppLocale,
+      supportedLocales: kAppSupportedLocales,
       localizationsDelegates: const [
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
