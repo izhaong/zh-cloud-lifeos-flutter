@@ -10,6 +10,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import '../calendar_view_callbacks.dart';
 import '../logic/double_tap_create.dart';
 import '../logic/lunar_label.dart';
+import '../logic/week_start.dart';
 import '../providers.dart';
 
 /// #225：月视图双击闸门（页面级单实例；跨 build 保留节拍）。
@@ -53,9 +54,7 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
     DateTime anchor,
   ) {
     return kalender.MonthViewConfiguration.singleMonth(
-      firstDayOfWeek: preference.startWeekOn == 7
-          ? DateTime.sunday
-          : DateTime.monday,
+      firstDayOfWeek: effectiveStartWeekOn(preference.startWeekOn),
       showWeekNumbers: preference.showWeekNumbers,
       initialDateTime: DateTime(anchor.year, anchor.month, 1),
     );

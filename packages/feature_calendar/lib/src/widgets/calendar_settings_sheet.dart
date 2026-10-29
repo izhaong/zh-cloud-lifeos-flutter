@@ -93,7 +93,7 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               key: const Key('settings_start_week_on'),
               title: '每周起始',
               value: pref.startWeekOn,
-              items: const {1: '周一', 7: '周日'},
+              items: const {0: '跟随系统', 1: '周一', 7: '周日'},
               onChanged: (v) =>
                   _save(copyCalendarPreference(pref, startWeekOn: v)),
             ),

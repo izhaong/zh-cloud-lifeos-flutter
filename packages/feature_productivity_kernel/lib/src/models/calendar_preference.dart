@@ -25,7 +25,7 @@ enum AlternateCalendar {
 final class CalendarPreference extends Equatable {
   const CalendarPreference({
     this.defaultCalendarId,
-    this.startWeekOn = 1,
+    this.startWeekOn = 0,
     this.weekViewDays = 7,
     this.dayStartHour = 8,
     this.dayEndHour = 18,
@@ -48,7 +48,7 @@ final class CalendarPreference extends Equatable {
   /// 新建日程默认日历（D-37；null = 未设置）。
   final String? defaultCalendarId;
 
-  /// 周起始（`1`=周一 / `7`=周日，D-04/D-45）。
+  /// 周起始（`0`=跟随系统区域 / `1`=周一 / `7`=周日，D-04/D-45；#383）。
   final int startWeekOn;
 
   /// 周视图显示天数（5 或 7，D-01）。
