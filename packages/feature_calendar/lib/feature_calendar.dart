@@ -8,6 +8,7 @@ export 'src/calendar_tab_entry.dart';
 export 'src/providers.dart';
 export 'src/calendar_view_callbacks.dart';
 export 'src/logic/lunar_label.dart';
+export 'src/logic/week_start.dart';
 export 'src/logic/calendar_date_localization.dart';
 export 'src/logic/default_calendar_bootstrap.dart';
 export 'src/logic/event_time.dart';
