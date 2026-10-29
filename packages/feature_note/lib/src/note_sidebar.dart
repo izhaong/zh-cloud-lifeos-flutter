@@ -298,7 +298,7 @@ class NoteSidebar extends ConsumerWidget {
       context: context,
       builder: (ctx) => LifeAlertDialog(
         title: const Text('删除文件夹'),
-        content: Text('「${folder.name}」及其中的备忘录将移到「最近删除」。'),
+        content: Text('「${folder.name}」及其中（含子文件夹）的备忘录将移到「最近删除」。'),
         actions: [
           LifeDialogAction(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -315,11 +315,32 @@ class NoteSidebar extends ConsumerWidget {
     );
     if (ok != true) return;
     final repo = ref.read(noteRepositoryProvider);
-    final notes = await repo.watchNotes(folderId: folder.id).first;
-    for (final note in notes) {
-      await repo.softDelete(note.id);
+
+    // #379：必须**递归**。只处理直接子级会留下 parentId 指向已删行的孤儿文件夹——
+    // 侧栏按 `parentId == null` 取根，它们从此看不见但数据还在库里；更糟的是
+    // 子文件夹里的笔记既不在任何可见文件夹里、也不在「最近删除」里，等于静默丢失。
+    final all = await repo.watchFolders().first;
+    final subtree = <NoteFolder>[];
+    final seen = <String>{};
+    final queue = <NoteFolder>[folder];
+    while (queue.isNotEmpty) {
+      final current = queue.removeAt(0);
+      if (!seen.add(current.id)) continue; // 防 parentId 成环时的死循环
+      subtree.add(current);
+      queue.addAll(all.where((f) => f.parentId == current.id));
     }
-    await repo.deleteFolder(folder.id);
+
+    // 先把整棵子树的笔记移入「最近删除」（可恢复），再删文件夹本身。
+    for (final node in subtree) {
+      final notes = await repo.watchNotes(folderId: node.id).first;
+      for (final note in notes) {
+        await repo.softDelete(note.id);
+      }
+    }
+    // 自底向上删，避免中途出现「父已删、子还在」的瞬时孤儿。
+    for (final node in subtree.reversed) {
+      await repo.deleteFolder(node.id);
+    }
     ref.read(selectedNoteFolderIdProvider.notifier).select(null);
   }
 
