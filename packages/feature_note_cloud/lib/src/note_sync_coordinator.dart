@@ -122,3 +122,7 @@ class NoteSyncCoordinator {
     return (applied: result.changes.length, hasMore: result.hasMore);
   }
 }
+
+/// 与任务侧 `RestSyncPort` 重名时的显式别名（#416）：组合根同时 import 两个 cloud 包，
+/// 用别名比在 import 上写 `hide/show` 更好读。
+typedef NoteRestSyncPort = RestSyncPort;
