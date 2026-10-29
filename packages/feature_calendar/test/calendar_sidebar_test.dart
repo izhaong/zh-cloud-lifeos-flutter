@@ -9,6 +9,27 @@ import 'support/life_test_app.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 
 /// F-04 侧栏与迷你月历契约（TC-CAL-UI-120～124/126/127；契约 §5.4/§8.1/§8.5）。
+
+/// #383：侧栏底部现在是**固定迷你月历**（252px），可滚动列表变矮——
+/// 「添加日历」「添加订阅」这类底部动作在默认 800 高视口里要先滚动才可见。
+/// 这与真机操作一致，所以测试也照做（而不是把列表改回全高）。
+Future<void> _tapSidebarAction(WidgetTester tester, String label) async {
+  final target = find.text(label);
+  if (target.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(
+      target,
+      120,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('calendar_sidebar')),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+  }
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
+  await tester.tap(target);
+}
+
 void main() {
   late _MutableRepo repo;
   late SharedPreferences prefs;
@@ -173,7 +194,7 @@ void main() {
   // TC-CAL-UI-120：添加日历（名称 + 绿色）→ upsert 捕获 #34C759，侧栏出现
   testWidgets('TC-CAL-UI-120 添加日历对话框', (tester) async {
     await seed(tester);
-    await tester.tap(find.text('添加日历'));
+    await _tapSidebarAction(tester, '添加日历');
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(CupertinoTextField), '新日历');
@@ -344,7 +365,7 @@ void main() {
   testWidgets('#312 暗色档：色板选中环随亮度解算成白', (tester) async {
     useBrightness(tester, Brightness.dark);
     await seed(tester);
-    await tester.tap(find.text('添加日历'));
+    await _tapSidebarAction(tester, '添加日历');
     await tester.pumpAndSettle();
     expect(selectedSwatchRingArgb(tester), 0xFFFFFFFF);
   });
@@ -352,7 +373,7 @@ void main() {
   testWidgets('#312 亮色档：色板选中环仍是纯黑（亮色观感不变）', (tester) async {
     useBrightness(tester, Brightness.light);
     await seed(tester);
-    await tester.tap(find.text('添加日历'));
+    await _tapSidebarAction(tester, '添加日历');
     await tester.pumpAndSettle();
     expect(selectedSwatchRingArgb(tester), 0xFF000000);
   });

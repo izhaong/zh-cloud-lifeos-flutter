@@ -3,6 +3,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 
+import '../design/calendar_tokens.dart';
 import '../providers.dart';
 
 /// 迷你月历（契约 §5.4；F-04）。
@@ -11,7 +12,11 @@ import '../providers.dart';
 /// 周起始按偏好 startWeekOn（默认周一）。table_calendar 为第三方 Material
 /// 内核，按边界门禁以显式 Material 岛包裹（#130）。
 class MiniMonth extends ConsumerWidget {
-  const MiniMonth({super.key});
+  const MiniMonth({super.key, this.compact = false});
+
+  /// 紧凑模式：侧栏专用（行高压到 28、周标题 20），6 行 + 头部仍能塞进 ~260 高。
+  /// 月/年视图里的用法保持默认尺寸。
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,7 +24,14 @@ class MiniMonth extends ConsumerWidget {
     final preference = ref.watch(preferenceProvider).value;
     final weekStart = preference?.startWeekOn ?? 1;
     return LifeMaterialIsland(
-      child: TableCalendar(
+      // #383：TableCalendar 内部是 Column，放大字号（2.0）或侧栏变矮时会
+      // 「RenderFlex overflowed」；迷你月历本质是个紧凑小部件，等比缩小比裁剪好。
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          width: 220,
+          child: TableCalendar(
         firstDay: DateTime(anchor.year - 2, anchor.month, 1),
         lastDay: DateTime(anchor.year + 2, anchor.month, 1),
         focusedDay: anchor,
@@ -40,12 +52,35 @@ class MiniMonth extends ConsumerWidget {
               .read(anchorDateProvider.notifier)
               .set(DateTime(focused.year, focused.month, focused.day));
         },
-        headerStyle: const HeaderStyle(
+        // #383：TableCalendar 的周标题默认走 intl（未初始化时给英文 Tue/Wed…），
+        // 本仓不做 intl 初始化，直接给中文标签，避免侧栏冒出英文缩写。
+        calendarBuilders: CalendarBuilders(
+          dowBuilder: (context, day) {
+            const labels = ['一', '二', '三', '四', '五', '六', '日'];
+            final index = day.weekday - (weekStart == 7 ? 6 : 1);
+            final label = labels[(index % 7 + 7) % 7];
+            return Center(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: compact ? 11 : 12,
+                  color: CalendarTokens.labelSecondary.resolveFrom(context),
+                ),
+              ),
+            );
+          },
+        ),
+        rowHeight: compact ? 28 : 52,
+        daysOfWeekHeight: compact ? 20 : 24,
+        headerStyle: HeaderStyle(
           formatButtonVisible: false,
           titleCentered: true,
+          headerPadding: EdgeInsets.symmetric(vertical: compact ? 4 : 8),
         ),
         calendarStyle: const CalendarStyle(outsideDaysVisible: false),
         availableGestures: AvailableGestures.horizontalSwipe,
+          ),
+        ),
       ),
     );
   }
