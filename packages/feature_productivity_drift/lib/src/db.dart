@@ -332,6 +332,10 @@ class TaskPreferences extends Table {
   BoolColumn get markComplete => boolean().withDefault(const Constant(false))();
   BoolColumn get suggestLists => boolean().withDefault(const Constant(true))();
 
+  /// 徽标数量是否包含「今天到期」（#451；默认 true = 与 #447 的初始口径一致）。
+  BoolColumn get badgeIncludesTodayDue =>
+      boolean().withDefault(const Constant(true))();
+
   /// 视图态（卡 4b）：显示已完成 / 排序模式 / 侧栏显隐 / 折叠键 JSON 数组。
   BoolColumn get showCompleted =>
       boolean().withDefault(const Constant(false))();
@@ -371,7 +375,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -496,6 +500,32 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // 存量行留 null（服务端没回溯过创建时间），排序时排最后而不是瞎猜。
             await m.addColumn(reminderItems, reminderItems.createdAt);
           }
+          if (from < 18 && to >= 18) {
+            // V18（flutter #451）：徽标「含今天到期」开关。
+            // 默认 true = 老用户升级后行为不变（不因升级丢徽标）。
+            //
+            // **幂等**：迁移链测试会先按「当前 schema」建表再回放迁移，此时列已存在；
+            // 直接 addColumn 会抛 `duplicate column name`。先查一次 PRAGMA。
+            // 先确认表存在：部分迁移链测试用手搓的最小旧库（只建自己关心的表），
+            // 对它们 PRAGMA 会返回空、addColumn 会抛 `no such table`。
+            const tableProbe = 'SELECT name FROM sqlite_master '
+                "WHERE type='table' AND name='task_preferences'";
+            final tables =
+                await m.database.customSelect(tableProbe).get();
+            // 没有该表说明是手搓的最小旧库（真实库 V13 起就有），跳过即可。
+            if (tables.isNotEmpty) {
+              final columns = await m.database
+                  .customSelect("PRAGMA table_info('task_preferences')")
+                  .get();
+              final hasColumn = columns.any(
+                  (row) => row.data['name'] == 'badge_includes_today_due');
+              if (!hasColumn) {
+                await m.addColumn(
+                    taskPreferences, taskPreferences.badgeIncludesTodayDue);
+              }
+            }
+          }
+
           if (from < 17 && to >= 17) {
             // V17（flutter #394 / TC-NOTE-UI-111）：记录设置此前只活在内存里，
             // 重启即回默认值——给它一张自己的偏好表（照任务/日历先例）。

@@ -21,7 +21,7 @@ void main() {
   });
 
   test('V13：任务偏好表随 schemaVersion 13 建表', () async {
-    expect(db.schemaVersion, 17);
+    expect(db.schemaVersion, 18);
     final names = (await db.customSelect(
       "SELECT name FROM sqlite_master WHERE type='table'",
     ).get()).map((r) => r.read<String>('name')).toSet();
