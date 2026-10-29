@@ -9,10 +9,10 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 void main() {
   late InMemoryReminderRepository repo;
 
-  setUp(() {
+  setUp(() async {
     repo = InMemoryReminderRepository(seedSampleData: false);
     repo.nowForTest = DateTime(2026, 10, 23, 12, 0);
-    repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
+    await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
   });
 
   group('smart.urgent（已过期 ∨ priority>=9）', () {

@@ -41,6 +41,8 @@ melos:
         dart run scripts/check_ui_boundary.dart --max-hex 0 &&
         dart run scripts/check_skipped_tests.dart --selftest &&
         dart run scripts/check_skipped_tests.dart &&
+        dart run scripts/check_awaited_writes.dart --selftest &&
+        dart run scripts/check_awaited_writes.dart &&
         dart run melos exec --dir-exists=test -- flutter test
       description: 合前门禁（analyze + UI 边界 + 跳过守卫 + 全包测试）
     ui-boundary:

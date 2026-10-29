@@ -10,9 +10,9 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 void main() {
   late InMemoryReminderRepository repo;
 
-  setUp(() {
+  setUp(() async {
     repo = InMemoryReminderRepository(seedSampleData: false);
-    repo.upsertList(
+    await repo.upsertList(
       const ReminderList(id: 'list.work', title: '工作'),
     );
   });

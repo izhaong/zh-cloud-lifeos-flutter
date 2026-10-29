@@ -6,10 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   late InMemoryReminderRepository repo;
 
-  setUp(() {
+  setUp(() async {
     repo = InMemoryReminderRepository(seedSampleData: false)
       ..nowForTest = DateTime(2026, 10, 24, 10, 0);
-    repo.upsertList(const ReminderList(id: 'l1', title: '列表'));
+    // #433：异步写必须 await——否则断言可能跑在落库之前（假绿/假红都可能）
+    await repo.upsertList(const ReminderList(id: 'l1', title: '列表'));
   });
 
   test('完成 → completedAt 记录当下；取消完成 → 清空', () async {

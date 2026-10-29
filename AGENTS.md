@@ -25,6 +25,7 @@ flutter test   # 在各 package / app 目录，或 dart run melos run test
 dart run melos run verify   # 合前门禁：analyze(--fatal-infos) + UI 边界(先自检) + 全包测试
 dart run scripts/golden_sheet.dart   # 目视走查：把 16 张 golden 拼成一页（build/golden-sheet/index.html）
 dart run scripts/check_skipped_tests.dart   # 守卫：测试不得被静默 skip（已在 melos run verify 里）
+dart run scripts/check_awaited_writes.dart   # 守卫：测试里的异步写必须 await（#433，已在 verify 里）
 # 若 verify 在并行下偶发抖动（已知：feature_productivity_drift 的关库重开测试，#361），
 # 用串行兜底再跑一遍测试阶段确认：
 #   dart run melos exec --concurrency=1 --dir-exists=test -- flutter test

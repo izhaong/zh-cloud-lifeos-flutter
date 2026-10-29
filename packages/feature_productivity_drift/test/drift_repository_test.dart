@@ -213,8 +213,9 @@ void main() {
   });
 
   test('upsertList 拒绝 smart. 前缀 id', () async {
-    expect(
-      () => repo.upsertList(const ReminderList(id: 'smart.hack', title: '黑客')),
+    // #433：`upsertList` 是 async，闭包写法抓不到异步抛错（假绿）
+    await expectLater(
+      repo.upsertList(const ReminderList(id: 'smart.hack', title: '黑客')),
       throwsArgumentError,
     );
   });
