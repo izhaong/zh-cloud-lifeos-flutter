@@ -341,6 +341,55 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
     _body.updateSelection(_body.selection, quill.ChangeSource.local);
   }
 
+  /// 链接（#397 矩阵 N05）：先要求有选区，再收 URL，确认后给选区打 `link`。
+  ///
+  /// 光标没选中文字时当场说明，不弹输入框——避免「填完 URL 才发现没作用」；
+  /// 与 #396「入口可用或不存在」的口径一致。
+  Future<void> _addLink() async {
+    if (_body.selection.isCollapsed) {
+      await _infoDialog('先选中要加链接的文字');
+      if (!mounted) return;
+    }
+    final input = TextEditingController();
+    final url = await showCupertinoDialog<String>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: const Text('添加链接'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: CupertinoTextField(
+            key: const ValueKey('note_link_url'),
+            controller: input,
+            placeholder: 'https://example.com',
+            autocorrect: false,
+            enableSuggestions: false,
+          ),
+        ),
+        actions: [
+          CupertinoButton(
+            key: const ValueKey('note_link_cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          CupertinoButton(
+            key: const ValueKey('note_link_submit'),
+            onPressed: () => Navigator.of(dialogContext).pop(input.text),
+            child: const Text('添加'),
+          ),
+        ],
+      ),
+    );
+    input.dispose();
+    final trimmed = (url ?? '').trim();
+    if (trimmed.isEmpty || !mounted) {
+      return;
+    }
+    _body.formatSelection(
+      quill.Attribute.clone(quill.Attribute.link, trimmed),
+    );
+    _body.updateSelection(_body.selection, quill.ChangeSource.local);
+  }
+
   Future<void> _insertImage() async {
     final path = await ref.read(noteImagePickerProvider)();
     if (path == null) {
@@ -464,6 +513,28 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
               semanticLabel: '加粗',
               icon: CupertinoIcons.bold,
               onPressed: () => _body.formatSelection(quill.Attribute.bold),
+            ),
+            // #397（矩阵 N02/N05）：BIU 是一组能力，Apple 备忘录给的是
+            // Bold/Italic/Underline + 添加链接；此前只有粗体，斜体/下划线/链接
+            // 连入口都没有。
+            _EditorAction(
+              key: const ValueKey('note_editor_italic'),
+              semanticLabel: '斜体',
+              icon: CupertinoIcons.italic,
+              onPressed: () => _body.formatSelection(quill.Attribute.italic),
+            ),
+            _EditorAction(
+              key: const ValueKey('note_editor_underline'),
+              semanticLabel: '下划线',
+              icon: CupertinoIcons.underline,
+              onPressed: () =>
+                  _body.formatSelection(quill.Attribute.underline),
+            ),
+            _EditorAction(
+              key: const ValueKey('note_editor_link'),
+              semanticLabel: '链接',
+              icon: CupertinoIcons.link,
+              onPressed: _addLink,
             ),
             // parity#202：清单入口（Apple 格式菜单的「清单」）；此前只能靠
             // 导入 Markdown 的 `- [ ]` 才能造出清单行。
