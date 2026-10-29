@@ -203,9 +203,12 @@ void main() {
       await tester.tap(find.byKey(const Key('quick_create_reminder')));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byKey(const Key('quick_event_input')), '取快递');
+      await tester.enterText(
+        find.byKey(const Key('quick_reminder_input')),
+        '取快递',
+      );
       await tester.pump();
-      await tester.tap(find.byKey(const Key('quick_event_create')));
+      await tester.tap(find.byKey(const Key('quick_reminder_create')));
       await tester.pumpAndSettle();
 
       expect(reminderRepo.upserted.single.title, '取快递');
