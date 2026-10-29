@@ -15,7 +15,7 @@ import 'drift_sync_outbox.dart';
 /// 保存归一 / 列表排序 / 智能文件夹过滤三条规则走 kernel 的
 /// `normalizeNoteForSave` / `sortNotesForList` / `applyNoteSmartFilter`，
 /// 与内存实现同口径——避免「内存版绿、落盘版另一套行为」。
-class DriftNoteRepository implements kernel.NoteRepository {
+class DriftNoteRepository implements kernel.NoteRepository, kernel.SyncApplier {
   DriftNoteRepository(this._db);
 
   final db.LifeProductivityDb _db;
@@ -187,6 +187,120 @@ class DriftNoteRepository implements kernel.NoteRepository {
     return removed;
   }
 
+  // ---- 入站落库（#414 / 契约 §6）----
+
+  /// 落一批服务端下推的变更。
+  ///
+  /// **必须绕开 [upsertNote] / [softDelete] 等写方法**：它们会顺手 `enqueue`
+  /// 一条出站变更（#413），而 pull 落库再 enqueue → push 推回服务端 →
+  /// 两端自己造出无限往返。所以这里直接写行。
+  ///
+  /// 同事务：一条落不完就整体回滚，调用方（协调器 #415）据此决定游标是否前进。
+  @override
+  Future<void> applyAll(Iterable<kernel.SyncIncomingChange> changes) async {
+    final batch = changes.toList(growable: false);
+    if (batch.isEmpty) return;
+    await _db.transaction(() async {
+      for (final change in batch) {
+        switch (change.entityType) {
+          case 'note':
+            if (change.operation == 'delete') {
+              await _applyInboundNoteDelete(change);
+            } else {
+              await _applyInboundNoteUpsert(change);
+            }
+          case 'folder':
+            if (change.operation == 'delete') {
+              await _applyInboundFolderDelete(change);
+            } else {
+              await _applyInboundFolderUpsert(change);
+            }
+          default:
+            // 未知实体：忽略而不抛——一条新实体类型的脏数据不该卡死整轮同步。
+            break;
+        }
+      }
+    });
+  }
+
+  Future<void> _applyInboundNoteUpsert(kernel.SyncIncomingChange c) async {
+    final payload = c.payload;
+    final existing = await (_db.select(_db.notes)
+          ..where((t) => t.id.equals(c.entityId)))
+        .getSingleOrNull();
+    final note = kernel.Note(
+      id: c.entityId,
+      folderId: payload['folderId']?.toString() ?? existing?.folderId ?? '',
+      title: payload['title']?.toString() ?? existing?.title ?? '',
+      bodyDelta: payload['bodyDelta']?.toString() ?? existing?.bodyDelta ?? '',
+      bodyText: payload['bodyText']?.toString() ?? existing?.bodyText ?? '',
+      pinned: payload['pinned'] is bool
+          ? payload['pinned'] as bool
+          : (existing?.pinned ?? false),
+      locked: payload['locked'] is bool
+          ? payload['locked'] as bool
+          : (existing?.locked ?? false),
+      checklistTotal: (payload['checklistTotal'] as num?)?.toInt() ??
+          existing?.checklistTotal ??
+          0,
+      checklistDone: (payload['checklistDone'] as num?)?.toInt() ??
+          existing?.checklistDone ??
+          0,
+      tagNames: payload['tagNames'] is List
+          ? (payload['tagNames'] as List).whereType<String>().toList()
+          : _decodeTags(existing?.tagNames),
+      sortOrder: (payload['sortOrder'] as num?)?.toInt() ??
+          existing?.sortOrder ??
+          0,
+      deletedAt: _epochMilli(payload['deletedAt']) ?? existing?.deletedAt,
+      revision: (payload['revision'] as num?)?.toInt() ?? existing?.revision ?? 0,
+      clientUpdatedAt: (payload['clientUpdatedAt'] as num?)?.toInt() ??
+          existing?.clientUpdatedAt ??
+          _now.millisecondsSinceEpoch,
+    );
+    await _db.into(_db.notes).insertOnConflictUpdate(
+          _noteCompanion(note, deletedAt: note.deletedAt),
+        );
+  }
+
+  Future<void> _applyInboundNoteDelete(kernel.SyncIncomingChange c) async {
+    // 服务端删除 → 本地进「最近删除」（不是硬删），与 Apple/仓库语义一致。
+    await (_db.update(_db.notes)..where((t) => t.id.equals(c.entityId))).write(
+      db.NotesCompanion(
+        deletedAt: Value(_epochMilli(c.payload['deletedAt']) ?? _now),
+      ),
+    );
+  }
+
+  Future<void> _applyInboundFolderUpsert(kernel.SyncIncomingChange c) async {
+    final payload = c.payload;
+    final existing = await (_db.select(_db.noteFolders)
+          ..where((t) => t.id.equals(c.entityId)))
+        .getSingleOrNull();
+    await _db.into(_db.noteFolders).insertOnConflictUpdate(
+          db.NoteFoldersCompanion.insert(
+            id: c.entityId,
+            remoteId: Value(existing?.remoteId),
+            parentId: Value(payload['parentId']?.toString()),
+            name: payload['name']?.toString() ?? existing?.name ?? '文件夹',
+            smart: Value(payload['smart'] is bool
+                ? payload['smart'] as bool
+                : (existing?.smart ?? false)),
+            filterJson:
+                Value(payload['filterJson']?.toString() ?? existing?.filterJson),
+            sortOrder: Value((payload['sortOrder'] as num?)?.toInt() ??
+                existing?.sortOrder ??
+                0),
+            deletedAt: const Value(null),
+          ),
+        );
+  }
+
+  Future<void> _applyInboundFolderDelete(kernel.SyncIncomingChange c) async {
+    await (_db.delete(_db.noteFolders)..where((t) => t.id.equals(c.entityId)))
+        .go();
+  }
+
   /// 入队一批备忘录变更（#413）。
   ///
   /// 与任务侧同口径：同实体未推条目由 `DriftSyncOutbox.enqueue` 合并；
@@ -301,6 +415,13 @@ class DriftNoteRepository implements kernel.NoteRepository {
         clientUpdatedAt: Value(n.clientUpdatedAt),
         revision: Value(n.revision),
       );
+
+  /// 载荷里的 epoch 毫秒 → 本地时间（`noteSyncPayload` 的正向编码见 kernel）。
+  DateTime? _epochMilli(Object? value) {
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    if (value is num) return DateTime.fromMillisecondsSinceEpoch(value.toInt());
+    return null;
+  }
 
   List<String> _decodeTags(String? raw) {
     if (raw == null || raw.isEmpty) return const [];
