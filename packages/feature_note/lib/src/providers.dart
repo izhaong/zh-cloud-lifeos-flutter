@@ -43,6 +43,71 @@ final selectedNoteFolderIdProvider =
     NotifierProvider<SelectedNoteFolderNotifier, String?>(
         SelectedNoteFolderNotifier.new);
 
+/// 侧栏「标签」分区的选中标签名（null = 不按标签过滤；#393）。
+///
+/// 与 [selectedNoteFolderIdProvider] 互斥（由侧栏在点选时清另一侧）：Apple 的
+/// 侧栏一次只有一个高亮项，若允许「文件夹 + 标签」同时高亮，列表到底按哪个过滤
+/// 从界面上读不出来。
+class SelectedNoteTagNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void select(String? tagName) => state = tagName;
+}
+
+final selectedNoteTagProvider =
+    NotifierProvider<SelectedNoteTagNotifier, String?>(
+        SelectedNoteTagNotifier.new);
+
+/// 侧栏数量徽章的读数（#393）。
+class NoteSidebarCounts {
+  const NoteSidebarCounts({
+    required this.total,
+    required this.byFolder,
+    required this.byTag,
+  });
+
+  const NoteSidebarCounts.empty()
+    : total = 0,
+      byFolder = const <String, int>{},
+      byTag = const <String, int>{};
+
+  /// 全部未删除笔记（「所有备忘录」的徽章）。
+  final int total;
+
+  /// folderId → 该文件夹直接持有的笔记数（子文件夹不算进父级，与 Apple 一致）。
+  final Map<String, int> byFolder;
+
+  /// 标签名 → 打了该标签的笔记数。
+  final Map<String, int> byTag;
+
+  int folderCount(String folderId) => byFolder[folderId] ?? 0;
+
+  int tagCount(String tagName) => byTag[tagName] ?? 0;
+}
+
+/// 侧栏徽章计数（#393）：一次订阅全量未删除笔记，就地按 folderId / tagNames 计数。
+///
+/// 智能文件夹的徽章要按 `filterJson` 求值（矩阵 N14 的降级口径另单跟），这里不猜
+/// 数字——侧栏对智能行不摆徽章，避免把一个算错的数量当成事实。
+final noteSidebarCountsProvider = StreamProvider<NoteSidebarCounts>((ref) {
+  return ref.watch(noteRepositoryProvider).watchNotes(folderId: null).map((notes) {
+    final byFolder = <String, int>{};
+    final byTag = <String, int>{};
+    for (final note in notes) {
+      byFolder[note.folderId] = (byFolder[note.folderId] ?? 0) + 1;
+      for (final tag in note.tagNames.toSet()) {
+        byTag[tag] = (byTag[tag] ?? 0) + 1;
+      }
+    }
+    return NoteSidebarCounts(
+      total: notes.length,
+      byFolder: byFolder,
+      byTag: byTag,
+    );
+  });
+});
+
 /// 搜索词（空 = 不搜索；F-07）。
 class NoteSearchQueryNotifier extends Notifier<String> {
   @override
@@ -66,9 +131,19 @@ final noteSearchResultsProvider = FutureProvider<List<Note>>((ref) async {
 
 /// 当前文件夹的笔记列表（folderId 为智能文件夹 id 时按条件求值；
 /// 排序由仓库保证：pinned 前、sortOrder asc、id asc）。
+///
+/// #393：侧栏「标签」分区选中时，在同一条流上再按标签过滤。标签为 null 时
+/// 直接返回仓库的原始流，不额外 `map`——避免给既有列表加一层无谓的重建。
 final visibleNotesProvider = StreamProvider<List<Note>>((ref) {
   final folderId = ref.watch(selectedNoteFolderIdProvider);
-  return ref.watch(noteRepositoryProvider).watchNotes(folderId: folderId);
+  final tagName = ref.watch(selectedNoteTagProvider);
+  final notes = ref
+      .watch(noteRepositoryProvider)
+      .watchNotes(folderId: folderId);
+  if (tagName == null) return notes;
+  return notes.map(
+    (list) => list.where((n) => n.tagNames.contains(tagName)).toList(),
+  );
 });
 
 

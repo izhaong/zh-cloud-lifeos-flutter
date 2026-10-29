@@ -11,6 +11,9 @@ import 'providers.dart';
 ///
 /// 树形展示普通文件夹与智能文件夹；点选把 [selectedNoteFolderIdProvider]
 /// 指向该文件夹，主区笔记列表随之过滤。「所有备忘录」= 全部未删除笔记。
+///
+/// #393 补上 Apple 侧栏另外两件：分节标题（「文件夹」/「标签」）与每行的数量
+/// 徽章，并把 [noteTagsProvider] 的标签做成可点选的浏览入口（[selectedNoteTagProvider]）。
 class NoteSidebar extends ConsumerWidget {
   const NoteSidebar({super.key});
 
@@ -19,6 +22,10 @@ class NoteSidebar extends ConsumerWidget {
     final folders =
         ref.watch(noteFoldersProvider).value ?? const <NoteFolder>[];
     final selectedId = ref.watch(selectedNoteFolderIdProvider);
+    final selectedTag = ref.watch(selectedNoteTagProvider);
+    final tags = ref.watch(noteTagsProvider).value ?? const <NoteTag>[];
+    final counts = ref.watch(noteSidebarCountsProvider).value ??
+        const NoteSidebarCounts.empty();
     final roots = folders.where((f) => f.parentId == null).toList()
       ..sort(_compareFolders);
 
@@ -41,16 +48,20 @@ class NoteSidebar extends ConsumerWidget {
           ),
           onTap: () => _createFolder(context, ref),
         ),
+        // #393：Apple 侧栏是「分节 + 每行数量」两件事，之前两个都没有——
+        // 一列同权重的名字，既看不出层级归属，也看不出每个文件夹里有多少条。
+        _sectionHeader(context, keyName: 'note_sidebar_section_folders', title: '文件夹'),
         _folderTile(
           context,
           ref,
           key: const ValueKey('note_sidebar_all'),
           name: '所有备忘录',
           smart: false,
-          selected: selectedId == null,
+          selected: selectedId == null && selectedTag == null,
           depth: 0,
-          onTap: () =>
-              ref.read(selectedNoteFolderIdProvider.notifier).select(null),
+          count: counts.total,
+          countKey: 'note_folder_count_all',
+          onTap: () => _selectFolder(ref, null),
         ),
         for (final root in roots) ...[
           _folderTile(
@@ -62,8 +73,9 @@ class NoteSidebar extends ConsumerWidget {
             folder: root,
             selected: selectedId == root.id,
             depth: 0,
-            onTap: () =>
-                ref.read(selectedNoteFolderIdProvider.notifier).select(root.id),
+            count: root.smart ? null : counts.folderCount(root.id),
+            countKey: 'note_folder_count_${root.id}',
+            onTap: () => _selectFolder(ref, root.id),
           ),
           for (final child
               in folders.where((f) => f.parentId == root.id).toList()
@@ -77,12 +89,65 @@ class NoteSidebar extends ConsumerWidget {
               folder: child,
               selected: selectedId == child.id,
               depth: 1,
-              onTap: () => ref
-                  .read(selectedNoteFolderIdProvider.notifier)
-                  .select(child.id),
+              count: child.smart ? null : counts.folderCount(child.id),
+              countKey: 'note_folder_count_${child.id}',
+              onTap: () => _selectFolder(ref, child.id),
+            ),
+        ],
+        // #393：标签区。无标签时整节不摆（Apple 也不给空分区挂标题）；
+        // 有标签则每行 = 该标签下的笔记数，点选 = 跨文件夹按标签浏览。
+        if (tags.isNotEmpty) ...[
+          _sectionHeader(context, keyName: 'note_sidebar_section_tags', title: '标签'),
+          for (final tag in tags)
+            _tagTile(
+              context,
+              key: ValueKey('note_sidebar_tag_${tag.name}'),
+              name: tag.name,
+              selected: selectedTag == tag.name,
+              count: counts.tagCount(tag.name),
+              countKey: 'note_tag_count_${tag.name}',
+              onTap: () => _selectTag(ref, tag.name),
             ),
         ],
       ],
+    );
+  }
+
+  /// 选中文件夹：同时清掉标签选中（两把高亮只能亮一把，见 providers 注释）。
+  void _selectFolder(WidgetRef ref, String? folderId) {
+    ref.read(selectedNoteTagProvider.notifier).select(null);
+    ref.read(selectedNoteFolderIdProvider.notifier).select(folderId);
+  }
+
+  /// 选中标签：清掉文件夹选中；再点同一个标签 = 取消过滤。
+  void _selectTag(WidgetRef ref, String tagName) {
+    final clearing = ref.read(selectedNoteTagProvider) == tagName;
+    ref.read(selectedNoteFolderIdProvider.notifier).select(null);
+    ref.read(selectedNoteTagProvider.notifier).select(clearing ? null : tagName);
+  }
+
+  /// 分节标题（#393）。文案是「文件夹 / 标签」两节，不引账户体系名称。
+  Widget _sectionHeader(
+    BuildContext context, {
+    required String keyName,
+    required String title,
+  }) {
+    return Padding(
+      key: ValueKey(keyName),
+      padding: const EdgeInsetsDirectional.only(
+        start: 16,
+        end: 16,
+        top: 14,
+        bottom: 4,
+      ),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: CupertinoColors.secondaryLabel.resolveFrom(context),
+        ),
+      ),
     );
   }
 
@@ -123,6 +188,7 @@ class NoteSidebar extends ConsumerWidget {
     final id = await repo.upsertFolder(
       NoteFolder(id: newNoteFolderId(), name: title),
     );
+    ref.read(selectedNoteTagProvider.notifier).select(null);
     ref.read(selectedNoteFolderIdProvider.notifier).select(id);
   }
 
@@ -136,6 +202,8 @@ class NoteSidebar extends ConsumerWidget {
     required int depth,
     required VoidCallback onTap,
     NoteFolder? folder,
+    int? count,
+    String? countKey,
   }) {
     // #371：此前这里手拼 CupertinoDynamicColor.withBrightness(label.color,
     // darkColor: label.darkColor)，再把这个**未解算**的对象塞进 TextStyle(color:)。
@@ -161,19 +229,14 @@ class NoteSidebar extends ConsumerWidget {
         ),
       ),
       onTap: onTap,
-      trailing: (folder == null || smart)
-          ? null
-          : CupertinoButton(
-              key: ValueKey('note_folder_more_${folder.id}'),
-              padding: const EdgeInsets.all(6),
-              minimumSize: Size.zero,
-              onPressed: () => _showFolderActions(context, ref, folder),
-              child: const Icon(
-                CupertinoIcons.ellipsis,
-                size: 16,
-                color: CupertinoColors.secondaryLabel,
-              ),
-            ),
+      trailing: _trailing(
+        context,
+        ref: ref,
+        folder: folder,
+        smart: smart,
+        count: count,
+        countKey: countKey,
+      ),
     );
     // #373：Apple 备忘录可 Control-click 文件夹 → 重新命名 / 删除。
     // 智能文件夹（所有备忘录/最近删除等）不提供这两项——它们是内置视图。
@@ -202,6 +265,89 @@ class NoteSidebar extends ConsumerWidget {
         ),
       ],
       child: tile,
+    );
+  }
+
+  /// 行尾：数量徽章 +（仅普通文件夹）「…」菜单。
+  ///
+  /// 两者必须并排进同一个 trailing：`CupertinoListTile` 只有一个 trailing 槽位，
+  /// 之前被「…」占着，徽章就没有落点（#393）。
+  Widget? _trailing(
+    BuildContext context, {
+    required WidgetRef ref,
+    required NoteFolder? folder,
+    required bool smart,
+    required int? count,
+    required String? countKey,
+  }) {
+    final children = <Widget>[
+      if (count != null && countKey != null)
+        _countBadge(context, countKey: countKey, count: count),
+      if (folder != null && !smart)
+        CupertinoButton(
+          key: ValueKey('note_folder_more_${folder.id}'),
+          padding: const EdgeInsets.all(6),
+          minimumSize: Size.zero,
+          onPressed: () => _showFolderActions(context, ref, folder),
+          child: const Icon(
+            CupertinoIcons.ellipsis,
+            size: 16,
+            color: CupertinoColors.secondaryLabel,
+          ),
+        ),
+    ];
+    if (children.isEmpty) return null;
+    return Row(mainAxisSize: MainAxisSize.min, children: children);
+  }
+
+  /// 数量徽章（#393）：Apple 在侧栏每行右端给出该容器的备忘录条数，0 也照样给
+  /// （空文件夹不显示数字就分不清「空」和「没算」）。
+  Widget _countBadge(
+    BuildContext context, {
+    required String countKey,
+    required int count,
+  }) {
+    return Text(
+      '$count',
+      key: ValueKey(countKey),
+      style: TextStyle(
+        fontSize: 13,
+        color: CupertinoColors.secondaryLabel.resolveFrom(context),
+      ),
+    );
+  }
+
+  /// 标签行（#393）：与文件夹行同款排布，但没有重命名/删除——标签本身还没有
+  /// 独立的增删端口（矩阵 N13 的对等面是「按标签浏览」，管理标签另单）。
+  Widget _tagTile(
+    BuildContext context, {
+    required Key key,
+    required String name,
+    required bool selected,
+    required int count,
+    required String countKey,
+    required VoidCallback onTap,
+  }) {
+    final color = CupertinoColors.label.resolveFrom(context);
+    final accent = selected
+        ? CupertinoColors.systemBlue.resolveFrom(context)
+        : color;
+    return CupertinoListTile(
+      key: key,
+      padding: const EdgeInsetsDirectional.only(start: 16, end: 16),
+      leading: Icon(CupertinoIcons.tag, size: 20, color: accent),
+      title: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          color: accent,
+        ),
+      ),
+      onTap: onTap,
+      trailing: _countBadge(context, countKey: countKey, count: count),
     );
   }
 
@@ -341,7 +487,7 @@ class NoteSidebar extends ConsumerWidget {
     for (final node in subtree.reversed) {
       await repo.deleteFolder(node.id);
     }
-    ref.read(selectedNoteFolderIdProvider.notifier).select(null);
+    _selectFolder(ref, null);
   }
 
   static int _compareFolders(NoteFolder a, NoteFolder b) {
