@@ -1243,7 +1243,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                     widget.list.id == 'smart.today' ||
                     widget.list.id == 'smart.scheduled';
                 final sections = _buildSections(topLevel);
+                // #388：草稿行要有自己的可定位身份——工具栏搜索框同为
+                // CupertinoTextField，按类型断言会连它一起数到，判据恒真。
                 final draftRow = _DraftRow(
+                  key: const ValueKey('draft_row'),
                   controller: _draftController,
                   onSubmit: _submitDraft,
                   onCancel: () {
@@ -1445,6 +1448,7 @@ class _GhostNewRow extends StatelessWidget {
 /// 新建提醒草稿行：提交才 upsertItem 落库；空标题丢弃。
 class _DraftRow extends StatefulWidget {
   const _DraftRow({
+    super.key,
     required this.controller,
     required this.onSubmit,
     required this.onCancel,
