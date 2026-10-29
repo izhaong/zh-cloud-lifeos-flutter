@@ -40,7 +40,7 @@ void main() {
         .customSelect('PRAGMA table_info(reminder_items)')
         .get();
     expect(cols.map((r) => r.data['name']), contains('created_at'));
-    expect(db.schemaVersion, 16, reason: 'V16 给 reminder_items 加 created_at');
+    expect(db.schemaVersion, 17, reason: 'created_at 由 V16 建列；当前 schema 已到 V17');
   });
 
   test('本机新建即落创建时间；编辑不改它', () async {

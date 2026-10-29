@@ -56,6 +56,9 @@ Future<void> main() async {
   final calendarRepository = openDefaultDriftCalendarRepository(db);
   // TC-UI-120（flutter#124 卡 4）：设置弹层四档落 Drift，重启后读回同一行
   final taskPreferenceRepository = DriftTaskPreferenceRepository(db);
+  // #394（TC-NOTE-UI-111）：记录设置同样落 Drift——此前 NoteSettings 只活在
+  // 内存里，重启就回默认值。
+  final notePreferenceRepository = DriftNotePreferenceRepository(db);
   // F-03 / #280：记录仓库接回 Drift（此前长期是 InMemory，重启即丢全部笔录）
   final noteRepository = DriftNoteRepository(db);
   // parity#156：首启/空库兜底一条默认日历，避免「没有可用日历，无法保存」
@@ -175,6 +178,9 @@ Future<void> main() async {
         reminderRepositoryProvider.overrideWithValue(repository),
         taskPreferenceRepositoryProvider.overrideWithValue(
           taskPreferenceRepository,
+        ),
+        notePreferenceRepositoryProvider.overrideWithValue(
+          notePreferenceRepository,
         ),
         calendarRepositoryProvider.overrideWithValue(calendarRepository),
         noteRepositoryProvider.overrideWithValue(noteRepository),

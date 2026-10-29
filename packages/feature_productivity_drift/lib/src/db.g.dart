@@ -8425,6 +8425,334 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
   }
 }
 
+class $NotePreferencesTable extends NotePreferences
+    with TableInfo<$NotePreferencesTable, NotePreference> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $NotePreferencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userKeyMeta = const VerificationMeta(
+    'userKey',
+  );
+  @override
+  late final GeneratedColumn<String> userKey = GeneratedColumn<String>(
+    'user_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _defaultFolderIdMeta = const VerificationMeta(
+    'defaultFolderId',
+  );
+  @override
+  late final GeneratedColumn<String> defaultFolderId = GeneratedColumn<String>(
+    'default_folder_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sortModeMeta = const VerificationMeta(
+    'sortMode',
+  );
+  @override
+  late final GeneratedColumn<String> sortMode = GeneratedColumn<String>(
+    'sort_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('custom'),
+  );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userKey,
+    defaultFolderId,
+    sortMode,
+    revision,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'note_preferences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<NotePreference> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_key')) {
+      context.handle(
+        _userKeyMeta,
+        userKey.isAcceptableOrUnknown(data['user_key']!, _userKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userKeyMeta);
+    }
+    if (data.containsKey('default_folder_id')) {
+      context.handle(
+        _defaultFolderIdMeta,
+        defaultFolderId.isAcceptableOrUnknown(
+          data['default_folder_id']!,
+          _defaultFolderIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sort_mode')) {
+      context.handle(
+        _sortModeMeta,
+        sortMode.isAcceptableOrUnknown(data['sort_mode']!, _sortModeMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userKey};
+  @override
+  NotePreference map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return NotePreference(
+      userKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_key'],
+      )!,
+      defaultFolderId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}default_folder_id'],
+      ),
+      sortMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sort_mode'],
+      )!,
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+    );
+  }
+
+  @override
+  $NotePreferencesTable createAlias(String alias) {
+    return $NotePreferencesTable(attachedDatabase, alias);
+  }
+}
+
+class NotePreference extends DataClass implements Insertable<NotePreference> {
+  final String userKey;
+
+  /// 新备忘录默认保存到的文件夹（null = 跟随当前文件夹）。
+  final String? defaultFolderId;
+
+  /// 排序档位名（`custom`/`title`/`updated`）。
+  final String sortMode;
+  final int revision;
+  const NotePreference({
+    required this.userKey,
+    this.defaultFolderId,
+    required this.sortMode,
+    required this.revision,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_key'] = Variable<String>(userKey);
+    if (!nullToAbsent || defaultFolderId != null) {
+      map['default_folder_id'] = Variable<String>(defaultFolderId);
+    }
+    map['sort_mode'] = Variable<String>(sortMode);
+    map['revision'] = Variable<int>(revision);
+    return map;
+  }
+
+  NotePreferencesCompanion toCompanion(bool nullToAbsent) {
+    return NotePreferencesCompanion(
+      userKey: Value(userKey),
+      defaultFolderId: defaultFolderId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(defaultFolderId),
+      sortMode: Value(sortMode),
+      revision: Value(revision),
+    );
+  }
+
+  factory NotePreference.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return NotePreference(
+      userKey: serializer.fromJson<String>(json['userKey']),
+      defaultFolderId: serializer.fromJson<String?>(json['defaultFolderId']),
+      sortMode: serializer.fromJson<String>(json['sortMode']),
+      revision: serializer.fromJson<int>(json['revision']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userKey': serializer.toJson<String>(userKey),
+      'defaultFolderId': serializer.toJson<String?>(defaultFolderId),
+      'sortMode': serializer.toJson<String>(sortMode),
+      'revision': serializer.toJson<int>(revision),
+    };
+  }
+
+  NotePreference copyWith({
+    String? userKey,
+    Value<String?> defaultFolderId = const Value.absent(),
+    String? sortMode,
+    int? revision,
+  }) => NotePreference(
+    userKey: userKey ?? this.userKey,
+    defaultFolderId: defaultFolderId.present
+        ? defaultFolderId.value
+        : this.defaultFolderId,
+    sortMode: sortMode ?? this.sortMode,
+    revision: revision ?? this.revision,
+  );
+  NotePreference copyWithCompanion(NotePreferencesCompanion data) {
+    return NotePreference(
+      userKey: data.userKey.present ? data.userKey.value : this.userKey,
+      defaultFolderId: data.defaultFolderId.present
+          ? data.defaultFolderId.value
+          : this.defaultFolderId,
+      sortMode: data.sortMode.present ? data.sortMode.value : this.sortMode,
+      revision: data.revision.present ? data.revision.value : this.revision,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotePreference(')
+          ..write('userKey: $userKey, ')
+          ..write('defaultFolderId: $defaultFolderId, ')
+          ..write('sortMode: $sortMode, ')
+          ..write('revision: $revision')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(userKey, defaultFolderId, sortMode, revision);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is NotePreference &&
+          other.userKey == this.userKey &&
+          other.defaultFolderId == this.defaultFolderId &&
+          other.sortMode == this.sortMode &&
+          other.revision == this.revision);
+}
+
+class NotePreferencesCompanion extends UpdateCompanion<NotePreference> {
+  final Value<String> userKey;
+  final Value<String?> defaultFolderId;
+  final Value<String> sortMode;
+  final Value<int> revision;
+  final Value<int> rowid;
+  const NotePreferencesCompanion({
+    this.userKey = const Value.absent(),
+    this.defaultFolderId = const Value.absent(),
+    this.sortMode = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  NotePreferencesCompanion.insert({
+    required String userKey,
+    this.defaultFolderId = const Value.absent(),
+    this.sortMode = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : userKey = Value(userKey);
+  static Insertable<NotePreference> custom({
+    Expression<String>? userKey,
+    Expression<String>? defaultFolderId,
+    Expression<String>? sortMode,
+    Expression<int>? revision,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userKey != null) 'user_key': userKey,
+      if (defaultFolderId != null) 'default_folder_id': defaultFolderId,
+      if (sortMode != null) 'sort_mode': sortMode,
+      if (revision != null) 'revision': revision,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  NotePreferencesCompanion copyWith({
+    Value<String>? userKey,
+    Value<String?>? defaultFolderId,
+    Value<String>? sortMode,
+    Value<int>? revision,
+    Value<int>? rowid,
+  }) {
+    return NotePreferencesCompanion(
+      userKey: userKey ?? this.userKey,
+      defaultFolderId: defaultFolderId ?? this.defaultFolderId,
+      sortMode: sortMode ?? this.sortMode,
+      revision: revision ?? this.revision,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userKey.present) {
+      map['user_key'] = Variable<String>(userKey.value);
+    }
+    if (defaultFolderId.present) {
+      map['default_folder_id'] = Variable<String>(defaultFolderId.value);
+    }
+    if (sortMode.present) {
+      map['sort_mode'] = Variable<String>(sortMode.value);
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('NotePreferencesCompanion(')
+          ..write('userKey: $userKey, ')
+          ..write('defaultFolderId: $defaultFolderId, ')
+          ..write('sortMode: $sortMode, ')
+          ..write('revision: $revision, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LifeProductivityDb extends GeneratedDatabase {
   _$LifeProductivityDb(QueryExecutor e) : super(e);
   $LifeProductivityDbManager get managers => $LifeProductivityDbManager(this);
@@ -8442,6 +8770,9 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
   late final $TaskOutboxRowsTable taskOutboxRows = $TaskOutboxRowsTable(this);
   late final $SyncCursorRowsTable syncCursorRows = $SyncCursorRowsTable(this);
   late final $TaskPreferencesTable taskPreferences = $TaskPreferencesTable(
+    this,
+  );
+  late final $NotePreferencesTable notePreferences = $NotePreferencesTable(
     this,
   );
   late final Index idxCalendarEventsCalStart = Index(
@@ -8464,6 +8795,7 @@ abstract class _$LifeProductivityDb extends GeneratedDatabase {
     taskOutboxRows,
     syncCursorRows,
     taskPreferences,
+    notePreferences,
     idxCalendarEventsCalStart,
   ];
 }
@@ -12545,6 +12877,208 @@ typedef $$TaskPreferencesTableProcessedTableManager =
       TaskPreference,
       PrefetchHooks Function()
     >;
+typedef $$NotePreferencesTableCreateCompanionBuilder =
+    NotePreferencesCompanion Function({
+      required String userKey,
+      Value<String?> defaultFolderId,
+      Value<String> sortMode,
+      Value<int> revision,
+      Value<int> rowid,
+    });
+typedef $$NotePreferencesTableUpdateCompanionBuilder =
+    NotePreferencesCompanion Function({
+      Value<String> userKey,
+      Value<String?> defaultFolderId,
+      Value<String> sortMode,
+      Value<int> revision,
+      Value<int> rowid,
+    });
+
+class $$NotePreferencesTableFilterComposer
+    extends Composer<_$LifeProductivityDb, $NotePreferencesTable> {
+  $$NotePreferencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get userKey => $composableBuilder(
+    column: $table.userKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get defaultFolderId => $composableBuilder(
+    column: $table.defaultFolderId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sortMode => $composableBuilder(
+    column: $table.sortMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$NotePreferencesTableOrderingComposer
+    extends Composer<_$LifeProductivityDb, $NotePreferencesTable> {
+  $$NotePreferencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get userKey => $composableBuilder(
+    column: $table.userKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get defaultFolderId => $composableBuilder(
+    column: $table.defaultFolderId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sortMode => $composableBuilder(
+    column: $table.sortMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$NotePreferencesTableAnnotationComposer
+    extends Composer<_$LifeProductivityDb, $NotePreferencesTable> {
+  $$NotePreferencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get userKey =>
+      $composableBuilder(column: $table.userKey, builder: (column) => column);
+
+  GeneratedColumn<String> get defaultFolderId => $composableBuilder(
+    column: $table.defaultFolderId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sortMode =>
+      $composableBuilder(column: $table.sortMode, builder: (column) => column);
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+}
+
+class $$NotePreferencesTableTableManager
+    extends
+        RootTableManager<
+          _$LifeProductivityDb,
+          $NotePreferencesTable,
+          NotePreference,
+          $$NotePreferencesTableFilterComposer,
+          $$NotePreferencesTableOrderingComposer,
+          $$NotePreferencesTableAnnotationComposer,
+          $$NotePreferencesTableCreateCompanionBuilder,
+          $$NotePreferencesTableUpdateCompanionBuilder,
+          (
+            NotePreference,
+            BaseReferences<
+              _$LifeProductivityDb,
+              $NotePreferencesTable,
+              NotePreference
+            >,
+          ),
+          NotePreference,
+          PrefetchHooks Function()
+        > {
+  $$NotePreferencesTableTableManager(
+    _$LifeProductivityDb db,
+    $NotePreferencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$NotePreferencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$NotePreferencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$NotePreferencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> userKey = const Value.absent(),
+                Value<String?> defaultFolderId = const Value.absent(),
+                Value<String> sortMode = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotePreferencesCompanion(
+                userKey: userKey,
+                defaultFolderId: defaultFolderId,
+                sortMode: sortMode,
+                revision: revision,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userKey,
+                Value<String?> defaultFolderId = const Value.absent(),
+                Value<String> sortMode = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => NotePreferencesCompanion.insert(
+                userKey: userKey,
+                defaultFolderId: defaultFolderId,
+                sortMode: sortMode,
+                revision: revision,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$NotePreferencesTable, NotePreference>(table),
+                  BaseReferences<
+                    _$LifeProductivityDb,
+                    $NotePreferencesTable,
+                    NotePreference
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$NotePreferencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LifeProductivityDb,
+      $NotePreferencesTable,
+      NotePreference,
+      $$NotePreferencesTableFilterComposer,
+      $$NotePreferencesTableOrderingComposer,
+      $$NotePreferencesTableAnnotationComposer,
+      $$NotePreferencesTableCreateCompanionBuilder,
+      $$NotePreferencesTableUpdateCompanionBuilder,
+      (
+        NotePreference,
+        BaseReferences<
+          _$LifeProductivityDb,
+          $NotePreferencesTable,
+          NotePreference
+        >,
+      ),
+      NotePreference,
+      PrefetchHooks Function()
+    >;
 
 class $LifeProductivityDbManager {
   final _$LifeProductivityDb _db;
@@ -12571,4 +13105,6 @@ class $LifeProductivityDbManager {
       $$SyncCursorRowsTableTableManager(_db, _db.syncCursorRows);
   $$TaskPreferencesTableTableManager get taskPreferences =>
       $$TaskPreferencesTableTableManager(_db, _db.taskPreferences);
+  $$NotePreferencesTableTableManager get notePreferences =>
+      $$NotePreferencesTableTableManager(_db, _db.notePreferences);
 }
