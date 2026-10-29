@@ -145,6 +145,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                       Expanded(
                         child: _NoteList(
                           gallery: gallery,
+                          groupByYear: settings.sortMode != NoteSortMode.title,
                           emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                           onSearch: (value) => ref
                               .read(noteSearchQueryProvider.notifier)
@@ -162,6 +163,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                   )
                 : _NoteList(
                     gallery: gallery,
+                    groupByYear: settings.sortMode != NoteSortMode.title,
                     emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                     onSearch: (value) => ref
                         .read(noteSearchQueryProvider.notifier)
@@ -597,6 +599,7 @@ class _NoteList extends StatelessWidget {
     required this.onSearch,
     required this.emptyLabel,
     required this.gallery,
+    required this.groupByYear,
   });
 
   final List<Note> notes;
@@ -606,6 +609,10 @@ class _NoteList extends StatelessWidget {
   final ValueChanged<String> onSearch;
   final String emptyLabel;
   final bool gallery;
+
+  /// 按编辑日期分年分组（#391，矩阵 N12/N25）。按标题排序时关掉——
+  /// Apple 在同档下也不摆日期节头。
+  final bool groupByYear;
 
   @override
   Widget build(BuildContext context) {
@@ -694,81 +701,173 @@ class _NoteList extends StatelessWidget {
         },
       );
     }
+    final rows = _groupedRows();
     return ListView.builder(
-      itemCount: notes.length,
+      itemCount: rows.length,
       itemBuilder: (_, i) {
-        final note = notes[i];
-        return GestureDetector(
-          onTap: () => onTap(note),
-          child: ColoredBox(
-            color: CupertinoDynamicColor.resolve(
-              CupertinoColors.systemBackground,
-              context,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          note.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          note.locked ? '已锁定' : note.bodyText,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: CupertinoColors.secondaryLabel,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  CupertinoButton(
-                    key: ValueKey('note_pin_${note.id}'),
-                    minimumSize: Size.zero,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    onPressed: () => onPin(note),
-                    child: Icon(
-                      note.pinned
-                          ? CupertinoIcons.pin_fill
-                          : CupertinoIcons.pin,
-                      size: 20,
-                      color: note.pinned
-                          ? CupertinoColors.systemBlue
-                          : CupertinoColors.secondaryLabel,
-                    ),
-                  ),
-                  CupertinoButton(
-                    key: ValueKey('note_delete_${note.id}'),
-                    minimumSize: Size.zero,
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    onPressed: () => onDelete(note),
-                    child: const Icon(
-                      CupertinoIcons.delete,
-                      size: 20,
-                      color: CupertinoColors.secondaryLabel,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        final row = rows[i];
+        if (row is int) return _NoteYearHeader(year: row);
+        final note = row as Note;
+        return _NoteRow(
+          note: note,
+          onTap: onTap,
+          onPin: onPin,
+          onDelete: onDelete,
         );
       },
     );
   }
+
+  /// 列表行序（#391）：有编辑时间的按年份倒序分桶，桶内保持传入顺序
+  /// （置顶优先等既有语义不丢）；无编辑时间的排在所有年桶之后、不摆节头。
+  /// 一条带日期的都没有时原样返回——golden 夹具即此形态，基线因此不变。
+  List<Object> _groupedRows() {
+    if (!groupByYear) return notes;
+    final buckets = <int, List<Note>>{};
+    final undated = <Note>[];
+    for (final note in notes) {
+      if (note.clientUpdatedAt <= 0) {
+        undated.add(note);
+        continue;
+      }
+      final year = DateTime.fromMillisecondsSinceEpoch(
+        note.clientUpdatedAt,
+      ).year;
+      (buckets[year] ??= <Note>[]).add(note);
+    }
+    if (buckets.isEmpty) return notes;
+    final years = buckets.keys.toList()..sort((a, b) => b.compareTo(a));
+    return <Object>[
+      for (final year in years) ...[year, ...buckets[year]!],
+      ...undated,
+    ];
+  }
+}
+
+/// 备忘录列表行：标题 + 编辑日期 + 摘要（#391，Apple 同结构）。
+class _NoteRow extends StatelessWidget {
+  const _NoteRow({
+    required this.note,
+    required this.onTap,
+    required this.onPin,
+    required this.onDelete,
+  });
+
+  final Note note;
+  final ValueChanged<Note> onTap;
+  final ValueChanged<Note> onPin;
+  final ValueChanged<Note> onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final date = _noteDateLabel(note);
+    return GestureDetector(
+      onTap: () => onTap(note),
+      child: ColoredBox(
+        color: CupertinoDynamicColor.resolve(
+          CupertinoColors.systemBackground,
+          context,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      note.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (date != null)
+                      Text(
+                        date,
+                        key: ValueKey('note_row_date_${note.id}'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: CupertinoColors.secondaryLabel,
+                        ),
+                      ),
+                    Text(
+                      note.locked ? '已锁定' : note.bodyText,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: CupertinoColors.secondaryLabel,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              CupertinoButton(
+                key: ValueKey('note_pin_${note.id}'),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                onPressed: () => onPin(note),
+                child: Icon(
+                  note.pinned ? CupertinoIcons.pin_fill : CupertinoIcons.pin,
+                  size: 20,
+                  color: note.pinned
+                      ? CupertinoColors.systemBlue
+                      : CupertinoColors.secondaryLabel,
+                ),
+              ),
+              CupertinoButton(
+                key: ValueKey('note_delete_${note.id}'),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                onPressed: () => onDelete(note),
+                child: const Icon(
+                  CupertinoIcons.delete,
+                  size: 20,
+                  color: CupertinoColors.secondaryLabel,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 按编辑日期的年份分组的节头（#391）。
+class _NoteYearHeader extends StatelessWidget {
+  const _NoteYearHeader({required this.year});
+
+  final int year;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: ValueKey('note_group_$year'),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
+      child: Text(
+        '$year 年',
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: CupertinoColors.secondaryLabel,
+        ),
+      ),
+    );
+  }
+}
+
+/// 行内编辑日期文案（`2026/3/5`）。`clientUpdatedAt <= 0` 是未落库/无编辑时间，
+/// 返回 null 而不是显示 1970/1/1 这种假日期。
+String? _noteDateLabel(Note note) {
+  if (note.clientUpdatedAt <= 0) return null;
+  final edited = DateTime.fromMillisecondsSinceEpoch(note.clientUpdatedAt);
+  return '${edited.year}/${edited.month}/${edited.day}';
 }
 
 class _EmptyHint extends StatelessWidget {
