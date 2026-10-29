@@ -52,17 +52,35 @@ class RestSyncPort {
             },
         ],
       });
-      final code = response['code'];
+      // #428：服务端把 `ok / accepted / conflicts / serverUpdatedAt` 放在 `data` 里；
+      // 兼容老形态（直接平铺在顶层）——两处都读，避免因网关包装差异误判「全收」。
+      final data = response['data'];
+      final payload = data is Map ? Map<String, dynamic>.from(data) : response;
+      final code = response['code'] ?? payload['code'];
       if (code == 220 && attempts < maxAttempts) {
         conflicts++;
-        final serverUpdatedAt = response['serverUpdatedAt'];
+        final serverUpdatedAt = payload['serverUpdatedAt'];
         final base = updatedAt ?? 0;
         updatedAt = serverUpdatedAt is num
             ? (serverUpdatedAt.toInt() > base ? serverUpdatedAt.toInt() : base + 1)
             : base + 1;
         continue;
       }
-      return NotePushResult(attempts: attempts, conflicts: conflicts);
+      final acceptedRaw = payload['accepted'];
+      final acceptedIds = <String>{};
+      if (acceptedRaw is List) {
+        for (final item in acceptedRaw.whereType<Map>()) {
+          final id = item['entityId']?.toString();
+          if (id != null && id.isNotEmpty) acceptedIds.add(id);
+        }
+      }
+      return NotePushResult(
+        attempts: attempts,
+        conflicts: conflicts,
+        // `ok=true` = 整批受理；否则只认 accepted 里明确列出的 entityId
+        allAccepted: payload['ok'] == true,
+        acceptedEntityIds: acceptedIds,
+      );
     }
   }
 
