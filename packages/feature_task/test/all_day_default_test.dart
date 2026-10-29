@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,7 +49,9 @@ void main() {
               item: item,
               onSaved: (u) {
                 saved = u;
-                repo.upsertItem(u); // 让落库跟随，便于 watchItems 二次断言
+                // 回调里无法 await：显式 unawaited 表明「故意不等待」，
+                // 后面用 watchItems 二次断言兜底（#433 守卫要求这种写法）。
+                unawaited(repo.upsertItem(u));
               },
             ),
           ),

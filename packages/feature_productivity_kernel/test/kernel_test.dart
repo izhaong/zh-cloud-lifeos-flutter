@@ -29,11 +29,12 @@ void main() {
   group('InMemoryReminderRepository 契约', () {
     late InMemoryReminderRepository repo;
 
-    setUp(() {
+    setUp(() async {
       repo = InMemoryReminderRepository(seedSampleData: false);
       repo.nowForTest = DateTime(2026, 10, 22, 12, 0);
-      repo.upsertList(const ReminderList(id: 'list.personal', title: '个人'));
-      repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
+      // #433：异步写要 await，否则断言可能跑在落库之前
+      await repo.upsertList(const ReminderList(id: 'list.personal', title: '个人'));
+      await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
     });
 
     test('watchLists 首帧后，upsertList 广播新值', () async {
@@ -293,8 +294,9 @@ void main() {
     });
 
     test('upsertList 拒绝 smart. 前缀 id', () async {
-      expect(
-        () => repo.upsertList(
+      // #433：`upsertList` 是 async，这个闭包写法抓不到异步抛错（假绿）
+      await expectLater(
+        repo.upsertList(
           const ReminderList(id: 'smart.hack', title: '黑客'),
         ),
         throwsArgumentError,

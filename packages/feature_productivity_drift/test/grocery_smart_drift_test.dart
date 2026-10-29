@@ -84,16 +84,24 @@ void main() {
     expect(stored.smartFilter?.flaggedOnly, isTrue);
   });
 
-  test('守卫正反向：smart.custom.x 放行；smart.today 仍拒（drift 侧）', () {
-    expect(
-      () => repo.upsertList(
+  test('守卫正反向：smart.custom.x 放行；smart.today 仍拒（drift 侧）', () async {
+    // #433：`upsertList` 是 async，两个坑都要修——
+    //  1. `expect(() => f(), throwsArgumentError)` 对**异步**抛错无效（闭包同步返回 Future，
+    //     不会当场抛），这条断言一直是「假绿」；必须用 `expectLater(f(), throwsA(...))`；
+    //  2. 不 await 就结束测试 → tearDown 立刻关库，挂起的 insert 撞上已关闭的 DB，
+    //     抛 CouldNotRollBackException（并行 verify 里就是这么挂的）。
+    await expectLater(
+      repo.upsertList(
         const ReminderList(id: 'smart.today', title: '篡改'),
       ),
       throwsArgumentError,
     );
     // 放行不抛
-    repo.upsertList(
+    await repo.upsertList(
       const ReminderList(id: 'smart.custom.ok', title: '合法', isSmart: true),
     );
+    // 真的落库了（不是「没抛就算过」）
+    final lists = await repo.watchLists().first;
+    expect(lists.any((l) => l.id == 'smart.custom.ok'), isTrue);
   });
 }
