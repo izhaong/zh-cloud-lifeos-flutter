@@ -15,6 +15,7 @@ import 'widgets/calendar_sidebar.dart';
 import 'widgets/calendar_shortcuts.dart';
 import 'widgets/event_inspector_pane.dart';
 import 'widgets/quick_event_dialog.dart';
+import 'widgets/quick_reminder_dialog.dart';
 import 'widgets/calendar_settings_sheet.dart';
 import 'widgets/shortcut_dialogs.dart';
 import 'widgets/subscription_dialog.dart';
@@ -141,23 +142,24 @@ class CalendarScaffold extends ConsumerWidget {
       if (reminderRepo == null || targets.isEmpty) {
         return;
       }
-      final quick = await showQuickEventDialog(
+      final quick = await showQuickReminderDialog(
         context,
-        defaultDurationMinutes: 30,
+        lists: targets,
         timeZone: 'UTC',
       );
       if (quick == null || !context.mounted) {
         return;
       }
-      final local = quick.startAt.toLocal();
-      final dueAt = quick.allDay
+      final local = quick.event.startAt.toLocal();
+      final dueAt = quick.event.allDay
           ? DateTime(local.year, local.month, local.day)
           : local;
       await reminderRepo.upsertItem(
         ReminderItem(
           id: newReminderId(),
-          listId: targets.first.id,
-          title: quick.title,
+          // #401：落点由用户在面板里指定，不再恒取首个列表
+          listId: quick.listId,
+          title: quick.event.title,
           dueAt: dueAt,
         ),
       );
