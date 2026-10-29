@@ -5,11 +5,19 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:app_core/app_core.dart';
 
 import '../logic/local_holidays.dart';
+import '../logic/subscription_import.dart';
+import '../providers.dart';
 
-/// 本地订阅占位对话框（F-16）：只保存 URL，不发 HTTP。Cupertino 化（#130）。
-Future<Calendar?> showLocalSubscriptionDialog(
+/// 添加订阅对话框（F-16 / #403）。
+///
+/// 保存后**立即拉取并落库**（需要注入 [SubscriptionFetcher]）；未注入抓取端口时
+/// 仍保存 URL，但返回 `pending: true`，由调用方如实告知「内容待联网同步」——
+/// 不再像此前那样静默存个 URL 就完事（订阅后永远没事件）。
+Future<SubscriptionImportResult?> showLocalSubscriptionDialog(
   BuildContext context, {
   required CalendarRepository repository,
+  SubscriptionFetcher? fetcher,
+  DateTime Function()? clock,
 }) async {
   final url = await showCupertinoDialog<String>(
     context: context,
@@ -18,7 +26,17 @@ Future<Calendar?> showLocalSubscriptionDialog(
   if (url == null) {
     return null;
   }
-  return saveLocalSubscription(repository, url: url, title: '订阅');
+  final calendar =
+      await saveLocalSubscription(repository, url: url, title: '订阅');
+  if (fetcher == null) {
+    return const SubscriptionImportResult.pending();
+  }
+  return refreshSubscription(
+    repository: repository,
+    calendar: calendar,
+    fetcher: fetcher,
+    clock: clock ?? DateTime.now,
+  );
 }
 
 class _SubscriptionDialog extends StatefulWidget {
