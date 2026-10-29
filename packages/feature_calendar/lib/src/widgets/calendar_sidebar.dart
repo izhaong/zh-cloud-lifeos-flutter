@@ -456,6 +456,27 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
       widget.calendar?.colorArgb ?? kCalendarPresetColors[4].$2; // 默认蓝
   late bool _ignoreAlerts = widget.calendar?.ignoreAlerts ?? false;
 
+  /// 分组名（#431）：空 = 归入「我的日历」。
+  ///
+  /// 此前 `groupName` **没有任何写入入口**：侧栏 `_group()` 会按它分组，
+  /// 但新建/编辑对话框都不收这个字段——分组标题在真实数据里永远不出现。
+  late final TextEditingController _group = TextEditingController(
+    text: widget.calendar?.groupName ?? '',
+  );
+
+  /// 去掉首尾空白；空串 → null（这样侧栏会把它归回「我的日历」）。
+  String? get _groupValue {
+    final value = _group.text.trim();
+    return value.isEmpty ? null : value;
+  }
+
+  @override
+  void dispose() {
+    _group.dispose();
+    _title.dispose();
+    super.dispose();
+  }
+
   void _persist() {
     final existing = widget.calendar;
     if (existing == null) {
@@ -472,7 +493,7 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
                 : _title.text.trim(),
             colorArgb: _colorArgb,
             kind: existing.kind,
-            groupName: existing.groupName,
+            groupName: _groupValue,
             isVisible: existing.isVisible,
             isDefault: existing.isDefault,
             sortOrder: existing.sortOrder,
@@ -499,9 +520,22 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
         children: [
           const SizedBox(height: 8),
           CupertinoTextField(
+            key: const Key('calendar_title_field'),
             controller: _title,
             placeholder: '名称',
             style: const TextStyle(fontSize: 15),
+          ),
+          const SizedBox(height: 12),
+          // #431：分组名（Apple 的「新建日历分组」）。
+          // 留空 = 归入「我的日历」；填了就以该名成组（与 `_group()` 的读法一致）。
+          CupertinoTextField(
+            key: const Key('calendar_group_field'),
+            controller: _group,
+            placeholder: '分组（可选，留空归入「我的日历」）',
+            style: const TextStyle(fontSize: 15),
+            onSubmitted: (_) {
+              if (isEdit) _persist(); // 编辑态即时生效，与改色一致
+            },
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -593,6 +627,7 @@ class _CalendarEditDialogState extends ConsumerState<_CalendarEditDialog> {
               title: _title.text.trim(),
               colorArgb: _colorArgb,
               kind: CalendarKind.local,
+              groupName: _groupValue,
               isVisible: true,
               ignoreAlerts: _ignoreAlerts,
             );

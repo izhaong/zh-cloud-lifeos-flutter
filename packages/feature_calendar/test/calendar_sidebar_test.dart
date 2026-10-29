@@ -197,7 +197,8 @@ void main() {
     await _tapSidebarAction(tester, '添加日历');
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(CupertinoTextField), '新日历');
+    await tester.enterText(
+        find.byKey(const Key('calendar_title_field')), '新日历');
     await tester.tap(find.byKey(const Key('preset-color-0xFF34C759')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('完成'));
