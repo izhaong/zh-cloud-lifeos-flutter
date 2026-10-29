@@ -95,6 +95,9 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
             kernelEventId: o.eventId,
             colorArgb: o.colorArgb,
             title: o.title,
+            // #402：月视图用**空心圆**区分提醒事项（Apple 口径），
+            // 与普通日程的实心色条形成层级差。
+            isReminder: o.source == OccurrenceSource.reminder,
           ),
     ]);
 
@@ -296,6 +299,36 @@ Widget monthEventTileBuilder(
 ) {
   final tile = event is CalendarEventTile ? event : null;
   final color = Color(tile?.colorArgb ?? 0xFF007AFF);
+  if (tile?.isReminder == true) {
+    // #402：Apple 月视图里提醒是**空心圆 + 文字**，不是色条——一眼能和日程分开。
+    return Container(
+      key: Key('month-reminder-${tile!.kernelEventId}'),
+      margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      alignment: Alignment.centerLeft,
+      child: Row(
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: color, width: 1.5),
+            ),
+          ),
+          const SizedBox(width: 3),
+          Expanded(
+            child: Text(
+              tile.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 11, color: color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   return Container(
     key: Key('month-event-${tile?.kernelEventId ?? event.id}'),
     margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
@@ -325,11 +358,15 @@ class CalendarEventTile extends kalender.KalenderEvent {
     required this.kernelEventId,
     required this.colorArgb,
     required this.title,
+    this.isReminder = false,
   });
 
   final String kernelEventId;
   final int colorArgb;
   final String title;
+
+  /// 该 tile 是不是「提醒事项」投影（#402）：决定月视图里画实心条还是空心圆。
+  final bool isReminder;
 
   @override
   CalendarEventTile copyWithData({
@@ -337,6 +374,7 @@ class CalendarEventTile extends kalender.KalenderEvent {
     required DateTime end,
   }) {
     return CalendarEventTile(
+      isReminder: isReminder,
       start: start,
       end: end,
       kernelEventId: kernelEventId,
