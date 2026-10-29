@@ -209,14 +209,19 @@ class _CalendarSidebarState extends ConsumerState<CalendarSidebar> {
     return linked;
   }
 
-  Future<void> _openAddDialog(BuildContext context) async {
-    final created = await showCupertinoDialog<Calendar>(
-      context: context,
-      builder: (_) => const _CalendarEditDialog(),
-    );
-    if (created != null) {
-      await ref.read(calendarRepositoryProvider).upsertCalendar(created);
-    }
+  Future<void> _openAddDialog(BuildContext context) =>
+      showAddCalendarDialog(context, ref);
+}
+
+/// 新建日历：侧栏「添加日历」与快捷键 ⇧⌘N 共用同一条创建链（#400）。
+Future<void> showAddCalendarDialog(
+    BuildContext context, WidgetRef ref) async {
+  final created = await showCupertinoDialog<Calendar>(
+    context: context,
+    builder: (_) => const _CalendarEditDialog(),
+  );
+  if (created != null) {
+    await ref.read(calendarRepositoryProvider).upsertCalendar(created);
   }
 }
 

@@ -16,6 +16,8 @@ import 'widgets/calendar_shortcuts.dart';
 import 'widgets/event_inspector_pane.dart';
 import 'widgets/quick_event_dialog.dart';
 import 'widgets/calendar_settings_sheet.dart';
+import 'widgets/shortcut_dialogs.dart';
+import 'widgets/subscription_dialog.dart';
 import 'package:kalender/kalender.dart' as kalender;
 import 'widgets/calendar_toolbar.dart';
 
@@ -261,19 +263,147 @@ class CalendarScaffold extends ConsumerWidget {
       ref.read(anchorDateProvider.notifier).set(next);
     }
 
+    // #400：下面 9 条此前只注册了 Action、没注入回调，按下去 `?.call()` 静默。
+    // 每条都接到一条已存在的能力链上，不新造第二套语义。
+    Future<void> refresh() async {
+      await ref.read(calendarSyncTriggerProvider)?.call();
+      if (!context.mounted) {
+        return;
+      }
+      ref.invalidate(calendarsProvider);
+      ref.invalidate(preferenceProvider);
+    }
+
+    /// 只有日程主记录可以编辑/移动/删除；提醒与节假日是投影。
+    CalendarOccurrence? selectedEventOccurrence() {
+      final sel = ref.read(selectedOccurrenceProvider);
+      if (sel == null || sel.source != OccurrenceSource.event) {
+        return null;
+      }
+      return sel;
+    }
+
+    // ⌘E（编辑所选）与 ⌥⌘I（Inspector）落同一个编辑面：本应用只有一个日程
+    // 编辑面，Apple 的这两条键在此处语义重合。
+    Future<void> openSelectedEditor() async {
+      final sel = selectedEventOccurrence();
+      if (sel == null) {
+        return;
+      }
+      final draft = await repo.getEvent(sel.masterEventId);
+      if (draft == null || !context.mounted) {
+        return;
+      }
+      openDraft(draft, sel.isRecurring ? sel.start : null, measuredContentWidth);
+    }
+
+    Future<void> jumpToDate() async {
+      final picked = await showJumpToDateDialog(
+        context,
+        initial: ref.read(anchorDateProvider),
+      );
+      if (picked == null || !context.mounted) {
+        return;
+      }
+      ref.read(anchorDateProvider.notifier).set(picked);
+    }
+
+    Future<void> showSelectedInfo() async {
+      final sel = ref.read(selectedOccurrenceProvider);
+      if (sel == null || !context.mounted) {
+        return;
+      }
+      await showOccurrenceInfoDialog(context, occurrence: sel);
+    }
+
+    Future<void> moveSelected(Duration delta) async {
+      final sel = selectedEventOccurrence();
+      if (sel == null) {
+        return;
+      }
+      final base = await repo.getEvent(sel.masterEventId);
+      if (base == null) {
+        return;
+      }
+      await repo.upsertEvent(
+        _shiftEventTimes(base, delta),
+        scope: sel.isRecurring ? EditScope.thisOnly : EditScope.all,
+        occurrenceStart: sel.isRecurring ? sel.start : null,
+      );
+    }
+
+    Future<void> deleteSelected() async {
+      final sel = selectedEventOccurrence();
+      if (sel == null) {
+        return;
+      }
+      await repo.deleteEvent(
+        sel.masterEventId,
+        scope: sel.isRecurring ? EditScope.thisOnly : EditScope.all,
+        occurrenceStart: sel.isRecurring ? sel.start : null,
+      );
+      ref.read(selectedOccurrenceProvider.notifier).select(null);
+    }
+
     return CalendarShortcutActions(
       onNextPeriod: () => shiftPeriod(1),
       onPrevPeriod: () => shiftPeriod(-1),
       onToday: () => ref.read(anchorDateProvider.notifier).today(),
+      onJumpToDate: jumpToDate,
       onSetViewMode: (m) => ref.read(viewModeProvider.notifier).set(m),
+      onRefresh: refresh,
       onNewEvent: openQuickEvent,
-      onSettings: () => showCalendarSettingsSheet(context),
+      onEditSelected: openSelectedEditor,
+      onOpenInspectorWindow: openSelectedEditor,
       onFocusSearch: () => ref.read(searchActiveProvider.notifier).set(true),
+      onShowInfo: showSelectedInfo,
+      // 本仓没有独立分组实体（侧栏分组由 Calendar.groupName 派生），Apple 的
+      // ⇧⌘N 即 File ▸ New Calendar…，故接到与侧栏同一条新建日历链上。
+      onNewCalendarGroup: () => showAddCalendarDialog(context, ref),
+      onNewSubscription: () =>
+          showLocalSubscriptionDialog(context, repository: repo),
+      onMoveSelection: moveSelected,
+      onSettings: () => showCalendarSettingsSheet(context),
+      onDeleteSelected: deleteSelected,
       onCloseEditing: clearDraft,
-      child: Focus(autofocus: true, child: scaffold),
+      // 空格切显隐已由侧栏本地 Actions 接住（#360），此处重复注入会切两次。
+      child: scaffold,
     );
   }
 }
+
+/// ⌃⌥方向键：整段平移（起止同时偏移），其余字段原样回写。
+/// `CalendarEvent` 无 copyWith，编辑语义按契约 §5.2 由 UI 全量构造。
+CalendarEvent _shiftEventTimes(CalendarEvent e, Duration delta) =>
+    CalendarEvent(
+      id: e.id,
+      remoteId: e.remoteId,
+      calendarId: e.calendarId,
+      uid: e.uid,
+      title: e.title,
+      location: e.location,
+      url: e.url,
+      notes: e.notes,
+      startAt: e.startAt.add(delta),
+      endAt: e.endAt.add(delta),
+      allDay: e.allDay,
+      timeZone: e.timeZone,
+      isFloating: e.isFloating,
+      rrule: e.rrule,
+      exdates: e.exdates,
+      parentEventId: e.parentEventId,
+      originalStartAt: e.originalStartAt,
+      status: e.status,
+      availability: e.availability,
+      travelMinutes: e.travelMinutes,
+      isPrivate: e.isPrivate,
+      alerts: e.alerts,
+      invitees: e.invitees,
+      sequence: e.sequence,
+      revision: e.revision,
+      deletedAt: e.deletedAt,
+      updatedAt: e.updatedAt,
+    );
 
 class _MainView extends ConsumerWidget {
   const _MainView({
@@ -310,10 +440,16 @@ class _MainView extends ConsumerWidget {
       CalendarViewMode.year => const CalendarYearView(),
       CalendarViewMode.list => const CalendarListView(),
     };
-    // 裸键（Delete/Esc/Return）只在主视图内生效，避免吞掉表单文本输入
+    // 裸键（Delete/Esc/Return）只在主视图内生效，避免吞掉表单文本输入。
+    // #400：按键沿「焦点节点 → 祖先」冒泡，而 Shortcuts 的 onKey 挂在它自己
+    // 那层 Focus 上——焦点必须落在 Shortcuts **之内**才轮得到它。此前焦点停在
+    // scaffold 根，Delete 根本没进这条绑定，所以让主视图子树自己取焦点。
     return Shortcuts(
       shortcuts: calendarUnmodifiedShortcutBindings(),
-      child: view,
+      child: Focus(
+        autofocus: true,
+        child: view,
+      ),
     );
   }
 }
