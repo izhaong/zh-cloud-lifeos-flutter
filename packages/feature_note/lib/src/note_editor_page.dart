@@ -766,10 +766,28 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
                 child: quill.QuillEditor.basic(
                   controller: _body,
                   focusNode: _bodyFocus,
-                  config: const quill.QuillEditorConfig(
+                  config: quill.QuillEditorConfig(
                     placeholder: '开始记录…',
-                    padding: EdgeInsets.all(16),
-                    embedBuilders: [NoteImageEmbedBuilder()],
+                    padding: const EdgeInsets.all(16),
+                    embedBuilders: const [NoteImageEmbedBuilder()],
+                    // #463：设置里的「默认文本大小」必须真的作用到正文。
+                    // 走 quill 的 DefaultStyles.paragraph（唯一的正文默认样式入口），
+                    // 不在外面套 DefaultTextStyle —— quill 的富文本样式会把它盖掉。
+                    customStyles: quill.DefaultStyles(
+                      paragraph: quill.DefaultTextBlockStyle(
+                        TextStyle(
+                          fontSize: ref
+                              .watch(noteSettingsProvider)
+                              .defaultTextSize
+                              .toDouble(),
+                          height: 1.4,
+                        ),
+                        const quill.HorizontalSpacing(0, 0),
+                        const quill.VerticalSpacing(0, 0),
+                        const quill.VerticalSpacing(0, 0),
+                        const BoxDecoration(),
+                      ),
+                    ),
                   ),
                 ),
               ),

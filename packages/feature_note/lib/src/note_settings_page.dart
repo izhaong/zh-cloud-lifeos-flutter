@@ -196,6 +196,31 @@ class NoteSettingsPage extends ConsumerWidget {
                   .read(noteSettingsProvider.notifier)
                   .setGroupByDate(!settings.groupByDate),
             ),
+            // #463：Apple「默认文本大小」滑块。五档与 Apple 一致（13/15/17/20/24），
+            // 消费者是编辑器的 quill DefaultStyles.paragraph.fontSize。
+            CupertinoListTile(
+              key: const ValueKey('note_default_text_size'),
+              title: const Text('默认文本大小'),
+              trailing: Text(
+                '${settings.defaultTextSize} 磅',
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: CupertinoSlider(
+                key: const ValueKey('note_default_text_size_slider'),
+                min: 0,
+                max: (_textSizeSteps.length - 1).toDouble(),
+                divisions: _textSizeSteps.length - 1,
+                value: _textSizeIndex(settings.defaultTextSize).toDouble(),
+                onChanged: (value) => ref
+                    .read(noteSettingsProvider.notifier)
+                    .setDefaultTextSize(
+                      _textSizeSteps[value.round()],
+                    ),
+              ),
+            ),
           ],
         ),
       ),
@@ -217,4 +242,21 @@ class _SectionSeparator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(height: 0.5, color: CupertinoColors.separator);
   }
+}
+
+/// 默认文本大小的五档（磅）。与 Apple 备忘录的档位对齐。
+const _textSizeSteps = <int>[13, 15, 17, 20, 24];
+
+/// 当前磅值最接近哪一档（越界/中间值都能落到合法档位）。
+int _textSizeIndex(int size) {
+  var best = 0;
+  var bestDiff = (size - _textSizeSteps[0]).abs();
+  for (var i = 1; i < _textSizeSteps.length; i++) {
+    final diff = (size - _textSizeSteps[i]).abs();
+    if (diff < bestDiff) {
+      best = i;
+      bestDiff = diff;
+    }
+  }
+  return best;
 }

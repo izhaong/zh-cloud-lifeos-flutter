@@ -213,6 +213,7 @@ class NoteSettings {
     this.sortMode = NoteSortMode.custom,
     this.groupByDate = true,
     this.beginWith = NoteBeginWithMode.nothing,
+    this.defaultTextSize = 16,
   });
 
   final String? defaultFolderId;
@@ -223,6 +224,9 @@ class NoteSettings {
 
   final NoteBeginWithMode beginWith;
 
+  /// 默认正文文本大小（磅；#463，Apple「默认文本大小」滑块）。
+  final int defaultTextSize;
+
   /// 设置页每次只改一格，其余格子必须原样带过；格子加到第四个之后，逐个手写
   /// 实参的写法早晚会把某格打回默认，所以收在这里。
   NoteSettings copyWith({
@@ -231,6 +235,7 @@ class NoteSettings {
     NoteSortMode? sortMode,
     bool? groupByDate,
     NoteBeginWithMode? beginWith,
+    int? defaultTextSize,
   }) {
     return NoteSettings(
       defaultFolderId: clearDefaultFolderId
@@ -239,6 +244,7 @@ class NoteSettings {
       sortMode: sortMode ?? this.sortMode,
       groupByDate: groupByDate ?? this.groupByDate,
       beginWith: beginWith ?? this.beginWith,
+      defaultTextSize: defaultTextSize ?? this.defaultTextSize,
     );
   }
 }
@@ -270,6 +276,7 @@ class NoteSettingsNotifier extends Notifier<NoteSettings> {
     sortMode: noteSortModeFromId(p?.sortMode),
     groupByDate: p?.groupByDate ?? true,
     beginWith: noteBeginWithModeFromId(p?.beginWith),
+    defaultTextSize: p?.defaultTextSize ?? 16,
   );
 
   /// 写库；其余格子从当前行原样带过，不整体覆盖成默认。
@@ -286,6 +293,7 @@ class NoteSettingsNotifier extends Notifier<NoteSettings> {
         sortMode: next.sortMode.name,
         groupByDate: next.groupByDate,
         beginWith: next.beginWith.name,
+        defaultTextSize: next.defaultTextSize,
       ),
     );
   }
@@ -309,6 +317,12 @@ class NoteSettingsNotifier extends Notifier<NoteSettings> {
 
   void setBeginWith(NoteBeginWithMode mode) {
     _write(state.copyWith(beginWith: mode));
+  }
+
+  /// 默认文本大小（#463）：夹到 13..24，越界值不写库。
+  void setDefaultTextSize(int size) {
+    if (size < 13 || size > 24) return;
+    _write(state.copyWith(defaultTextSize: size));
   }
 }
 
