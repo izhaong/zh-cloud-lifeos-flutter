@@ -768,6 +768,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   int _lastNewListTicket = 0;
   bool _newListDialogOpen = false;
 
+  /// 菜单命令（#375）：菜单栏在 `CupertinoApp` 之上、拿不到页面 context，
+  /// 只能靠这条总线通知；与 ⌘N 一样落到 [_openNewItemDialog]。
+  ValueNotifier<LifeMenuAction?>? _menuCommands;
+
   @override
   void initState() {
     super.initState();
@@ -780,7 +784,21 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       _lastSearchTicket = controller.focusSearchTicket;
       _lastNewListTicket = controller.newListTicket;
       controller.addListener(_onShortcut);
+
+      _menuCommands = ref.read(lifeMenuCommandsProvider);
+      _menuCommands?.addListener(_onMenuCommand);
+      // 菜单先发命令、页面后挂载（切 tab 的时序）时补消费一次。
+      _onMenuCommand();
     });
+  }
+
+  /// 文件 → 新建提醒事项：与「＋ 新提醒事项」/ ⌘N 同一条路径。
+  void _onMenuCommand() {
+    final notifier = _menuCommands;
+    if (notifier == null || notifier.value != LifeMenuAction.newReminder) return;
+    if (!mounted) return;
+    notifier.value = null; // 消费即清，避免重建时重复触发
+    _openNewItemDialog();
   }
 
   void _onShortcut() {
@@ -812,6 +830,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   @override
   void dispose() {
     _shortcuts?.removeListener(_onShortcut);
+    _menuCommands?.removeListener(_onMenuCommand);
     _searchFocus.dispose();
     _draftController.dispose();
     super.dispose();
