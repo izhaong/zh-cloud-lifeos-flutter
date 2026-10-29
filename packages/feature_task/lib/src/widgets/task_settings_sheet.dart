@@ -6,10 +6,15 @@ import '../providers.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
 /// 「设置」弹窗（图1 对齐）：默认列表 / 全天提醒时点 / 标记完成开关 /
-/// 建议列表开关 / 采购清单语言 / 还原默认。
+/// 建议列表开关 / 还原默认。
 ///
 /// TC-UI-120 持久半边（flutter#124 卡 4）：四档都写进 [TaskPreferenceRepository]，
 /// 重开与冷启动读回同一行；「还原」= 写回契约默认（含默认列表清回未设置）。
+///
+/// #444：原「采购清单语言」行是硬编码 `Text('简体中文')`（无 `onTap`、不落库、
+/// 无消费者），按「要么补消费者、要么不摆成可设置的样子」撤除。采购清单预设分区
+/// 仍按 HT105086 降级口径固定中文，与服务端 `TodoListDO.GROCERY_PRESET_SECTIONS`
+/// 保持同一套名字；要按语言出第二套模板得先解决与服务端常量的对齐，另单跟。
 /// 默认列表用就地展开的候选区（不额外推一层路由）：少一套导航假设，
 /// 测试与真机走的是同一条路径。
 Future<void> showTaskSettingsSheet(
@@ -144,15 +149,6 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                   rowKey: 'settings_suggest_lists',
                   value: p.suggestLists,
                   onChanged: (v) => _save(p.copyWith(suggestLists: v)),
-                ),
-                _row(
-                  icon: CupertinoIcons.cart,
-                  label: '采购清单语言',
-                  rowKey: 'settings_grocery_language',
-                  trailing: Text(
-                    '简体中文',
-                    style: TextStyle(color: secondary),
-                  ),
                 ),
               ],
             ),

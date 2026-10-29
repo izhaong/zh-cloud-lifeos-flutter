@@ -66,14 +66,23 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('sidebar_settings')));
     await tester.pumpAndSettle();
 
-    // 图1 级真身（TC-UI-120 骨架）：默认列表/全天提醒时点/标记完成/建议列表/采购语言/还原
+    // 图1 级真身（TC-UI-120 骨架）：默认列表/全天提醒时点/标记完成/建议列表/还原
     expect(find.text('设置'), findsWidgets);
     expect(find.text('默认列表'), findsOneWidget);
     expect(find.text('全天提醒时点'), findsOneWidget);
     expect(find.text('完成时标记为已完成'), findsOneWidget);
     expect(find.text('建议列表'), findsOneWidget);
-    expect(find.text('采购清单语言'), findsOneWidget);
     expect(find.byKey(const ValueKey('settings_reset')), findsOneWidget);
+
+    // #444：「采购清单语言」原先是无 onTap、不落库、无消费者的硬编码占位，
+    // 按「要么补消费者、要么不摆成可设置的样子」撤除。这里留一条反向断言：
+    // 撤的是整行（含键），而有效四档仍在——否则「字段真身出现」会静默失真。
+    expect(find.text('采购清单语言'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('settings_grocery_language')),
+      findsNothing,
+    );
+    expect(find.text('简体中文'), findsNothing);
 
     // 开关可交互（切换不炸）
     await tester.tap(find.byType(CupertinoSwitch).first);
