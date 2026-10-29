@@ -72,7 +72,10 @@ class _SubscriptionDialogState extends State<_SubscriptionDialog> {
               alignment: Alignment.centerLeft,
               child: Text(
                 _error!,
-                style: const TextStyle(fontSize: 12, color: CalendarTokens.systemRed),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: CupertinoColors.systemRed.resolveFrom(context),
+                ),
               ),
             ),
         ],

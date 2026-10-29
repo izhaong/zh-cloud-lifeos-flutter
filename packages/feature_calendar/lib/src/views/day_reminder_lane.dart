@@ -139,7 +139,10 @@ class _HollowCircle extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        border: Border.all(color: CalendarTokens.systemBlue, width: 1.5),
+        border: Border.all(
+          color: CupertinoColors.systemBlue.resolveFrom(context),
+          width: 1.5,
+        ),
       ),
     );
   }

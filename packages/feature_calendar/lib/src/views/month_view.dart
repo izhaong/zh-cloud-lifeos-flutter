@@ -213,8 +213,9 @@ class _MonthDayHeader extends StatelessWidget {
       height: 22,
       alignment: Alignment.center,
       decoration: isToday
-          ? const BoxDecoration(
-              color: CalendarTokens.systemRed,
+          ? BoxDecoration(
+              // #304：paint 通道不解算动态色，暗色档会画亮档红
+              color: CupertinoColors.systemRed.resolveFrom(context),
               shape: BoxShape.circle,
             )
           : null,

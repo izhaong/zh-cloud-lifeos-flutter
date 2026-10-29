@@ -1,4 +1,3 @@
-import '../design/calendar_tokens.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -307,7 +306,10 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
               padding: const EdgeInsets.all(8),
               child: Text(
                 _blockedReason!,
-                style: const TextStyle(color: CalendarTokens.systemRed, fontSize: 12),
+                style: TextStyle(
+                color: CupertinoColors.systemRed.resolveFrom(context),
+                fontSize: 12,
+              ),
               ),
             ),
         ],
