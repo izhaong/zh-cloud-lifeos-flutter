@@ -346,13 +346,32 @@ class TaskPreferences extends Table {
   Set<Column> get primaryKey => {userKey};
 }
 
+/// 记录侧本地偏好（#394 / TC-NOTE-UI-111）。
+///
+/// 照 `TaskPreferences` 先例：本地单用户一行（`userKey='local'`），`revision`
+/// 每次保存 +1；无行时仓库回契约默认且不建行。
+class NotePreferences extends Table {
+  TextColumn get userKey => text()();
+
+  /// 新备忘录默认保存到的文件夹（null = 跟随当前文件夹）。
+  TextColumn get defaultFolderId => text().nullable()();
+
+  /// 排序档位名（`custom`/`title`/`updated`）。
+  TextColumn get sortMode => text().withDefault(const Constant('custom'))();
+
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {userKey};
+}
+
 @DriftDatabase(
-    tables: [ReminderLists, ReminderSections, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows, SyncCursorRows, TaskPreferences])
+    tables: [ReminderLists, ReminderSections, ReminderItems, Calendars, CalendarEvents, CalendarPreferences, NoteFolders, Notes, TaskOutboxRows, SyncCursorRows, TaskPreferences, NotePreferences])
 class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -476,6 +495,11 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // V16（flutter #278 / Apple mac/13 四档排序）：任务创建时间落列。
             // 存量行留 null（服务端没回溯过创建时间），排序时排最后而不是瞎猜。
             await m.addColumn(reminderItems, reminderItems.createdAt);
+          }
+          if (from < 17 && to >= 17) {
+            // V17（flutter #394 / TC-NOTE-UI-111）：记录设置此前只活在内存里，
+            // 重启即回默认值——给它一张自己的偏好表（照任务/日历先例）。
+            await m.createTable(notePreferences);
           }
         },
       );
