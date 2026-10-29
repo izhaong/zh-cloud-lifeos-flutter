@@ -132,6 +132,31 @@ void main() {
     expect(repo.events, hasLength(2), reason: '抓取失败不得清空已有事件');
   });
 
+  test('#443 服务端订阅（remoteId != null）不由客户端抓取', () async {
+    // 边界来自 ADR：remoteId != null 的订阅事件随云同步下发（服务端 ical4j 解析）；
+    // 客户端再抓一遍会让同一份 .ics 落两套事件（sub-<uid> + 服务端 uid）。
+    final repo = _Repo();
+    final fetcher = _Fetcher(_ics);
+
+    final result = await refreshSubscription(
+      repository: repo,
+      calendar: const Calendar(
+        id: 'cal-server',
+        title: '服务端订阅',
+        colorArgb: 0xFF007AFF,
+        kind: CalendarKind.subscription,
+        sourceUrl: 'https://example.test/feed.ics',
+        remoteId: '12345',
+      ),
+      fetcher: fetcher,
+      clock: () => DateTime(2026, 10, 29),
+    );
+
+    expect(fetcher.urls, isEmpty, reason: '服务端订阅不该由客户端发起抓取');
+    expect(repo.events, isEmpty, reason: '不该落客户端事件');
+    expect(result.pending, isTrue);
+  });
+
   test('#403 没有 sourceUrl 的日历不发起抓取', () async {
     final repo = _Repo();
     final fetcher = _Fetcher(_ics);
