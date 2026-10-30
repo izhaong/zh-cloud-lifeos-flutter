@@ -1028,24 +1028,89 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     return sections;
   }
 
-  /// #487：为计划视图补未来月份的空骨架组。
-  /// Apple 逐月铺空组到年底，每组末尾有空圆圈快捷创建行。
+  /// #487：为计划视图补未来骨架；#527 定档为 Apple 实测的三档：
+  /// ① 本周内逐日（周日为一周之末）；② 本月剩余 → 单个「X月其他时间」桶；
+  /// ③ 之后逐月，跨年带年份（`十二月` / `2027年一月`），铺到明年年底。
   ///
   /// #526：组键必须走 [_sectionLabel]。#487 原来自己拼 `M月d日`，
   /// 与条目组的写法永不相等——相对词那天（「明天」）会多出一个空的「11月1日」，
   /// 带星期后缀那天（「11月3日 周二」）也会多出一个空的「11月3日」，
-  /// 同一天出现两个组头。
+  /// 同一天出现两个组头。骨架与条目组同键这条不变量在本档继续成立。
   Map<String, List<ReminderItem>> _addFutureSkeletons(
       Map<String, List<ReminderItem>> sections, DateTime now) {
-    final result = Map<String, List<ReminderItem>>.from(sections);
-    var cursor = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
-    final endYear = now.year + 1;
-    while (cursor.year <= endYear) {
-      result.putIfAbsent(_sectionLabel(cursor, now), () => const []);
-      cursor = DateTime(cursor.year, cursor.month, cursor.day)
-          .add(const Duration(days: 28));
+    final today = DateTime(now.year, now.month, now.day);
+    final monthEnd = DateTime(today.year, today.month + 1, 0);
+    // weekday 周一=1…周日=7 ⇒ 今天到本周日的日历日差 = 7 - weekday。
+    final weekEnd =
+        DateTime(today.year, today.month, today.day + (7 - today.weekday));
+
+    // 空骨架组没有 dueAt，排序时要按「它代表哪天」落位。
+    final skeletonDays = <String, DateTime>{};
+    final skeleton = <String, List<ReminderItem>>{};
+    void putSkeleton(String key, DateTime repDay) {
+      skeletonDays[key] = repDay;
+      skeleton.putIfAbsent(key, () => const <ReminderItem>[]);
     }
-    return result;
+
+    for (var day = DateTime(today.year, today.month, today.day + 1);
+        !day.isAfter(weekEnd);
+        day = DateTime(day.year, day.month, day.day + 1)) {
+      putSkeleton(_sectionLabel(day, now), day);
+    }
+    if (weekEnd.isBefore(monthEnd)) {
+      // 本月剩余只铺一个桶；代表日 = 逐日档之后的第一天，保证桶排在逐日之后。
+      putSkeleton(
+        '${_monthLabelZh(monthEnd)}其他时间',
+        DateTime(weekEnd.year, weekEnd.month, weekEnd.day + 1),
+      );
+    }
+    final lastMonth = DateTime(now.year + 1, 12, 1);
+    for (var month = DateTime(today.year, today.month + 1, 1);
+        !month.isAfter(lastMonth);
+        month = DateTime(month.year, month.month + 1, 1)) {
+      // 本周跨进下个月时（如 11月30 那周），逐日头已占到月内前几天，
+      // 该月桶要排在它们之后，否则会出现「十二月」压在「12月3日 周四」前面。
+      final spilledIntoMonth =
+          month.year == weekEnd.year && month.month == weekEnd.month;
+      putSkeleton(
+        _monthBucketLabel(month, now),
+        spilledIntoMonth
+            ? DateTime(weekEnd.year, weekEnd.month, weekEnd.day + 1)
+            : month,
+      );
+    }
+
+    final merged = Map<String, List<ReminderItem>>.from(sections);
+    for (final entry in skeleton.entries) {
+      merged.putIfAbsent(entry.key, () => entry.value);
+    }
+    DateTime? repDay(MapEntry<String, List<ReminderItem>> entry) {
+      final fixed = skeletonDays[entry.key];
+      if (fixed != null) return fixed;
+      DateTime? best;
+      for (final item in entry.value) {
+        final due = item.dueAt;
+        if (due == null) continue;
+        final day = DateTime(due.year, due.month, due.day);
+        if (best == null || day.isBefore(best)) best = day;
+      }
+      return best;
+    }
+
+    final entries = merged.entries.toList();
+    entries.sort((a, b) {
+      final da = repDay(a);
+      final db = repDay(b);
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      final byDay = da.compareTo(db);
+      // 同日撞车（条目组与「X月其他时间」桶代表日相同）时条目组在前，
+      // List.sort 不稳定，必须有这个确定性次键，否则渲染序随运行变。
+      if (byDay != 0) return byDay;
+      return a.value.isEmpty ? 1 : (b.value.isEmpty ? -1 : 0);
+    });
+    return {for (final entry in entries) entry.key: entry.value};
   }
 
   /// #478：按所属提醒事项列表建组，组序跟边栏清单序（`listTitles` 按清单迭代序构造）。
@@ -1120,6 +1185,21 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   }
 
   static const _weekdayZh = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+  /// #527：骨架的月桶名用中文月序（Apple 实机为「十一月其他时间」「十二月」「2027年一月」），
+  /// 与日粒度标签的 `M月d日` 阿拉伯数字形态刻意不同——两套档位，两种写法。
+  static const _monthZh = [
+    '一月', '二月', '三月', '四月', '五月', '六月',
+    '七月', '八月', '九月', '十月', '十一月', '十二月',
+  ];
+
+  static String _monthLabelZh(DateTime day) => _monthZh[day.month - 1];
+
+  /// #527：当年月桶不带年份，跨年带（`2027年一月`）。
+  static String _monthBucketLabel(DateTime month, DateTime now) =>
+      month.year == now.year
+          ? _monthLabelZh(month)
+          : '${month.year}年${_monthLabelZh(month)}';
 
   void _toggleSection(String key) {
     ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
