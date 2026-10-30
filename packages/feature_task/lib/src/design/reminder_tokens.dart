@@ -41,6 +41,12 @@ abstract final class ReminderTokens {
     darkColor: Color(0xFF000000),
   );
 
+  /// 分组卡片底：亮档白卡压在 F2F2F7 窗底上，暗档 #1C1C1E 压在纯黑窗底上（#489）。
+  static const cardBg = CupertinoDynamicColor.withBrightness(
+    color: Color(0xFFFFFFFF),
+    darkColor: Color(0xFF1C1C1E),
+  );
+
   static const radiusCard = 10.0;
   static const radiusSheet = 16.0;
   static const radiusListIcon = 6.0;

@@ -447,11 +447,12 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     _save();
   }
 
-  Widget _groupedRows(List<Widget> rows) {
+  Widget _groupedRows(BuildContext context, List<Widget> rows) {
     return Container(
+      key: const ValueKey('detail_card_rows'),
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: CupertinoColors.white,
+        color: CupertinoDynamicColor.resolve(ReminderTokens.cardBg, context),
         borderRadius: BorderRadius.circular(ReminderTokens.radiusCard + 2),
       ),
       clipBehavior: Clip.antiAlias,
@@ -504,9 +505,10 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
         children: [
           // 标题 + 备注区（iOS 卡片样式）
           Container(
+            key: const ValueKey('detail_card_title'),
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: CupertinoColors.white,
+              color: CupertinoDynamicColor.resolve(ReminderTokens.cardBg, context),
               borderRadius: BorderRadius.circular(LifeRadius.xl),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -516,9 +518,13 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                   key: const ValueKey('detail_title'),
                   controller: _title,
                   focusNode: _titleFocus,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w500,
+                    color: CupertinoDynamicColor.resolve(
+                      ReminderTokens.labelPrimary,
+                      context,
+                    ),
                   ),
                   placeholder: '标题',
                   decoration: const BoxDecoration(),
@@ -532,6 +538,13 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                   controller: _notes,
                   focusNode: _notesFocus,
                   maxLines: 3,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: CupertinoDynamicColor.resolve(
+                      ReminderTokens.labelPrimary,
+                      context,
+                    ),
+                  ),
                   placeholder: '备注',
                   decoration: const BoxDecoration(),
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -543,7 +556,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
           ),
           const SizedBox(height: 20),
 
-          _groupedRows([
+          _groupedRows(context, [
             _Row(
               key: const ValueKey('due_at_row'),
               icon: CupertinoIcons.calendar,
@@ -671,9 +684,10 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
 
           // 子任务：真实列表（勾选/删除随流刷新）+ 新建草稿行
           Container(
+            key: const ValueKey('detail_card_subtasks'),
             margin: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: CupertinoColors.white,
+              color: CupertinoDynamicColor.resolve(ReminderTokens.cardBg, context),
               borderRadius: BorderRadius.circular(LifeRadius.xl),
             ),
             clipBehavior: Clip.antiAlias,
@@ -821,7 +835,13 @@ class _Row extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 15),
+                style: TextStyle(
+                  fontSize: 15,
+                  color: CupertinoDynamicColor.resolve(
+                    ReminderTokens.labelPrimary,
+                    context,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 8),
