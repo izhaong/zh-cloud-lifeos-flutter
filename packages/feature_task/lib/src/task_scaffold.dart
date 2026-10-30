@@ -1030,16 +1030,18 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   /// #487：为计划视图补未来月份的空骨架组。
   /// Apple 逐月铺空组到年底，每组末尾有空圆圈快捷创建行。
+  ///
+  /// #526：组键必须走 [_sectionLabel]。#487 原来自己拼 `M月d日`，
+  /// 与条目组的写法永不相等——相对词那天（「明天」）会多出一个空的「11月1日」，
+  /// 带星期后缀那天（「11月3日 周二」）也会多出一个空的「11月3日」，
+  /// 同一天出现两个组头。
   Map<String, List<ReminderItem>> _addFutureSkeletons(
       Map<String, List<ReminderItem>> sections, DateTime now) {
     final result = Map<String, List<ReminderItem>>.from(sections);
     var cursor = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
     final endYear = now.year + 1;
     while (cursor.year <= endYear) {
-      final key = '${cursor.month}月${cursor.day}日';
-      if (!result.containsKey(key)) {
-        result[key] = const [];
-      }
+      result.putIfAbsent(_sectionLabel(cursor, now), () => const []);
       cursor = DateTime(cursor.year, cursor.month, cursor.day)
           .add(const Duration(days: 28));
     }
