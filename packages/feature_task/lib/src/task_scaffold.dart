@@ -1309,6 +1309,41 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       ),
       child: Column(
         children: [
+          // #485：紧凑档列表视图也要能搜索（Apple 每个列表顶部都有搜索字段）。
+          // 宽屏走工具栏 toolbar_search，这里补紧凑档入口，共用 searchQueryProvider。
+          if (!isPane && !_isTrashView)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: CupertinoTextField(
+                key: const ValueKey('compact_search'),
+                onChanged: (v) =>
+                    ref.read(searchQueryProvider.notifier).set(v),
+                placeholder: '搜索',
+                prefix: const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Icon(
+                    CupertinoIcons.search,
+                    size: 16,
+                    color: ReminderTokens.labelSecondary,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 15),
+                decoration: BoxDecoration(
+                  color: CupertinoDynamicColor.resolve(
+                    CupertinoColors.systemBackground,
+                    context,
+                  ),
+                  borderRadius: BorderRadius.circular(LifeRadius.md),
+                  border: Border.all(
+                    width: 0.5,
+                    color: CupertinoDynamicColor.resolve(
+                      CupertinoColors.separator,
+                      context,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           Expanded(
             child: itemsAsync.when(
               loading: () => const Center(child: CupertinoActivityIndicator()),
