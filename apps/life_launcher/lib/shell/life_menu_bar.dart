@@ -43,6 +43,10 @@ class LifeMenuBar extends StatelessWidget {
                   const PlatformProvidedMenuItem(
                     type: PlatformProvidedMenuItemType.about,
                   ),
+                PlatformMenuItem(
+                  label: '设置…',
+                  onSelected: () => commands.value = LifeMenuAction.openSettings,
+                ),
                 const PlatformProvidedMenuItem(
                   type: PlatformProvidedMenuItemType.servicesSubmenu,
                 ),
@@ -86,6 +90,10 @@ class LifeMenuBar extends StatelessWidget {
                 shift: true,
               ),
               onSelected: () => commands.value = LifeMenuAction.newNote,
+            ),
+            PlatformMenuItem(
+              label: '新建列表',
+              onSelected: () => commands.value = LifeMenuAction.newList,
             ),
           ],
         ),
@@ -148,10 +156,22 @@ class LifeMenuBar extends StatelessWidget {
             ),
           ],
         ),
-        const PlatformMenu(
+        PlatformMenu(
           label: '显示',
           menus: <PlatformMenuItem>[
-            PlatformProvidedMenuItem(
+            PlatformMenuItem(
+              label: '显示智能列表',
+              onSelected: () => commands.value = LifeMenuAction.toggleSmartLists,
+            ),
+            PlatformMenuItem(
+              label: '显示边栏',
+              onSelected: () => commands.value = LifeMenuAction.toggleSidebar,
+            ),
+            PlatformMenuItem(
+              label: '隐藏完成项目',
+              onSelected: () => commands.value = LifeMenuAction.toggleCompleted,
+            ),
+            const PlatformProvidedMenuItem(
               type: PlatformProvidedMenuItemType.toggleFullScreen,
             ),
           ],

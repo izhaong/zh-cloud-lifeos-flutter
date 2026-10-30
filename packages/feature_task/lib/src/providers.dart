@@ -476,3 +476,15 @@ final subtaskProgressProvider =
 /// 分组与 golden 基线**确定化**——与 `feature_calendar` 的 `clockProvider` 同形状
 /// （不急着抽到 `app_core`：等第三个模块也要用时再说）。
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
+/// #486：智能列表可见性（侧栏显示/隐藏 今天/计划/全部 等）。
+final smartListsVisibleProvider = NotifierProvider<SmartListsVisibleNotifier, bool>(
+  SmartListsVisibleNotifier.new,
+);
+
+class SmartListsVisibleNotifier extends Notifier<bool> {
+  @override
+  bool get fallback => true;
+
+  void toggle() => state = !state;
+}

@@ -60,8 +60,11 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
         allSmart.where((e) => _builtinSmartIds.contains(e.id)).toList();
     // smart.assigned（分配事项）按裁定整个不出现——内置区与自定义区都排除。
     final hiddenSmartIds = {'smart.assigned', 'smart.trash'};
+    final showSmartLists = ref.watch(smartListsVisibleProvider);
     final customSmart = allSmart.where(
-      (e) => !_builtinSmartIds.contains(e.id) && !hiddenSmartIds.contains(e.id),
+      (e) => showSmartLists
+          ? !_builtinSmartIds.contains(e.id) && !hiddenSmartIds.contains(e.id)
+          : !hiddenSmartIds.contains(e.id),
     );
     final trash = allSmart.where((e) => e.id == 'smart.trash').firstOrNull;
     final mine =
