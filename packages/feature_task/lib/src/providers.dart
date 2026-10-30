@@ -484,7 +484,7 @@ final smartListsVisibleProvider = NotifierProvider<SmartListsVisibleNotifier, bo
 
 class SmartListsVisibleNotifier extends Notifier<bool> {
   @override
-  bool get fallback => true;
+  bool build() => true;
 
   void toggle() => state = !state;
 }

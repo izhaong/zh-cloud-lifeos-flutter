@@ -807,6 +807,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   final _draftController = TextEditingController();
   final _searchFocus = FocusNode();
   bool _showDraft = false;
+
+  /// #513 面①：分区「＋」触发的草稿落点分区（null = 普通幽灵行新建）。
+  String? _pendingQuickAddSection;
   TaskShortcutsController? _shortcuts;
   int _lastNewTicket = 0;
   int _lastSearchTicket = 0;
@@ -847,6 +850,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     switch (action) {
       case LifeMenuAction.newReminder:
         _openNewItemDialog();
+      case LifeMenuAction.newNote:
+        // 备忘录命令由 note_scaffold 消费，task 侧不处理
+        break;
       case LifeMenuAction.newList:
         _openNewListDialog();
       case LifeMenuAction.openSettings:
@@ -1012,9 +1018,32 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     // #475：计划/紧急视图按日期升序排分区（Apple 口径：已过期→今天→明天→日期升序）。
     // 此前组序 = 条目首现序，导致「已过期」排最后、跨月日期乱序。
     if (widget.list.id == 'smart.scheduled' || widget.list.id == 'smart.urgent') {
-      return _sortSectionsByDate(sections);
+      final sorted = _sortSectionsByDate(sections);
+      // #487：计划视图补未来月份空骨架（Apple 逐月铺到年底）
+      if (widget.list.id == 'smart.scheduled') {
+        return _addFutureSkeletons(sorted, now);
+      }
+      return sorted;
     }
     return sections;
+  }
+
+  /// #487：为计划视图补未来月份的空骨架组。
+  /// Apple 逐月铺空组到年底，每组末尾有空圆圈快捷创建行。
+  Map<String, List<ReminderItem>> _addFutureSkeletons(
+      Map<String, List<ReminderItem>> sections, DateTime now) {
+    final result = Map<String, List<ReminderItem>>.from(sections);
+    var cursor = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final endYear = now.year + 1;
+    while (cursor.year <= endYear) {
+      final key = '${cursor.month}月${cursor.day}日';
+      if (!result.containsKey(key)) {
+        result[key] = const [];
+      }
+      cursor = DateTime(cursor.year, cursor.month, cursor.day)
+          .add(const Duration(days: 28));
+    }
+    return result;
   }
 
   /// #478：按所属提醒事项列表建组，组序跟边栏清单序（`listTitles` 按清单迭代序构造）。
@@ -1094,35 +1123,30 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
   }
 
-  /// #480：今天视图分区头「＋」→ 在该分区快速新建（dueAt 设为分区代表时刻）。
-  Future<void> _quickAddToSection(String sectionKey) async {
-    final repo = ref.read(reminderRepositoryProvider);
-    final now = ref.read(clockProvider)();
-    final today = DateTime(now.year, now.month, now.day);
-    final dueAt = switch (sectionKey) {
+  /// #480/#513：分区 → 代表时刻的共用查表（拖放改时间与快捷新建同源）。
+  DateTime _sectionTime(String sectionKey, DateTime today) {
+    return switch (sectionKey) {
       '上午' => DateTime(today.year, today.month, today.day, 9),
       '下午' => DateTime(today.year, today.month, today.day, 15),
       '今晚' => DateTime(today.year, today.month, today.day, 20),
       '今天' => today,
       _ => today,
     };
-    await repo.upsertItem(
-      ReminderItem(
-        id: newReminderId(),
-        listId: widget.list.id == 'smart.today'
-            ? resolveSmartCreateListId(
-                lists: (ref.read(reminderListsProvider).value ??
-                        const <ReminderList>[]),
-                preferredId: ref
-                    .read(taskPreferenceProvider)
-                    .value
-                    ?.defaultListId,
-              )
-            : widget.list.id,
-        title: '',
-        dueAt: dueAt,
-      ),
-    );
+  }
+
+  /// #480/#513 面①：今天视图分区头「＋」→ 开启该分区的草稿输入态。
+  /// 落库在用户输入标题并回车后发生（空标题不落库，失焦即丢弃）。
+  void _quickAddToSection(String sectionKey) {
+    setState(() {
+      _pendingQuickAddSection = sectionKey;
+      _showDraft = true;
+      _draftController.clear();
+    });
+  }
+
+  /// #513 面②：「已过期」档不提供新建入口。
+  bool _canQuickAddToSection(String sectionKey) {
+    return sectionKey != '已过期';
   }
 
   /// #477：今天视图拖入分区 → 更新条目 dueAt 到该分区的代表性时刻。
@@ -1135,13 +1159,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     );
     final now = ref.read(clockProvider)();
     final today = DateTime(now.year, now.month, now.day);
-    final newDue = switch (sectionKey) {
-      '上午' => DateTime(today.year, today.month, today.day, 9),
-      '下午' => DateTime(today.year, today.month, today.day, 15),
-      '今晚' => DateTime(today.year, today.month, today.day, 20),
-      '今天' => today,
-      _ => item.dueAt, // 已过期等不改动
-    };
+    final newDue = _sectionTime(sectionKey, today);
     if (newDue != item.dueAt) {
       await repo.upsertItem(item.copyWith(dueAt: newDue));
     }
@@ -1277,6 +1295,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     }
     _submittingDraft = true;
     final repo = ref.read(reminderRepositoryProvider);
+    // #513 面①：若来自分区「＋」，dueAt 用该分区的代表时刻
+    final pendingSection = _pendingQuickAddSection;
+    final dueAtOverride = pendingSection != null
+        ? _sectionTime(pendingSection, DateTime.now())
+        : null;
     // 智能视图内新建：必须落到对应视图的语义上——
     // today/scheduled/urgent 需要 dueAt 才能命中（smart.today 过滤 = !completed && 同日）；
     // 没有 dueAt 的条目只会出现在「全部」视图，在「今天」里不可见。
@@ -1298,11 +1321,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         // 从「今天」/「计划」视图新建 → dueAt = 今天（只有日期，00:00）；
         // Apple 快速新建不带时刻，写 now 会让它一分钟后变「已过期→紧急」（#183）。
         // 从「全部/旗标/已完成」视图新建 → 不设 dueAt（归入个人列表，全部视图可见）
-        dueAt:
-            (widget.list.id == 'smart.today' ||
-                widget.list.id == 'smart.scheduled')
-            ? DateTime(now.year, now.month, now.day)
-            : null,
+        dueAt: dueAtOverride ??
+            ((widget.list.id == 'smart.today' ||
+                    widget.list.id == 'smart.scheduled')
+                ? DateTime(now.year, now.month, now.day)
+                : null),
       ),
     );
     _draftController.clear();
@@ -1543,7 +1566,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                             collapsed: _isCollapsed(
                                 ref.watch(collapsedKeysProvider), entry.key),
                             onToggle: () => _toggleSection(entry.key),
-                            onAdd: widget.list.id == 'smart.today'
+                            onAdd: widget.list.id == 'smart.today' &&
+                                    _canQuickAddToSection(entry.key)
                                 ? () => _quickAddToSection(entry.key)
                                 : null,
                           );
