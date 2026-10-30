@@ -77,6 +77,9 @@ class ReminderItems extends Table {
   /// T-04：重复结束日期（本地日期；null = 永不结束）。
   DateTimeColumn get recurrenceUntil => dateTime().nullable()();
 
+  /// #482：提前提醒时刻（在 dueAt 之前触发；null = 不提前提醒）。
+  DateTimeColumn get earlyReminderAt => dateTime().nullable()();
+
   /// 子任务的父提醒 id；null = 顶层。
   TextColumn get parentId => text().nullable()();
 
@@ -395,7 +398,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   /// 幂等加列（#451/#446 共用）。
   ///
@@ -559,6 +562,10 @@ class LifeProductivityDb extends _$LifeProductivityDb {
                 notePreferences, notePreferences.defaultTextSize);
           }
 
+          if (from < 23 && to >= 23) {
+            await m.addColumn(
+                reminderItems, reminderItems.earlyReminderAt);
+          }
           if (from < 21 && to >= 21) {
             // V21（flutter #448）：手动设定时区（null = 跟随系统，与改造前一致）。
             await _addColumnIfTableExists(m, 'task_preferences',
