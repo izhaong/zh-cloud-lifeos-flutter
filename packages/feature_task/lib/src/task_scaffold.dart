@@ -912,7 +912,50 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       final key = item.dueAt == null ? '无日期' : _sectionLabel(item.dueAt!, now);
       sections.putIfAbsent(key, () => []).add(item);
     }
+    // #475：计划/紧急视图按日期升序排分区（Apple 口径：已过期→今天→明天→日期升序）。
+    // 此前组序 = 条目首现序，导致「已过期」排最后、跨月日期乱序。
+    if (widget.list.id == 'smart.scheduled' || widget.list.id == 'smart.urgent') {
+      return _sortSectionsByDate(sections, now);
+    }
     return sections;
+  }
+
+  /// #475：把分区键按日期升序重排。
+  /// 已过期 → 今天 → 明天 → X月Y日（日期升序）→ 无日期/其它（最后）。
+  Map<String, List<ReminderItem>> _sortSectionsByDate(
+      Map<String, List<ReminderItem>> sections, DateTime now) {
+    final dateOrder = <String>[];
+    final dateKeys = <(DateTime, String)>[];
+    for (final key in sections.keys) {
+      if (key == '已过期') {
+        dateOrder.add('已过期');
+      } else if (key == '今天') {
+        dateOrder.add('今天');
+      } else if (key == '明天') {
+        dateOrder.add('明天');
+      } else {
+        final m = RegExp(r'(\d+)月(\d+)日').firstMatch(key);
+        if (m != null) {
+          dateKeys.add((
+            DateTime(now.year, int.parse(m.group(1)!), int.parse(m.group(2)!)),
+            key,
+          ));
+        } else {
+          dateOrder.add(key);
+        }
+      }
+    }
+    dateKeys.sort((a, b) => a.$1.compareTo(b.$1));
+    for (final (_, key) in dateKeys) {
+      dateOrder.add(key);
+    }
+    final result = <String, List<ReminderItem>>{};
+    for (final key in dateOrder) {
+      if (sections.containsKey(key)) {
+        result[key] = sections[key]!;
+      }
+    }
+    return result;
   }
 
   static String _sectionLabel(DateTime due, DateTime now) {
