@@ -74,6 +74,18 @@ void main() {
       isTrue,
       reason: 'medium 走模态路由',
     );
+    // #481：不再是遮挡列表的底部抽屉，而是右侧锚定弹窗
+    expect(
+      find.byKey(const ValueKey('detail_popover')),
+      findsOneWidget,
+      reason: 'medium 详情是锚定弹窗',
+    );
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(
+      find.text('甲提醒'),
+      findsWidgets,
+      reason: '列表仍在弹窗后面可见（行 + 详情标题各一处）',
+    );
   });
 
   testWidgets('expanded 1280：点提醒出第三栏 inspector，不弹模态', (tester) async {
@@ -101,9 +113,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(ReminderDetailPane), findsOneWidget);
-    expect(
-      tester.state<NavigatorState>(find.byType(Navigator).first).canPop(),
-      isTrue,
-    );
+    // #481：紧凑档按 iPhone 口径整页推入（有可关闭导航栏），不是底部抽屉
+    expect(find.byKey(const ValueKey('detail_close')), findsOneWidget);
+    expect(find.byType(DraggableScrollableSheet), findsNothing);
+    expect(find.byKey(const ValueKey('detail_popover')), findsNothing);
   });
 }
