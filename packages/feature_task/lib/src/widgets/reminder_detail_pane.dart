@@ -1,6 +1,7 @@
 import 'package:app_ui/app_ui.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:app_core/app_core.dart';
@@ -781,9 +782,12 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     );
   }
 
-  static String _fmtDate(DateTime t) {
-    return '${t.year}-${t.month.toString().padLeft(2, '0')}-'
-        '${t.day.toString().padLeft(2, '0')}';
+  /// #483：Apple 详情面板用中文自然格式「2026年10月25日 星期日」，
+  /// 与列表行元信息（DateFormat.MMMd）同一语言习惯，不再混用 ISO 破折号。
+  String _fmtDate(DateTime t) {
+    final locale = Localizations.localeOf(context).toString();
+    final weekday = DateFormat.EEEE(locale).format(t);
+    return '${t.year}年${t.month}月${t.day}日 $weekday';
   }
 }
 
