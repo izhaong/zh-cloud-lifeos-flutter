@@ -925,65 +925,61 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     // #475：计划/紧急视图按日期升序排分区（Apple 口径：已过期→今天→明天→日期升序）。
     // 此前组序 = 条目首现序，导致「已过期」排最后、跨月日期乱序。
     if (widget.list.id == 'smart.scheduled' || widget.list.id == 'smart.urgent') {
-      return _sortSectionsByDate(sections, now);
+      return _sortSectionsByDate(sections);
     }
     return sections;
   }
 
-  /// #475：把分区键按日期升序重排。
-  /// 已过期 → 今天 → 明天 → X月Y日（日期升序）→ 无日期/其它（最后）。
+  /// #475：把分区按日期升序重排；#479 后标签含相对词与星期后缀，
+  /// 不再解析标签文本，改按「分区内最早 dueAt 日」排序。
+  /// 已过期(≤D-3) → 前天 → 昨天 → 今天 → 明天 → 后天 → 绝对日期升序 → 无日期（最后）。
   Map<String, List<ReminderItem>> _sortSectionsByDate(
-      Map<String, List<ReminderItem>> sections, DateTime now) {
-    final dateOrder = <String>[];
-    final dateKeys = <(DateTime, String)>[];
-    for (final key in sections.keys) {
-      if (key == '已过期') {
-        dateOrder.add('已过期');
-      } else if (key == '今天') {
-        dateOrder.add('今天');
-      } else if (key == '明天') {
-        dateOrder.add('明天');
-      } else {
-        final m = RegExp(r'(\d+)月(\d+)日').firstMatch(key);
-        if (m != null) {
-          dateKeys.add((
-            DateTime(now.year, int.parse(m.group(1)!), int.parse(m.group(2)!)),
-            key,
-          ));
-        } else {
-          dateOrder.add(key);
-        }
+      Map<String, List<ReminderItem>> sections) {
+    DateTime? earliestDay(List<ReminderItem> items) {
+      DateTime? best;
+      for (final it in items) {
+        final d = it.dueAt;
+        if (d == null) continue;
+        final day = DateTime(d.year, d.month, d.day);
+        if (best == null || day.isBefore(best)) best = day;
       }
+      return best;
     }
-    dateKeys.sort((a, b) => a.$1.compareTo(b.$1));
-    for (final (_, key) in dateKeys) {
-      dateOrder.add(key);
-    }
-    final result = <String, List<ReminderItem>>{};
-    for (final key in dateOrder) {
-      if (sections.containsKey(key)) {
-        result[key] = sections[key]!;
-      }
-    }
-    return result;
+
+    final entries = sections.entries.toList();
+    entries.sort((a, b) {
+      final da = earliestDay(a.value);
+      final db = earliestDay(b.value);
+      // 无日期组（scheduled/urgent 过滤后不会出现）恒最后。
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da.compareTo(db);
+    });
+    return {for (final e in entries) e.key: e.value};
   }
 
+  /// #479：按日粒度的分区标签（Apple 形态）——近邻日相对词
+  /// 前天(D-2)/昨天(D-1)/今天/明天(D+1)/后天(D+2)，更远日期带星期后缀
+  /// （`11月2日 周一`）；D-3 及更早维持「已过期」聚合（#475 语义不变）。
+  /// 日差用 UTC 午夜对午夜：#500——本地 `Duration(days: 1)` 按绝对时长
+  /// 推进，DST 回拨日（25 小时）会落回同一天，导致「明天」整天不显示。
   static String _sectionLabel(DateTime due, DateTime now) {
-    final isToday =
-        due.year == now.year && due.month == now.month && due.day == now.day;
-    if (isToday) return '今天';
-    if (due.isBefore(now)) return '已过期';
-    // #476：跨月时 now.day + 1 不归一（31 日 +1 = 32 永不匹配），
-    // 改用 DateTime 加一天再比较，跨月/跨年都正确。
-    final tomorrow = DateTime(now.year, now.month, now.day)
-        .add(const Duration(days: 1));
-    final isTomorrow =
-        due.year == tomorrow.year &&
-        due.month == tomorrow.month &&
-        due.day == tomorrow.day;
-    if (isTomorrow) return '明天';
-    return '${due.month}月${due.day}日';
+    final diff = DateTime.utc(due.year, due.month, due.day)
+        .difference(DateTime.utc(now.year, now.month, now.day))
+        .inDays;
+    return switch (diff) {
+      <= -3 => '已过期',
+      -2 => '前天',
+      -1 => '昨天',
+      0 => '今天',
+      1 => '明天',
+      2 => '后天',
+      _ => '${due.month}月${due.day}日 ${_weekdayZh[due.weekday - 1]}',
+    };
   }
+
+  static const _weekdayZh = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
   void _toggleSection(String key) {
     ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
