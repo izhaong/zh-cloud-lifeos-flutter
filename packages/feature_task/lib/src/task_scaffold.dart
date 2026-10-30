@@ -1018,9 +1018,32 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     // #475：计划/紧急视图按日期升序排分区（Apple 口径：已过期→今天→明天→日期升序）。
     // 此前组序 = 条目首现序，导致「已过期」排最后、跨月日期乱序。
     if (widget.list.id == 'smart.scheduled' || widget.list.id == 'smart.urgent') {
-      return _sortSectionsByDate(sections);
+      final sorted = _sortSectionsByDate(sections);
+      // #487：计划视图补未来月份空骨架（Apple 逐月铺到年底）
+      if (widget.list.id == 'smart.scheduled') {
+        return _addFutureSkeletons(sorted, now);
+      }
+      return sorted;
     }
     return sections;
+  }
+
+  /// #487：为计划视图补未来月份的空骨架组。
+  /// Apple 逐月铺空组到年底，每组末尾有空圆圈快捷创建行。
+  Map<String, List<ReminderItem>> _addFutureSkeletons(
+      Map<String, List<ReminderItem>> sections, DateTime now) {
+    final result = Map<String, List<ReminderItem>>.from(sections);
+    var cursor = DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
+    final endYear = now.year + 1;
+    while (cursor.year <= endYear) {
+      final key = '${cursor.month}月${cursor.day}日';
+      if (!result.containsKey(key)) {
+        result[key] = const [];
+      }
+      cursor = DateTime(cursor.year, cursor.month, cursor.day)
+          .add(const Duration(days: 28));
+    }
+    return result;
   }
 
   /// #478：按所属提醒事项列表建组，组序跟边栏清单序（`listTitles` 按清单迭代序构造）。
