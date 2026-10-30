@@ -10,9 +10,11 @@ final _now = DateTime(2026, 10, 29, 9, 30);
 Future<InMemoryReminderRepository> _seed() async {
   final repo = InMemoryReminderRepository(seedSampleData: false);
   await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
+  // #509：09:00 在固定钟 09:30 下按 #484 语义已过期（会掉出「上午」段）；
+  // 改 10:00——仍属上午（<12 点）且未过期，断言意图不变。
   await repo.upsertItem(ReminderItem(
     id: 'i-am', listId: 'list.work', title: '上午的电话',
-    dueAt: DateTime(2026, 10, 29, 9),
+    dueAt: DateTime(2026, 10, 29, 10),
   ));
   await repo.upsertItem(ReminderItem(
     id: 'i-pm', listId: 'list.work', title: '下午的评审',
