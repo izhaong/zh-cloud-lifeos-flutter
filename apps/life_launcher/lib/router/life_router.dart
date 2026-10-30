@@ -147,28 +147,72 @@ class _TaskTabEntryState extends ConsumerState<TaskTabEntry> {
       setState(() => _selectedItemId = item.id);
       return;
     }
-    // 紧凑端与二栏端：模态详细信息（不盖掉壳应用栏）
-    await showCupertinoModalPopup<void>(
-      context: context,
-      builder: (sheetContext) {
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: 0.92,
-          minChildSize: 0.5,
-          maxChildSize: 0.98,
-          builder: (_, scrollController) {
-            return ReminderDetailPane(
-              item: item,
-              onSaved: (updated) {
-                ref.read(reminderRepositoryProvider).upsertItem(updated);
-              },
-              onClose: () => Navigator.of(sheetContext).pop(),
-            );
+    // #481：中等档用锚定在列表右侧的浮动详情窗（列表仍可见），
+    // 紧凑档按 iPhone 口径整页推入详情；两者都不再用遮挡列表的底部抽屉。
+    if (sizeClass == WindowSizeClass.medium) {
+      await showGeneralDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: '关闭详情',
+        barrierColor: const Color(0x14000000),
+        transitionDuration: const Duration(milliseconds: 150),
+        pageBuilder: (dialogContext, _, _) => SafeArea(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 400,
+                  maxHeight: 560,
+                ),
+                child: DecoratedBox(
+                  key: const ValueKey('detail_popover'),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(_detailPopoverRadius),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        blurRadius: 24,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(_detailPopoverRadius),
+                    child: ReminderDetailPane(
+                      item: item,
+                      onSaved: (updated) {
+                        ref.read(reminderRepositoryProvider).upsertItem(updated);
+                      },
+                      onClose: () => Navigator.of(dialogContext).pop(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // 紧凑档：整页详情（iPhone 口径），列表通过返回键回到。
+    await Navigator.of(context).push(
+      CupertinoPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (pageContext) => ReminderDetailPane(
+          item: item,
+          onSaved: (updated) {
+            ref.read(reminderRepositoryProvider).upsertItem(updated);
           },
-        );
-      },
+          onClose: () => Navigator.of(pageContext).pop(),
+        ),
+      ),
     );
   }
+
+  static const _detailPopoverRadius = 14.0;
 
   @override
   Widget build(BuildContext context) {
