@@ -41,7 +41,7 @@ void main() {
     await repo.upsertList(const ReminderList(id: 'list.work', title: '工作'));
     await repo.upsertList(const ReminderList(id: 'list.home', title: '家庭'));
     await repo.upsertItem(
-      ReminderItem(id: 'w-undated', listId: 'list.work', title: '工作的无日期项'),
+      const ReminderItem(id: 'w-undated', listId: 'list.work', title: '工作的无日期项'),
     );
     await repo.upsertItem(
       ReminderItem(
@@ -52,7 +52,7 @@ void main() {
       ),
     );
     await repo.upsertItem(
-      ReminderItem(id: 'h-undated', listId: 'list.home', title: '家庭的无日期项'),
+      const ReminderItem(id: 'h-undated', listId: 'list.home', title: '家庭的无日期项'),
     );
     await repo.upsertItem(
       ReminderItem(
