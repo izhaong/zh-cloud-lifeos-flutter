@@ -850,6 +850,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     switch (action) {
       case LifeMenuAction.newReminder:
         _openNewItemDialog();
+      case LifeMenuAction.newNote:
+        // 备忘录命令由 note_scaffold 消费，task 侧不处理
+        break;
       case LifeMenuAction.newList:
         _openNewListDialog();
       case LifeMenuAction.openSettings:
