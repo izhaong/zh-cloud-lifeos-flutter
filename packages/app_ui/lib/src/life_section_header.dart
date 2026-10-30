@@ -18,6 +18,7 @@ class LifeSectionHeader extends StatelessWidget {
     this.count,
     this.collapsed,
     this.onToggle,
+    this.onAdd,
     this.sectionKey,
     this.padding = const EdgeInsets.fromLTRB(16, 10, 16, 4),
   });
@@ -26,10 +27,12 @@ class LifeSectionHeader extends StatelessWidget {
   final int? count;
   final bool? collapsed;
   final VoidCallback? onToggle;
+  final VoidCallback? onAdd;
   final Key? sectionKey;
   final EdgeInsetsGeometry padding;
 
   bool get _collapsible => onToggle != null;
+  bool get _hasAdd => onAdd != null;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +58,15 @@ class LifeSectionHeader extends StatelessWidget {
               ),
             ),
           ],
+          if (_hasAdd) ...[
+            const Spacer(),
+            CupertinoButton(
+              key: const ValueKey('section_add_btn'),
+              padding: const EdgeInsets.all(2),
+              onPressed: onAdd,
+              child: const Icon(CupertinoIcons.add, size: 16),
+            ),
+          ],
           if (_collapsible) ...[
             const Spacer(),
             Icon(
@@ -69,13 +81,13 @@ class LifeSectionHeader extends StatelessWidget {
       ),
     );
 
-    if (!_collapsible) {
+    if (!_collapsible && !_hasAdd) {
       return KeyedSubtree(key: sectionKey, child: row);
     }
     return GestureDetector(
       key: sectionKey,
       behavior: HitTestBehavior.opaque,
-      onTap: onToggle,
+      onTap: _collapsible ? onToggle : null,
       child: row,
     );
   }

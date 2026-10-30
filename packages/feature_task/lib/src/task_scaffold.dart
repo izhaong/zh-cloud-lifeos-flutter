@@ -1056,6 +1056,37 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
   }
 
+  /// #480：今天视图分区头「＋」→ 在该分区快速新建（dueAt 设为分区代表时刻）。
+  Future<void> _quickAddToSection(String sectionKey) async {
+    final repo = ref.read(reminderRepositoryProvider);
+    final now = ref.read(clockProvider)();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueAt = switch (sectionKey) {
+      '上午' => DateTime(today.year, today.month, today.day, 9),
+      '下午' => DateTime(today.year, today.month, today.day, 15),
+      '今晚' => DateTime(today.year, today.month, today.day, 20),
+      '今天' => today,
+      _ => today,
+    };
+    await repo.upsertItem(
+      ReminderItem(
+        id: newReminderId(),
+        listId: widget.list.id == 'smart.today'
+            ? resolveSmartCreateListId(
+                lists: (ref.read(reminderListsProvider).value ??
+                        const <ReminderList>[]),
+                preferredId: ref
+                    .read(taskPreferenceProvider)
+                    .value
+                    ?.defaultListId,
+              )
+            : widget.list.id,
+        title: '',
+        dueAt: dueAt,
+      ),
+    );
+  }
+
   /// #477：今天视图拖入分区 → 更新条目 dueAt 到该分区的代表性时刻。
   /// 上午=09:00 下午=15:00 今晚=20:00 今天=全天(00:00) 已过期=不变。
   Future<void> _onSectionDrop(String itemId, String sectionKey) async {
@@ -1474,6 +1505,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                             collapsed: _isCollapsed(
                                 ref.watch(collapsedKeysProvider), entry.key),
                             onToggle: () => _toggleSection(entry.key),
+                            onAdd: widget.list.id == 'smart.today'
+                                ? () => _quickAddToSection(entry.key)
+                                : null,
                           );
                         },
                       ),
