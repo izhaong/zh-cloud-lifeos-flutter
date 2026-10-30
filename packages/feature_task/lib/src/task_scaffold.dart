@@ -983,6 +983,28 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
   }
 
+  /// #477：今天视图拖入分区 → 更新条目 dueAt 到该分区的代表性时刻。
+  /// 上午=09:00 下午=15:00 今晚=20:00 今天=全天(00:00) 已过期=不变。
+  Future<void> _onSectionDrop(String itemId, String sectionKey) async {
+    final repo = ref.read(reminderRepositoryProvider);
+    final all = await repo.watchItems().first;
+    final item = all.firstWhere(
+      (e) => e.id == itemId,
+    );
+    final now = ref.read(clockProvider)();
+    final today = DateTime(now.year, now.month, now.day);
+    final newDue = switch (sectionKey) {
+      '上午' => DateTime(today.year, today.month, today.day, 9),
+      '下午' => DateTime(today.year, today.month, today.day, 15),
+      '今晚' => DateTime(today.year, today.month, today.day, 20),
+      '今天' => today,
+      _ => item.dueAt, // 已过期等不改动
+    };
+    if (newDue != item.dueAt) {
+      await repo.upsertItem(item.copyWith(dueAt: newDue));
+    }
+  }
+
   /// 折叠态落在本地偏好行里（TC-UI-309，flutter#124 卡 4b）：
   /// 键带列表前缀，切列表/重开后各列表的折叠互不串味。
   String _collapsedKey(String title) => '${widget.list.id}|$title';
@@ -1329,17 +1351,36 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                           ),
                   for (final entry in sections.entries) ...[
                     if (!skipSectionHeader || entry.key != widget.list.title)
-                      LifeSectionHeader(
-                        title: entry.key,
-                        sectionKey: ValueKey('section_${entry.key}'),
-                        collapsed: _isCollapsed(
-                            ref.watch(collapsedKeysProvider), entry.key),
-                        onToggle: () => _toggleSection(entry.key),
+                      // #477：今天视图分区头作为拖放目标，拖入即改时间
+                      DragTarget<String>(
+                        key: ValueKey('drag_target_${entry.key}'),
+                        onAcceptWithDetails: (details) {
+                          _onSectionDrop(details.data, entry.key);
+                        },
+                        builder: (BuildContext context,
+                            List<String?> candidateData,
+                            List<dynamic> details) {
+                          return LifeSectionHeader(
+                            title: entry.key,
+                            sectionKey: ValueKey('section_${entry.key}'),
+                            collapsed: _isCollapsed(
+                                ref.watch(collapsedKeysProvider), entry.key),
+                            onToggle: () => _toggleSection(entry.key),
+                          );
+                        },
                       ),
                     if (!_isCollapsed(
                         ref.watch(collapsedKeysProvider), entry.key))
                       for (final item in entry.value)
-                        _buildItemRow(item, subtasksByParent: subtasksByParent),
+                        // #477：今天视图行可拖动，拖到分区头即改时间
+                        Draggable<String>(
+                          key: ValueKey('draggable_${item.id}'),
+                          data: item.id,
+                          feedback: _buildItemRow(
+                              item, subtasksByParent: subtasksByParent),
+                          child: _buildItemRow(
+                              item, subtasksByParent: subtasksByParent),
+                        ),
                   ],
                   // 紧凑端保留底部工具条入口，草稿行仍落在列表体末尾。
                   if (!isPane && _showDraft) draftRow,
