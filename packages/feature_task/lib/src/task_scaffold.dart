@@ -178,6 +178,57 @@ class _CompactPane extends ConsumerWidget {
   final ValueChanged<String>? onOpenList;
   final ValueChanged<ReminderItem>? onSelectItem;
 
+  /// #491：Apple 的列表编辑（改名/颜色/类型）。图标需领域字段，按矩阵 M2 后置。
+  Future<void> _editLists(
+    BuildContext context,
+    WidgetRef ref,
+    List<ReminderList> mine,
+  ) async {
+    if (mine.isEmpty) {
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (ctx) => LifeAlertDialog(
+          title: const Text('编辑列表'),
+          content: const Text('还没有可编辑的列表'),
+          actions: [
+            LifeDialogAction(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('好'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    final target = mine.length == 1
+        ? mine.first
+        : await showCupertinoModalPopup<ReminderList>(
+            context: context,
+            builder: (ctx) => CupertinoActionSheet(
+              title: const Text('编辑列表'),
+              actions: [
+                for (final l in mine)
+                  CupertinoActionSheetAction(
+                    key: ValueKey('edit_pick_${l.id}'),
+                    onPressed: () => Navigator.of(ctx).pop(l),
+                    child: Text(l.title),
+                  ),
+              ],
+              cancelButton: CupertinoActionSheetAction(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('取消'),
+              ),
+            ),
+          );
+    if (target == null || !context.mounted) return;
+    await showEditListDialog(
+      context,
+      list: target,
+      onSave: (updated) =>
+          ref.read(reminderRepositoryProvider).upsertList(updated),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final smart = lists
@@ -204,19 +255,7 @@ class _CompactPane extends ConsumerWidget {
         middle: const Text('列表'),
         trailing: CupertinoButton(
           key: const ValueKey('home_edit_placeholder'),
-          onPressed: () => showCupertinoDialog<void>(
-            context: context,
-            builder: (ctx) => LifeAlertDialog(
-              title: const Text('编辑列表'),
-              content: const Text('规划占位'),
-              actions: [
-                LifeDialogAction(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('好'),
-                ),
-              ],
-            ),
-          ),
+          onPressed: () => _editLists(context, ref, mine),
           child: const Icon(CupertinoIcons.ellipsis_circle, size: 22),
         ),
       ),
@@ -1013,6 +1052,37 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
   }
 
+  /// #480：今天视图分区头「＋」→ 在该分区快速新建（dueAt 设为分区代表时刻）。
+  Future<void> _quickAddToSection(String sectionKey) async {
+    final repo = ref.read(reminderRepositoryProvider);
+    final now = ref.read(clockProvider)();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueAt = switch (sectionKey) {
+      '上午' => DateTime(today.year, today.month, today.day, 9),
+      '下午' => DateTime(today.year, today.month, today.day, 15),
+      '今晚' => DateTime(today.year, today.month, today.day, 20),
+      '今天' => today,
+      _ => today,
+    };
+    await repo.upsertItem(
+      ReminderItem(
+        id: newReminderId(),
+        listId: widget.list.id == 'smart.today'
+            ? resolveSmartCreateListId(
+                lists: (ref.read(reminderListsProvider).value ??
+                        const <ReminderList>[]),
+                preferredId: ref
+                    .read(taskPreferenceProvider)
+                    .value
+                    ?.defaultListId,
+              )
+            : widget.list.id,
+        title: '',
+        dueAt: dueAt,
+      ),
+    );
+  }
+
   /// #477：今天视图拖入分区 → 更新条目 dueAt 到该分区的代表性时刻。
   /// 上午=09:00 下午=15:00 今晚=20:00 今天=全天(00:00) 已过期=不变。
   Future<void> _onSectionDrop(String itemId, String sectionKey) async {
@@ -1305,6 +1375,41 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       ),
       child: Column(
         children: [
+          // #485：紧凑档列表视图也要能搜索（Apple 每个列表顶部都有搜索字段）。
+          // 宽屏走工具栏 toolbar_search，这里补紧凑档入口，共用 searchQueryProvider。
+          if (!isPane && !_isTrashView)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: CupertinoTextField(
+                key: const ValueKey('compact_search'),
+                onChanged: (v) =>
+                    ref.read(searchQueryProvider.notifier).set(v),
+                placeholder: '搜索',
+                prefix: const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Icon(
+                    CupertinoIcons.search,
+                    size: 16,
+                    color: ReminderTokens.labelSecondary,
+                  ),
+                ),
+                style: const TextStyle(fontSize: 15),
+                decoration: BoxDecoration(
+                  color: CupertinoDynamicColor.resolve(
+                    CupertinoColors.systemBackground,
+                    context,
+                  ),
+                  borderRadius: BorderRadius.circular(LifeRadius.md),
+                  border: Border.all(
+                    width: 0.5,
+                    color: CupertinoDynamicColor.resolve(
+                      CupertinoColors.separator,
+                      context,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           Expanded(
             child: itemsAsync.when(
               loading: () => const Center(child: CupertinoActivityIndicator()),
@@ -1396,6 +1501,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                             collapsed: _isCollapsed(
                                 ref.watch(collapsedKeysProvider), entry.key),
                             onToggle: () => _toggleSection(entry.key),
+                            onAdd: widget.list.id == 'smart.today'
+                                ? () => _quickAddToSection(entry.key)
+                                : null,
                           );
                         },
                       ),

@@ -15,7 +15,7 @@ import 'support/life_test_app.dart';
 /// 与 `ui_walkthrough_test.dart` 的软断言（key 不存在时 if 跳过）不同，
 /// 本文件每条断言都强校验：字段确实编辑、保存确实回写、链路闭环。
 ///
-/// TC-UI-207（列表编辑页）仍是占位 SnackBar：真编辑页未落地，断言锁占位。
+/// TC-UI-207（列表编辑页）：#491 起入口打开真实编辑框（改名/颜色/类型）。
 Future<void> _pump(
   WidgetTester tester,
   ReminderRepository repo, {
@@ -239,7 +239,7 @@ void main() {
   });
 
   // ── TC-UI-207：列表编辑页占位锁定（真编辑页未落地） ──
-  testWidgets('TC-UI-207 列表编辑入口=占位 SnackBar（真编辑页落地后需更新）', (tester) async {
+  testWidgets('TC-UI-207 列表编辑入口=真编辑页（#491）', (tester) async {
     final repo = await _seed();
     // 首页（openListId=null）才渲染 _CompactPane 的编辑占位按钮
     final view =
@@ -256,12 +256,22 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('home_edit_placeholder')));
-    await tester.pump();
-    expect(
-      find.text('编辑列表'),
-      findsOneWidget,
-      reason: 'TC-UI-207: 真编辑页未落地，当前为规划占位',
+    await tester.pumpAndSettle();
+    // 多个列表先出选择单，再进编辑框（#491）
+    final pick = find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key! as ValueKey<String>).value.startsWith('edit_pick_'),
     );
-    expect(find.text('规划占位'), findsOneWidget, reason: 'TC-UI-207: 占位文案保留');
+    if (pick.evaluate().isNotEmpty) {
+      await tester.tap(pick.first);
+      await tester.pumpAndSettle();
+    }
+    expect(
+      find.byKey(const ValueKey('edit_list_name')),
+      findsOneWidget,
+      reason: 'TC-UI-207: 编辑入口打开真实列表编辑框',
+    );
+    expect(find.text('规划占位'), findsNothing, reason: 'TC-UI-207: 占位文案已移除');
   });
 }
