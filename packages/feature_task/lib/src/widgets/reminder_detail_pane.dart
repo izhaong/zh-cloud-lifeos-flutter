@@ -41,6 +41,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   late int _priority;
   late String? _recurrence;
   DateTime? _recurrenceUntil;
+  DateTime? _earlyReminderAt;
   DateTime? _dueAt;
   bool _showSubtaskDraft = false;
 
@@ -87,6 +88,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     _priority = widget.item.priority;
     _recurrence = widget.item.recurrence;
     _recurrenceUntil = widget.item.recurrenceUntil;
+    _earlyReminderAt = widget.item.earlyReminderAt;
     _dueAt = widget.item.dueAt;
     _showSubtaskDraft = false;
   }
@@ -123,6 +125,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
       recurrenceUntil: _recurrence == null
           ? ReminderItem.clear
           : (_recurrenceUntil ?? ReminderItem.clear),
+      earlyReminderAt: _earlyReminderAt,
       tags: tagList,
     );
     _dirty = false;
@@ -212,6 +215,23 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   }
 
   /// T-04：结束日期选择（回调式弹层：确认/取消按钮；空=永不）。
+  Future<void> _pickEarlyReminder() async {
+    final picked = await showCupertinoModalPopup<DateTime?>(
+      context: context,
+      builder: (sheetContext) => CupertinoDatePicker(
+        mode: CupertinoDatePickerMode.time,
+        initialDateTime: _earlyReminderAt ?? DateTime.now(),
+        onDateTimeChanged: (d) {
+          setState(() => _earlyReminderAt = d);
+        },
+      ),
+    );
+    if (picked != null) {
+      setState(() => _earlyReminderAt = picked);
+      _save();
+    }
+  }
+
   Future<void> _pickRecurrenceUntil() async {
     var picked = _recurrenceUntil ?? DateTime.now();
     final confirmed = await showCupertinoModalPopup<bool>(
@@ -564,6 +584,19 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
               label: '日期与时间',
               onTap: _pickDueAt,
               trailing: Text(_dueLabel()),
+            ),
+            _Row(
+              key: const ValueKey('early_reminder_row'),
+              icon: CupertinoIcons.bell,
+              label: '提前提醒',
+              trailing: Text(
+                _earlyReminderAt == null
+                    ? '无'
+                    : '${_earlyReminderAt!.hour.toString().padLeft(2, '0')}:'
+                        '${_earlyReminderAt!.minute.toString().padLeft(2, '0')}',
+                style: const TextStyle(color: ReminderTokens.labelSecondary),
+              ),
+              onTap: _pickEarlyReminder,
             ),
             _Row(
               icon: CupertinoIcons.arrow_2_circlepath,
