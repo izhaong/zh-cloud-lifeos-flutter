@@ -37,7 +37,7 @@ void main() {
   });
 
   // TC-UI-207：首页 ⋯ → 编辑占位（规划），显示反馈且不崩溃
-  testWidgets('TC-UI-207 手机首页 ⋯编辑占位：提示且不崩溃', (tester) async {
+  testWidgets('TC-UI-207 手机首页 ⋯打开列表编辑框且可返回（#491）', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(tester, size: const Size(375, 812), repo: repo);
 
@@ -45,8 +45,18 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('home_edit_placeholder')));
     await tester.pumpAndSettle();
 
-    // 占位反馈出现（SnackBar「规划」），界面不崩溃、首页仍在
-    expect(find.textContaining('规划'), findsWidgets);
+    final pick = find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key! as ValueKey<String>).value.startsWith('edit_pick_'),
+    );
+    if (pick.evaluate().isNotEmpty) {
+      await tester.tap(pick.first);
+      await tester.pumpAndSettle();
+    }
+    expect(find.byKey(const ValueKey('edit_list_name')), findsOneWidget);
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
     expect(find.text('我的列表'), findsOneWidget);
   });
 
