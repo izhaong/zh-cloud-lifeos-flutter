@@ -563,8 +563,9 @@ class LifeProductivityDb extends _$LifeProductivityDb {
           }
 
           if (from < 23 && to >= 23) {
-            await m.addColumn(
-                reminderItems, reminderItems.earlyReminderAt);
+            // #519：旧库夹具可能没有 reminder_items 表，沿用既有「缺表跳过」守卫。
+            await _addColumnIfTableExists(m, 'reminder_items', reminderItems,
+                reminderItems.earlyReminderAt);
           }
           if (from < 21 && to >= 21) {
             // V21（flutter #448）：手动设定时区（null = 跟随系统，与改造前一致）。
