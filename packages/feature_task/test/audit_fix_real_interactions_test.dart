@@ -159,8 +159,8 @@ void main() {
     );
   });
 
-  // TC-UI-207 加强：⋯编辑占位精确断言（SnackBar 文案全文）
-  testWidgets('TC-UI-207 ⋯编辑占位：SnackBar 全文锁定', (tester) async {
+  // TC-UI-207：#491 起 ⋯ 打开真实列表编辑框，占位文案必须消失
+  testWidgets('TC-UI-207 ⋯打开真实列表编辑框（#491）', (tester) async {
     final repo = InMemoryReminderRepository();
     await _pump(
       tester,
@@ -170,10 +170,18 @@ void main() {
     );
 
     await tester.tap(find.byKey(const ValueKey('home_edit_placeholder')));
-    await tester.pump(); // SnackBar 出现帧
+    await tester.pumpAndSettle();
 
-    // 精确锁占位（未来换真编辑页时该断言失败 → 强制更新测试）
-    expect(find.text('编辑列表'), findsOneWidget);
-    expect(find.text('规划占位'), findsOneWidget);
+    final pick = find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key! as ValueKey<String>).value.startsWith('edit_pick_'),
+    );
+    if (pick.evaluate().isNotEmpty) {
+      await tester.tap(pick.first);
+      await tester.pumpAndSettle();
+    }
+    expect(find.byKey(const ValueKey('edit_list_name')), findsOneWidget);
+    expect(find.text('规划占位'), findsNothing);
   });
 }

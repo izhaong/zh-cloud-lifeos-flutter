@@ -178,6 +178,57 @@ class _CompactPane extends ConsumerWidget {
   final ValueChanged<String>? onOpenList;
   final ValueChanged<ReminderItem>? onSelectItem;
 
+  /// #491：Apple 的列表编辑（改名/颜色/类型）。图标需领域字段，按矩阵 M2 后置。
+  Future<void> _editLists(
+    BuildContext context,
+    WidgetRef ref,
+    List<ReminderList> mine,
+  ) async {
+    if (mine.isEmpty) {
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (ctx) => LifeAlertDialog(
+          title: const Text('编辑列表'),
+          content: const Text('还没有可编辑的列表'),
+          actions: [
+            LifeDialogAction(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('好'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    final target = mine.length == 1
+        ? mine.first
+        : await showCupertinoModalPopup<ReminderList>(
+            context: context,
+            builder: (ctx) => CupertinoActionSheet(
+              title: const Text('编辑列表'),
+              actions: [
+                for (final l in mine)
+                  CupertinoActionSheetAction(
+                    key: ValueKey('edit_pick_${l.id}'),
+                    onPressed: () => Navigator.of(ctx).pop(l),
+                    child: Text(l.title),
+                  ),
+              ],
+              cancelButton: CupertinoActionSheetAction(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('取消'),
+              ),
+            ),
+          );
+    if (target == null || !context.mounted) return;
+    await showEditListDialog(
+      context,
+      list: target,
+      onSave: (updated) =>
+          ref.read(reminderRepositoryProvider).upsertList(updated),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final smart = lists
@@ -204,19 +255,7 @@ class _CompactPane extends ConsumerWidget {
         middle: const Text('列表'),
         trailing: CupertinoButton(
           key: const ValueKey('home_edit_placeholder'),
-          onPressed: () => showCupertinoDialog<void>(
-            context: context,
-            builder: (ctx) => LifeAlertDialog(
-              title: const Text('编辑列表'),
-              content: const Text('规划占位'),
-              actions: [
-                LifeDialogAction(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('好'),
-                ),
-              ],
-            ),
-          ),
+          onPressed: () => _editLists(context, ref, mine),
           child: const Icon(CupertinoIcons.ellipsis_circle, size: 22),
         ),
       ),

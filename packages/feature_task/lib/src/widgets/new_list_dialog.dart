@@ -177,3 +177,128 @@ const presetListIcons = <String, IconData>{
   'flight': CupertinoIcons.airplane,
   'folder': CupertinoIcons.folder,
 };
+
+/// 编辑已有列表（#491）：名称 + 颜色 + 类型。
+///
+/// 图标需要领域字段（ReminderList 无 listIcon），新建弹窗的图标选择也尚未落库，
+/// 按对等矩阵行 13 的「图标/类型按图4增强 → M2」后置，这里只改可持久化字段。
+Future<void> showEditListDialog(
+  BuildContext context, {
+  required ReminderList list,
+  required Future<void> Function(ReminderList) onSave,
+}) {
+  final titleController = TextEditingController(text: list.title);
+  var colorArgb = list.colorArgb;
+  var listType = list.listType;
+
+  const palette = <int>[
+    0xFF34C759,
+    0xFF007AFF,
+    0xFFFF9500,
+    0xFFFF3B30,
+    0xFFAF52DE,
+    0xFFFFCC00,
+    0xFF5856D6,
+    0xFF30B0C7,
+  ];
+
+  return showCupertinoDialog<void>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => LifeAlertDialog(
+        title: const Text('编辑列表'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              CupertinoTextField(
+                key: const ValueKey('edit_list_name'),
+                controller: titleController,
+                autofocus: true,
+                placeholder: '列表名称',
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color:
+                      CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                  borderRadius: BorderRadius.circular(LifeRadius.md),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final c in palette)
+                    GestureDetector(
+                      key: ValueKey('edit_color_$c'),
+                      onTap: () => setState(() => colorArgb = c),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(c),
+                        ),
+                        child: colorArgb == c
+                            ? const Icon(
+                                CupertinoIcons.checkmark,
+                                size: 16,
+                                color: CupertinoColors.white,
+                              )
+                            : null,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              CupertinoSlidingSegmentedControl<ReminderListType>(
+                key: const ValueKey('edit_list_type'),
+                groupValue: listType,
+                children: const {
+                  ReminderListType.standard: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Text('标准', style: TextStyle(fontSize: 13)),
+                  ),
+                  ReminderListType.grocery: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 6),
+                    child: Text('日常采购', style: TextStyle(fontSize: 13)),
+                  ),
+                },
+                onValueChanged: (v) => setState(
+                  () => listType = v ?? ReminderListType.standard,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          LifeDialogAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          LifeDialogAction(
+            key: const ValueKey('edit_list_submit'),
+            isDefaultAction: true,
+            onPressed: () async {
+              final name = titleController.text.trim();
+              if (name.isEmpty) return;
+              await onSave(
+                list.copyWith(
+                  title: name,
+                  colorArgb: colorArgb,
+                  listType: listType,
+                ),
+              );
+              if (context.mounted) Navigator.of(context).pop();
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
