@@ -916,6 +916,12 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       };
     }
 
+    // #478：「全部」按提醒事项列表分组（guide/mac/zh-cn/14:25），
+    // 与「计划」的按日期分组（同段 14:24）是两种模式，别混用日期桶。
+    if (widget.list.id == 'smart.all') {
+      return _sectionsByReminderList(topLevel);
+    }
+
     final now = ref.read(clockProvider)();
     final sections = <String, List<ReminderItem>>{};
     for (final item in topLevel) {
@@ -928,6 +934,28 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       return _sortSectionsByDate(sections);
     }
     return sections;
+  }
+
+  /// #478：按所属提醒事项列表建组，组序跟边栏清单序（`listTitles` 按清单迭代序构造）。
+  /// 分区键即组头文案（`LifeSectionHeader` 与折叠键都按标题走），因此同名清单会并组——
+  /// 这是本仓分区契约的既有限制，不在本卡扩大。
+  Map<String, List<ReminderItem>> _sectionsByReminderList(
+      List<ReminderItem> items) {
+    final titles = widget.listTitles ?? const <String, String>{};
+    final grouped = <String, List<ReminderItem>>{};
+    for (final item in items) {
+      grouped
+          .putIfAbsent(titles[item.listId] ?? item.listId, () => [])
+          .add(item);
+    }
+    final ordered = <String, List<ReminderItem>>{};
+    for (final title in titles.values) {
+      if (grouped.containsKey(title)) ordered[title] = grouped[title]!;
+    }
+    for (final entry in grouped.entries) {
+      ordered.putIfAbsent(entry.key, () => entry.value);
+    }
+    return ordered;
   }
 
   /// #475：把分区按日期升序重排；#479 后标签含相对词与星期后缀，
@@ -983,6 +1011,28 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   void _toggleSection(String key) {
     ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
+  }
+
+  /// #477：今天视图拖入分区 → 更新条目 dueAt 到该分区的代表性时刻。
+  /// 上午=09:00 下午=15:00 今晚=20:00 今天=全天(00:00) 已过期=不变。
+  Future<void> _onSectionDrop(String itemId, String sectionKey) async {
+    final repo = ref.read(reminderRepositoryProvider);
+    final all = await repo.watchItems().first;
+    final item = all.firstWhere(
+      (e) => e.id == itemId,
+    );
+    final now = ref.read(clockProvider)();
+    final today = DateTime(now.year, now.month, now.day);
+    final newDue = switch (sectionKey) {
+      '上午' => DateTime(today.year, today.month, today.day, 9),
+      '下午' => DateTime(today.year, today.month, today.day, 15),
+      '今晚' => DateTime(today.year, today.month, today.day, 20),
+      '今天' => today,
+      _ => item.dueAt, // 已过期等不改动
+    };
+    if (newDue != item.dueAt) {
+      await repo.upsertItem(item.copyWith(dueAt: newDue));
+    }
   }
 
   /// 折叠态落在本地偏好行里（TC-UI-309，flutter#124 卡 4b）：
@@ -1331,17 +1381,36 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                           ),
                   for (final entry in sections.entries) ...[
                     if (!skipSectionHeader || entry.key != widget.list.title)
-                      LifeSectionHeader(
-                        title: entry.key,
-                        sectionKey: ValueKey('section_${entry.key}'),
-                        collapsed: _isCollapsed(
-                            ref.watch(collapsedKeysProvider), entry.key),
-                        onToggle: () => _toggleSection(entry.key),
+                      // #477：今天视图分区头作为拖放目标，拖入即改时间
+                      DragTarget<String>(
+                        key: ValueKey('drag_target_${entry.key}'),
+                        onAcceptWithDetails: (details) {
+                          _onSectionDrop(details.data, entry.key);
+                        },
+                        builder: (BuildContext context,
+                            List<String?> candidateData,
+                            List<dynamic> details) {
+                          return LifeSectionHeader(
+                            title: entry.key,
+                            sectionKey: ValueKey('section_${entry.key}'),
+                            collapsed: _isCollapsed(
+                                ref.watch(collapsedKeysProvider), entry.key),
+                            onToggle: () => _toggleSection(entry.key),
+                          );
+                        },
                       ),
                     if (!_isCollapsed(
                         ref.watch(collapsedKeysProvider), entry.key))
                       for (final item in entry.value)
-                        _buildItemRow(item, subtasksByParent: subtasksByParent),
+                        // #477：今天视图行可拖动，拖到分区头即改时间
+                        Draggable<String>(
+                          key: ValueKey('draggable_${item.id}'),
+                          data: item.id,
+                          feedback: _buildItemRow(
+                              item, subtasksByParent: subtasksByParent),
+                          child: _buildItemRow(
+                              item, subtasksByParent: subtasksByParent),
+                        ),
                   ],
                   // 紧凑端保留底部工具条入口，草稿行仍落在列表体末尾。
                   if (!isPane && _showDraft) draftRow,
