@@ -837,13 +837,55 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     });
   }
 
-  /// 文件 → 新建提醒事项：与「＋ 新提醒事项」/ ⌘N 同一条路径。
+  /// 菜单栏命令消费（#486：扩展支持新建列表/设置/显示切换）。
   void _onMenuCommand() {
     final notifier = _menuCommands;
-    if (notifier == null || notifier.value != LifeMenuAction.newReminder) return;
-    if (!mounted) return;
+    if (notifier == null || !mounted) return;
+    final action = notifier.value;
+    if (action == null) return;
     notifier.value = null; // 消费即清，避免重建时重复触发
-    _openNewItemDialog();
+    switch (action) {
+      case LifeMenuAction.newReminder:
+        _openNewItemDialog();
+      case LifeMenuAction.newList:
+        _openNewListDialog();
+      case LifeMenuAction.openSettings:
+        _openSettings();
+      case LifeMenuAction.toggleSmartLists:
+        _toggleSmartLists();
+      case LifeMenuAction.toggleSidebar:
+        _toggleSidebar();
+      case LifeMenuAction.toggleCompleted:
+        _toggleShowCompleted();
+    }
+  }
+
+  void _openNewListDialog() {
+    _newListDialogOpen = true;
+    showNewListDialog(
+      context,
+      onCreate: (list) =>
+          ref.read(reminderRepositoryProvider).upsertList(list),
+    ).whenComplete(() => _newListDialogOpen = false);
+  }
+
+  void _openSettings() {
+    showTaskSettingsSheet(context);
+  }
+
+  void _toggleSmartLists() {
+    ref.read(smartListsVisibleProvider.notifier).toggle();
+  }
+
+  void _toggleSidebar() {
+    ref.read(sidebarVisibleProvider.notifier).set(
+        !ref.read(sidebarVisibleProvider));
+  }
+
+  void _toggleShowCompleted() {
+    final list = widget.list;
+    final current = ref.read(showCompletedByListProvider)[list.id] ?? false;
+    ref.read(showCompletedByListProvider.notifier).setFor(list.id, !current);
   }
 
   void _onShortcut() {

@@ -16,6 +16,21 @@ enum LifeMenuAction {
 
   /// 文件 → 新建备忘录（⇧⌘N）。
   newNote,
+
+  /// 文件 → 新建列表（#486）。
+  newList,
+
+  /// 应用菜单 → 设置…（#486）。
+  openSettings,
+
+  /// 显示 → 显示/隐藏智能列表（#486）。
+  toggleSmartLists,
+
+  /// 显示 → 显示/隐藏边栏（#486）。
+  toggleSidebar,
+
+  /// 显示 → 隐藏/显示已完成项目（#486）。
+  toggleCompleted,
 }
 
 /// 命令出口。**没有菜单栏的平台（非 macOS）为 null**，页面订阅时必须判空。
