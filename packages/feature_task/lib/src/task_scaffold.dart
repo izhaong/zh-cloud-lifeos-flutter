@@ -967,10 +967,14 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         due.year == now.year && due.month == now.month && due.day == now.day;
     if (isToday) return '今天';
     if (due.isBefore(now)) return '已过期';
+    // #476：跨月时 now.day + 1 不归一（31 日 +1 = 32 永不匹配），
+    // 改用 DateTime 加一天再比较，跨月/跨年都正确。
+    final tomorrow = DateTime(now.year, now.month, now.day)
+        .add(const Duration(days: 1));
     final isTomorrow =
-        due.year == now.year &&
-        due.month == now.month &&
-        due.day == now.day + 1;
+        due.year == tomorrow.year &&
+        due.month == tomorrow.month &&
+        due.day == tomorrow.day;
     if (isTomorrow) return '明天';
     return '${due.month}月${due.day}日';
   }
