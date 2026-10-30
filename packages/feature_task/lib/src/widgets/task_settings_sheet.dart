@@ -21,10 +21,14 @@ Future<void> showTaskSettingsSheet(
   BuildContext context, {
   void Function(BuildContext sheetContext)? onOpenCloudLogin,
 }) {
+  // #490：Apple 设置是独立窗口，主窗口仍可见。
+  // CupertinoSheetRoute 是全屏抽屉，盖住主窗口；改用 CupertinoPageRoute
+  // 非模态推入，主窗口继续可见。
   return Navigator.of(context).push(
-    CupertinoSheetRoute<void>(
-      scrollableBuilder: (sheetContext, scrollController) => _TaskSettingsSheet(
-        scrollController: scrollController,
+    CupertinoPageRoute<void>(
+      fullscreenDialog: false,
+      builder: (sheetContext) => _TaskSettingsSheet(
+        scrollController: ScrollController(),
         onOpenCloudLogin: onOpenCloudLogin,
       ),
     ),
