@@ -11,7 +11,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'support/life_test_app.dart';
 
-Future<void> _pumpToday(WidgetTester tester, ReminderRepository repo) async {
+Future<void> _pumpToday(
+  WidgetTester tester,
+  ReminderRepository repo,
+  DateTime now,
+) async {
   final view =
       TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
   view
@@ -19,7 +23,10 @@ Future<void> _pumpToday(WidgetTester tester, ReminderRepository repo) async {
     ..devicePixelRatio = 1.0;
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        reminderRepositoryProvider.overrideWithValue(repo),
+        clockProvider.overrideWithValue(() => now),
+      ],
       child: lifeTestHost(const TaskScaffold(openListId: 'smart.today')),
     ),
   );
@@ -37,8 +44,11 @@ void main() {
   testWidgets('「今天」视图：过期全天项归「已过期」段，今天的全天项留在今天', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(const ReminderList(id: 'list.p', title: '工作'));
-    final today = DateTime.now();
-    final day = DateTime(today.year, today.month, today.day);
+    // #484：定时项按时刻判过期；钉住时钟并让「今天上午项」落在未来，
+    // 避免午后跑测试时 09:00 被归入「已过期」而干扰本用例的全天归桶断言。
+    final now = DateTime(2026, 10, 29, 9, 30);
+    repo.nowProvider = () => now;
+    final day = DateTime(now.year, now.month, now.day);
     final yesterday = day.subtract(const Duration(days: 1));
 
     await repo.upsertItem(
@@ -62,11 +72,11 @@ void main() {
         id: 'timed-today',
         listId: 'list.p',
         title: '今天上午项',
-        dueAt: day.add(const Duration(hours: 9)),
+        dueAt: day.add(const Duration(hours: 10)),
       ),
     );
 
-    await _pumpToday(tester, repo);
+    await _pumpToday(tester, repo, now);
 
     expect(
       find.byKey(const ValueKey('section_已过期')),

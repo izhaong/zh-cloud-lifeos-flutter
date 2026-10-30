@@ -890,11 +890,17 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         final due = item.dueAt;
         if (due == null) {
           buckets['今天']!.add(item);
-        } else if (DateTime(due.year, due.month, due.day).isBefore(today)) {
-          // #474：先判日期再看是否全天——过期全天项也属于「已过期」段，
-          // 否则会掉进「今天」无时段区（仓库层 _isTodayOrOverdue 已纳入）。
+          continue;
+        }
+        final allDay = due.hour == 0 && due.minute == 0;
+        // #474：全天项只按日期判过期（当天 00:00 不算已过）；
+        // #484：定时项按时刻判——今天更早的提醒也要进「已过期」段（Apple 同款）。
+        final overdue = allDay
+            ? DateTime(due.year, due.month, due.day).isBefore(today)
+            : due.isBefore(now);
+        if (overdue) {
           buckets['已过期']!.add(item);
-        } else if (due.hour == 0 && due.minute == 0) {
+        } else if (allDay) {
           buckets['今天']!.add(item);
         } else if (due.hour < 12) {
           buckets['上午']!.add(item);
