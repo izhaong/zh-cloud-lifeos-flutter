@@ -11,6 +11,7 @@ Future<void> _pump(
   Size size = const Size(1366, 1024),
   String? openListId,
   String? selectedItemId,
+  DateTime? clock,
 }) async {
   final view =
       TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
@@ -19,7 +20,10 @@ Future<void> _pump(
     ..devicePixelRatio = 1.0;
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        reminderRepositoryProvider.overrideWithValue(repo),
+        if (clock != null) clockProvider.overrideWithValue(() => clock),
+      ],
       child: lifeTestHost(
         TaskScaffold(openListId: openListId, selectedItemId: selectedItemId),
       ),
@@ -39,7 +43,10 @@ void main() {
   testWidgets('今天视图时间分组：已过期/上午/下午/今晚', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(const ReminderList(id: 'list.p', title: '个人'));
-    final now = DateTime.now();
+    // #484：定时项按时刻判过期，种子必须钉住时钟，否则 09:00 的「上午项」
+    // 在午后跑测试时会落进「已过期」段。
+    final now = DateTime(2026, 10, 29, 8, 30);
+    repo.nowProvider = () => now;
     final today = DateTime(now.year, now.month, now.day);
     await repo.upsertItem(
       ReminderItem(
@@ -76,7 +83,7 @@ void main() {
       ),
     );
 
-    await _pump(tester, repo: repo, openListId: 'smart.today');
+    await _pump(tester, repo: repo, openListId: 'smart.today', clock: now);
 
     expect(find.byKey(const ValueKey('section_已过期')), findsOneWidget);
     expect(find.byKey(const ValueKey('section_上午')), findsOneWidget);
