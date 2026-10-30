@@ -1,4 +1,6 @@
-// #475：计划/紧急视图分区按日期升序排（已过期→今天→明天→日期升序）。
+// #475：计划/紧急视图分区按日期升序排。
+// #479 后标签为按日粒度：前天/昨天/今天/明天/后天 + 绝对日期带星期后缀，
+// 期望序列随之适配（升序意图不变：10-27=D-2 显示「前天」，最早日期组仍在前）。
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
 import 'package:flutter/material.dart';
@@ -46,15 +48,16 @@ Widget _host(InMemoryReminderRepository repo, String listId) {
 }
 
 /// 提取渲染文本树中分区头的顺序。
-/// 分区头精确匹配：已过期 / 今天 / 明天 / X月Y日（正则），不匹配条目标题。
+/// 分区头精确匹配：已过期/前天/昨天/今天/明天/后天 / X月Y日[ 周X]，不匹配条目标题。
 List<String> _sectionHeaders(WidgetTester tester) {
   final out = <String>[];
-  final sectionPattern = RegExp(r'^\d+月\d+日$');
+  final sectionPattern = RegExp(r'^\d+月\d+日( 周[一二三四五六日])?$');
   void walk(Element e) {
     final w = e.widget;
     if (w is Text) {
       final d = (w.data ?? w.textSpan?.toPlainText() ?? '').trim();
-      if (d == '已过期' || d == '今天' || d == '明天' || sectionPattern.hasMatch(d)) {
+      if (d == '已过期' || d == '前天' || d == '昨天' || d == '今天' ||
+          d == '明天' || d == '后天' || sectionPattern.hasMatch(d)) {
         out.add(d);
       }
     }
@@ -77,10 +80,13 @@ void main() {
     final texts = _sectionHeaders(tester);
     // 找到分区头（今天/明天/已过期/X月Y日）
     final sections = texts.where((t) =>
-        t == '已过期' || t == '今天' || t == '明天' || t.contains('月') && t.contains('日')).toList();
+        t == '已过期' || t == '前天' || t == '昨天' || t == '今天' ||
+            t == '明天' || t == '后天' ||
+            (t.contains('月') && t.contains('日'))).toList();
 
-    // 期望顺序：已过期 → 今天 → 明天 → 10月31日 → 11月5日（子序列验证，忽略侧栏文本）
-    final expected = ['已过期', '今天', '明天', '10月31日', '11月5日'];
+    // 期望顺序（#479 后）：前天 → 今天 → 明天 → 10月31日 周六 → 11月5日 周四
+    // 10-31 相对 10-29 是 D+2 → 「后天」（#479 相对词优先于绝对日期）。
+    final expected = ['前天', '今天', '明天', '后天', '11月5日 周四'];
     var idx = 0;
     for (final t in sections) {
       if (idx < expected.length && t == expected[idx]) {
@@ -113,11 +119,13 @@ void main() {
 
     final texts = _sectionHeaders(tester);
     final sections = texts.where((t) =>
-        t == '已过期' || t == '今天' || t == '明天' || t.contains('月') && t.contains('日')).toList();
+        t == '已过期' || t == '前天' || t == '昨天' || t == '今天' ||
+            t == '明天' || t == '后天' ||
+            (t.contains('月') && t.contains('日'))).toList();
 
     // 紧急视图含：过期项 + 高优10月31日 + 高优11月5日
-    // 已过期 → 10月31日 → 11月5日（子序列验证）
-    final expected = ['已过期', '10月31日', '11月5日'];
+    // 前天 → 10月31日 周六 → 11月5日 周四（子序列验证）
+    final expected = ['前天', '后天', '11月5日 周四'];
     var idx = 0;
     for (final t in sections) {
       if (idx < expected.length && t == expected[idx]) {
