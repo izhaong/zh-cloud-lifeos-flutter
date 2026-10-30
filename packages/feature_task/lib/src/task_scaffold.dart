@@ -888,10 +888,14 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       };
       for (final item in topLevel) {
         final due = item.dueAt;
-        if (due == null || (due.hour == 0 && due.minute == 0)) {
+        if (due == null) {
           buckets['今天']!.add(item);
         } else if (DateTime(due.year, due.month, due.day).isBefore(today)) {
+          // #474：先判日期再看是否全天——过期全天项也属于「已过期」段，
+          // 否则会掉进「今天」无时段区（仓库层 _isTodayOrOverdue 已纳入）。
           buckets['已过期']!.add(item);
+        } else if (due.hour == 0 && due.minute == 0) {
+          buckets['今天']!.add(item);
         } else if (due.hour < 12) {
           buckets['上午']!.add(item);
         } else if (due.hour < 18) {
