@@ -916,6 +916,12 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       };
     }
 
+    // #478：「全部」按提醒事项列表分组（guide/mac/zh-cn/14:25），
+    // 与「计划」的按日期分组（同段 14:24）是两种模式，别混用日期桶。
+    if (widget.list.id == 'smart.all') {
+      return _sectionsByReminderList(topLevel);
+    }
+
     final now = ref.read(clockProvider)();
     final sections = <String, List<ReminderItem>>{};
     for (final item in topLevel) {
@@ -928,6 +934,28 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       return _sortSectionsByDate(sections, now);
     }
     return sections;
+  }
+
+  /// #478：按所属提醒事项列表建组，组序跟边栏清单序（`listTitles` 按清单迭代序构造）。
+  /// 分区键即组头文案（`LifeSectionHeader` 与折叠键都按标题走），因此同名清单会并组——
+  /// 这是本仓分区契约的既有限制，不在本卡扩大。
+  Map<String, List<ReminderItem>> _sectionsByReminderList(
+      List<ReminderItem> items) {
+    final titles = widget.listTitles ?? const <String, String>{};
+    final grouped = <String, List<ReminderItem>>{};
+    for (final item in items) {
+      grouped
+          .putIfAbsent(titles[item.listId] ?? item.listId, () => [])
+          .add(item);
+    }
+    final ordered = <String, List<ReminderItem>>{};
+    for (final title in titles.values) {
+      if (grouped.containsKey(title)) ordered[title] = grouped[title]!;
+    }
+    for (final entry in grouped.entries) {
+      ordered.putIfAbsent(entry.key, () => entry.value);
+    }
+    return ordered;
   }
 
   /// #475：把分区键按日期升序重排。
