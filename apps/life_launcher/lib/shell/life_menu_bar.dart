@@ -12,13 +12,84 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-class LifeMenuBar extends StatelessWidget {
+/// #542：菜单栏的「焦点在文本域时让位」外壳。
+///
+/// macOS 的文本键位表（`default_text_editing_shortcuts.dart` 的 `_macShortcuts`）
+/// 把「meta + backspace」绑成删除到行首。而 `PlatformMenuBar` 的 `shortcut` 是
+/// **系统级**映射：原生菜单一旦声明同一个组合，按键在引擎侧就被菜单吞掉，
+/// Flutter 再也收不到——于是新建/重命名弹层里「输入到一半想删到行首」会变成
+/// 「整条提醒被删」。
+///
+/// 这个外壳只做一件事：盯住焦点，**翻转时**才重建菜单（不翻转不重建，
+/// 原生菜单跟着重建有代价；真实闪烁仍归 #473 真人走查）。
+class LifeMenuBar extends StatefulWidget {
   const LifeMenuBar({
     super.key,
     required this.child,
     required this.commands,
     this.onAbout,
   });
+
+  final Widget child;
+
+  /// 命令出口：菜单项被选中时写入，页面侧监听并执行。
+  final ValueNotifier<LifeMenuAction?> commands;
+
+  /// 「关于生活台」；为空时用系统 about 面板。
+  final VoidCallback? onAbout;
+
+  @override
+  State<LifeMenuBar> createState() => _LifeMenuBarState();
+}
+
+class _LifeMenuBarState extends State<LifeMenuBar> {
+  bool _editingText = _focusIsTextInput();
+
+  @override
+  void initState() {
+    super.initState();
+    FocusManager.instance.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    FocusManager.instance.removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    final next = _focusIsTextInput();
+    if (next == _editingText) return;
+    setState(() => _editingText = next);
+  }
+
+  /// 焦点节点建在 `EditableText` 内部（`TextField` / `CupertinoTextField` 都是），
+  /// 所以从它的 context 往上找一层就能判定「现在是不是在打字」。
+  static bool _focusIsTextInput() {
+    final context = FocusManager.instance.primaryFocus?.context;
+    if (context == null) return false;
+    return context.findAncestorWidgetOfExactType<EditableText>() != null;
+  }
+
+  @override
+  Widget build(BuildContext context) => _LifeMenuBarBody(
+        editingText: _editingText,
+        commands: widget.commands,
+        onAbout: widget.onAbout,
+        child: widget.child,
+      );
+}
+
+class _LifeMenuBarBody extends StatelessWidget {
+  const _LifeMenuBarBody({
+    required this.editingText,
+    required this.child,
+    required this.commands,
+    required this.onAbout,
+  });
+
+  /// true ⇒ 焦点在文本编辑控件里，冲突键位让给文本编辑（#542）。
+  final bool editingText;
 
   final Widget child;
 
@@ -194,15 +265,19 @@ class LifeMenuBar extends StatelessWidget {
             // 选中的条目，选中态、落库与回收窗都在 feature_task；菜单侧只投
             // 命令，判不了选中，也不许自己碰仓库。
             //
-            // 这一项刻意不挂快捷键：Flutter 的 macOS 文本键位表已把「meta +
-            // backspace」绑成删除到行首（default_text_editing_shortcuts.dart
-            // 的 _macShortcuts），菜单再抢同一个组合会让新建/重命名弹层里的
-            // 输入行为变质。补键位的前置是「焦点在输入框时菜单快捷键让位」，
-            // 已另拆 Issue。
+            // #542：这一项的 ⌘ 现在挂得上了——上面那层外壳会在焦点落进文本
+            // 编辑控件时把 shortcut 摘掉，离开文本域再交还给原生菜单。
+            // 键位语义与 Apple 一致（⌘ 删除当前选中条目），行为仍只投命令。
             PlatformMenuItemGroup(
               members: <PlatformMenuItem>[
                 PlatformMenuItem(
                   label: '删除提醒事项',
+                  shortcut: editingText
+                      ? null
+                      : const SingleActivator(
+                          LogicalKeyboardKey.backspace,
+                          meta: true,
+                        ),
                   onSelected: () =>
                       commands.value = LifeMenuAction.deleteReminder,
                 ),
