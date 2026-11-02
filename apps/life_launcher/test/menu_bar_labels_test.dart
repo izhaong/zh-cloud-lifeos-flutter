@@ -45,6 +45,31 @@ void main() {
         reason: '菜单只发命令，落库由 TaskScaffold 复用 #533 的入口');
   });
 
+  test('#537 显示菜单挂「排序方式」五项，且菜单侧不实现排序', () {
+    expect(source.contains("label: '排序方式'"), isTrue,
+        reason: 'Apple「显示 → 排序方式」是子菜单');
+    for (final label in ['手动', '按到期日', '按创建日期', '按标题', '按优先级']) {
+      expect(source.contains("label: '$label'"), isTrue,
+          reason: '排序方式子菜单缺少「$label」');
+    }
+    for (final a in [
+      'sortByManual',
+      'sortByDueDate',
+      'sortByCreatedDate',
+      'sortByTitle',
+      'sortByPriority',
+    ]) {
+      expect(source.contains('LifeMenuAction.$a'), isTrue,
+          reason: '菜单未指向 $a');
+    }
+    // 排序写入只能在 feature_task 的 provider 里；壳里出现这个名字就说明有人
+    // 把第二套排序搬进了菜单层。（判据刻意不用类型名——说明性注释里会出现它。）
+    expect(source.contains('listSortModeProvider'), isFalse,
+        reason: '壳不得自己实现排序');
+    expect(source.contains('.notifier.set('), isFalse,
+        reason: '壳不得直接写偏好');
+  });
+
   test('编辑菜单走标准 intent，不自己实现', () {
     for (final intent in [
       'UndoTextIntent',
