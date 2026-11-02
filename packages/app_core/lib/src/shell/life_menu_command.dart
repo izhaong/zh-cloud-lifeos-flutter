@@ -20,6 +20,12 @@ enum LifeMenuAction {
   /// 文件 → 新建列表（#486）。
   newList,
 
+  /// 文件 → 新建分区（#486；接 #533 的入口，仅非智能清单生效）。
+  newSection,
+
+  /// 文件 → 编辑分区…（#486；同上）。
+  editSections,
+
   /// 应用菜单 → 设置…（#486）。
   openSettings,
 

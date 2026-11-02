@@ -95,6 +95,16 @@ class LifeMenuBar extends StatelessWidget {
               label: '新建列表',
               onSelected: () => commands.value = LifeMenuAction.newList,
             ),
+            // #486：分区入口本体在 #533 已落地（⋯ 菜单），这里只接线——
+            // 命令由 TaskScaffold 消费并复用同一对弹层，菜单侧不另写新建逻辑。
+            PlatformMenuItem(
+              label: '新建分区',
+              onSelected: () => commands.value = LifeMenuAction.newSection,
+            ),
+            PlatformMenuItem(
+              label: '编辑分区…',
+              onSelected: () => commands.value = LifeMenuAction.editSections,
+            ),
           ],
         ),
         PlatformMenu(
