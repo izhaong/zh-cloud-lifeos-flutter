@@ -701,6 +701,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
                   : ListContentPane(
                       list: current,
                       onSelectItem: _handleSelect,
+                      selectedItem: selected,
                       listTitles: {for (final l in lists) l.id: l.title},
                       leading: sidebarVisible
                           ? null
@@ -782,6 +783,12 @@ class _EmptyOverview extends StatelessWidget {
 /// 底部工具条（iOS 提醒事项式「＋ 新提醒」；智能视图隐藏）。
 ///
 /// [leading] 供紧凑端壳内子路由显示「‹ 列表」返回；medium/expanded 二栏/三栏不传即可。
+/// 「移至分区…」弹层里「不在分区」那一项的返回值。
+///
+/// 不能用空串以外的假 id：分区 id 由 `newSectionId()` 生成（`sec_` 前缀），
+/// 这里取一个不可能撞上的常量，取消则返回 null，三者互不混淆。
+const String _moveToSectionNone = 'section:none';
+
 class ListContentPane extends ConsumerStatefulWidget {
   const ListContentPane({
     super.key,
@@ -789,6 +796,7 @@ class ListContentPane extends ConsumerStatefulWidget {
     this.onSelectItem,
     this.leading,
     this.listTitles,
+    this.selectedItem,
   });
 
   final ReminderList list;
@@ -799,6 +807,10 @@ class ListContentPane extends ConsumerStatefulWidget {
 
   /// 条目副标题用的真实列表名（智能视图下不是「今天/计划」）。
   final Map<String, String>? listTitles;
+
+  /// #537：三栏（expanded）里当前选中的条目，「移至分区…」的操作对象。
+  /// 选中态归 `_ThreePane`，这里只接过来用；两栏/紧凑栏没有选中面，传 null。
+  final ReminderItem? selectedItem;
 
   @override
   ConsumerState<ListContentPane> createState() => _ListContentPaneState();
@@ -891,11 +903,80 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         ref.read(collapsedKeysProvider.notifier).setSubtasksHidden(false);
       case LifeMenuAction.hideSubtasks:
         ref.read(collapsedKeysProvider.notifier).setSubtasksHidden(true);
+      // #537：「文件 → 移至分区…」。**不加 isSmart 闸门**：智能清单按定义
+      // 不带分区，走下面的「还没有分区」提示才是可见结果；加闸门会变成点了没反应。
+      case LifeMenuAction.moveToSection:
+        _moveSelectedToSection();
     }
   }
 
   void _setSortFromMenu(ListSortMode mode) {
     ref.read(listSortModeProvider.notifier).set(mode);
+  }
+
+  /// #537：把三栏里选中的条目移进某个分区（或移出分区）。
+  ///
+  /// 选择器用 `CupertinoActionSheet`，与「编辑列表」那面同一个形态；写回走
+  /// [ReminderRepository.upsertItem] 全量回写（端口不设字段级 setter）。
+  Future<void> _moveSelectedToSection() async {
+    final item = widget.selectedItem;
+    if (item == null) {
+      await _showMoveToSectionNotice('先选中一条提醒事项');
+      return;
+    }
+    final sections = widget.list.sections;
+    if (sections.isEmpty) {
+      await _showMoveToSectionNotice('这个列表还没有分区');
+      return;
+    }
+    if (!mounted) return;
+    final picked = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('移至分区'),
+        message: Text(item.title),
+        actions: [
+          for (final s in sections)
+            CupertinoActionSheetAction(
+              key: ValueKey('move_to_section_${s.id}'),
+              onPressed: () => Navigator.of(ctx).pop(s.id),
+              child: Text(s.title),
+            ),
+          CupertinoActionSheetAction(
+            key: const ValueKey('move_to_section_none'),
+            onPressed: () => Navigator.of(ctx).pop(_moveToSectionNone),
+            child: const Text('不在分区'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (picked == null) return;
+    await ref.read(reminderRepositoryProvider).upsertItem(
+          item.copyWith(
+            sectionId: picked == _moveToSectionNone ? null : picked,
+          ),
+        );
+  }
+
+  Future<void> _showMoveToSectionNotice(String message) async {
+    if (!mounted) return;
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (ctx) => LifeAlertDialog(
+        title: const Text('移至分区'),
+        content: Text(message),
+        actions: [
+          LifeDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _openNewListDialog() {

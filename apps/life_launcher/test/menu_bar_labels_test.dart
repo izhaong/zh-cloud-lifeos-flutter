@@ -94,6 +94,18 @@ void main() {
         reason: '壳不得自己过滤子任务');
   });
 
+  test('#537 文件菜单有「移至分区…」，且选择器与写回不在壳里', () {
+    expect(source.contains("label: '移至分区…'"), isTrue,
+        reason: 'Apple 文件菜单有「移至分区…」');
+    expect(source.contains('LifeMenuAction.moveToSection'), isTrue,
+        reason: '菜单项必须指向命令总线的 moveToSection');
+    // 分区选择器与条目写回都在 feature_task（那里才有选中态）；
+    // 壳里出现这些名字就说明有人另写了一套。
+    expect(source.contains('CupertinoActionSheet'), isFalse,
+        reason: '壳不得自己实现分区选择器');
+    expect(source.contains('upsertItem'), isFalse, reason: '壳不得直接落库');
+  });
+
   test('编辑菜单走标准 intent，不自己实现', () {
     for (final intent in [
       'UndoTextIntent',
