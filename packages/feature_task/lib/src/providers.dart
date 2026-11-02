@@ -334,7 +334,23 @@ class CollapsedKeysNotifier extends Notifier<Set<String>>
     if (!next.remove(key)) next.add(key);
     write(next);
   }
+
+  /// #537：「显示所有子任务 / 隐藏所有子任务」的整体开关，写进视图态键袋。
+  ///
+  /// 落在 `collapsedKeysJson` 这一列而不是新加 Drift 布尔列：该列已经是带
+  /// 命名空间的视图态键袋（`<listId>|<分区标题>` 与 `group:<分组名>` 两类共存），
+  /// 再加一个 `view:` 前缀即沿用同一条已测过的持久化与 revision 通路；
+  /// 新加列要升 schemaVersion（现 23）+ 重跑 build_runner + 改 6 处
+  /// `expect(db.schemaVersion, 23)` 硬编码断言，换到的是完全相同的持久化语义。
+  void setSubtasksHidden(bool hidden) {
+    final next = {...state}..remove(subtasksHiddenKey);
+    if (hidden) next.add(subtasksHiddenKey);
+    write(next);
+  }
 }
+
+/// 子任务显隐开关在视图态键袋里的键（`view:` 命名空间）。
+const String subtasksHiddenKey = 'view:subtasksHidden';
 
 /// 视图态 ↔ 本地偏好行的读写桥（flutter#124 卡 4b）。
 ///

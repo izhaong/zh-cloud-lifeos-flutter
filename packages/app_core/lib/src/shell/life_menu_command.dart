@@ -55,6 +55,12 @@ enum LifeMenuAction {
 
   /// 显示 → 排序方式 → 按优先级（#537）。
   sortByPriority,
+
+  /// 显示 → 显示所有子任务（#537）。
+  showAllSubtasks,
+
+  /// 显示 → 隐藏所有子任务（#537）。
+  hideSubtasks,
 }
 
 /// 命令出口。**没有菜单栏的平台（非 macOS）为 null**，页面订阅时必须判空。
