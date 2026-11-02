@@ -73,6 +73,12 @@ enum LifeMenuAction {
 
   /// 编辑 → 将截止日期标记为…（#537）。
   markDueDate,
+
+  /// 文件 → 置顶列表（#537）。
+  pinList,
+
+  /// 文件 → 取消置顶列表（#537）。
+  unpinList,
 }
 
 /// 命令出口。**没有菜单栏的平台（非 macOS）为 null**，页面订阅时必须判空。

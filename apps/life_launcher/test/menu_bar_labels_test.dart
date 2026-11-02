@@ -145,6 +145,20 @@ void main() {
     expect(source.contains('dueAt'), isFalse, reason: '壳不得自己碰日期字段');
   });
 
+  test('#537 文件菜单有置顶两项，且排序与置顶态不落在壳里', () {
+    expect(source.contains("label: '置顶列表'"), isTrue,
+        reason: 'Apple 文件菜单有 Pin Sublist');
+    expect(source.contains("label: '取消置顶列表'"), isTrue,
+        reason: 'Apple 文件菜单有 Unpin Sublist');
+    expect(source.contains('LifeMenuAction.pinList'), isTrue);
+    expect(source.contains('LifeMenuAction.unpinList'), isTrue);
+    // 置顶序与置顶态都是 feature_task 的视图态；壳里出现这些名字说明有人
+    // 在菜单层另做了一套排序或自己存了状态。
+    expect(source.contains('orderListsPinnedFirst'), isFalse,
+        reason: '壳不得自己排列表序');
+    expect(source.contains('pinned'), isFalse, reason: '壳不得自己存置顶态');
+  });
+
   test('编辑菜单走标准 intent，不自己实现', () {
     for (final intent in [
       'UndoTextIntent',
