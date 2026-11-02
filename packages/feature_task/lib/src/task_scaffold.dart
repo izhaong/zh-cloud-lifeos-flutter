@@ -792,13 +792,12 @@ class _EmptyOverview extends StatelessWidget {
 /// 这里取一个不可能撞上的常量，取消则返回 null，三者互不混淆。
 const String _moveToSectionNone = 'section:none';
 
-/// #537：「将截止日期标记为…」的可选项。
+/// #537/#545 共用：今天视图的「时间档」白名单——只有这四档在 [_sectionTime]
+/// 里定义了具体时刻，所以既能被拖入，也是「将截止日期标记为…」的全部选项。
 ///
-/// 只列 `_sectionTime` 明确定义了时刻的四档。不多列「已过期」：Apple 的
-/// Mark 里没有「标成过期」这一档，而 `_sectionTime` 对它也没有自己的时刻
-/// （落进 `_ => today` 分支）。今天视图拖档对「已过期」的注释与实现对不对得上，
-/// 另立 Issue 追，不在本刀顺手改。
-const List<String> _markDueDateBuckets = ['上午', '下午', '今晚', '今天'];
+/// 「已过期」不在其中：Apple 的 Mark 里没有「标成过期」这一档，而它本身也不是
+/// 一个时刻；「未分区」与计划视图的日期/分组标题同理。非时间档一律不改 dueAt。
+const List<String> _timeSectionBuckets = ['上午', '下午', '今晚', '今天'];
 
 class ListContentPane extends ConsumerStatefulWidget {
   const ListContentPane({
@@ -1024,7 +1023,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         title: const Text('将截止日期标记为'),
         message: Text(item.title),
         actions: [
-          for (final bucket in _markDueDateBuckets)
+          for (final bucket in _timeSectionBuckets)
             CupertinoActionSheetAction(
               key: ValueKey('mark_due_date_$bucket'),
               onPressed: () => Navigator.of(ctx).pop(bucket),
@@ -1485,7 +1484,12 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   /// #477：今天视图拖入分区 → 更新条目 dueAt 到该分区的代表性时刻。
   /// 上午=09:00 下午=15:00 今晚=20:00 今天=全天(00:00) 已过期=不变。
+  ///
+  /// #545：「已过期=不变」以前只是注释——非时间档在 [_sectionTime] 里落
+  /// `_ => today`，实测拖一次就把今晚 20:00 改成今天 00:00。现在按
+  /// [_timeSectionBuckets] 卡住：档名不对应时刻就不写库，菜单与拖放共用同一份白名单。
   Future<void> _onSectionDrop(String itemId, String sectionKey) async {
+    if (!_timeSectionBuckets.contains(sectionKey)) return;
     final repo = ref.read(reminderRepositoryProvider);
     final all = await repo.watchItems().first;
     final item = all.firstWhere(
