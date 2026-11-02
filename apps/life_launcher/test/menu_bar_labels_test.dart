@@ -33,6 +33,18 @@ void main() {
         reason: '新建备忘录应有 ⇧⌘N，避免与 ⌘N 冲突');
   });
 
+  test('#486 文件菜单有分区两项，且走命令总线不自己实现', () {
+    expect(source.contains("label: '新建分区'"), isTrue,
+        reason: 'Apple 文件菜单有「新建分区」');
+    expect(source.contains("label: '编辑分区…'"), isTrue,
+        reason: 'Apple 文件菜单有「编辑分区…」');
+    expect(source.contains('LifeMenuAction.newSection'), isTrue);
+    expect(source.contains('LifeMenuAction.editSections'), isTrue);
+    // 菜单侧不得自己写分区逻辑：入口本体在 feature_task 的 #533 里
+    expect(source.contains('upsertSection'), isFalse,
+        reason: '菜单只发命令，落库由 TaskScaffold 复用 #533 的入口');
+  });
+
   test('编辑菜单走标准 intent，不自己实现', () {
     for (final intent in [
       'UndoTextIntent',

@@ -859,6 +859,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         break;
       case LifeMenuAction.newList:
         _openNewListDialog();
+      // #486：菜单的分区两项复用 #533 的入口与闸门（智能清单没有分区）。
+      case LifeMenuAction.newSection:
+        if (!widget.list.isSmart) _createSection();
+      case LifeMenuAction.editSections:
+        if (!widget.list.isSmart) _editSections();
       case LifeMenuAction.openSettings:
         _openSettings();
       case LifeMenuAction.toggleSmartLists:
