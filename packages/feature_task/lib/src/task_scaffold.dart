@@ -240,7 +240,10 @@ class _CompactPane extends ConsumerWidget {
             // 负向断言见 compact_home_visual_test / wireframe_gaps_test）
             e.id != 'smart.assigned')
         .toList(growable: false);
-    final mine = lists.where((e) => !e.isSmart).toList(growable: false);
+    final mine = orderListsPinnedFirst(
+      lists.where((e) => !e.isSmart).toList(growable: false),
+      ref.watch(collapsedKeysProvider),
+    );
     final trash = lists.where((e) => e.id == 'smart.trash').firstOrNull;
     final hasGrocery = mine.any((e) => e.listType == ReminderListType.grocery);
     final query = ref.watch(searchQueryProvider).trim();
@@ -927,6 +930,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       // 拖档那一份（`_sectionTime` + `_onSectionDrop`），不开第二条写日期通路。
       case LifeMenuAction.markDueDate:
         _markSelectedDueDate();
+      // #537：「文件 → 置顶列表 / 取消置顶列表」，作用对象是前台列表。
+      case LifeMenuAction.pinList:
+        _setCurrentListPinned(true);
+      case LifeMenuAction.unpinList:
+        _setCurrentListPinned(false);
     }
   }
 
@@ -1031,6 +1039,17 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     );
     if (picked == null) return;
     await _onSectionDrop(item.id, picked);
+  }
+
+  /// #537：置顶/取消置顶前台列表。智能清单没有这个概念（侧栏内置区固定序），
+  /// 所以给可见提示而不是静默 no-op。
+  void _setCurrentListPinned(bool pinned) {
+    final list = widget.list;
+    if (list.isSmart) {
+      _showMenuNotice('置顶列表', '智能清单不用置顶');
+      return;
+    }
+    ref.read(collapsedKeysProvider.notifier).setListPinned(list.id, pinned);
   }
 
   Future<void> _showMenuNotice(String title, String message) async {

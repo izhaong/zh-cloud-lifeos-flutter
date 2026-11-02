@@ -119,6 +119,18 @@ class LifeMenuBar extends StatelessWidget {
               onSelected: () =>
                   commands.value = LifeMenuAction.moveToSection,
             ),
+            // #537：Apple「Pin Sublist / Unpin Sublist」。置顶态是前台列表的
+            // 属性，壳里判不了「当前是哪一条」，也只投命令；两份视图态一律落在
+            // feature_task。不挂键位（同 #542）。
+            PlatformMenuItem(
+              label: '置顶列表',
+              onSelected: () => commands.value = LifeMenuAction.pinList,
+            ),
+            PlatformMenuItem(
+              label: '取消置顶列表',
+              onSelected: () =>
+                  commands.value = LifeMenuAction.unpinList,
+            ),
           ],
         ),
         PlatformMenu(
