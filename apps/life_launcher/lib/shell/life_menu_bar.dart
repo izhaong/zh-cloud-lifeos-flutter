@@ -73,11 +73,11 @@ class _LifeMenuBarState extends State<LifeMenuBar> {
 
   @override
   Widget build(BuildContext context) => _LifeMenuBarBody(
-        editingText: _editingText,
-        commands: widget.commands,
-        onAbout: widget.onAbout,
-        child: widget.child,
-      );
+    editingText: _editingText,
+    commands: widget.commands,
+    onAbout: widget.onAbout,
+    child: widget.child,
+  );
 }
 
 class _LifeMenuBarBody extends StatelessWidget {
@@ -116,7 +116,8 @@ class _LifeMenuBarBody extends StatelessWidget {
                   ),
                 PlatformMenuItem(
                   label: '设置…',
-                  onSelected: () => commands.value = LifeMenuAction.openSettings,
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.openSettings,
                 ),
                 const PlatformProvidedMenuItem(
                   type: PlatformProvidedMenuItemType.servicesSubmenu,
@@ -150,7 +151,10 @@ class _LifeMenuBarBody extends StatelessWidget {
           menus: <PlatformMenuItem>[
             PlatformMenuItem(
               label: '新建提醒事项',
-              shortcut: const SingleActivator(LogicalKeyboardKey.keyN, meta: true),
+              shortcut: const SingleActivator(
+                LogicalKeyboardKey.keyN,
+                meta: true,
+              ),
               onSelected: () => commands.value = LifeMenuAction.newReminder,
             ),
             PlatformMenuItem(
@@ -182,13 +186,25 @@ class _LifeMenuBarBody extends StatelessWidget {
               label: '编辑分区…',
               onSelected: () => commands.value = LifeMenuAction.editSections,
             ),
+            // flutter #567：Apple「文件 ▸ 用所选项目新建分区」= ⌃⌘N。
+            // 与「移至分区…」同律：壳里判不了选中，只投命令，
+            // 未选中时由 feature_task 给可见提示且不写数据。
+            PlatformMenuItem(
+              label: '用所选项目新建分区',
+              shortcut: const SingleActivator(
+                LogicalKeyboardKey.keyN,
+                control: true,
+                meta: true,
+              ),
+              onSelected: () =>
+                  commands.value = LifeMenuAction.createSectionFromSelection,
+            ),
             // #537：Apple「文件 → 移至分区…」。操作对象是三栏里当前选中的
             // 条目，选中态与写回都在 feature_task；菜单侧判不了选中，也不许
             // 自己存一份选择。
             PlatformMenuItem(
               label: '移至分区…',
-              onSelected: () =>
-                  commands.value = LifeMenuAction.moveToSection,
+              onSelected: () => commands.value = LifeMenuAction.moveToSection,
             ),
             // #537：Apple「Pin Sublist / Unpin Sublist」。置顶态是前台列表的
             // 属性，壳里判不了「当前是哪一条」，也只投命令；两份视图态一律落在
@@ -199,8 +215,7 @@ class _LifeMenuBarBody extends StatelessWidget {
             ),
             PlatformMenuItem(
               label: '取消置顶列表',
-              onSelected: () =>
-                  commands.value = LifeMenuAction.unpinList,
+              onSelected: () => commands.value = LifeMenuAction.unpinList,
             ),
           ],
         ),
@@ -211,7 +226,10 @@ class _LifeMenuBarBody extends StatelessWidget {
               members: <PlatformMenuItem>[
                 PlatformMenuItem(
                   label: '撤销',
-                  shortcut: const SingleActivator(LogicalKeyboardKey.keyZ, meta: true),
+                  shortcut: const SingleActivator(
+                    LogicalKeyboardKey.keyZ,
+                    meta: true,
+                  ),
                   onSelected: () => _invoke(
                     const UndoTextIntent(SelectionChangedCause.keyboard),
                   ),
@@ -233,7 +251,10 @@ class _LifeMenuBarBody extends StatelessWidget {
               members: <PlatformMenuItem>[
                 PlatformMenuItem(
                   label: '剪切',
-                  shortcut: const SingleActivator(LogicalKeyboardKey.keyX, meta: true),
+                  shortcut: const SingleActivator(
+                    LogicalKeyboardKey.keyX,
+                    meta: true,
+                  ),
                   onSelected: () => _invoke(
                     const CopySelectionTextIntent.cut(
                       SelectionChangedCause.keyboard,
@@ -242,19 +263,28 @@ class _LifeMenuBarBody extends StatelessWidget {
                 ),
                 PlatformMenuItem(
                   label: '拷贝',
-                  shortcut: const SingleActivator(LogicalKeyboardKey.keyC, meta: true),
+                  shortcut: const SingleActivator(
+                    LogicalKeyboardKey.keyC,
+                    meta: true,
+                  ),
                   onSelected: () => _invoke(CopySelectionTextIntent.copy),
                 ),
                 PlatformMenuItem(
                   label: '粘贴',
-                  shortcut: const SingleActivator(LogicalKeyboardKey.keyV, meta: true),
+                  shortcut: const SingleActivator(
+                    LogicalKeyboardKey.keyV,
+                    meta: true,
+                  ),
                   onSelected: () => _invoke(
                     const PasteTextIntent(SelectionChangedCause.keyboard),
                   ),
                 ),
                 PlatformMenuItem(
                   label: '全选',
-                  shortcut: const SingleActivator(LogicalKeyboardKey.keyA, meta: true),
+                  shortcut: const SingleActivator(
+                    LogicalKeyboardKey.keyA,
+                    meta: true,
+                  ),
                   onSelected: () => _invoke(
                     const SelectAllTextIntent(SelectionChangedCause.keyboard),
                   ),
@@ -323,8 +353,7 @@ class _LifeMenuBarBody extends StatelessWidget {
               members: <PlatformMenuItem>[
                 PlatformMenuItem(
                   label: '将截止日期标记为…',
-                  onSelected: () =>
-                      commands.value = LifeMenuAction.markDueDate,
+                  onSelected: () => commands.value = LifeMenuAction.markDueDate,
                 ),
               ],
             ),
@@ -335,7 +364,8 @@ class _LifeMenuBarBody extends StatelessWidget {
           menus: <PlatformMenuItem>[
             PlatformMenuItem(
               label: '显示智能列表',
-              onSelected: () => commands.value = LifeMenuAction.toggleSmartLists,
+              onSelected: () =>
+                  commands.value = LifeMenuAction.toggleSmartLists,
             ),
             PlatformMenuItem(
               label: '显示边栏',
@@ -347,13 +377,11 @@ class _LifeMenuBarBody extends StatelessWidget {
             ),
             PlatformMenuItem(
               label: '显示所有子任务',
-              onSelected: () =>
-                  commands.value = LifeMenuAction.showAllSubtasks,
+              onSelected: () => commands.value = LifeMenuAction.showAllSubtasks,
             ),
             PlatformMenuItem(
               label: '隐藏所有子任务',
-              onSelected: () =>
-                  commands.value = LifeMenuAction.hideSubtasks,
+              onSelected: () => commands.value = LifeMenuAction.hideSubtasks,
             ),
             // #537：Apple「显示 → 排序方式」。排序能力本体在 feature_task
             // （工具栏「排序 ▾」用的同一份模式与 provider），这里只挂同义菜单，
@@ -378,8 +406,7 @@ class _LifeMenuBarBody extends StatelessWidget {
                 ),
                 PlatformMenuItem(
                   label: '按标题',
-                  onSelected: () =>
-                      commands.value = LifeMenuAction.sortByTitle,
+                  onSelected: () => commands.value = LifeMenuAction.sortByTitle,
                 ),
                 PlatformMenuItem(
                   label: '按优先级',

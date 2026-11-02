@@ -23,6 +23,13 @@ enum LifeMenuAction {
   /// 文件 → 新建分区（#486；接 #533 的入口，仅非智能清单生效）。
   newSection,
 
+  /// 文件 → 用所选项目新建分区（⌃⌘N，对等矩阵行 37 / flutter #567）。
+  ///
+  /// 与 [moveToSection] 同一条不变量：**菜单侧不判选中、也不另存一份选择**
+  /// （#537 写在 life_menu_bar 的注释里）。选中态只有 feature_task 有，
+  /// 未选中时由它给可见提示并且**一字不写**。
+  createSectionFromSelection,
+
   /// 文件 → 编辑列表（#537；编辑**当前前台清单**，智能清单不可用）。
   editList,
 
@@ -91,5 +98,6 @@ enum LifeMenuAction {
 ///
 /// 约定：接收方消费后要把值清回 `null`（`notifier.value = null`），
 /// 否则同一条命令会在下次重建/重新挂载时被重复执行。
-final lifeMenuCommandsProvider =
-    Provider<ValueNotifier<LifeMenuAction?>?>((ref) => null);
+final lifeMenuCommandsProvider = Provider<ValueNotifier<LifeMenuAction?>?>(
+  (ref) => null,
+);

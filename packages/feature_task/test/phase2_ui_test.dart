@@ -215,6 +215,19 @@ class _CountingRepo implements ReminderRepository {
     required ReminderSection section,
   }) => _inner.upsertSection(listId: listId, section: section);
 
+  // flutter #567：端口新增的原子写。计数照旧走 upsertCount，
+  // 好让「一次用户动作一次落库」这条断言继续有效。
+  @override
+  Future<void> createSectionWithTasks({
+    required String listId,
+    required ReminderSection section,
+    required List<String> itemIds,
+  }) => _inner.createSectionWithTasks(
+    listId: listId,
+    section: section,
+    itemIds: itemIds,
+  );
+
   @override
   Future<void> reorderSection({
     required String listId,
