@@ -70,6 +70,9 @@ enum LifeMenuAction {
 
   /// 编辑 → 查找…（#537）。
   findReminder,
+
+  /// 编辑 → 将截止日期标记为…（#537）。
+  markDueDate,
 }
 
 /// 命令出口。**没有菜单栏的平台（非 macOS）为 null**，页面订阅时必须判空。
