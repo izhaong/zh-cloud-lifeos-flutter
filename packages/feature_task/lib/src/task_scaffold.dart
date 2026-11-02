@@ -911,6 +911,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       // 的 30 天回收窗），不弹二次确认——Apple 也是直接进回收站、当场可恢复。
       case LifeMenuAction.deleteReminder:
         _deleteSelectedReminder();
+      // #537：「编辑 → 查找…」= 与 ⌘F 同一个入口。走 TaskShortcuts 的既有票据
+      // （`_onShortcut` 比对 focusSearchTicket 后 requestFocus），不在这里碰焦点。
+      case LifeMenuAction.findReminder:
+        _shortcuts?.requestFocusSearch();
     }
   }
 
@@ -1752,6 +1756,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: CupertinoTextField(
                 key: const ValueKey('compact_search'),
+                // #537：与宽屏 toolbar_search 共用同一个焦点节点。两处渲染互斥
+                // （isPane 二选一），一个节点不会同时挂在两个控件上；这样
+                // 「编辑 → 查找…」在任何档宽都能聚焦到看得见的搜索框。
+                focusNode: _searchFocus,
                 onChanged: (v) =>
                     ref.read(searchQueryProvider.notifier).set(v),
                 placeholder: '搜索',

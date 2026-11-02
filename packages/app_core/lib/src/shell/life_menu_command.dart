@@ -67,6 +67,9 @@ enum LifeMenuAction {
 
   /// 编辑 → 删除提醒事项（#537）。
   deleteReminder,
+
+  /// 编辑 → 查找…（#537）。
+  findReminder,
 }
 
 /// 命令出口。**没有菜单栏的平台（非 macOS）为 null**，页面订阅时必须判空。
