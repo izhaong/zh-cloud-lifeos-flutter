@@ -1965,13 +1965,26 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                         ref.watch(collapsedKeysProvider), entry.key))
                       for (final item in entry.value)
                         // #477：今天视图行可拖动，拖到分区头即改时间
-                        Draggable<String>(
-                          key: ValueKey('draggable_${item.id}'),
-                          data: item.id,
-                          feedback: _buildItemRow(
-                              item, subtasksByParent: subtasksByParent),
-                          child: _buildItemRow(
-                              item, subtasksByParent: subtasksByParent),
+                        //
+                        // #548：feedback 复用同一条行组件，而 Overlay 给反馈层的
+                        // 宽度约束是无界的（`0.0<=w<=Infinity`），行里的标题用了
+                        // `Expanded` → 起手即抛「children have non-zero flex but
+                        // incoming width constraints are unbounded」。这里用
+                        // LayoutBuilder 把源行的实际宽度交给反馈层，`Expanded`
+                        // 重新有界，跟手卡片也与源行同宽。
+                        LayoutBuilder(
+                          builder: (context, constraints) => Draggable<String>(
+                            key: ValueKey('draggable_${item.id}'),
+                            data: item.id,
+                            feedback: SizedBox(
+                              key: ValueKey('drag_feedback_${item.id}'),
+                              width: constraints.maxWidth,
+                              child: _buildItemRow(
+                                  item, subtasksByParent: subtasksByParent),
+                            ),
+                            child: _buildItemRow(
+                                item, subtasksByParent: subtasksByParent),
+                          ),
                         ),
                     // #487 面②：Apple「计划」视图每个日期组末尾一条空圆圈，
                     // 点它即在**那一天**新建（guide zh-cn/12：add reminders at the
