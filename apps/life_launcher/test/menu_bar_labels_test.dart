@@ -131,6 +131,20 @@ void main() {
         reason: '壳不得自己实现搜索');
   });
 
+  test('#537 编辑菜单有「将截止日期标记为…」，且档位定义不在壳里', () {
+    expect(source.contains("label: '将截止日期标记为…'"), isTrue,
+        reason: 'Apple 编辑菜单有 Mark 日期档');
+    expect(source.contains('LifeMenuAction.markDueDate'), isTrue,
+        reason: '菜单项必须指向命令总线的 markDueDate');
+    // 「上午/下午/今晚/今天」几点落地，是 feature_task 拖档那一份实现（_sectionTime）
+    // 的事；壳里出现这些名字就说明有人复制了第二套日期定义。
+    expect(source.contains('_sectionTime'), isFalse,
+        reason: '壳不得自己定义档位的时刻');
+    expect(source.contains('_onSectionDrop'), isFalse,
+        reason: '壳不得自己写日期落库');
+    expect(source.contains('dueAt'), isFalse, reason: '壳不得自己碰日期字段');
+  });
+
   test('编辑菜单走标准 intent，不自己实现', () {
     for (final intent in [
       'UndoTextIntent',

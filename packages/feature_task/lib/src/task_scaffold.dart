@@ -789,6 +789,14 @@ class _EmptyOverview extends StatelessWidget {
 /// 这里取一个不可能撞上的常量，取消则返回 null，三者互不混淆。
 const String _moveToSectionNone = 'section:none';
 
+/// #537：「将截止日期标记为…」的可选项。
+///
+/// 只列 `_sectionTime` 明确定义了时刻的四档。不多列「已过期」：Apple 的
+/// Mark 里没有「标成过期」这一档，而 `_sectionTime` 对它也没有自己的时刻
+/// （落进 `_ => today` 分支）。今天视图拖档对「已过期」的注释与实现对不对得上，
+/// 另立 Issue 追，不在本刀顺手改。
+const List<String> _markDueDateBuckets = ['上午', '下午', '今晚', '今天'];
+
 class ListContentPane extends ConsumerStatefulWidget {
   const ListContentPane({
     super.key,
@@ -915,6 +923,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       // （`_onShortcut` 比对 focusSearchTicket 后 requestFocus），不在这里碰焦点。
       case LifeMenuAction.findReminder:
         _shortcuts?.requestFocusSearch();
+      // #537：「编辑 → 将截止日期标记为…」。档位时刻与落库一律复用今天视图
+      // 拖档那一份（`_sectionTime` + `_onSectionDrop`），不开第二条写日期通路。
+      case LifeMenuAction.markDueDate:
+        _markSelectedDueDate();
     }
   }
 
@@ -985,6 +997,40 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       return;
     }
     await ref.read(reminderRepositoryProvider).deleteItem(item.id);
+  }
+
+  /// #537：把三栏里选中的那条标到某个日期档。
+  ///
+  /// 落库直接调 `_onSectionDrop`（今天视图拖档那一份），所以菜单里不会
+  /// 出现第二套「今晚是几点」的定义，也不会绕开它的 `newDue != item.dueAt` 判定。
+  Future<void> _markSelectedDueDate() async {
+    final item = widget.selectedItem;
+    if (item == null) {
+      await _showMenuNotice('将截止日期标记为', '先选中一条提醒事项');
+      return;
+    }
+    if (!mounted) return;
+    final picked = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: const Text('将截止日期标记为'),
+        message: Text(item.title),
+        actions: [
+          for (final bucket in _markDueDateBuckets)
+            CupertinoActionSheetAction(
+              key: ValueKey('mark_due_date_$bucket'),
+              onPressed: () => Navigator.of(ctx).pop(bucket),
+              child: Text(bucket),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (picked == null) return;
+    await _onSectionDrop(item.id, picked);
   }
 
   Future<void> _showMenuNotice(String title, String message) async {

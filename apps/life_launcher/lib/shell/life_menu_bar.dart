@@ -210,6 +210,18 @@ class LifeMenuBar extends StatelessWidget {
                 ),
               ],
             ),
+            // #537：Apple「编辑 → 将截止日期标记为…」。档位与落库都在
+            // feature_task（今天视图拖档那一份实现），菜单侧不定义「今晚是几点」，
+            // 也不挂键位（同 #542）。
+            PlatformMenuItemGroup(
+              members: <PlatformMenuItem>[
+                PlatformMenuItem(
+                  label: '将截止日期标记为…',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.markDueDate,
+                ),
+              ],
+            ),
           ],
         ),
         PlatformMenu(
