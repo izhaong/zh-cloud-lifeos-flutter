@@ -10,6 +10,7 @@ import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
 import 'widgets/reminder_row.dart';
+import 'widgets/section_editor_sheet.dart';
 import 'widgets/smart_list_card.dart';
 import 'widgets/task_settings_sheet.dart';
 import 'widgets/task_shortcuts.dart';
@@ -1426,6 +1427,19 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     setState(() => _showDraft = true);
   }
 
+  /// #533：分区生产入口——替掉原「按分区整理（规划）」置灰占位。
+  Future<void> _createSection() => showNewSectionDialog(
+    context,
+    list: widget.list,
+    repository: ref.read(reminderRepositoryProvider),
+  );
+
+  Future<void> _editSections() => showSectionEditorSheet(
+    context,
+    list: widget.list,
+    repository: ref.read(reminderRepositoryProvider),
+  );
+
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(filteredItemsForListProvider(widget.list.id));
@@ -1521,6 +1535,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               showCompleted:
                   ref.watch(showCompletedByListProvider)[widget.list.id] ??
                   false,
+              sectionsEnabled: !widget.list.isSmart,
+              onNewSection: _createSection,
+              onEditSections: _editSections,
             ),
           ],
         ),
@@ -2261,15 +2278,21 @@ class _CupertinoMenu<T> extends StatelessWidget {
   }
 }
 
-/// 列表「更多」菜单（⋯）：显示已完成开关 + 规划占位（置灰）。
+/// 列表「更多」菜单（⋯）：显示已完成开关 + 分区入口（#533 替掉原置灰占位）。
 class _MoreMenu extends StatelessWidget {
   const _MoreMenu({
     required this.onToggleCompleted,
     required this.showCompleted,
+    required this.sectionsEnabled,
+    required this.onNewSection,
+    required this.onEditSections,
   });
 
   final VoidCallback onToggleCompleted;
   final bool showCompleted;
+  final bool sectionsEnabled;
+  final VoidCallback onNewSection;
+  final VoidCallback onEditSections;
 
   @override
   Widget build(BuildContext context) {
@@ -2281,12 +2304,20 @@ class _MoreMenu extends StatelessWidget {
           value: showCompleted ? 'hide-completed' : 'toggle-completed',
           label: showCompleted ? '隐藏已完成' : '显示已完成',
         ),
-        const _MenuItem(value: null, label: '按分区整理（规划）'),
+        // #533：智能列表没有分区（分区属用户列表），故只普通列表出这两个入口。
+        if (sectionsEnabled) ...[
+          const _MenuItem(value: 'new-section', label: '新建分区'),
+          const _MenuItem(value: 'edit-sections', label: '编辑分区…'),
+        ],
       ],
       current: 'toggle-completed',
       onSelected: (v) {
         if (v == 'toggle-completed' || v == 'hide-completed') {
           onToggleCompleted();
+        } else if (v == 'new-section') {
+          onNewSection();
+        } else if (v == 'edit-sections') {
+          onEditSections();
         }
       },
       anchor: const Icon(CupertinoIcons.ellipsis_circle),

@@ -70,6 +70,9 @@ String newReminderId() => 'rem_${DateTime.now().microsecondsSinceEpoch}_'
 String newListId() => 'list_${DateTime.now().microsecondsSinceEpoch}_'
     '${_shortRand()}';
 
+String newSectionId() => 'sec_${DateTime.now().microsecondsSinceEpoch}_'
+    '${_shortRand()}';
+
 String _shortRand() {
   final rand = DateTime.now().microsecondsSinceEpoch.hashCode;
   return (rand & 0xFFFF).toRadixString(36);
