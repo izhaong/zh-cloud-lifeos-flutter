@@ -181,6 +181,39 @@ class LifeMenuBar extends StatelessWidget {
               label: '隐藏完成项目',
               onSelected: () => commands.value = LifeMenuAction.toggleCompleted,
             ),
+            // #537：Apple「显示 → 排序方式」。排序能力本体在 feature_task
+            // （工具栏「排序 ▾」用的同一份模式与 provider），这里只挂同义菜单，
+            // 不新造第二套排序——判据见 menu_bar_labels_test.dart。
+            PlatformMenu(
+              label: '排序方式',
+              menus: <PlatformMenuItem>[
+                PlatformMenuItem(
+                  label: '手动',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.sortByManual,
+                ),
+                PlatformMenuItem(
+                  label: '按到期日',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.sortByDueDate,
+                ),
+                PlatformMenuItem(
+                  label: '按创建日期',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.sortByCreatedDate,
+                ),
+                PlatformMenuItem(
+                  label: '按标题',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.sortByTitle,
+                ),
+                PlatformMenuItem(
+                  label: '按优先级',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.sortByPriority,
+                ),
+              ],
+            ),
             const PlatformProvidedMenuItem(
               type: PlatformProvidedMenuItemType.toggleFullScreen,
             ),

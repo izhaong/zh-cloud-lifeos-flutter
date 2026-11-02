@@ -872,7 +872,23 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         _toggleSidebar();
       case LifeMenuAction.toggleCompleted:
         _toggleShowCompleted();
+      // #537：「显示 → 排序方式」五档，写的是工具栏同一个 listSortModeProvider，
+      // 排序比较器一律复用 [_sortTopLevel]，菜单侧不实现第二套排序。
+      case LifeMenuAction.sortByManual:
+        _setSortFromMenu(ListSortMode.manual);
+      case LifeMenuAction.sortByDueDate:
+        _setSortFromMenu(ListSortMode.dueDate);
+      case LifeMenuAction.sortByCreatedDate:
+        _setSortFromMenu(ListSortMode.createdDate);
+      case LifeMenuAction.sortByTitle:
+        _setSortFromMenu(ListSortMode.title);
+      case LifeMenuAction.sortByPriority:
+        _setSortFromMenu(ListSortMode.priority);
     }
+  }
+
+  void _setSortFromMenu(ListSortMode mode) {
+    ref.read(listSortModeProvider.notifier).set(mode);
   }
 
   void _openNewListDialog() {

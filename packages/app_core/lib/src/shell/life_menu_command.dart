@@ -37,6 +37,21 @@ enum LifeMenuAction {
 
   /// 显示 → 隐藏/显示已完成项目（#486）。
   toggleCompleted,
+
+  /// 显示 → 排序方式 → 手动（#537；与工具栏「排序 ▾」同档，不是第二套排序）。
+  sortByManual,
+
+  /// 显示 → 排序方式 → 按到期日（#537）。
+  sortByDueDate,
+
+  /// 显示 → 排序方式 → 按创建日期（#537）。
+  sortByCreatedDate,
+
+  /// 显示 → 排序方式 → 按标题（#537）。
+  sortByTitle,
+
+  /// 显示 → 排序方式 → 按优先级（#537）。
+  sortByPriority,
 }
 
 /// 命令出口。**没有菜单栏的平台（非 macOS）为 null**，页面订阅时必须判空。
