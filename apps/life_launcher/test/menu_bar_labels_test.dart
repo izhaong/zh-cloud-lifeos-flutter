@@ -116,6 +116,25 @@ void main() {
     expect(source.contains('restoreItem'), isFalse, reason: '壳不得自己恢复');
   });
 
+  test('#537 编辑菜单有「缩进 / 减少缩进」，且层级判定不落在壳里', () {
+    expect(source.contains("label: '缩进'"), isTrue,
+        reason: 'Apple 编辑菜单有 Indent Reminder');
+    expect(source.contains("label: '减少缩进'"), isTrue,
+        reason: 'Apple 编辑菜单有 Outdent Reminder');
+    expect(source.contains('LifeMenuAction.indentReminder'), isTrue,
+        reason: '菜单项必须指向命令总线的 indentReminder');
+    expect(source.contains('LifeMenuAction.outdentReminder'), isTrue,
+        reason: '菜单项必须指向命令总线的 outdentReminder');
+    // 「上一条是谁」由 feature_task 按真实渲染行序算；壳里出现 parentId
+    // 或 upsertItem 就说明有人在菜单层重做了一遍层级逻辑。
+    expect(source.contains('parentId'), isFalse, reason: '壳不得自己改层级');
+    expect(source.contains('upsertItem'), isFalse, reason: '壳不得自己写库');
+    // 这两项本轮不声明键位（Apple 用方括号那两个键）：#542 的让位机制只解决
+    // 「与文本编辑抢键」，键位该不该占是另一个决定。
+    expect(source.contains('bracket'), isFalse,
+        reason: '缩进/减少缩进的键位归属未定，本轮不得抢');
+  });
+
   test('#537 编辑菜单有「查找…」，且菜单不抢 ⌘F/⌘⌫ 键位', () {
     expect(source.contains("label: '查找…'"), isTrue,
         reason: 'Apple 编辑菜单有 Find…');

@@ -929,6 +929,13 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       // 拖档那一份（`_sectionTime` + `_onSectionDrop`），不开第二条写日期通路。
       case LifeMenuAction.markDueDate:
         _markSelectedDueDate();
+      // #537：「编辑 → 缩进 / 减少缩进」改的是 `parentId`，归属对象按
+      // `_menuVisibleRows`（渲染处收一次的真实行序）取，不在这里重抄
+      // 过滤/排序/折叠规则——重抄的那份迟早和界面不一致。
+      case LifeMenuAction.indentReminder:
+        _indentSelectedReminder();
+      case LifeMenuAction.outdentReminder:
+        _outdentSelectedReminder();
       // #537：「文件 → 置顶列表 / 取消置顶列表」，作用对象是前台列表。
       case LifeMenuAction.pinList:
         _setCurrentListPinned(true);
@@ -1049,6 +1056,73 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       return;
     }
     ref.read(collapsedKeysProvider.notifier).setListPinned(list.id, pinned);
+  }
+
+  /// #537：渲染处每轮刷新一次的「可见行序」（父行后紧跟其子行）。
+  /// 只在 build 里赋值、不 setState——它是那一帧的派生物，不是新状态。
+  List<ReminderItem> _menuVisibleRows = const [];
+
+  /// #537：「编辑 → 缩进」= 把选中那条挂到它上面那一行之下。
+  ///
+  /// 三种不做的情况都给可见提示（静默 no-op 等于菜单坏了）：上面没有行、
+  /// 已经挂在那儿了、它自己还带着子任务（挪父级会把整棵子树一起搬走，
+  /// Apple 也是直接拒绝）。
+  Future<void> _indentSelectedReminder() async {
+    final item = widget.selectedItem;
+    if (item == null) {
+      await _showMenuNotice('缩进', '先选中一条提醒事项');
+      return;
+    }
+    if (_isTrashView) {
+      await _showMenuNotice('缩进', '最近删除里不能改层级');
+      return;
+    }
+    final order = _menuVisibleRows;
+    final index = order.indexWhere((e) => e.id == item.id);
+    if (index <= 0) {
+      await _showMenuNotice('缩进', '它上面没有可以归属的提醒事项');
+      return;
+    }
+    final above = order[index - 1];
+    if (above.id == item.parentId) {
+      await _showMenuNotice('缩进', '这条已经挂在那个下面了');
+      return;
+    }
+    if (order.any((e) => e.parentId == item.id)) {
+      await _showMenuNotice('缩进', '这条自己还有子任务，先把子任务移走');
+      return;
+    }
+    await ref
+        .read(reminderRepositoryProvider)
+        .upsertItem(item.copyWith(parentId: above.id));
+  }
+
+  /// #537：「编辑 → 减少缩进」= 升一层，父级换成祖父级（顶层条目没有可减的层）。
+  Future<void> _outdentSelectedReminder() async {
+    final item = widget.selectedItem;
+    if (item == null) {
+      await _showMenuNotice('减少缩进', '先选中一条提醒事项');
+      return;
+    }
+    if (_isTrashView) {
+      await _showMenuNotice('减少缩进', '最近删除里不能改层级');
+      return;
+    }
+    final parentId = item.parentId;
+    if (parentId == null) {
+      await _showMenuNotice('减少缩进', '这条已经在最外层');
+      return;
+    }
+    final parents = _menuVisibleRows.where((e) => e.id == parentId);
+    final parent = parents.isEmpty ? null : parents.first;
+    if (parent == null) {
+      // 孤儿（父不在结果集）按顶层渲染，减无可减。
+      await _showMenuNotice('减少缩进', '这条已经在最外层');
+      return;
+    }
+    await ref
+        .read(reminderRepositoryProvider)
+        .upsertItem(item.copyWith(parentId: parent.parentId));
   }
 
   Future<void> _showMenuNotice(String title, String message) async {
@@ -1616,6 +1690,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                   false,
               listName: listName,
               dense: true,
+              // #537：子行也要能选中。不接这条，「减少缩进」在界面上永远点不到
+              // （选中态只有顶层行能拿），而 Apple 的子任务是可点选的。
+              onTap: () => widget.onSelectItem?.call(sub),
               onToggleCompleted: () => completeReminder(ref, sub),
               onToggleFlagged: () => repo.toggleFlagged(sub.id),
               onDelete: _isTrashView ? null : () => repo.deleteItem(sub.id),
@@ -1916,6 +1993,26 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                   searching: query.trim().isNotEmpty,
                 );
                 final sections = layout.sections;
+                // #537：把「屏幕上真实会出现的行」按顺序留一份，给缩进/减少缩进
+                // 当依据。父行紧跟它的子行，与 `_buildItemRow` 的渲染顺序一致。
+                final subsHidden = ref
+                    .read(collapsedKeysProvider)
+                    .contains(subtasksHiddenKey);
+                _menuVisibleRows = [
+                  for (final entry in sections.entries)
+                    if (!_isCollapsed(
+                        ref.read(collapsedKeysProvider), entry.key))
+                      for (final row in entry.value) ...[
+                        row,
+                        // 「隐藏所有子任务」时子行不渲染，行序里也不该有它们
+                        if (!subsHidden)
+                          for (final sub in (
+                            subtasksByParent[row.id] ??
+                            const <ReminderItem>[]
+                          ))
+                            sub,
+                      ],
+                ];
                 // #388：草稿行要有自己的可定位身份——工具栏搜索框同为
                 // CupertinoTextField，按类型断言会连它一起数到，判据恒真。
                 final draftRow = _DraftRow(
