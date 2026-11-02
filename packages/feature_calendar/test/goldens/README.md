@@ -39,3 +39,15 @@ flutter test test/calendar_regression_test.dart --update-goldens --no-pub
    `--platform` 分目录）。
 2. `day_view` 若将来引入「当前时间红线」之类依赖**时刻**（不只是日期）的元素，同样要走
    `clockProvider`，否则会在午夜前后抖动。
+
+## 失败产物（`test/failures/`）不入库（#556）
+
+golden 判红时 Flutter 会在同包 `test/failures/` 下写四张一次性诊断图
+（`masterImage` / `testImage` / `isolatedDiff` / `maskedDiff`）。它们**不是基线**：
+基线只有本目录 `test/goldens/` 里那几张。
+
+这 28 张（calendar 8、task 12、note 8）曾被误提交进 develop，导致每跑一次红 golden
+就把 8 个跟踪文件改成 `M`，`git add -A` 一步就把二进制 diff 混进 PR。
+现已 `git rm --cached` 摘出索引并在 `.gitignore` 补 `**/test/failures/`。
+
+要留证据时请自己拷走：`cp -R packages/*/test/failures /tmp/…`，别指望它进版本库。
