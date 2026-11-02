@@ -811,6 +811,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   /// #513 面①：分区「＋」触发的草稿落点分区（null = 普通幽灵行新建）。
   String? _pendingQuickAddSection;
+
+  /// #487 面②：计划视图组末空圆圈触发的草稿落点「那一天」（null = 走 [_sectionTime]）。
+  DateTime? _pendingQuickAddDay;
   TaskShortcutsController? _shortcuts;
   int _lastNewTicket = 0;
   int _lastSearchTicket = 0;
@@ -939,7 +942,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// sectionId 挂靠 + 未分区兜底；TC-KR-118 互斥契约——一列表一种分组模式）；
   /// 无分区元数据回退 dueAt 日桶，无日期单独一区。
   /// 保序：手动分区按元数据 sortOrder asc, id asc；日桶沿用 items 排序。
-  Map<String, List<ReminderItem>> _buildSections(
+  _SectionLayout _buildSections(
     List<ReminderItem> topLevel, {
     bool searching = false,
   }) {
@@ -964,7 +967,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       if (sections.containsKey('未分区')) {
         ordered['未分区'] = sections['未分区']!;
       }
-      return ordered;
+      return _SectionLayout(ordered, const {});
     }
 
     if (widget.list.id == 'smart.today') {
@@ -1001,16 +1004,16 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
           buckets['今晚']!.add(item);
         }
       }
-      return {
+      return _SectionLayout({
         for (final key in buckets.keys)
           if (buckets[key]!.isNotEmpty) key: buckets[key]!,
-      };
+      }, const {});
     }
 
     // #478：「全部」按提醒事项列表分组（guide/mac/zh-cn/14:25），
     // 与「计划」的按日期分组（同段 14:24）是两种模式，别混用日期桶。
     if (widget.list.id == 'smart.all') {
-      return _sectionsByReminderList(topLevel);
+      return _SectionLayout(_sectionsByReminderList(topLevel), const {});
     }
 
     final now = ref.read(clockProvider)();
@@ -1027,11 +1030,41 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       // #531：搜索态例外——Apple 搜索时只出匹配结果，不铺空骨架，
       // 否则 4 条命中会被十几屏空月头淹没。
       if (widget.list.id == 'smart.scheduled' && !searching) {
-        return _addFutureSkeletons(sorted, now);
+        final laid = _addFutureSkeletons(sorted, now);
+        return _SectionLayout(
+            laid.sections, _daySections(laid.sections, laid.daySkeletons));
       }
-      return sorted;
+      // 搜索态（#531）与紧急视图：组末快捷行只服务于「计划」的空骨架档位。
+      return _SectionLayout(sorted, const {});
     }
-    return sections;
+    return _SectionLayout(sections, const {});
+  }
+
+  /// #487 面②：把「能定位到具体一天」的组挑出来 —— 条目组取组内最早 dueAt 那天，
+  /// 逐日骨架组取 [_addFutureSkeletons] 记下的日子。
+  ///
+  /// 挑不出的组**故意不进这张表**，因此也就拿不到组末快捷行：
+  /// 「已过期」（#513 面② 已定口径：不提供新建入口）、「无日期」、
+  /// 以及月档（「十一月其他时间」「十二月」「2027年一月」——Apple 的月桶只有头，
+  /// 一条空圆圈对不上「哪一天」）。
+  Map<String, DateTime> _daySections(
+    Map<String, List<ReminderItem>> sections,
+    Map<String, DateTime> daySkeletons,
+  ) {
+    final out = <String, DateTime>{};
+    for (final entry in sections.entries) {
+      if (entry.key == '已过期' || entry.key == '无日期') continue;
+      DateTime? best;
+      for (final item in entry.value) {
+        final due = item.dueAt;
+        if (due == null) continue;
+        final day = DateTime(due.year, due.month, due.day);
+        if (best == null || day.isBefore(best)) best = day;
+      }
+      final day = best ?? daySkeletons[entry.key];
+      if (day != null) out[entry.key] = day;
+    }
+    return out;
   }
 
   /// #487：为计划视图补未来骨架；#527 定档为 Apple 实测的三档：
@@ -1042,7 +1075,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// 与条目组的写法永不相等——相对词那天（「明天」）会多出一个空的「11月1日」，
   /// 带星期后缀那天（「11月3日 周二」）也会多出一个空的「11月3日」，
   /// 同一天出现两个组头。骨架与条目组同键这条不变量在本档继续成立。
-  Map<String, List<ReminderItem>> _addFutureSkeletons(
+  ({
+    Map<String, List<ReminderItem>> sections,
+    Map<String, DateTime> daySkeletons
+  }) _addFutureSkeletons(
       Map<String, List<ReminderItem>> sections, DateTime now) {
     final today = DateTime(now.year, now.month, now.day);
     final monthEnd = DateTime(today.year, today.month + 1, 0);
@@ -1053,6 +1089,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     // 空骨架组没有 dueAt，排序时要按「它代表哪天」落位。
     final skeletonDays = <String, DateTime>{};
     final skeleton = <String, List<ReminderItem>>{};
+    // #487 面②：只有**逐日档**的骨架组能定位到具体一天，月档（下面两档）不能——
+    // 组末空圆圈只铺到前者，月桶按 Apple 只有组头。
+    final daySkeletons = <String, DateTime>{};
     void putSkeleton(String key, DateTime repDay) {
       skeletonDays[key] = repDay;
       skeleton.putIfAbsent(key, () => const <ReminderItem>[]);
@@ -1061,7 +1100,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     for (var day = DateTime(today.year, today.month, today.day + 1);
         !day.isAfter(weekEnd);
         day = DateTime(day.year, day.month, day.day + 1)) {
-      putSkeleton(_sectionLabel(day, now), day);
+      final key = _sectionLabel(day, now);
+      putSkeleton(key, day);
+      daySkeletons[key] = day;
     }
     if (weekEnd.isBefore(monthEnd)) {
       // 本月剩余只铺一个桶；代表日 = 逐日档之后的第一天，保证桶排在逐日之后。
@@ -1116,7 +1157,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       if (byDay != 0) return byDay;
       return a.value.isEmpty ? 1 : (b.value.isEmpty ? -1 : 0);
     });
-    return {for (final entry in entries) entry.key: entry.value};
+    return (
+      sections: {for (final entry in entries) entry.key: entry.value},
+      daySkeletons: daySkeletons,
+    );
   }
 
   /// #478：按所属提醒事项列表建组，组序跟边栏清单序（`listTitles` 按清单迭代序构造）。
@@ -1223,10 +1267,13 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   }
 
   /// #480/#513 面①：今天视图分区头「＋」→ 开启该分区的草稿输入态。
+  /// #487 面②：计划视图组末空圆圈走同一条草稿通道，但带 `day`——
+  /// 落库时刻由那一天的 00:00 决定，而不是 [_sectionTime] 的今天档。
   /// 落库在用户输入标题并回车后发生（空标题不落库，失焦即丢弃）。
-  void _quickAddToSection(String sectionKey) {
+  void _quickAddToSection(String sectionKey, {DateTime? day}) {
     setState(() {
       _pendingQuickAddSection = sectionKey;
+      _pendingQuickAddDay = day;
       _showDraft = true;
       _draftController.clear();
     });
@@ -1378,16 +1425,21 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     final title = _draftController.text.trim();
     if (title.isEmpty) {
       // 空草稿失焦：直接收起，不落库（Apple：空行点到别处即消失）
+      _pendingQuickAddSection = null;
+      _pendingQuickAddDay = null;
       if (_showDraft && mounted) setState(() => _showDraft = false);
       return;
     }
     _submittingDraft = true;
     final repo = ref.read(reminderRepositoryProvider);
     // #513 面①：若来自分区「＋」，dueAt 用该分区的代表时刻
+    // #487 面②：若来自计划视图的组末空圆圈，dueAt 直接用那一天的 00:00
     final pendingSection = _pendingQuickAddSection;
-    final dueAtOverride = pendingSection != null
-        ? _sectionTime(pendingSection, DateTime.now())
-        : null;
+    final pendingDay = _pendingQuickAddDay;
+    final dueAtOverride = pendingDay ??
+        (pendingSection != null
+            ? _sectionTime(pendingSection, DateTime.now())
+            : null);
     // 智能视图内新建：必须落到对应视图的语义上——
     // today/scheduled/urgent 需要 dueAt 才能命中（smart.today 过滤 = !completed && 同日）；
     // 没有 dueAt 的条目只会出现在「全部」视图，在「今天」里不可见。
@@ -1417,6 +1469,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       ),
     );
     _draftController.clear();
+    // 快捷新建的落点是一次性的：不清的话，下一次普通新建会静默继承
+    // 上一次那个分区/那一天（#487 引入组末圆圈后这条通道有两个来源，必须收口）。
+    _pendingQuickAddSection = null;
+    _pendingQuickAddDay = null;
     if (mounted) setState(() => _showDraft = false);
     _submittingDraft = false;
   }
@@ -1633,10 +1689,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                 final skipSectionHeader =
                     widget.list.id == 'smart.today' ||
                     widget.list.id == 'smart.scheduled';
-                final sections = _buildSections(
+                final layout = _buildSections(
                   topLevel,
                   searching: query.trim().isNotEmpty,
                 );
+                final sections = layout.sections;
                 // #388：草稿行要有自己的可定位身份——工具栏搜索框同为
                 // CupertinoTextField，按类型断言会连它一起数到，判据恒真。
                 final draftRow = _DraftRow(
@@ -1645,6 +1702,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                   onSubmit: _submitDraft,
                   onCancel: () {
                     _draftController.clear();
+                    _pendingQuickAddSection = null;
+                    _pendingQuickAddDay = null;
                     setState(() => _showDraft = false);
                   },
                 );
@@ -1692,6 +1751,19 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                           child: _buildItemRow(
                               item, subtasksByParent: subtasksByParent),
                         ),
+                    // #487 面②：Apple「计划」视图每个日期组末尾一条空圆圈，
+                    // 点它即在**那一天**新建（guide zh-cn/12：add reminders at the
+                    // bottom of the section）。零条目的骨架组也要有——这正是骨架
+                    // 存在的意义；折叠态收起时不铺。
+                    if (widget.list.id == 'smart.scheduled' &&
+                        !_isCollapsed(
+                            ref.watch(collapsedKeysProvider), entry.key) &&
+                        layout.dayByKey.containsKey(entry.key))
+                      _SectionQuickCreateRow(
+                        key: ValueKey('quick_create_${entry.key}'),
+                        onTap: () => _quickAddToSection(entry.key,
+                            day: layout.dayByKey[entry.key]),
+                      ),
                   ],
                   // 紧凑端保留底部工具条入口，草稿行仍落在列表体末尾。
                   if (!isPane && _showDraft) draftRow,
@@ -1818,6 +1890,45 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// #487 面②：一次分区构建的两个产物——组序 + 「组键 → 具体那一天」。
+///
+/// `dayByKey` 只收**能定位到某一天**的组（见 [_daySections]），组末快捷行据此铺。
+class _SectionLayout {
+  const _SectionLayout(this.sections, this.dayByKey);
+
+  final Map<String, List<ReminderItem>> sections;
+  final Map<String, DateTime> dayByKey;
+}
+
+/// #487 面②：Apple「计划」视图日期组末尾的空圆圈行——只有圈、没有文字，
+/// 点它即在**该组那一天**开草稿（与列表行左侧未勾选的圆圈同一形状，见 ReminderRow）。
+class _SectionQuickCreateRow extends StatelessWidget {
+  const _SectionQuickCreateRow({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              CupertinoIcons.circle,
+              color: CupertinoDynamicColor.resolve(
+                  ReminderTokens.labelTertiary, context),
+              size: 22,
+            ),
+          ],
+        ),
       ),
     );
   }
