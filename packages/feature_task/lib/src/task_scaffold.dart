@@ -124,7 +124,10 @@ class TaskScaffold extends ConsumerWidget {
         return Column(
           children: [
             ColoredBox(
-              color: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
+              color: CupertinoDynamicColor.resolve(
+                ReminderTokens.windowBg,
+                context,
+              ),
               child: Row(
                 children: [
                   const Expanded(
@@ -233,12 +236,14 @@ class _CompactPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final smart = lists
-        .where((e) =>
-            e.isSmart &&
-            e.id != 'smart.trash' &&
-            // 分配事项按批次裁定不出现在任务 UI（TC-API-121 降级口径；
-            // 负向断言见 compact_home_visual_test / wireframe_gaps_test）
-            e.id != 'smart.assigned')
+        .where(
+          (e) =>
+              e.isSmart &&
+              e.id != 'smart.trash' &&
+              // 分配事项按批次裁定不出现在任务 UI（TC-API-121 降级口径；
+              // 负向断言见 compact_home_visual_test / wireframe_gaps_test）
+              e.id != 'smart.assigned',
+        )
         .toList(growable: false);
     final mine = orderListsPinnedFirst(
       lists.where((e) => !e.isSmart).toList(growable: false),
@@ -251,9 +256,15 @@ class _CompactPane extends ConsumerWidget {
     // iOS 提醒事项「列表」首页：大标题 + 搜索 + 智能卡片 + 我的列表。
     // 嵌在生活台壳内时，壳应用栏常显；本页不再另起全屏路由。
     return CupertinoPageScaffold(
-      backgroundColor: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
+      backgroundColor: CupertinoDynamicColor.resolve(
+        ReminderTokens.windowBg,
+        context,
+      ),
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
+        backgroundColor: CupertinoDynamicColor.resolve(
+          ReminderTokens.windowBg,
+          context,
+        ),
         automaticallyImplyLeading: false,
         middle: const Text('列表'),
         trailing: CupertinoButton(
@@ -278,7 +289,10 @@ class _CompactPane extends ConsumerWidget {
               ),
             ),
             decoration: BoxDecoration(
-              color: CupertinoDynamicColor.resolve(ReminderTokens.separator, context),
+              color: CupertinoDynamicColor.resolve(
+                ReminderTokens.separator,
+                context,
+              ),
               borderRadius: BorderRadius.circular(LifeRadius.lg),
             ),
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -464,7 +478,8 @@ class _HomeSearchResults extends ConsumerWidget {
                   item: items[i],
                   now: ref.read(clockProvider)(),
                   // #446：设置决定全天提醒是否按逾期显示
-                  allDayAsOverdue: ref
+                  allDayAsOverdue:
+                      ref
                           .watch(taskPreferenceProvider)
                           .value
                           ?.allDayRemindersOverdue ??
@@ -501,7 +516,10 @@ class _CompactListPane extends StatelessWidget {
     final list = lists.where((e) => e.id == openListId).firstOrNull;
     if (list == null) {
       return CupertinoPageScaffold(
-        backgroundColor: CupertinoDynamicColor.resolve(ReminderTokens.windowBg, context),
+        backgroundColor: CupertinoDynamicColor.resolve(
+          ReminderTokens.windowBg,
+          context,
+        ),
         child: const Center(child: Text('列表不存在')),
       );
     }
@@ -935,6 +953,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         _indentSelectedReminder();
       case LifeMenuAction.outdentReminder:
         _outdentSelectedReminder();
+      // flutter #567：⌃⌘N「用所选项目新建分区」。与 ⋯ 菜单共用同一个实现承载，
+      // 不开第二条写库通路；未选中由 `_createSectionFromSelection` 自己给提示。
+      case LifeMenuAction.createSectionFromSelection:
+        _createSectionFromSelection();
       // #537：「文件 → 置顶列表 / 取消置顶列表」，作用对象是前台列表。
       case LifeMenuAction.pinList:
         _setCurrentListPinned(true);
@@ -988,7 +1010,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       ),
     );
     if (picked == null) return;
-    await ref.read(reminderRepositoryProvider).upsertItem(
+    await ref
+        .read(reminderRepositoryProvider)
+        .upsertItem(
           item.copyWith(
             sectionId: picked == _moveToSectionNone ? null : picked,
           ),
@@ -1064,6 +1088,76 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// #537：渲染处每轮刷新一次的「可见行序」（父行后紧跟其子行）。
   /// 只在 build 里赋值、不 setState——它是那一帧的派生物，不是新状态。
   List<ReminderItem> _menuVisibleRows = const [];
+
+  /// flutter #567：多选态。Apple 的「用所选项目新建分区（⌃⌘N）」要求先选中若干条，
+  /// 而本仓此前**只有单选**（`selectedItemId` / `_selectedId`），没有任何多选态
+  /// （0 命中是用 `longPress|selectedIds|SelectMode|Checkbox` 在同一批目录量的，
+  /// 正对照见 #567 正文）。长按一行进入选择态，之后再点行=勾选/取消勾选。
+  bool _selecting = false;
+  final Set<String> _selectedIds = <String>{};
+
+  /// 勾选靶与长按入口都长在这条通路外，`!_selecting` 时树形与改动前逐字一致。
+  Widget _wrapSelectable(ReminderItem item, Widget row) {
+    return GestureDetector(
+      key: ValueKey('row_long_press_${item.id}'),
+      onLongPress: () => _toggleSelected(item.id),
+      child: _selecting
+          ? Row(
+              children: [
+                CupertinoButton(
+                  key: ValueKey('select_${item.id}'),
+                  minimumSize: Size.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  onPressed: () => _toggleSelected(item.id),
+                  child: Icon(
+                    _selectedIds.contains(item.id)
+                        ? CupertinoIcons.checkmark_circle_fill
+                        : CupertinoIcons.circle,
+                    size: 20,
+                    color: _selectedIds.contains(item.id)
+                        ? ReminderTokens.systemBlue
+                        : ReminderTokens.labelTertiary,
+                  ),
+                ),
+                Expanded(child: row),
+              ],
+            )
+          : row,
+    );
+  }
+
+  void _toggleSelected(String id) {
+    setState(() {
+      _selecting = true;
+      if (!_selectedIds.remove(id)) _selectedIds.add(id);
+      if (_selectedIds.isEmpty) _selecting = false;
+    });
+  }
+
+  void _exitSelection() => setState(() {
+    _selecting = false;
+    _selectedIds.clear();
+  });
+
+  /// flutter #567：「用所选项目新建分区」的实现承载。
+  ///
+  /// 未选中 ⇒ 给可见提示并**返回**（不写任何数据）。这条分支同时服务两个入口：
+  /// 列表 ⋯ 菜单（那条会把菜单项置灰）与 macOS 菜单栏（按 #537 定的不变量，
+  /// 菜单侧不判选中，只投命令）。静默 no-op 等于菜单坏了。
+  Future<void> _createSectionFromSelection() async {
+    if (_selectedIds.isEmpty) {
+      await _showMenuNotice('用所选项目新建分区', '先长按选中要归入分区的提醒');
+      return;
+    }
+    final ids = _selectedIds.toList(growable: false);
+    await showNewSectionDialog(
+      context,
+      list: widget.list,
+      repository: ref.read(reminderRepositoryProvider),
+      taskIds: ids,
+    );
+    if (mounted) _exitSelection();
+  }
 
   /// #537：「编辑 → 缩进」= 把选中那条挂到它上面那一行之下。
   ///
@@ -1149,8 +1243,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     _newListDialogOpen = true;
     showNewListDialog(
       context,
-      onCreate: (list) =>
-          ref.read(reminderRepositoryProvider).upsertList(list),
+      onCreate: (list) => ref.read(reminderRepositoryProvider).upsertList(list),
     ).whenComplete(() => _newListDialogOpen = false);
   }
 
@@ -1163,8 +1256,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   }
 
   void _toggleSidebar() {
-    ref.read(sidebarVisibleProvider.notifier).set(
-        !ref.read(sidebarVisibleProvider));
+    ref
+        .read(sidebarVisibleProvider.notifier)
+        .set(!ref.read(sidebarVisibleProvider));
   }
 
   void _toggleShowCompleted() {
@@ -1299,7 +1393,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     }
     // #475：计划/紧急视图按日期升序排分区（Apple 口径：已过期→今天→明天→日期升序）。
     // 此前组序 = 条目首现序，导致「已过期」排最后、跨月日期乱序。
-    if (widget.list.id == 'smart.scheduled' || widget.list.id == 'smart.urgent') {
+    if (widget.list.id == 'smart.scheduled' ||
+        widget.list.id == 'smart.urgent') {
       final sorted = _sortSectionsByDate(sections);
       // #487：计划视图补未来月份空骨架（Apple 逐月铺到年底）
       // #531：搜索态例外——Apple 搜索时只出匹配结果，不铺空骨架，
@@ -1307,7 +1402,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       if (widget.list.id == 'smart.scheduled' && !searching) {
         final laid = _addFutureSkeletons(sorted, now);
         return _SectionLayout(
-            laid.sections, _daySections(laid.sections, laid.daySkeletons));
+          laid.sections,
+          _daySections(laid.sections, laid.daySkeletons),
+        );
       }
       // 搜索态（#531）与紧急视图：组末快捷行只服务于「计划」的空骨架档位。
       return _SectionLayout(sorted, const {});
@@ -1352,14 +1449,17 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// 同一天出现两个组头。骨架与条目组同键这条不变量在本档继续成立。
   ({
     Map<String, List<ReminderItem>> sections,
-    Map<String, DateTime> daySkeletons
-  }) _addFutureSkeletons(
-      Map<String, List<ReminderItem>> sections, DateTime now) {
+    Map<String, DateTime> daySkeletons,
+  })
+  _addFutureSkeletons(Map<String, List<ReminderItem>> sections, DateTime now) {
     final today = DateTime(now.year, now.month, now.day);
     final monthEnd = DateTime(today.year, today.month + 1, 0);
     // weekday 周一=1…周日=7 ⇒ 今天到本周日的日历日差 = 7 - weekday。
-    final weekEnd =
-        DateTime(today.year, today.month, today.day + (7 - today.weekday));
+    final weekEnd = DateTime(
+      today.year,
+      today.month,
+      today.day + (7 - today.weekday),
+    );
 
     // 空骨架组没有 dueAt，排序时要按「它代表哪天」落位。
     final skeletonDays = <String, DateTime>{};
@@ -1372,9 +1472,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       skeleton.putIfAbsent(key, () => const <ReminderItem>[]);
     }
 
-    for (var day = DateTime(today.year, today.month, today.day + 1);
-        !day.isAfter(weekEnd);
-        day = DateTime(day.year, day.month, day.day + 1)) {
+    for (
+      var day = DateTime(today.year, today.month, today.day + 1);
+      !day.isAfter(weekEnd);
+      day = DateTime(day.year, day.month, day.day + 1)
+    ) {
       final key = _sectionLabel(day, now);
       putSkeleton(key, day);
       daySkeletons[key] = day;
@@ -1387,9 +1489,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       );
     }
     final lastMonth = DateTime(now.year + 1, 12, 1);
-    for (var month = DateTime(today.year, today.month + 1, 1);
-        !month.isAfter(lastMonth);
-        month = DateTime(month.year, month.month + 1, 1)) {
+    for (
+      var month = DateTime(today.year, today.month + 1, 1);
+      !month.isAfter(lastMonth);
+      month = DateTime(month.year, month.month + 1, 1)
+    ) {
       // 本周跨进下个月时（如 11月30 那周），逐日头已占到月内前几天，
       // 该月桶要排在它们之后，否则会出现「十二月」压在「12月3日 周四」前面。
       final spilledIntoMonth =
@@ -1442,7 +1546,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// 分区键即组头文案（`LifeSectionHeader` 与折叠键都按标题走），因此同名清单会并组——
   /// 这是本仓分区契约的既有限制，不在本卡扩大。
   Map<String, List<ReminderItem>> _sectionsByReminderList(
-      List<ReminderItem> items) {
+    List<ReminderItem> items,
+  ) {
     final titles = widget.listTitles ?? const <String, String>{};
     final grouped = <String, List<ReminderItem>>{};
     for (final item in items) {
@@ -1464,7 +1569,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// 不再解析标签文本，改按「分区内最早 dueAt 日」排序。
   /// 已过期(≤D-3) → 前天 → 昨天 → 今天 → 明天 → 后天 → 绝对日期升序 → 无日期（最后）。
   Map<String, List<ReminderItem>> _sortSectionsByDate(
-      Map<String, List<ReminderItem>> sections) {
+    Map<String, List<ReminderItem>> sections,
+  ) {
     DateTime? earliestDay(List<ReminderItem> items) {
       DateTime? best;
       for (final it in items) {
@@ -1495,9 +1601,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// 日差用 UTC 午夜对午夜：#500——本地 `Duration(days: 1)` 按绝对时长
   /// 推进，DST 回拨日（25 小时）会落回同一天，导致「明天」整天不显示。
   static String _sectionLabel(DateTime due, DateTime now) {
-    final diff = DateTime.utc(due.year, due.month, due.day)
-        .difference(DateTime.utc(now.year, now.month, now.day))
-        .inDays;
+    final diff = DateTime.utc(
+      due.year,
+      due.month,
+      due.day,
+    ).difference(DateTime.utc(now.year, now.month, now.day)).inDays;
     return switch (diff) {
       <= -3 => '已过期',
       -2 => '前天',
@@ -1514,8 +1622,18 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// #527：骨架的月桶名用中文月序（Apple 实机为「十一月其他时间」「十二月」「2027年一月」），
   /// 与日粒度标签的 `M月d日` 阿拉伯数字形态刻意不同——两套档位，两种写法。
   static const _monthZh = [
-    '一月', '二月', '三月', '四月', '五月', '六月',
-    '七月', '八月', '九月', '十月', '十一月', '十二月',
+    '一月',
+    '二月',
+    '三月',
+    '四月',
+    '五月',
+    '六月',
+    '七月',
+    '八月',
+    '九月',
+    '十月',
+    '十一月',
+    '十二月',
   ];
 
   static String _monthLabelZh(DateTime day) => _monthZh[day.month - 1];
@@ -1523,8 +1641,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// #527：当年月桶不带年份，跨年带（`2027年一月`）。
   static String _monthBucketLabel(DateTime month, DateTime now) =>
       month.year == now.year
-          ? _monthLabelZh(month)
-          : '${month.year}年${_monthLabelZh(month)}';
+      ? _monthLabelZh(month)
+      : '${month.year}年${_monthLabelZh(month)}';
 
   void _toggleSection(String key) {
     ref.read(collapsedKeysProvider.notifier).toggle(_collapsedKey(key));
@@ -1569,9 +1687,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     if (!_timeSectionBuckets.contains(sectionKey)) return;
     final repo = ref.read(reminderRepositoryProvider);
     final all = await repo.watchItems().first;
-    final item = all.firstWhere(
-      (e) => e.id == itemId,
-    );
+    final item = all.firstWhere((e) => e.id == itemId);
     final now = ref.read(clockProvider)();
     final today = DateTime(now.year, now.month, now.day);
     final newDue = _sectionTime(sectionKey, today);
@@ -1637,8 +1753,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     final listName = widget.listTitles?[item.listId] ?? widget.list.title;
     // #537：「隐藏所有子任务」只是不渲染子行。子任务仍带 parentId，
     // 因此不会被 `_sortTopLevel` 当孤儿提升到顶层；数据一律不动。
-    final hideSubs =
-        ref.watch(collapsedKeysProvider).contains(subtasksHiddenKey);
+    final hideSubs = ref
+        .watch(collapsedKeysProvider)
+        .contains(subtasksHiddenKey);
     final subs = hideSubs
         ? const <ReminderItem>[]
         : (subtasksByParent[item.id] ?? const <ReminderItem>[]);
@@ -1649,13 +1766,16 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       now: ref.read(clockProvider)(),
       allDayAsOverdue:
           ref.watch(taskPreferenceProvider).value?.allDayRemindersOverdue ??
-              false,
+          false,
       listName: listName,
       subtaskDone: progress?.done ?? 0,
       subtaskTotal: progress?.total ?? 0,
       onToggleCompleted: () => completeReminder(ref, item),
       onToggleFlagged: () => repo.toggleFlagged(item.id),
-      onTap: () => widget.onSelectItem?.call(item),
+      // flutter #567：选择态里点行=勾选/取消，不再改三栏的选中项。
+      onTap: () => _selecting
+          ? _toggleSelected(item.id)
+          : widget.onSelectItem?.call(item),
       onDelete: _isTrashView ? null : () => repo.deleteItem(item.id),
     );
     // 最近删除视图：行尾「恢复」（TC-UI-109；对齐 Apple Recently Deleted）
@@ -1679,14 +1799,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        trashRow,
+        _wrapSelectable(item, trashRow),
         for (final sub in subs)
           Padding(
             padding: const EdgeInsets.only(left: 40),
             child: ReminderRow(
               item: sub,
               now: ref.read(clockProvider)(),
-              allDayAsOverdue: ref
+              allDayAsOverdue:
+                  ref
                       .watch(taskPreferenceProvider)
                       .value
                       ?.allDayRemindersOverdue ??
@@ -1725,7 +1846,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     // #487 面②：若来自计划视图的组末空圆圈，dueAt 直接用那一天的 00:00
     final pendingSection = _pendingQuickAddSection;
     final pendingDay = _pendingQuickAddDay;
-    final dueAtOverride = pendingDay ??
+    final dueAtOverride =
+        pendingDay ??
         (pendingSection != null
             ? _sectionTime(pendingSection, DateTime.now())
             : null);
@@ -1738,8 +1860,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         id: newReminderId(),
         listId: _isSmartView
             ? resolveSmartCreateListId(
-                lists: (ref.read(reminderListsProvider).value ??
-                        const <ReminderList>[]),
+                lists:
+                    (ref.read(reminderListsProvider).value ??
+                    const <ReminderList>[]),
                 preferredId: ref
                     .read(taskPreferenceProvider)
                     .value
@@ -1750,7 +1873,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         // 从「今天」/「计划」视图新建 → dueAt = 今天（只有日期，00:00）；
         // Apple 快速新建不带时刻，写 now 会让它一分钟后变「已过期→紧急」（#183）。
         // 从「全部/旗标/已完成」视图新建 → 不设 dueAt（归入个人列表，全部视图可见）
-        dueAt: dueAtOverride ??
+        dueAt:
+            dueAtOverride ??
             ((widget.list.id == 'smart.today' ||
                     widget.list.id == 'smart.scheduled')
                 ? DateTime(now.year, now.month, now.day)
@@ -1813,9 +1937,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       ),
       navigationBar: CupertinoNavigationBar(
         backgroundColor: CupertinoDynamicColor.resolve(
-        CupertinoColors.systemBackground,
-        context,
-      ),
+          CupertinoColors.systemBackground,
+          context,
+        ),
         // 桌面三栏不显示返回箭头（参考图主区直接是标题/工具条）。
         automaticallyImplyLeading: !isPane && widget.leading == null,
         leading: widget.leading,
@@ -1879,8 +2003,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               ),
             _MoreMenu(
               onToggleCompleted: () {
-                final Map<String, bool> perList =
-                    ref.read(showCompletedByListProvider);
+                final Map<String, bool> perList = ref.read(
+                  showCompletedByListProvider,
+                );
                 final bool cur = perList[widget.list.id] ?? false;
                 ref
                     .read(showCompletedByListProvider.notifier)
@@ -1892,6 +2017,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               sectionsEnabled: !widget.list.isSmart,
               onNewSection: _createSection,
               onEditSections: _editSections,
+              // flutter #567：选择态非空才给这条入口可点（value=null 即置灰）。
+              selectionCount: _selectedIds.length,
+              selecting: _selecting,
+              onCreateFromSelection: _createSectionFromSelection,
+              onExitSelection: _exitSelection,
             ),
           ],
         ),
@@ -1909,8 +2039,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                 // （isPane 二选一），一个节点不会同时挂在两个控件上；这样
                 // 「编辑 → 查找…」在任何档宽都能聚焦到看得见的搜索框。
                 focusNode: _searchFocus,
-                onChanged: (v) =>
-                    ref.read(searchQueryProvider.notifier).set(v),
+                onChanged: (v) => ref.read(searchQueryProvider.notifier).set(v),
                 placeholder: '搜索',
                 prefix: const Padding(
                   padding: EdgeInsets.only(left: 8),
@@ -2004,15 +2133,16 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                 _menuVisibleRows = [
                   for (final entry in sections.entries)
                     if (!_isCollapsed(
-                        ref.read(collapsedKeysProvider), entry.key))
+                      ref.read(collapsedKeysProvider),
+                      entry.key,
+                    ))
                       for (final row in entry.value) ...[
                         row,
                         // 「隐藏所有子任务」时子行不渲染，行序里也不该有它们
                         if (!subsHidden)
-                          for (final sub in (
-                            subtasksByParent[row.id] ??
-                            const <ReminderItem>[]
-                          ))
+                          for (final sub
+                              in (subtasksByParent[row.id] ??
+                                  const <ReminderItem>[]))
                             sub,
                       ],
                 ];
@@ -2045,24 +2175,32 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                         onAcceptWithDetails: (details) {
                           _onSectionDrop(details.data, entry.key);
                         },
-                        builder: (BuildContext context,
-                            List<String?> candidateData,
-                            List<dynamic> details) {
-                          return LifeSectionHeader(
-                            title: entry.key,
-                            sectionKey: ValueKey('section_${entry.key}'),
-                            collapsed: _isCollapsed(
-                                ref.watch(collapsedKeysProvider), entry.key),
-                            onToggle: () => _toggleSection(entry.key),
-                            onAdd: widget.list.id == 'smart.today' &&
-                                    _canQuickAddToSection(entry.key)
-                                ? () => _quickAddToSection(entry.key)
-                                : null,
-                          );
-                        },
+                        builder:
+                            (
+                              BuildContext context,
+                              List<String?> candidateData,
+                              List<dynamic> details,
+                            ) {
+                              return LifeSectionHeader(
+                                title: entry.key,
+                                sectionKey: ValueKey('section_${entry.key}'),
+                                collapsed: _isCollapsed(
+                                  ref.watch(collapsedKeysProvider),
+                                  entry.key,
+                                ),
+                                onToggle: () => _toggleSection(entry.key),
+                                onAdd:
+                                    widget.list.id == 'smart.today' &&
+                                        _canQuickAddToSection(entry.key)
+                                    ? () => _quickAddToSection(entry.key)
+                                    : null,
+                              );
+                            },
                       ),
                     if (!_isCollapsed(
-                        ref.watch(collapsedKeysProvider), entry.key))
+                      ref.watch(collapsedKeysProvider),
+                      entry.key,
+                    ))
                       for (final item in entry.value)
                         // #477：今天视图行可拖动，拖到分区头即改时间
                         //
@@ -2080,10 +2218,14 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                               key: ValueKey('drag_feedback_${item.id}'),
                               width: constraints.maxWidth,
                               child: _buildItemRow(
-                                  item, subtasksByParent: subtasksByParent),
+                                item,
+                                subtasksByParent: subtasksByParent,
+                              ),
                             ),
                             child: _buildItemRow(
-                                item, subtasksByParent: subtasksByParent),
+                              item,
+                              subtasksByParent: subtasksByParent,
+                            ),
                           ),
                         ),
                     // #487 面②：Apple「计划」视图每个日期组末尾一条空圆圈，
@@ -2092,12 +2234,16 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                     // 存在的意义；折叠态收起时不铺。
                     if (widget.list.id == 'smart.scheduled' &&
                         !_isCollapsed(
-                            ref.watch(collapsedKeysProvider), entry.key) &&
+                          ref.watch(collapsedKeysProvider),
+                          entry.key,
+                        ) &&
                         layout.dayByKey.containsKey(entry.key))
                       _SectionQuickCreateRow(
                         key: ValueKey('quick_create_${entry.key}'),
-                        onTap: () => _quickAddToSection(entry.key,
-                            day: layout.dayByKey[entry.key]),
+                        onTap: () => _quickAddToSection(
+                          entry.key,
+                          day: layout.dayByKey[entry.key],
+                        ),
                       ),
                   ],
                   // 紧凑端保留底部工具条入口，草稿行仍落在列表体末尾。
@@ -2169,7 +2315,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                                             '没有提醒',
                                             style: TextStyle(
                                               fontSize: 17,
-                                              color: ReminderTokens.labelSecondary,
+                                              color:
+                                                  ReminderTokens.labelSecondary,
                                             ),
                                           ),
                                           const SizedBox(height: 4),
@@ -2177,7 +2324,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                                             '点按此处或「＋ 新提醒事项」添加',
                                             style: TextStyle(
                                               fontSize: 13,
-                                              color: ReminderTokens.labelTertiary,
+                                              color:
+                                                  ReminderTokens.labelTertiary,
                                             ),
                                           ),
                                         ],
@@ -2259,7 +2407,9 @@ class _SectionQuickCreateRow extends StatelessWidget {
             Icon(
               CupertinoIcons.circle,
               color: CupertinoDynamicColor.resolve(
-                  ReminderTokens.labelTertiary, context),
+                ReminderTokens.labelTertiary,
+                context,
+              ),
               size: 22,
             ),
           ],
@@ -2287,7 +2437,10 @@ class _GhostNewRow extends StatelessWidget {
           children: [
             Icon(
               CupertinoIcons.add_circled,
-              color: CupertinoDynamicColor.resolve(ReminderTokens.labelTertiary, context),
+              color: CupertinoDynamicColor.resolve(
+                ReminderTokens.labelTertiary,
+                context,
+              ),
               size: 22,
             ),
             const SizedBox(width: 14),
@@ -2350,7 +2503,10 @@ class _DraftRowState extends State<_DraftRow> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         children: [
-          const Icon(CupertinoIcons.circle, color: ReminderTokens.labelTertiary),
+          const Icon(
+            CupertinoIcons.circle,
+            color: ReminderTokens.labelTertiary,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: CupertinoTextField(
@@ -2406,7 +2562,10 @@ class _TrashHeader extends StatelessWidget {
           SizedBox(height: 2),
           Text(
             '项目将在删除 30 天后永久移除',
-            style: TextStyle(fontSize: 13, color: ReminderTokens.labelSecondary),
+            style: TextStyle(
+              fontSize: 13,
+              color: ReminderTokens.labelSecondary,
+            ),
           ),
         ],
       ),
@@ -2478,7 +2637,10 @@ class _ListHeaderToolbar extends ConsumerWidget {
                       key: const ValueKey('done_count'),
                       style: TextStyle(
                         fontSize: 13,
-                        color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
+                        color: CupertinoDynamicColor.resolve(
+                          ReminderTokens.labelSecondary,
+                          context,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 2),
@@ -2486,7 +2648,10 @@ class _ListHeaderToolbar extends ConsumerWidget {
                       '·',
                       style: TextStyle(
                         fontSize: 13,
-                        color: CupertinoDynamicColor.resolve(ReminderTokens.labelSecondary, context),
+                        color: CupertinoDynamicColor.resolve(
+                          ReminderTokens.labelSecondary,
+                          context,
+                        ),
                       ),
                     ),
                     CupertinoButton(
@@ -2494,7 +2659,10 @@ class _ListHeaderToolbar extends ConsumerWidget {
                       onPressed: doneCount == 0 ? null : onClearCompleted,
                       minimumSize: Size.zero,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      disabledColor: CupertinoDynamicColor.resolve(ReminderTokens.labelTertiary, context),
+                      disabledColor: CupertinoDynamicColor.resolve(
+                        ReminderTokens.labelTertiary,
+                        context,
+                      ),
                       child: const Text('清除', style: TextStyle(fontSize: 13)),
                     ),
                   ],
@@ -2525,8 +2693,9 @@ class _ListHeaderToolbar extends ConsumerWidget {
               _MenuItem(value: false, label: '隐藏已完成'),
             ],
             current: showCompleted,
-            onSelected: (v) =>
-                ref.read(showCompletedByListProvider.notifier).setFor(list.id, v),
+            onSelected: (v) => ref
+                .read(showCompletedByListProvider.notifier)
+                .setFor(list.id, v),
             anchor: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -2732,6 +2901,10 @@ class _MoreMenu extends StatelessWidget {
     required this.sectionsEnabled,
     required this.onNewSection,
     required this.onEditSections,
+    required this.selectionCount,
+    required this.selecting,
+    required this.onCreateFromSelection,
+    required this.onExitSelection,
   });
 
   final VoidCallback onToggleCompleted;
@@ -2739,6 +2912,10 @@ class _MoreMenu extends StatelessWidget {
   final bool sectionsEnabled;
   final VoidCallback onNewSection;
   final VoidCallback onEditSections;
+  final int selectionCount;
+  final bool selecting;
+  final VoidCallback onCreateFromSelection;
+  final VoidCallback onExitSelection;
 
   @override
   Widget build(BuildContext context) {
@@ -2754,7 +2931,14 @@ class _MoreMenu extends StatelessWidget {
         if (sectionsEnabled) ...[
           const _MenuItem(value: 'new-section', label: '新建分区'),
           const _MenuItem(value: 'edit-sections', label: '编辑分区…'),
+          // flutter #567：Apple「文件 ▸ 用所选项目新建分区」。
+          // 一条都没有选中时 value=null ⇒ 这一项**置灰不可点**（判据 2 的另一半）。
+          _MenuItem(
+            value: selectionCount > 0 ? 'section-from-selection' : null,
+            label: '用所选项目新建分区',
+          ),
         ],
+        if (selecting) const _MenuItem(value: 'exit-selection', label: '取消选择'),
       ],
       current: 'toggle-completed',
       onSelected: (v) {
@@ -2764,6 +2948,10 @@ class _MoreMenu extends StatelessWidget {
           onNewSection();
         } else if (v == 'edit-sections') {
           onEditSections();
+        } else if (v == 'section-from-selection') {
+          onCreateFromSelection();
+        } else if (v == 'exit-selection') {
+          onExitSelection();
         }
       },
       anchor: const Icon(CupertinoIcons.ellipsis_circle),

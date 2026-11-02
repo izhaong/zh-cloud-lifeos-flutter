@@ -91,6 +91,18 @@ abstract interface class ReminderRepository {
     required String listId,
     required String sectionId,
   });
+
+  /// 「用所选项目新建分区」（对等矩阵行 37 / flutter #567）。
+  ///
+  /// **一次调用 = 一次原子写**：产出 1 个分区 + 把 [itemIds] 那 N 条挂进去。
+  /// 任一 id 不属于 [listId] 就整体失败且不落任何行——UI 侧靠这条保证
+  /// 「中途失败不留半个分区」（Apple 的 文件 ▸ 用所选项目新建分区 没有半成品概念）。
+  /// InMemory 与 Drift 必须同语义。
+  Future<void> createSectionWithTasks({
+    required String listId,
+    required ReminderSection section,
+    required List<String> itemIds,
+  });
 }
 
 /// 内存实现：壳层与 UI 冒烟 + 仓库契约测试的参考实现。
@@ -168,8 +180,7 @@ final class InMemoryReminderRepository implements ReminderRepository {
   /// 测试用 `nowForTest`，生产用它；两者都不动时退回挂钟。
   DateTime Function()? nowProvider;
 
-  DateTime get _now =>
-      _nowForTest ?? nowProvider?.call() ?? DateTime.now();
+  DateTime get _now => _nowForTest ?? nowProvider?.call() ?? DateTime.now();
 
   /// 跨日刷新（真实 bug 修复）：智能列表「今天/计划」按本地日过滤，
   /// 但 stream 只在写操作 emit——app 跨午夜保持打开时 UI 仍是昨天的快照
@@ -562,6 +573,37 @@ final class InMemoryReminderRepository implements ReminderRepository {
     }
     _syncSectionsToList(listId);
     _recount();
+    _notify();
+  }
+
+  @override
+  Future<void> createSectionWithTasks({
+    required String listId,
+    required ReminderSection section,
+    required List<String> itemIds,
+  }) async {
+    // 空选择集不是「建一个空分区」的别名：Apple 那条命令只在有选中时存在。
+    // 静默 no-op 等于菜单坏了，所以一律抛（调用方是 UI，已先拦一道）。
+    if (itemIds.isEmpty) {
+      throw ArgumentError('「用所选项目新建分区」要求至少选中一条提醒');
+    }
+    // 与 Drift 同语义：先验归属再落笔，任一 id 不在本列表 ⇒ 一字不写（回滚的内存等价物）。
+    final ids = itemIds.toSet();
+    for (final id in ids) {
+      if (!_items.any((e) => e.id == id && e.listId == listId)) {
+        throw StateError('任务 $id 不属于列表 $listId，整体未写入');
+      }
+    }
+    final sections = _sectionsByList.putIfAbsent(listId, () => []);
+    sections.removeWhere((e) => e.id == section.id);
+    sections.add(section);
+    for (var i = 0; i < _items.length; i++) {
+      final it = _items[i];
+      if (ids.contains(it.id) && it.listId == listId) {
+        _items[i] = it.copyWith(sectionId: section.id);
+      }
+    }
+    _syncSectionsToList(listId);
     _notify();
   }
 

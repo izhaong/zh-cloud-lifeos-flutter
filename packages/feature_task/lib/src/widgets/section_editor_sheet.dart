@@ -13,6 +13,7 @@ Future<void> showNewSectionDialog(
   BuildContext context, {
   required ReminderList list,
   required ReminderRepository repository,
+  List<String> taskIds = const [],
 }) {
   final controller = TextEditingController();
   return showCupertinoDialog<void>(
@@ -42,14 +43,23 @@ Future<void> showNewSectionDialog(
                 : list.sections.reduce(
                     (a, b) => a.sortOrder >= b.sortOrder ? a : b,
                   );
-            await repository.upsertSection(
-              listId: list.id,
-              section: ReminderSection(
-                id: newSectionId(),
-                title: title,
-                sortOrder: (last?.sortOrder ?? 0) + 1,
-              ),
+            final section = ReminderSection(
+              id: newSectionId(),
+              title: title,
+              sortOrder: (last?.sortOrder ?? 0) + 1,
             );
+            // flutter #567：带所选任务时必须走**一次**原子写。退化成
+            // upsertSection + N 次 upsertItem 会在中途失败时留下半个分区，
+            // 也会破坏本仓「一次用户动作一次落库」的口径（phase2_ui_test 计数）。
+            if (taskIds.isEmpty) {
+              await repository.upsertSection(listId: list.id, section: section);
+            } else {
+              await repository.createSectionWithTasks(
+                listId: list.id,
+                section: section,
+                itemIds: taskIds,
+              );
+            }
             navigator.pop();
           },
           child: const Text('添加'),

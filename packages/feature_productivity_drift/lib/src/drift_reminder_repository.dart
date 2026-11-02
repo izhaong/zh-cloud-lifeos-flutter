@@ -56,7 +56,12 @@ class DriftReminderRepository
       List<ReminderSection>,
       DateTime,
       List<kernel.ReminderList>
-    >(lists$, items$, sections$, _dayTicks(), (listRows, itemRows, sectionRows, _) {
+    >(lists$, items$, sections$, _dayTicks(), (
+      listRows,
+      itemRows,
+      sectionRows,
+      _,
+    ) {
       final now = _now;
       final byList = _groupSections(sectionRows);
       return [
@@ -594,13 +599,13 @@ class DriftReminderRepository
     );
     if (doomed == null) return; // 幂等：本地没有这条分区
     // 级联：挂靠条目兜底「未分区」（与本地 deleteSection 同语义）
-    await (_db.update(_db.reminderItems)
-          ..where((t) =>
-              t.listId.equals(row.id) & t.sectionId.equals(doomed.id)))
+    await (_db.update(_db.reminderItems)..where(
+          (t) => t.listId.equals(row.id) & t.sectionId.equals(doomed.id),
+        ))
         .write(const ReminderItemsCompanion(sectionId: Value(null)));
-    await (_db.delete(_db.reminderSections)
-          ..where((t) => t.listId.equals(row.id) & t.id.equals(doomed.id)))
-        .go();
+    await (_db.delete(
+      _db.reminderSections,
+    )..where((t) => t.listId.equals(row.id) & t.id.equals(doomed.id))).go();
   }
 
   /// 清单变更登记进发件箱（flutter#144 / TC-SYNC-106 出站半边）。
@@ -688,9 +693,7 @@ class DriftReminderRepository
         _db.reminderLists,
       )..where((t) => t.id.equals(list.id))).getSingleOrNull();
       if (row != null) {
-        await _enqueueListOutbox(
-          _listModelFrom(row, sections: list.sections),
-        );
+        await _enqueueListOutbox(_listModelFrom(row, sections: list.sections));
       }
     });
   }
@@ -708,9 +711,9 @@ class DriftReminderRepository
 
   /// 某清单的全部分区行（按 sortOrder asc, id asc 由 [_sortedSections] 收口）。
   Future<List<kernel.ReminderSection>> _readSections(String listId) async {
-    final rows = await (_db.select(_db.reminderSections)
-          ..where((t) => t.listId.equals(listId)))
-        .get();
+    final rows = await (_db.select(
+      _db.reminderSections,
+    )..where((t) => t.listId.equals(listId))).get();
     return _sortedSections(rows.map(_sectionModel).toList(growable: false));
   }
 
@@ -719,9 +722,9 @@ class DriftReminderRepository
     required String listId,
     required String remoteIdOrId,
   }) async {
-    final rows = await (_db.select(_db.reminderSections)
-          ..where((t) => t.listId.equals(listId)))
-        .get();
+    final rows = await (_db.select(
+      _db.reminderSections,
+    )..where((t) => t.listId.equals(listId))).get();
     for (final r in rows) {
       if (r.remoteId == remoteIdOrId || r.id == remoteIdOrId) {
         return _sectionModel(r);
@@ -735,7 +738,9 @@ class DriftReminderRepository
     String listId,
     kernel.ReminderSection section,
   ) async {
-    await _db.into(_db.reminderSections).insertOnConflictUpdate(
+    await _db
+        .into(_db.reminderSections)
+        .insertOnConflictUpdate(
           ReminderSectionsCompanion.insert(
             listId: listId,
             id: section.id,
@@ -752,15 +757,15 @@ class DriftReminderRepository
     List<kernel.ReminderSection> sections,
   ) async {
     final wanted = _sortedSections(sections);
-    final existing = await (_db.select(_db.reminderSections)
-          ..where((t) => t.listId.equals(listId)))
-        .get();
+    final existing = await (_db.select(
+      _db.reminderSections,
+    )..where((t) => t.listId.equals(listId))).get();
     final keep = {for (final s in wanted) s.id};
     for (final row in existing) {
       if (!keep.contains(row.id)) {
-        await (_db.delete(_db.reminderSections)
-              ..where((t) => t.listId.equals(listId) & t.id.equals(row.id)))
-            .go();
+        await (_db.delete(
+          _db.reminderSections,
+        )..where((t) => t.listId.equals(listId) & t.id.equals(row.id))).go();
       }
     }
     for (final s in wanted) {
@@ -874,6 +879,43 @@ class DriftReminderRepository
   }
 
   @override
+  Future<void> createSectionWithTasks({
+    required String listId,
+    required kernel.ReminderSection section,
+    required List<String> itemIds,
+  }) async {
+    final row = await (_db.select(
+      _db.reminderLists,
+    )..where((t) => t.id.equals(listId))).getSingleOrNull();
+    if (row == null) return;
+    if (itemIds.isEmpty) {
+      throw ArgumentError('「用所选项目新建分区」要求至少选中一条提醒');
+    }
+    final ids = itemIds.toSet();
+    await _db.transaction(() async {
+      // 判据 1：一次事务产出「1 分区 + N 归属」，且任一条不属于本列表就整体回滚。
+      // 校验必须排在写之前——先写后验会留下半个分区（Apple 没有这个中间态）。
+      final owned = await (_db.select(
+        _db.reminderItems,
+      )..where((t) => t.listId.equals(listId) & t.id.isIn(ids))).get();
+      if (owned.length != ids.length) {
+        final missing = ids.difference({for (final r in owned) r.id});
+        throw StateError('任务 ${missing.first} 不属于列表 $listId，已整体回滚');
+      }
+      await _upsertSectionRow(listId, section);
+      await _enqueueSectionOutbox(
+        listId: row.remoteId ?? listId,
+        section: section,
+      );
+      if (ids.isNotEmpty) {
+        await (_db.update(_db.reminderItems)..where((t) => t.id.isIn(ids)))
+            .write(ReminderItemsCompanion(sectionId: Value(section.id)));
+        await _enqueueOutbox(ids.toList(growable: false));
+      }
+    });
+  }
+
+  @override
   Future<void> deleteSection({
     required String listId,
     required String sectionId,
@@ -897,9 +939,9 @@ class DriftReminderRepository
       await _enqueueOutbox([r.id]);
     }
     // #169：只删这一行。
-    await (_db.delete(_db.reminderSections)
-          ..where((t) => t.listId.equals(listId) & t.id.equals(sectionId)))
-        .go();
+    await (_db.delete(
+      _db.reminderSections,
+    )..where((t) => t.listId.equals(listId) & t.id.equals(sectionId))).go();
     for (final d in doomed) {
       await _enqueueSectionOutbox(
         listId: row.remoteId ?? listId,
@@ -965,26 +1007,34 @@ class DriftReminderRepository
     }
 
     void listen() {
-      subs.add(a.listen((v) {
-        latestA = v;
-        hasA = true;
-        emit();
-      }));
-      subs.add(b.listen((v) {
-        latestB = v;
-        hasB = true;
-        emit();
-      }));
-      subs.add(c.listen((v) {
-        latestC = v;
-        hasC = true;
-        emit();
-      }));
-      subs.add(d.listen((v) {
-        latestD = v;
-        hasD = true;
-        emit();
-      }));
+      subs.add(
+        a.listen((v) {
+          latestA = v;
+          hasA = true;
+          emit();
+        }),
+      );
+      subs.add(
+        b.listen((v) {
+          latestB = v;
+          hasB = true;
+          emit();
+        }),
+      );
+      subs.add(
+        c.listen((v) {
+          latestC = v;
+          hasC = true;
+          emit();
+        }),
+      );
+      subs.add(
+        d.listen((v) {
+          latestD = v;
+          hasD = true;
+          emit();
+        }),
+      );
     }
 
     controller = StreamController<R>.broadcast(
