@@ -178,6 +178,24 @@ class LifeMenuBar extends StatelessWidget {
                 ),
               ],
             ),
+            // #537：Apple「编辑 → 删除提醒事项」。删除对象是三栏里当前
+            // 选中的条目，选中态、落库与回收窗都在 feature_task；菜单侧只投
+            // 命令，判不了选中，也不许自己碰仓库。
+            //
+            // 这一项刻意不挂快捷键：Flutter 的 macOS 文本键位表已把「meta +
+            // backspace」绑成删除到行首（default_text_editing_shortcuts.dart
+            // 的 _macShortcuts），菜单再抢同一个组合会让新建/重命名弹层里的
+            // 输入行为变质。补键位的前置是「焦点在输入框时菜单快捷键让位」，
+            // 已另拆 Issue。
+            PlatformMenuItemGroup(
+              members: <PlatformMenuItem>[
+                PlatformMenuItem(
+                  label: '删除提醒事项',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.deleteReminder,
+                ),
+              ],
+            ),
           ],
         ),
         PlatformMenu(

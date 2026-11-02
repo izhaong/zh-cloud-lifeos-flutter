@@ -106,6 +106,16 @@ void main() {
     expect(source.contains('upsertItem'), isFalse, reason: '壳不得直接落库');
   });
 
+  test('#537 编辑菜单有「删除提醒事项」，且删除不落在壳里', () {
+    expect(source.contains("label: '删除提醒事项'"), isTrue,
+        reason: 'Apple 编辑菜单有 Delete Reminder');
+    expect(source.contains('LifeMenuAction.deleteReminder'), isTrue,
+        reason: '菜单项必须指向命令总线的 deleteReminder');
+    // 删除语义（软删 + 30 天回收窗 + 父删子随）全在 feature_task 的既有契约里。
+    expect(source.contains('deleteItem'), isFalse, reason: '壳不得自己删数据');
+    expect(source.contains('restoreItem'), isFalse, reason: '壳不得自己恢复');
+  });
+
   test('编辑菜单走标准 intent，不自己实现', () {
     for (final intent in [
       'UndoTextIntent',
