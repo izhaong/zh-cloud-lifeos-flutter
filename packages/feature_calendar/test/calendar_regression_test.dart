@@ -66,9 +66,9 @@ void main() {
             calendarId: 'c1',
             uid: 'u1',
             title: '周会',
-            startAt: DateTime.utc(2026, 10, 26, 2),
-            endAt: DateTime.utc(2026, 10, 26, 3),
-            timeZone: 'UTC',
+            startAt: DateTime(2026, 10, 26, 9, 30),
+            endAt: DateTime(2026, 10, 26, 10, 30),
+            timeZone: 'local',
             updatedAt: DateTime.utc(2026, 10, 20),
           ),
           CalendarEvent(
@@ -76,9 +76,9 @@ void main() {
             calendarId: 'c1',
             uid: 'u2',
             title: '评审',
-            startAt: DateTime.utc(2026, 10, 27, 6),
-            endAt: DateTime.utc(2026, 10, 27, 7),
-            timeZone: 'UTC',
+            startAt: DateTime(2026, 10, 27, 14),
+            endAt: DateTime(2026, 10, 27, 15),
+            timeZone: 'local',
             updatedAt: DateTime.utc(2026, 10, 20),
           ),
         ]);
@@ -91,9 +91,7 @@ void main() {
           clockProvider.overrideWithValue(() => DateTime(2026, 10, 26)),
         ],
       );
-      container
-          .read(anchorDateProvider.notifier)
-          .set(DateTime.utc(2026, 10, 26));
+      container.read(anchorDateProvider.notifier).set(DateTime(2026, 10, 26));
     });
 
     tearDown(() => container.dispose());
@@ -116,6 +114,32 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    // #553：夹具的「时刻形状」本身就是判据，所以钉成门禁而不是注释。
+    // 日/周视图用 `event.start.toLocal()` 落位（`lib/src/views/day_view.dart`），
+    // 夹具里只要写 `DateTime.utc(...)`，事件钟点就跟着**执行机器的时区**跑——
+    // 同一份基线实测 Asia/Shanghai 差 7.14%、UTC 差 3.57%、America/New_York 近乎为零。
+    // 且时间轴只画 dayStartHour–dayEndHour：钟点落在窗外的事件在 golden 里根本不出现，
+    // 图照样录得上、事件渲染的覆盖却静默没了。两条都在这里拦住。
+    test('golden 夹具：时刻须为本地墙钟且落在时间轴窗口内（#553）', () {
+      const pref = CalendarPreference();
+      for (final e in repo.events) {
+        expect(e.startAt.isUtc, isFalse, reason: '${e.id} startAt 是 UTC 时刻');
+        expect(e.endAt.isUtc, isFalse, reason: '${e.id} endAt 是 UTC 时刻');
+        expect(
+          e.startAt.hour >= pref.dayStartHour &&
+              e.endAt.hour <= pref.dayEndHour,
+          isTrue,
+          reason:
+              '${e.id} 落在 ${pref.dayStartHour}–${pref.dayEndHour} 窗外，'
+              'golden 拍不到它',
+        );
+      }
+      expect(
+        container.read(anchorDateProvider).isUtc,
+        isFalse,
+        reason: '锚点是 UTC 时刻时会随时区挪一天',
+      );
+    });
     testWidgets('iPhone 375 日视图（golden 基线；挂钟已注入固定 2026-10-26，确定性）', (
       tester,
     ) async {
