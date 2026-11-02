@@ -82,6 +82,18 @@ void main() {
     expect(source.contains('upsertList'), isFalse, reason: '壳不得直接落库');
   });
 
+  test('#537 显示菜单有子任务显隐两项，且开关不落在壳里', () {
+    expect(source.contains("label: '显示所有子任务'"), isTrue);
+    expect(source.contains("label: '隐藏所有子任务'"), isTrue);
+    expect(source.contains('LifeMenuAction.showAllSubtasks'), isTrue);
+    expect(source.contains('LifeMenuAction.hideSubtasks'), isTrue);
+    // 子任务显隐是 feature_task 的视图态；壳里出现这些就说明有人把状态搬进菜单层。
+    expect(source.contains('collapsedKeys'), isFalse,
+        reason: '壳不得自己存视图态');
+    expect(source.contains('parentId'), isFalse,
+        reason: '壳不得自己过滤子任务');
+  });
+
   test('编辑菜单走标准 intent，不自己实现', () {
     for (final intent in [
       'UndoTextIntent',

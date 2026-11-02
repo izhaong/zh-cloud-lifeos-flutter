@@ -886,6 +886,11 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         _setSortFromMenu(ListSortMode.title);
       case LifeMenuAction.sortByPriority:
         _setSortFromMenu(ListSortMode.priority);
+      // #537：子任务显隐整体开关，读写都走 collapsedKeys 这条视图态通路。
+      case LifeMenuAction.showAllSubtasks:
+        ref.read(collapsedKeysProvider.notifier).setSubtasksHidden(false);
+      case LifeMenuAction.hideSubtasks:
+        ref.read(collapsedKeysProvider.notifier).setSubtasksHidden(true);
     }
   }
 
@@ -1378,7 +1383,13 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   }) {
     final repo = ref.read(reminderRepositoryProvider);
     final listName = widget.listTitles?[item.listId] ?? widget.list.title;
-    final subs = subtasksByParent[item.id] ?? const <ReminderItem>[];
+    // #537：「隐藏所有子任务」只是不渲染子行。子任务仍带 parentId，
+    // 因此不会被 `_sortTopLevel` 当孤儿提升到顶层；数据一律不动。
+    final hideSubs =
+        ref.watch(collapsedKeysProvider).contains(subtasksHiddenKey);
+    final subs = hideSubs
+        ? const <ReminderItem>[]
+        : (subtasksByParent[item.id] ?? const <ReminderItem>[]);
     // parity#166：进度取全量流（智能视图会把子任务过滤掉，不能只看本列表）
     final progress = ref.watch(subtaskProgressProvider).value?[item.id];
     final row = ReminderRow(

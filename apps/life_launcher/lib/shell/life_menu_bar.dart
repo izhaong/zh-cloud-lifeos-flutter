@@ -187,6 +187,16 @@ class LifeMenuBar extends StatelessWidget {
               label: '隐藏完成项目',
               onSelected: () => commands.value = LifeMenuAction.toggleCompleted,
             ),
+            PlatformMenuItem(
+              label: '显示所有子任务',
+              onSelected: () =>
+                  commands.value = LifeMenuAction.showAllSubtasks,
+            ),
+            PlatformMenuItem(
+              label: '隐藏所有子任务',
+              onSelected: () =>
+                  commands.value = LifeMenuAction.hideSubtasks,
+            ),
             // #537：Apple「显示 → 排序方式」。排序能力本体在 feature_task
             // （工具栏「排序 ▾」用的同一份模式与 provider），这里只挂同义菜单，
             // 不新造第二套排序——判据见 menu_bar_labels_test.dart。
