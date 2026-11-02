@@ -938,7 +938,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// sectionId 挂靠 + 未分区兜底；TC-KR-118 互斥契约——一列表一种分组模式）；
   /// 无分区元数据回退 dueAt 日桶，无日期单独一区。
   /// 保序：手动分区按元数据 sortOrder asc, id asc；日桶沿用 items 排序。
-  Map<String, List<ReminderItem>> _buildSections(List<ReminderItem> topLevel) {
+  Map<String, List<ReminderItem>> _buildSections(
+    List<ReminderItem> topLevel, {
+    bool searching = false,
+  }) {
     final manual = widget.list.sections;
     if (manual.isNotEmpty) {
       final byId = {for (final s in manual) s.id: s};
@@ -1020,7 +1023,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     if (widget.list.id == 'smart.scheduled' || widget.list.id == 'smart.urgent') {
       final sorted = _sortSectionsByDate(sections);
       // #487：计划视图补未来月份空骨架（Apple 逐月铺到年底）
-      if (widget.list.id == 'smart.scheduled') {
+      // #531：搜索态例外——Apple 搜索时只出匹配结果，不铺空骨架，
+      // 否则 4 条命中会被十几屏空月头淹没。
+      if (widget.list.id == 'smart.scheduled' && !searching) {
         return _addFutureSkeletons(sorted, now);
       }
       return sorted;
@@ -1611,7 +1616,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                 final skipSectionHeader =
                     widget.list.id == 'smart.today' ||
                     widget.list.id == 'smart.scheduled';
-                final sections = _buildSections(topLevel);
+                final sections = _buildSections(
+                  topLevel,
+                  searching: query.trim().isNotEmpty,
+                );
                 // #388：草稿行要有自己的可定位身份——工具栏搜索框同为
                 // CupertinoTextField，按类型断言会连它一起数到，判据恒真。
                 final draftRow = _DraftRow(
