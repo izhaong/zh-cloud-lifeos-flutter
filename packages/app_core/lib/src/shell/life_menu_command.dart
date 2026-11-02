@@ -61,6 +61,9 @@ enum LifeMenuAction {
 
   /// 显示 → 隐藏所有子任务（#537）。
   hideSubtasks,
+
+  /// 文件 → 移至分区…（#537）。
+  moveToSection,
 }
 
 /// 命令出口。**没有菜单栏的平台（非 macOS）为 null**，页面订阅时必须判空。

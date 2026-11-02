@@ -111,6 +111,14 @@ class LifeMenuBar extends StatelessWidget {
               label: '编辑分区…',
               onSelected: () => commands.value = LifeMenuAction.editSections,
             ),
+            // #537：Apple「文件 → 移至分区…」。操作对象是三栏里当前选中的
+            // 条目，选中态与写回都在 feature_task；菜单侧判不了选中，也不许
+            // 自己存一份选择。
+            PlatformMenuItem(
+              label: '移至分区…',
+              onSelected: () =>
+                  commands.value = LifeMenuAction.moveToSection,
+            ),
           ],
         ),
         PlatformMenu(
