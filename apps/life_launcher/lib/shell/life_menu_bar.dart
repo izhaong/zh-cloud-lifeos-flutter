@@ -196,6 +196,20 @@ class LifeMenuBar extends StatelessWidget {
                 ),
               ],
             ),
+            // #537：Apple「编辑 → 查找…」。聚焦搜索框这件事键盘侧已经有了
+            // （feature_task 的 TaskShortcuts 把 meta+F 绑成 requestFocusSearch），
+            // 这里只补菜单入口、走同一个票据，不另写第二套聚焦逻辑。
+            // 菜单也不声明 ⌘F：同一个键位有两处入口后，原生菜单会先吞掉按键，
+            // Flutter 侧的 Shortcuts 就再也收不到 —— 键位统一归 Issue #542 处理。
+            PlatformMenuItemGroup(
+              members: <PlatformMenuItem>[
+                PlatformMenuItem(
+                  label: '查找…',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.findReminder,
+                ),
+              ],
+            ),
           ],
         ),
         PlatformMenu(

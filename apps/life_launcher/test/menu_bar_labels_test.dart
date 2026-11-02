@@ -116,6 +116,21 @@ void main() {
     expect(source.contains('restoreItem'), isFalse, reason: '壳不得自己恢复');
   });
 
+  test('#537 编辑菜单有「查找…」，且菜单不抢 ⌘F/⌘⌫ 键位', () {
+    expect(source.contains("label: '查找…'"), isTrue,
+        reason: 'Apple 编辑菜单有 Find…');
+    expect(source.contains('LifeMenuAction.findReminder'), isTrue,
+        reason: '菜单项必须指向命令总线的 findReminder');
+    // ⌘F 归 feature_task 的 TaskShortcuts；⌘⌫ 与文本框删到行首冲突。
+    // 两个键位都不许在壳里各声明一份（前置见 flutter Issue #542）。
+    expect(source.contains('LogicalKeyboardKey.keyF'), isFalse,
+        reason: '菜单不得抢 ⌘F，否则 Flutter 侧 Shortcuts 收不到');
+    expect(source.contains('LogicalKeyboardKey.delete'), isFalse,
+        reason: '菜单不得抢 ⌘⌫，文本框里它已绑删除到行首');
+    expect(source.contains('searchQueryProvider'), isFalse,
+        reason: '壳不得自己实现搜索');
+  });
+
   test('编辑菜单走标准 intent，不自己实现', () {
     for (final intent in [
       'UndoTextIntent',
