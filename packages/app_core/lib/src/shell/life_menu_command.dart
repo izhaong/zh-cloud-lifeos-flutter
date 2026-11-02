@@ -64,6 +64,9 @@ enum LifeMenuAction {
 
   /// 文件 → 移至分区…（#537）。
   moveToSection,
+
+  /// 编辑 → 删除提醒事项（#537）。
+  deleteReminder,
 }
 
 /// 命令出口。**没有菜单栏的平台（非 macOS）为 null**，页面订阅时必须判空。

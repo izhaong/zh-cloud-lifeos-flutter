@@ -907,6 +907,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       // 不带分区，走下面的「还没有分区」提示才是可见结果；加闸门会变成点了没反应。
       case LifeMenuAction.moveToSection:
         _moveSelectedToSection();
+      // #537：「编辑 → 删除提醒事项」。删除即软删进「最近删除」（TC-UI-109
+      // 的 30 天回收窗），不弹二次确认——Apple 也是直接进回收站、当场可恢复。
+      case LifeMenuAction.deleteReminder:
+        _deleteSelectedReminder();
     }
   }
 
@@ -921,12 +925,12 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   Future<void> _moveSelectedToSection() async {
     final item = widget.selectedItem;
     if (item == null) {
-      await _showMoveToSectionNotice('先选中一条提醒事项');
+      await _showMenuNotice('移至分区', '先选中一条提醒事项');
       return;
     }
     final sections = widget.list.sections;
     if (sections.isEmpty) {
-      await _showMoveToSectionNotice('这个列表还没有分区');
+      await _showMenuNotice('移至分区', '这个列表还没有分区');
       return;
     }
     if (!mounted) return;
@@ -962,12 +966,29 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         );
   }
 
-  Future<void> _showMoveToSectionNotice(String message) async {
+  /// #537：删除三栏里选中的那条提醒（进「最近删除」，不是硬删）。
+  ///
+  /// 级联（父删子随）与回收窗一律复用 [ReminderRepository.deleteItem]
+  /// 既有契约，菜单侧不实现第二套删除。
+  Future<void> _deleteSelectedReminder() async {
+    final item = widget.selectedItem;
+    if (item == null) {
+      await _showMenuNotice('删除提醒事项', '先选中一条提醒事项');
+      return;
+    }
+    if (_isTrashView) {
+      await _showMenuNotice('删除提醒事项', '这条已在最近删除里，可直接恢复');
+      return;
+    }
+    await ref.read(reminderRepositoryProvider).deleteItem(item.id);
+  }
+
+  Future<void> _showMenuNotice(String title, String message) async {
     if (!mounted) return;
     await showCupertinoDialog<void>(
       context: context,
       builder: (ctx) => LifeAlertDialog(
-        title: const Text('移至分区'),
+        title: Text(title),
         content: Text(message),
         actions: [
           LifeDialogAction(
