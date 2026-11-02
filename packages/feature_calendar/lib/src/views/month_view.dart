@@ -39,31 +39,32 @@ class CalendarMonthView extends ConsumerStatefulWidget {
 class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
   late final kalender.KalenderController _controller;
 
+  /// #552：表头与正文必须共用**同一个**周起始日与「显示周号」开关，
+  /// 所以这两个值在 initState 里定一次（与交给 `MonthViewConfiguration` 的这份同源），
+  /// 表头不再向库要日期。
+  late final int _firstDayOfWeek;
+  late final bool _showWeekNumbers;
+
   @override
   void initState() {
     super.initState();
     final preference =
         ref.read(preferenceProvider).value ?? CalendarPreference.defaults;
     final anchor = ref.read(anchorDateProvider);
-    _controller = kalender.KalenderController(
-      viewConfiguration: _configFor(preference, anchor),
+    _firstDayOfWeek = effectiveStartWeekOn(
+      preference.startWeekOn,
+      // null 时回落系统区域：生产行为与「跟随系统」一致，测试可 override 钉死。
+      localeTag:
+          ref.watch(calendarLocaleTagProvider) ??
+          PlatformDispatcher.instance.locale.toLanguageTag(),
     );
-  }
-
-  kalender.MonthViewConfiguration _configFor(
-    CalendarPreference preference,
-    DateTime anchor,
-  ) {
-    return kalender.MonthViewConfiguration.singleMonth(
-      firstDayOfWeek: effectiveStartWeekOn(
-        preference.startWeekOn,
-        // null 时回落系统区域：生产行为与「跟随系统」一致，测试可 override 钉死。
-        localeTag:
-            ref.watch(calendarLocaleTagProvider) ??
-            PlatformDispatcher.instance.locale.toLanguageTag(),
+    _showWeekNumbers = preference.showWeekNumbers;
+    _controller = kalender.KalenderController(
+      viewConfiguration: kalender.MonthViewConfiguration.singleMonth(
+        firstDayOfWeek: _firstDayOfWeek,
+        showWeekNumbers: _showWeekNumbers,
+        initialDateTime: DateTime(anchor.year, anchor.month, 1),
       ),
-      showWeekNumbers: preference.showWeekNumbers,
-      initialDateTime: DateTime(anchor.year, anchor.month, 1),
     );
   }
 
@@ -114,14 +115,23 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
           eventsController: widget.eventsController,
           kalenderController: _controller,
           // #225：views 不再可 const（双击闸门在 callbacks 上，views 保持纯配置）
-          views: const [
+          views: [
             kalender.MonthViewParts(
               // #164：原先把表头换成 SizedBox.shrink()，月视图完全没有星期行
+              //
+              // #552：表头自绘。`kalender.MonthHeader` 的 7 个表头日期是
+              // `visibleDateTimeRange.start.add(Duration(days: index))`——绝对时长，
+              // 跨美国东部 2026-11-01 的回拨日会给出两个周日、缺一个周六。
+              // 星期标签本来就只取决于「周起始日 + 列序号」，所以这里不接受库给的日期，
+              // 而与正文共用同一个 firstDayOfWeek / showWeekNumbers（initState 定一次）。
               header: KeyedSubtree(
-                key: Key('month_weekday_header'),
-                child: kalender.MonthHeader(),
+                key: const Key('month_weekday_header'),
+                child: MonthWeekdayHeader(
+                  firstDayOfWeek: _firstDayOfWeek,
+                  showWeekNumbers: _showWeekNumbers,
+                ),
               ),
-              body: kalender.MonthBody(
+              body: const kalender.MonthBody(
                 tileComponents: kalender.TileComponents(
                   tileBuilder: monthEventTileBuilder,
                 ),
@@ -130,12 +140,6 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
           ],
           components: kalender.KalenderComponents(
             monthComponents: kalender.MonthComponents(
-              // 星期名固定用中文单字（kalender 默认走 intl，zh 数据未初始化会抛错；
-              // 英文全名问题见 #193）
-              headerComponents: kalender.MonthHeaderComponents(
-                weekDayHeaderBuilder: (context, date) =>
-                    _MonthWeekDayHeader(date: date),
-              ),
               bodyComponents: kalender.MonthBodyComponents(
                 monthDayHeaderBuilder: (context, date) =>
                     _MonthDayHeader(
@@ -266,33 +270,67 @@ class _MonthDayHeader extends StatelessWidget {
     );
   }
 }
+/// #552：月视图星期表头第 i 列（0 基）对应的 ISO 星期序号。
+///
+/// 纯函数，与进程时区无关 ⇒ 判据在任何机器都成立（库给的日期跨回拨日会重复一天，
+/// 而标签本该只由「周起始日 + 列序号」决定）。
+List<int> monthWeekdayHeaderIsoWeekdays(int firstDayOfWeek) => [
+  for (var i = 0; i < DateTime.daysPerWeek; i++) ((firstDayOfWeek - 1 + i) % 7) + 1,
+];
 
-/// 月视图星期行：中文单字，周末灰色（Apple 月视图同款）。
-class _MonthWeekDayHeader extends StatelessWidget {
-  const _MonthWeekDayHeader({required this.date});
+/// ISO 星期序号（1..7）→ 中文单字。
+///
+/// kalender 默认走 intl，zh 数据未初始化会抛错（英文全名问题见 #193），所以自给。
+const List<String> kMonthWeekdayNames = ['一', '二', '三', '四', '五', '六', '日'];
 
-  final DateTime date;
+/// #552：星期表头行。列序与配色沿用 #164 定下的口径，但标签不再向库要日期。
+class MonthWeekdayHeader extends StatelessWidget {
+  const MonthWeekdayHeader({
+    super.key,
+    required this.firstDayOfWeek,
+    required this.showWeekNumbers,
+  });
 
-  static const _names = ['一', '二', '三', '四', '五', '六', '日'];
+  final int firstDayOfWeek;
+  final bool showWeekNumbers;
 
   @override
   Widget build(BuildContext context) {
-    final isWeekend = date.weekday == DateTime.saturday ||
-        date.weekday == DateTime.sunday;
-    return Padding(
-      key: ValueKey('month_weekday_${date.weekday}'),
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Center(
-        child: Text(
-          _names[date.weekday - 1],
-          style: TextStyle(
-            fontSize: 12,
-            color: isWeekend
-                ? CalendarTokens.labelSecondary
-                : CalendarTokens.labelSubtle,
+    // 与正文同一把尺：kalender 自己的表头用 MonthWeekNumberSpacer，
+    // 其宽度解析到 defaultWeekNumberWidth（本仓未设自定义 weekNumberWidth）。
+    final gutter = showWeekNumbers
+        ? kalender.defaultWeekNumberWidth(context)
+        : 0.0;
+    return Row(
+      children: [
+        if (showWeekNumbers) SizedBox(width: gutter),
+        Expanded(
+          child: Row(
+            children: [
+              for (final iso in monthWeekdayHeaderIsoWeekdays(firstDayOfWeek))
+                Expanded(
+                  child: Padding(
+                    key: ValueKey('month_weekday_$iso'),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Center(
+                      child: Text(
+                        kMonthWeekdayNames[iso - 1],
+                        style: TextStyle(
+                          fontSize: 12,
+                          color:
+                              (iso == DateTime.saturday ||
+                                  iso == DateTime.sunday)
+                              ? CalendarTokens.labelSecondary
+                              : CalendarTokens.labelSubtle,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
 }
