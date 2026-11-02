@@ -862,6 +862,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       // #486：菜单的分区两项复用 #533 的入口与闸门（智能清单没有分区）。
       case LifeMenuAction.newSection:
         if (!widget.list.isSmart) _createSection();
+      case LifeMenuAction.editList:
+        if (!widget.list.isSmart) _editCurrentList();
       case LifeMenuAction.editSections:
         if (!widget.list.isSmart) _editSections();
       case LifeMenuAction.openSettings:
@@ -1509,6 +1511,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     context,
     list: widget.list,
     repository: ref.read(reminderRepositoryProvider),
+  );
+
+  /// #537：菜单「文件 → 编辑列表」——编辑当前打开的那个清单，
+  /// 与侧栏 ⋯ 走同一个 showEditListDialog（改名/颜色/类型）。
+  Future<void> _editCurrentList() => showEditListDialog(
+    context,
+    list: widget.list,
+    onSave: (updated) =>
+        ref.read(reminderRepositoryProvider).upsertList(updated),
   );
 
   Future<void> _editSections() => showSectionEditorSheet(

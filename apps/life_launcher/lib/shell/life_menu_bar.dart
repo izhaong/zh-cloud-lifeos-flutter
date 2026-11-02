@@ -95,6 +95,12 @@ class LifeMenuBar extends StatelessWidget {
               label: '新建列表',
               onSelected: () => commands.value = LifeMenuAction.newList,
             ),
+            // #537：Apple「文件 → 编辑列表」作用于前台清单。弹层本体复用
+            // feature_task 里侧栏 ⋯ 用的那一个，不在菜单侧做第二套选择器。
+            PlatformMenuItem(
+              label: '编辑列表',
+              onSelected: () => commands.value = LifeMenuAction.editList,
+            ),
             // #486：分区入口本体在 #533 已落地（⋯ 菜单），这里只接线——
             // 命令由 TaskScaffold 消费并复用同一对弹层，菜单侧不另写新建逻辑。
             PlatformMenuItem(

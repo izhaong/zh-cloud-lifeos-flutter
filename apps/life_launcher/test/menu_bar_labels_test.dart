@@ -70,6 +70,18 @@ void main() {
         reason: '壳不得直接写偏好');
   });
 
+  test('#537 文件菜单有「编辑列表」，且弹层不在壳里自己实现', () {
+    expect(source.contains("label: '编辑列表'"), isTrue,
+        reason: 'Apple 文件菜单有「编辑列表」');
+    expect(source.contains('LifeMenuAction.editList'), isTrue,
+        reason: '菜单项必须指向命令总线的 editList');
+    // 编辑弹层本体在 feature_task（侧栏 ⋯ 用的同一个）；壳里出现这些名字
+    // 就说明有人复制了第二套实现。
+    expect(source.contains('showEditListDialog'), isFalse,
+        reason: '壳不得自己实现列表编辑');
+    expect(source.contains('upsertList'), isFalse, reason: '壳不得直接落库');
+  });
+
   test('编辑菜单走标准 intent，不自己实现', () {
     for (final intent in [
       'UndoTextIntent',
