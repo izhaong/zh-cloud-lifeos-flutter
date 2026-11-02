@@ -8,6 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'support/life_test_app.dart';
 
+/// 夹具挂钟：与本包 golden 基线同源（`test/goldens/README.md`）。
+/// 月视图渲染「今天所在的那个月」，不钉它就会随真实日期换月。
+DateTime _fixedNow() => DateTime(2026, 10, 26);
+
 /// F-06 月视图契约（TC-CAL-UI-103/112/115/131；契约 §5.4/§8.3）。
 void main() {
   late _MutableRepo repo;
@@ -25,6 +29,10 @@ void main() {
           calendarRepositoryProvider.overrideWithValue(repo),
           sidebarPrefsProvider.overrideWithValue(prefs),
           kalenderEventsControllerProvider.overrideWithValue(controller),
+          // #549：夹具不钉挂钟 ⇒ 本文件的绝对日期事件（2026-10-24）只在
+          // 「今天」恰好落在 2026 年 10 月时才可见 —— 11 月起这条必然红。
+          // 与 test/goldens/README.md 的约定对齐：测试侧统一钉 2026-10-26。
+          clockProvider.overrideWithValue(_fixedNow),
         ],
         child: lifeTestHost(
           Scaffold(
@@ -57,7 +65,6 @@ void main() {
 
   // #164：月视图要有星期行（中文单字），当天要有红底圆点标记
   testWidgets('#164 月视图星期行与当天高亮', (tester) async {
-    final now = DateTime.now();
     await pumpMonth(tester);
 
     expect(
@@ -71,7 +78,7 @@ void main() {
     expect(
       find.byKey(const Key('month-today')),
       findsOneWidget,
-      reason: '当天（${now.day}）没有高亮标记',
+      reason: '当天（${_fixedNow().day}）没有高亮标记',
     );
   });
 

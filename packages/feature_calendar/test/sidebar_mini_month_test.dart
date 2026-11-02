@@ -57,6 +57,10 @@ Future<_Repo> _pumpSidebar(WidgetTester tester) async {
       overrides: [
         calendarRepositoryProvider.overrideWithValue(repo),
         sidebarPrefsProvider.overrideWithValue(prefs),
+        // #549：下面那条用例断言「点 15 ⇒ 锚点 2026-10-15」，而迷你月历渲染
+        // 「挂钟所在的那个月」。不钉 clockProvider 的话，10 月之外跑必然红
+        // （11 月实测 Expected: <10> Actual: <11>，红的是月份断言）。
+        clockProvider.overrideWithValue(() => DateTime(2026, 10, 26)),
       ],
       child: lifeTestHost(const Scaffold(body: CalendarSidebar())),
     ),
