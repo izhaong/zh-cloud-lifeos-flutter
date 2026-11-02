@@ -16,7 +16,7 @@ void main() {
     final db = LifeProductivityDb(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 23);
+    expect(db.schemaVersion, 24);
     final repo = DriftNotePreferenceRepository(db);
     await repo.savePreference(const NotePreference());
     final saved = await repo.watchPreference().first;
@@ -45,7 +45,7 @@ void main() {
     final db = LifeProductivityDb(NativeDatabase.opened(raw));
     addTearDown(db.close);
     await db.customSelect('SELECT 1').get();
-    expect(db.schemaVersion, 23);
+    expect(db.schemaVersion, 24);
 
     final pref = await DriftNotePreferenceRepository(db).watchPreference().first;
     expect(

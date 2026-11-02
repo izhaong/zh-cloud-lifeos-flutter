@@ -69,7 +69,7 @@ void main() {
       expect(l.colorArgb, 0xFF34C759);
       expect(l.sortOrder, 5);
       expect(l.remoteId, '9001');
-      expect(db.schemaVersion, 23,
+      expect(db.schemaVersion, 24,
           reason: 'V14 给 reminder_lists 加 remote_id 列（flutter#144）');
     });
 

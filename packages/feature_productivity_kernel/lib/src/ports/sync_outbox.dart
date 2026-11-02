@@ -214,6 +214,9 @@ Map<String, dynamic> listSyncPayload(ReminderList list) => {
               'flaggedOnly': list.smartFilter!.flaggedOnly,
             }),
       'sortOrder': list.sortOrder,
+      // #563：置顶是清单的业务字段（不是本机视图态），所以必须出站，
+      // 否则服务端 lifeos_list.is_pinned（service#573）永远收不到。
+      'isPinned': list.isPinned,
     };
 
 /// 任务域清单载荷 → [ReminderList]（[listSyncPayload] 的逆向）。
@@ -252,6 +255,7 @@ ReminderList reminderListFromSyncPayload(
     isSmart: asBool(payload['isSmart'], existing?.isSmart ?? false),
     itemCount: existing?.itemCount ?? 0,
     sortOrder: asInt(payload['sortOrder']) ?? existing?.sortOrder ?? 0,
+    isPinned: asBool(payload['isPinned'], existing?.isPinned ?? false),
     sections: existing?.sections ?? const [],
     groupName: existing?.groupName,
     listType: ReminderListType.fromId(asString(payload['type'])),

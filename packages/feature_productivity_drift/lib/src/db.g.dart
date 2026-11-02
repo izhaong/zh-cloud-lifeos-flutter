@@ -66,6 +66,21 @@ class $ReminderListsTable extends ReminderLists
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _isPinnedMeta = const VerificationMeta(
+    'isPinned',
+  );
+  @override
+  late final GeneratedColumn<bool> isPinned = GeneratedColumn<bool>(
+    'is_pinned',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_pinned" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _sectionsJsonMeta = const VerificationMeta(
     'sectionsJson',
   );
@@ -129,6 +144,7 @@ class $ReminderListsTable extends ReminderLists
     colorArgb,
     isSmart,
     sortOrder,
+    isPinned,
     sectionsJson,
     groupName,
     listType,
@@ -176,6 +192,12 @@ class $ReminderListsTable extends ReminderLists
       context.handle(
         _sortOrderMeta,
         sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('is_pinned')) {
+      context.handle(
+        _isPinnedMeta,
+        isPinned.isAcceptableOrUnknown(data['is_pinned']!, _isPinnedMeta),
       );
     }
     if (data.containsKey('sections_json')) {
@@ -243,6 +265,10 @@ class $ReminderListsTable extends ReminderLists
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
       )!,
+      isPinned: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_pinned'],
+      )!,
       sectionsJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}sections_json'],
@@ -279,6 +305,9 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
   final bool isSmart;
   final int sortOrder;
 
+  /// 清单置顶（#563；V24 增列）：从「本机视图态键袋」升成清单字段才能同步。
+  final bool isPinned;
+
   /// 手动分区元数据 JSON（[{id,title,sortOrder}]；TC-KR-118）。
   /// nullable：V3→V4 增列时旧行为 NULL，读取侧兜底空分区。
   final String? sectionsJson;
@@ -300,6 +329,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     required this.colorArgb,
     required this.isSmart,
     required this.sortOrder,
+    required this.isPinned,
     this.sectionsJson,
     this.groupName,
     this.listType,
@@ -314,6 +344,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     map['color_argb'] = Variable<int>(colorArgb);
     map['is_smart'] = Variable<bool>(isSmart);
     map['sort_order'] = Variable<int>(sortOrder);
+    map['is_pinned'] = Variable<bool>(isPinned);
     if (!nullToAbsent || sectionsJson != null) {
       map['sections_json'] = Variable<String>(sectionsJson);
     }
@@ -339,6 +370,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       colorArgb: Value(colorArgb),
       isSmart: Value(isSmart),
       sortOrder: Value(sortOrder),
+      isPinned: Value(isPinned),
       sectionsJson: sectionsJson == null && nullToAbsent
           ? const Value.absent()
           : Value(sectionsJson),
@@ -368,6 +400,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       colorArgb: serializer.fromJson<int>(json['colorArgb']),
       isSmart: serializer.fromJson<bool>(json['isSmart']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      isPinned: serializer.fromJson<bool>(json['isPinned']),
       sectionsJson: serializer.fromJson<String?>(json['sectionsJson']),
       groupName: serializer.fromJson<String?>(json['groupName']),
       listType: serializer.fromJson<String?>(json['listType']),
@@ -384,6 +417,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       'colorArgb': serializer.toJson<int>(colorArgb),
       'isSmart': serializer.toJson<bool>(isSmart),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'isPinned': serializer.toJson<bool>(isPinned),
       'sectionsJson': serializer.toJson<String?>(sectionsJson),
       'groupName': serializer.toJson<String?>(groupName),
       'listType': serializer.toJson<String?>(listType),
@@ -398,6 +432,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     int? colorArgb,
     bool? isSmart,
     int? sortOrder,
+    bool? isPinned,
     Value<String?> sectionsJson = const Value.absent(),
     Value<String?> groupName = const Value.absent(),
     Value<String?> listType = const Value.absent(),
@@ -409,6 +444,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     colorArgb: colorArgb ?? this.colorArgb,
     isSmart: isSmart ?? this.isSmart,
     sortOrder: sortOrder ?? this.sortOrder,
+    isPinned: isPinned ?? this.isPinned,
     sectionsJson: sectionsJson.present ? sectionsJson.value : this.sectionsJson,
     groupName: groupName.present ? groupName.value : this.groupName,
     listType: listType.present ? listType.value : this.listType,
@@ -422,6 +458,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
       colorArgb: data.colorArgb.present ? data.colorArgb.value : this.colorArgb,
       isSmart: data.isSmart.present ? data.isSmart.value : this.isSmart,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      isPinned: data.isPinned.present ? data.isPinned.value : this.isPinned,
       sectionsJson: data.sectionsJson.present
           ? data.sectionsJson.value
           : this.sectionsJson,
@@ -442,6 +479,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
           ..write('colorArgb: $colorArgb, ')
           ..write('isSmart: $isSmart, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('isPinned: $isPinned, ')
           ..write('sectionsJson: $sectionsJson, ')
           ..write('groupName: $groupName, ')
           ..write('listType: $listType, ')
@@ -458,6 +496,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
     colorArgb,
     isSmart,
     sortOrder,
+    isPinned,
     sectionsJson,
     groupName,
     listType,
@@ -473,6 +512,7 @@ class ReminderList extends DataClass implements Insertable<ReminderList> {
           other.colorArgb == this.colorArgb &&
           other.isSmart == this.isSmart &&
           other.sortOrder == this.sortOrder &&
+          other.isPinned == this.isPinned &&
           other.sectionsJson == this.sectionsJson &&
           other.groupName == this.groupName &&
           other.listType == this.listType &&
@@ -486,6 +526,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
   final Value<int> colorArgb;
   final Value<bool> isSmart;
   final Value<int> sortOrder;
+  final Value<bool> isPinned;
   final Value<String?> sectionsJson;
   final Value<String?> groupName;
   final Value<String?> listType;
@@ -498,6 +539,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     this.colorArgb = const Value.absent(),
     this.isSmart = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.isPinned = const Value.absent(),
     this.sectionsJson = const Value.absent(),
     this.groupName = const Value.absent(),
     this.listType = const Value.absent(),
@@ -511,6 +553,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     this.colorArgb = const Value.absent(),
     this.isSmart = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.isPinned = const Value.absent(),
     this.sectionsJson = const Value.absent(),
     this.groupName = const Value.absent(),
     this.listType = const Value.absent(),
@@ -525,6 +568,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     Expression<int>? colorArgb,
     Expression<bool>? isSmart,
     Expression<int>? sortOrder,
+    Expression<bool>? isPinned,
     Expression<String>? sectionsJson,
     Expression<String>? groupName,
     Expression<String>? listType,
@@ -538,6 +582,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
       if (colorArgb != null) 'color_argb': colorArgb,
       if (isSmart != null) 'is_smart': isSmart,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (isPinned != null) 'is_pinned': isPinned,
       if (sectionsJson != null) 'sections_json': sectionsJson,
       if (groupName != null) 'group_name': groupName,
       if (listType != null) 'list_type': listType,
@@ -553,6 +598,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     Value<int>? colorArgb,
     Value<bool>? isSmart,
     Value<int>? sortOrder,
+    Value<bool>? isPinned,
     Value<String?>? sectionsJson,
     Value<String?>? groupName,
     Value<String?>? listType,
@@ -566,6 +612,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
       colorArgb: colorArgb ?? this.colorArgb,
       isSmart: isSmart ?? this.isSmart,
       sortOrder: sortOrder ?? this.sortOrder,
+      isPinned: isPinned ?? this.isPinned,
       sectionsJson: sectionsJson ?? this.sectionsJson,
       groupName: groupName ?? this.groupName,
       listType: listType ?? this.listType,
@@ -592,6 +639,9 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
     }
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (isPinned.present) {
+      map['is_pinned'] = Variable<bool>(isPinned.value);
     }
     if (sectionsJson.present) {
       map['sections_json'] = Variable<String>(sectionsJson.value);
@@ -622,6 +672,7 @@ class ReminderListsCompanion extends UpdateCompanion<ReminderList> {
           ..write('colorArgb: $colorArgb, ')
           ..write('isSmart: $isSmart, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('isPinned: $isPinned, ')
           ..write('sectionsJson: $sectionsJson, ')
           ..write('groupName: $groupName, ')
           ..write('listType: $listType, ')
@@ -9265,6 +9316,7 @@ typedef $$ReminderListsTableCreateCompanionBuilder =
       Value<int> colorArgb,
       Value<bool> isSmart,
       Value<int> sortOrder,
+      Value<bool> isPinned,
       Value<String?> sectionsJson,
       Value<String?> groupName,
       Value<String?> listType,
@@ -9279,6 +9331,7 @@ typedef $$ReminderListsTableUpdateCompanionBuilder =
       Value<int> colorArgb,
       Value<bool> isSmart,
       Value<int> sortOrder,
+      Value<bool> isPinned,
       Value<String?> sectionsJson,
       Value<String?> groupName,
       Value<String?> listType,
@@ -9318,6 +9371,11 @@ class $$ReminderListsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9381,6 +9439,11 @@ class $$ReminderListsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isPinned => $composableBuilder(
+    column: $table.isPinned,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get sectionsJson => $composableBuilder(
     column: $table.sectionsJson,
     builder: (column) => ColumnOrderings(column),
@@ -9430,6 +9493,9 @@ class $$ReminderListsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get isPinned =>
+      $composableBuilder(column: $table.isPinned, builder: (column) => column);
 
   GeneratedColumn<String> get sectionsJson => $composableBuilder(
     column: $table.sectionsJson,
@@ -9493,6 +9559,7 @@ class $$ReminderListsTableTableManager
                 Value<int> colorArgb = const Value.absent(),
                 Value<bool> isSmart = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
                 Value<String?> sectionsJson = const Value.absent(),
                 Value<String?> groupName = const Value.absent(),
                 Value<String?> listType = const Value.absent(),
@@ -9505,6 +9572,7 @@ class $$ReminderListsTableTableManager
                 colorArgb: colorArgb,
                 isSmart: isSmart,
                 sortOrder: sortOrder,
+                isPinned: isPinned,
                 sectionsJson: sectionsJson,
                 groupName: groupName,
                 listType: listType,
@@ -9519,6 +9587,7 @@ class $$ReminderListsTableTableManager
                 Value<int> colorArgb = const Value.absent(),
                 Value<bool> isSmart = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<bool> isPinned = const Value.absent(),
                 Value<String?> sectionsJson = const Value.absent(),
                 Value<String?> groupName = const Value.absent(),
                 Value<String?> listType = const Value.absent(),
@@ -9531,6 +9600,7 @@ class $$ReminderListsTableTableManager
                 colorArgb: colorArgb,
                 isSmart: isSmart,
                 sortOrder: sortOrder,
+                isPinned: isPinned,
                 sectionsJson: sectionsJson,
                 groupName: groupName,
                 listType: listType,

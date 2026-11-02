@@ -12,6 +12,9 @@ class ReminderLists extends Table {
   BoolColumn get isSmart => boolean().withDefault(const Constant(false))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
+  /// 清单置顶（#563；V24 增列）：从「本机视图态键袋」升成清单字段才能同步。
+  BoolColumn get isPinned => boolean().withDefault(const Constant(false))();
+
   /// 手动分区元数据 JSON（[{id,title,sortOrder}]；TC-KR-118）。
   /// nullable：V3→V4 增列时旧行为 NULL，读取侧兜底空分区。
   TextColumn get sectionsJson =>
@@ -398,7 +401,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   /// 幂等加列（#451/#446 共用）。
   ///
@@ -521,6 +524,17 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // V13（flutter#124 卡 4 / TC-UI-120）：任务侧本地偏好
             await m.createTable(taskPreferences);
           }
+          if (from < 24 && to >= 24) {
+            // V24（flutter#563）：置顶从「本机视图态键袋」升成清单字段，
+            // 才能跟 sortOrder 一样落库并走同步、跨设备一致。
+            await _addColumnIfTableExists(
+              m,
+              'reminder_lists',
+              reminderLists,
+              reminderLists.isPinned,
+            );
+            await _backfillListPins(m);
+          }
           if (from < 14 && to >= 14) {
             // V14（flutter#144 / TC-SYNC-106）：清单入站落库要有服务端 ID 列。
             // to 上界必须有：迁移测试会在「已按最新 schema 建好的库」上重放
@@ -603,6 +617,67 @@ class LifeProductivityDb extends _$LifeProductivityDb {
           }
         },
       );
+
+  /// V24（flutter#563）：把视图态键袋里的 `pinned:<listId>` 搬进
+  /// `reminder_lists.is_pinned`，并把袋里那批键删掉。
+  ///
+  /// 放在迁移里而不是启动时的 provider：这里一次执行、有 SQL 直接读两张表，
+  /// 也不用等偏好流首帧。智能清单不参与置顶（读侧本来就跳过 isSmart），
+  /// 所以按 id 命中什么就写什么，不需要再判类型；指向已删清单的幽灵键
+  /// 只会被 UPDATE 打空，仍要从袋里摘掉，免得两处真相源长期并存。
+  static Future<void> _backfillListPins(Migrator m) async {
+    Future<bool> exists(String name) async {
+      final hit = await m.database
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+            variables: [Variable.withString(name)],
+          )
+          .get();
+      return hit.isNotEmpty;
+    }
+
+    // 手搓最小旧库的迁移链测试里这两张表可能还不存在（同仓 _addColumnIfTableExists
+    // 记的就是这两个坑）；缺任一张就没有「袋→列」可搬，直接跳过。
+    if (!await exists('task_preferences') || !await exists('reminder_lists')) {
+      return;
+    }
+    final rows = await m.database
+        .customSelect('SELECT user_key, collapsed_keys_json FROM task_preferences')
+        .get();
+    for (final row in rows) {
+      final raw = row.data['collapsed_keys_json'] as String?;
+      if (raw == null || raw.isEmpty) continue;
+      final List<dynamic> decoded;
+      try {
+        final parsed = jsonDecode(raw);
+        if (parsed is! List) continue;
+        decoded = parsed;
+      } catch (_) {
+        continue;
+      }
+      final pinnedIds = decoded
+          .whereType<String>()
+          .where((k) => k.startsWith('pinned:'))
+          .map((k) => k.substring('pinned:'.length))
+          .where((id) => id.isNotEmpty)
+          .toList();
+      final kept = decoded
+          .whereType<String>()
+          .where((k) => !k.startsWith('pinned:'))
+          .toList();
+      if (pinnedIds.isEmpty) continue;
+      for (final id in pinnedIds) {
+        await m.database.customStatement(
+          'UPDATE reminder_lists SET is_pinned = 1 WHERE id = ?',
+          [id],
+        );
+      }
+      await m.database.customStatement(
+        'UPDATE task_preferences SET collapsed_keys_json = ? WHERE user_key = ?',
+        [jsonEncode(kept), row.data['user_key'] as String],
+      );
+    }
+  }
 
   /// V15 数据搬迁：`reminder_lists.sections_json` → `reminder_sections` 行。
   ///

@@ -242,7 +242,6 @@ class _CompactPane extends ConsumerWidget {
         .toList(growable: false);
     final mine = orderListsPinnedFirst(
       lists.where((e) => !e.isSmart).toList(growable: false),
-      ref.watch(collapsedKeysProvider),
     );
     final trash = lists.where((e) => e.id == 'smart.trash').firstOrNull;
     final hasGrocery = mine.any((e) => e.listType == ReminderListType.grocery);
@@ -1047,15 +1046,19 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     await _onSectionDrop(item.id, picked);
   }
 
-  /// #537：置顶/取消置顶前台列表。智能清单没有这个概念（侧栏内置区固定序），
-  /// 所以给可见提示而不是静默 no-op。
-  void _setCurrentListPinned(bool pinned) {
+  /// #537/#563：「文件 → 置顶列表 / 取消置顶列表」写清单实体的 `isPinned`。
+  ///
+  /// 以前这行写的是视图态键袋（只作用于本机侧栏）；改成落库字段后置顶会随
+  /// 同步通道走，换设备还在。智能清单直接拒绝（与排序侧的 `isSmart` 闸门同口径）。
+  Future<void> _setCurrentListPinned(bool pinned) async {
     final list = widget.list;
     if (list.isSmart) {
-      _showMenuNotice('置顶列表', '智能清单不用置顶');
+      await _showMenuNotice('置顶列表', '智能清单不用置顶');
       return;
     }
-    ref.read(collapsedKeysProvider.notifier).setListPinned(list.id, pinned);
+    await ref
+        .read(reminderRepositoryProvider)
+        .upsertList(list.copyWith(isPinned: pinned));
   }
 
   /// #537：渲染处每轮刷新一次的「可见行序」（父行后紧跟其子行）。
