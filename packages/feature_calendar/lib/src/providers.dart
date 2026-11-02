@@ -48,7 +48,12 @@ final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 class AnchorDateNotifier extends Notifier<DateTime> {
   @override
   DateTime build() {
-    final now = DateTime.now();
+    // #549：这里原来是裸 DateTime.now()，把 clockProvider 绕过去了 —— 而锚点决定
+    // 月视图渲染哪个月、迷你月历显示哪个月。于是「注入了挂钟却没钉住月份」：
+    // 2026-10-26 录的 golden 与所有用绝对日期的夹具，只在真实日期恰好落在 10 月时
+    // 才成立，跨月即红。
+    // 用 read（不是 watch）：时钟变更不该把用户已选的锚点重置回今天。
+    final now = ref.read(clockProvider)();
     return DateTime(now.year, now.month, now.day);
   }
 
@@ -56,7 +61,7 @@ class AnchorDateNotifier extends Notifier<DateTime> {
 
   /// 回到今天。
   void today() {
-    final now = DateTime.now();
+    final now = ref.read(clockProvider)();
     state = DateTime(now.year, now.month, now.day);
   }
 }
