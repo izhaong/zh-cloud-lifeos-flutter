@@ -36,6 +36,10 @@ class MiniMonth extends ConsumerWidget {
         firstDay: DateTime(anchor.year - 2, anchor.month, 1),
         lastDay: DateTime(anchor.year + 2, anchor.month, 1),
         focusedDay: anchor,
+        // #553：不传 currentDay 时 TableCalendar 退回库内的裸 DateTime.now()
+        // （其源码 line 63 / line 284），于是「今天」圈跟着真实日期跑：
+        // 挂钟注入（#331）管不到它，golden 每过一天就自己飘一点。
+        currentDay: ref.watch(clockProvider)(),
         startingDayOfWeek: weekStart == 7
             ? StartingDayOfWeek.sunday
             : StartingDayOfWeek.monday,

@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:table_calendar/table_calendar.dart';
 import 'support/life_test_app.dart';
 
 class _Repo implements CalendarRepository {
@@ -92,6 +93,29 @@ void main() {
     expect(anchor.year, 2026);
     expect(anchor.month, 10);
     expect(anchor.day, 15);
+  });
+
+  // #553：迷你月历的「今天」圈必须由可注入挂钟决定，不能跟着裸 DateTime.now()。
+  // TableCalendar 的 currentDay 缺省就是 DateTime.now()（其源码 line 63 / line 284），
+  // 不传就等于：golden 只在「录制那一天」成立，隔天自己就飘；
+  // 生产侧同理——挂钟可注入（#331）却管不到这个小圈。
+  testWidgets('#553 迷你月历的 today 跟着注入挂钟走（不是锚点、不是裸时钟）', (tester) async {
+    await _pumpSidebar(tester);
+    final container = ProviderScope.containerOf(
+        tester.element(find.byType(CalendarSidebar)));
+    // 把锚点挪到别的日子：today 圈若跟着锚点走就会跟着错到 10-15。
+    container.read(anchorDateProvider.notifier).set(DateTime(2026, 10, 15));
+    await tester.pumpAndSettle();
+
+    final calendar = tester.widget<TableCalendar<dynamic>>(
+        find.byType(TableCalendar<dynamic>));
+    expect(
+      calendar.currentDay,
+      DateTime(2026, 10, 26),
+      reason:
+          '夹具把挂钟钉在 2026-10-26、锚点已改到 10-15 ⇒ today 必须是挂钟那一天；'
+          '为 null 表示退回库内的裸 DateTime.now()，等于 10-15 则是拿锚点当今天',
+    );
   });
 
   testWidgets('#383 迷你月历周标题是中文（不得残留 Tue 等英文缩写）', (tester) async {
