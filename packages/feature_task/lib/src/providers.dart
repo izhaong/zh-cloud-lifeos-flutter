@@ -340,28 +340,13 @@ class CollapsedKeysNotifier extends Notifier<Set<String>>
   /// 落在 `collapsedKeysJson` 这一列而不是新加 Drift 布尔列：该列已经是带
   /// 命名空间的视图态键袋（`<listId>|<分区标题>` 与 `group:<分组名>` 两类共存），
   /// 再加一个 `view:` 前缀即沿用同一条已测过的持久化与 revision 通路；
-  /// 新加列要升 schemaVersion（`db.dart:401` 现为 23）+ 重跑 build_runner + 改掉
-  /// 12 个 drift 测试文件里 17 处 `expect(db.schemaVersion, ...)` 硬编码断言
-  /// （现读 develop 数的量；上一版这条注释写的「6 处」是错的，在置顶列表那刀一并订正），
+  /// 新加列要升 schemaVersion + 重跑 build_runner + 改掉 drift 测试里硬编码的
+  /// `expect(db.schemaVersion, ...)`（#563 加 V24 那轮实测：14 个文件 20 处，
+  /// 复算 `grep -ro 'schemaVersion, 24' test | wc -l`），
   /// 换到的却是完全相同的持久化语义。
   void setSubtasksHidden(bool hidden) {
     final next = {...state}..remove(subtasksHiddenKey);
     if (hidden) next.add(subtasksHiddenKey);
-    write(next);
-  }
-
-  /// #537：「置顶列表 / 取消置顶列表」。同一个列表一条键，取消即删。
-  ///
-  /// 同样落在视图态键袋（第三个命名空间 `pinned:`）：这是**本机的侧栏排序偏好**，
-  /// 不是列表的业务字段。服务端那行账号级偏好（`zh-cloud-service` 的
-  /// `LifeosTaskPreferenceDO` → `lifeos_task_preference`：defaultListId /
-  /// allDayRemindTime / defaultReminderMinutes / timeZone / revision）里既没有
-  /// 视图态列也没有置顶列，所以现在同步不过去；Apple 的 pin 是跟账户走的，
-  /// 要对齐得先加服务端列与契约（已另立 service Issue）。
-  void setListPinned(String listId, bool pinned) {
-    final key = pinnedListKey(listId);
-    final next = {...state}..remove(key);
-    if (pinned) next.add(key);
     write(next);
   }
 }
@@ -369,22 +354,16 @@ class CollapsedKeysNotifier extends Notifier<Set<String>>
 /// 子任务显隐开关在视图态键袋里的键（`view:` 命名空间）。
 const String subtasksHiddenKey = 'view:subtasksHidden';
 
-/// 视图态键袋里「某个列表被置顶」的键（`pinned:` 命名空间）。
-///
-/// 分区折叠键长成 `'<listId>|<分区标题>'`（必带 `|`），分组折叠带
-/// `group:` 前缀，所以 `pinned:<listId>` 与它们不可能撞键。
-String pinnedListKey(String listId) => 'pinned:$listId';
-
-/// #537：把被置顶的自有列表排到前面，其余保持原序（仓库契约
+/// #537/#563：把被置顶的自有列表排到前面，其余保持原序（仓库契约
 /// `sortOrder asc, id asc`）。智能清单永不参与置顶（`isSmart` 直接留在原位）。
-List<ReminderList> orderListsPinnedFirst(
-  List<ReminderList> lists,
-  Set<String> viewKeys,
-) {
+///
+/// 判据从「视图态键袋里有没有 `pinned:<id>`」换成清单自己的 `isPinned` 字段：
+/// 后者会落库、会走同步，所以置顶能跨设备（V24 迁移负责把老袋里的键搬过来）。
+List<ReminderList> orderListsPinnedFirst(List<ReminderList> lists) {
   final pinned = <ReminderList>[];
   final rest = <ReminderList>[];
   for (final l in lists) {
-    if (!l.isSmart && viewKeys.contains(pinnedListKey(l.id))) {
+    if (!l.isSmart && l.isPinned) {
       pinned.add(l);
     } else {
       rest.add(l);

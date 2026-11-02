@@ -14,6 +14,7 @@ final class ReminderList extends Equatable {
     this.isSmart = false,
     this.itemCount = 0,
     this.sortOrder = 0,
+    this.isPinned = false,
     this.sections = const [],
     this.groupName,
     this.listType = ReminderListType.standard,
@@ -31,6 +32,13 @@ final class ReminderList extends Equatable {
 
   /// 「我的列表」排序键（智能列表固定顺序，不参与）。
   final int sortOrder;
+
+  /// 清单置顶（#563；对等 Apple「Pin List」）。
+  ///
+  /// 从「本机视图态键袋里的 `pinned:<id>`」升成实体字段：只有落库才能跟
+  /// sortOrder 一样走同步通道、换设备还在（服务端 lifeos_list.is_pinned，
+  /// 契约见 service#573）。
+  final bool isPinned;
 
   /// 手动分区元数据（我的列表；TC-KR-118）。
   final List<ReminderSection> sections;
@@ -74,6 +82,7 @@ final class ReminderList extends Equatable {
     int? colorArgb,
     int? itemCount,
     int? sortOrder,
+    bool? isPinned,
     List<ReminderSection>? sections,
     Object? groupName = const _GrpUnset(),
     ReminderListType? listType,
@@ -87,6 +96,7 @@ final class ReminderList extends Equatable {
       isSmart: isSmart,
       itemCount: itemCount ?? this.itemCount,
       sortOrder: sortOrder ?? this.sortOrder,
+      isPinned: isPinned ?? this.isPinned,
       sections: sections ?? this.sections,
       groupName: groupName is _GrpUnset ? this.groupName : groupName as String?,
       listType: listType ?? this.listType,
@@ -97,8 +107,8 @@ final class ReminderList extends Equatable {
 
   @override
   List<Object?> get props =>
-      [id, title, colorArgb, isSmart, itemCount, sortOrder, sections,
-       groupName, listType, smartFilter, remoteId];
+      [id, title, colorArgb, isSmart, itemCount, sortOrder, isPinned,
+       sections, groupName, listType, smartFilter, remoteId];
 }
 
 

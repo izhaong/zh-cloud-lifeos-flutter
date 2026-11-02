@@ -12,7 +12,7 @@ void main() {
     final db = LifeProductivityDb(NativeDatabase.memory());
     addTearDown(db.close);
 
-    expect(db.schemaVersion, 23);
+    expect(db.schemaVersion, 24);
     final repo = DriftTaskPreferenceRepository(db);
     await repo.savePreference(const TaskPreference());
     final saved = await repo.watchPreference().first;
@@ -47,7 +47,7 @@ void main() {
     final db = LifeProductivityDb(NativeDatabase.opened(raw));
     addTearDown(db.close);
     await db.customSelect('SELECT 1').get();
-    expect(db.schemaVersion, 23);
+    expect(db.schemaVersion, 24);
 
     final repo = DriftTaskPreferenceRepository(db);
     final pref = await repo.watchPreference().first;

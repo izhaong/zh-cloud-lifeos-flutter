@@ -69,7 +69,6 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
     final trash = allSmart.where((e) => e.id == 'smart.trash').firstOrNull;
     final mine = orderListsPinnedFirst(
       widget.lists.where((e) => !e.isSmart).toList(growable: false),
-      collapsedGroups,
     );
     final hasGrocery =
         mine.any((e) => e.listType == ReminderListType.grocery);
