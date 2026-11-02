@@ -283,6 +283,25 @@ class _LifeMenuBarBody extends StatelessWidget {
                 ),
               ],
             ),
+            // #537：Apple「编辑 → 缩进 / 减少缩进」。层级由 feature_task 侧
+            // 那条提醒事项的父级字段承载（空值 = 顶层），菜单侧只投命令；
+            // 「上一条是谁」要按真实渲染行序算，菜单这一层判不了布局。
+            // 这一组刻意不声明键位：Apple 用 ⌘] / ⌘[，而 #542 那套让位机制
+            // 只解决「与文本编辑抢键」，键位该不该占是另一个决定，留给后续卡。
+            PlatformMenuItemGroup(
+              members: <PlatformMenuItem>[
+                PlatformMenuItem(
+                  label: '缩进',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.indentReminder,
+                ),
+                PlatformMenuItem(
+                  label: '减少缩进',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.outdentReminder,
+                ),
+              ],
+            ),
             // #537：Apple「编辑 → 查找…」。聚焦搜索框这件事键盘侧已经有了
             // （feature_task 的 TaskShortcuts 把 meta+F 绑成 requestFocusSearch），
             // 这里只补菜单入口、走同一个票据，不另写第二套聚焦逻辑。
