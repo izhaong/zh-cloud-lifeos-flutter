@@ -87,6 +87,8 @@ class TaskScaffold extends ConsumerWidget {
       loading: () => const Center(child: CupertinoActivityIndicator()),
       error: (e, _) => Center(child: Text('加载失败：$e')),
       data: (lists) {
+        // #575：把当前可见清单发布给壳的「显示 → 前往」子菜单（壳不存第二份状态）。
+        _publishGoToLists(ref, lists);
         // 快捷键层（⌘N 新建 / ⌘F 搜索）包裹三档外壳；触屏端无物理键不影响
         final panes = TaskShortcuts(
           child: switch (sizeClass) {
@@ -129,8 +131,13 @@ class TaskScaffold extends ConsumerWidget {
                     ),
           },
         );
+        final panesWithMenu = _MenuGoToListener(
+          request: ref.read(lifeMenuGoToRequestProvider),
+          onOpen: onOpenList,
+          child: panes,
+        );
         final undo = ref.watch(completionUndoProvider);
-        if (undo == null) return panes;
+        if (undo == null) return panesWithMenu;
         return Column(
           children: [
             ColoredBox(
@@ -171,12 +178,84 @@ class TaskScaffold extends ConsumerWidget {
                 ],
               ),
             ),
-            Expanded(child: panes),
+            Expanded(child: panesWithMenu),
           ],
         );
       },
     );
   }
+}
+
+/// #575：把当前清单快照写给壳菜单；比较后再写，避免每帧触发菜单重建。
+void _publishGoToLists(WidgetRef ref, List<ReminderList> lists) {
+  final notifier = ref.read(lifeMenuGoToListsProvider);
+  if (notifier == null) return;
+  final targets = [
+    for (final l in lists) LifeMenuGoToTarget(id: l.id, title: l.title),
+  ];
+  final old = notifier.value;
+  var same = old.length == targets.length;
+  if (same) {
+    for (var i = 0; i < old.length; i++) {
+      if (old[i].id != targets[i].id || old[i].title != targets[i].title) {
+        same = false;
+        break;
+      }
+    }
+  }
+  if (same) return;
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    notifier.value = targets;
+  });
+}
+
+/// #575：「显示 → 前往」点击后切列表；菜单只写 id，切换由页面做。
+class _MenuGoToListener extends StatefulWidget {
+  const _MenuGoToListener({
+    required this.request,
+    required this.onOpen,
+    required this.child,
+  });
+
+  final ValueNotifier<String?>? request;
+  final ValueChanged<String>? onOpen;
+  final Widget child;
+
+  @override
+  State<_MenuGoToListener> createState() => _MenuGoToListenerState();
+}
+
+class _MenuGoToListenerState extends State<_MenuGoToListener> {
+  @override
+  void initState() {
+    super.initState();
+    widget.request?.addListener(_onRequest);
+  }
+
+  @override
+  void didUpdateWidget(covariant _MenuGoToListener oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.request != widget.request) {
+      oldWidget.request?.removeListener(_onRequest);
+      widget.request?.addListener(_onRequest);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.request?.removeListener(_onRequest);
+    super.dispose();
+  }
+
+  void _onRequest() {
+    final id = widget.request?.value;
+    if (id == null) return;
+    widget.request?.value = null;
+    widget.onOpen?.call(id);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// 紧凑单栏：iPhone 列表首页（智能列表卡片 + 我的列表 + 添加列表）。

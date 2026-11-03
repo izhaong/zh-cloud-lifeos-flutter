@@ -113,3 +113,20 @@ enum LifeMenuAction {
 final lifeMenuCommandsProvider = Provider<ValueNotifier<LifeMenuAction?>?>(
   (ref) => null,
 );
+
+
+/// 「显示 → 前往」的清单条目（#575）。壳只负责渲染，清单数据由 feature_task 发布。
+final class LifeMenuGoToTarget {
+  const LifeMenuGoToTarget({required this.id, required this.title});
+
+  final String id;
+  final String title;
+}
+
+/// 清单快照出口：feature_task 把当前可见清单写进来，菜单栏监听重建「前往」子菜单。
+final lifeMenuGoToListsProvider =
+    Provider<ValueNotifier<List<LifeMenuGoToTarget>>?>((ref) => null);
+
+/// 「前往」点击出口：菜单写清单 id，feature_task 消费后切到该列表并清零。
+final lifeMenuGoToRequestProvider =
+    Provider<ValueNotifier<String?>?>((ref) => null);
