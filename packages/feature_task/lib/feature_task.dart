@@ -15,4 +15,5 @@ export 'src/widgets/reminder_row.dart';
 export 'src/widgets/section_editor_sheet.dart';
 export 'src/widgets/smart_list_card.dart';
 export 'src/widgets/task_shortcuts.dart';
+export 'src/widgets/task_settings_sheet.dart';
 export 'src/widgets/task_sidebar.dart';

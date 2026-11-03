@@ -40,6 +40,26 @@ String resolveSmartCreateListId({
   return 'list.personal';
 }
 
+/// 打开设置界面：优先用组合根注入的独立窗口（#577），否则应用内页面。
+///
+/// 窗口打开失败由注入方回退应用内页面，这里不判平台、不吞异常。
+Future<void> openTaskSettings(
+  BuildContext context,
+  WidgetRef ref, {
+  VoidCallback? onOpenCloudLogin,
+}) {
+  final opener = ref.read(taskSettingsWindowOpenerProvider);
+  if (opener != null) {
+    return opener(context, onOpenCloudLogin: onOpenCloudLogin);
+  }
+  return showTaskSettingsSheet(
+    context,
+    onOpenCloudLogin: onOpenCloudLogin == null
+        ? null
+        : (_) => onOpenCloudLogin(),
+  );
+}
+
 /// 任务区自适应脚手架：单一逻辑内容，按 [WindowSizeClass] 只换外壳布局。
 ///
 /// - compact：单栏（首页列表视图；进列表/详情由路由栈推入）
@@ -676,12 +696,11 @@ class _TwoPane extends ConsumerWidget {
                   ),
                   onToggleSidebar: () =>
                       ref.read(sidebarVisibleProvider.notifier).toggle(),
-                  onOpenSettings: () => showTaskSettingsSheet(
+                  onOpenSettings: () => openTaskSettings(
                     context,
+                    ref,
                     // 恒非 null 闭包会破坏「空=弱化文案」契约——传本体（null 即弱化）
-                    onOpenCloudLogin: onOpenCloudLogin == null
-                        ? null
-                        : (_) => onOpenCloudLogin!.call(),
+                    onOpenCloudLogin: onOpenCloudLogin,
                   ),
                 ),
               ),
@@ -793,11 +812,10 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
                   ),
                   onToggleSidebar: () =>
                       ref.read(sidebarVisibleProvider.notifier).toggle(),
-                  onOpenSettings: () => showTaskSettingsSheet(
+                  onOpenSettings: () => openTaskSettings(
                     context,
-                    onOpenCloudLogin: widget.onOpenCloudLogin == null
-                        ? null
-                        : (_) => widget.onOpenCloudLogin!.call(),
+                    ref,
+                    onOpenCloudLogin: widget.onOpenCloudLogin,
                   ),
                 ),
               ),
@@ -1437,8 +1455,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     ).whenComplete(() => _newListDialogOpen = false);
   }
 
-  void _openSettings() {
-    showTaskSettingsSheet(context);
+  Future<void> _openSettings() {
+    // 菜单入口没有登录页上下文（与改造前一致的弱化文案）。
+    return openTaskSettings(context, ref);
   }
 
   void _toggleSmartLists() {
