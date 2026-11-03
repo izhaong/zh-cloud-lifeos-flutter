@@ -38,7 +38,10 @@ class SmartListCard extends StatelessWidget {
       child: Container(
         key: ValueKey('smart_card_surface_${list.id}'),
         decoration: BoxDecoration(
-          gradient: ReminderTokens.smartGradient(list.id),
+          gradient: list.isSmart
+              ? ReminderTokens.smartGradient(list.id)
+              // #588：置顶的自有清单也走这张卡，底色用它自己的列表色。
+              : ReminderTokens.gradientFromColor(Color(list.colorArgb)),
           borderRadius: radius,
           border: selected
               ? Border.all(
@@ -53,7 +56,11 @@ class SmartListCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(_icon(list.id), color: CupertinoColors.white, size: iconSize),
+                Icon(
+                  _icon(list),
+                  color: CupertinoColors.white,
+                  size: iconSize,
+                ),
                 const Spacer(),
                 Text(
                   '${list.itemCount}',
@@ -84,8 +91,15 @@ class SmartListCard extends StatelessWidget {
     );
   }
 
-  static IconData _icon(String id) {
-    return switch (id) {
+  static IconData _icon(ReminderList list) {
+    // #588：置顶的自有清单进卡片区时，Apple 的卡片图标是书签；
+    // 采购清单仍用购物车（与「我的列表」行里的图标语义保持一致）。
+    if (!list.isSmart) {
+      return list.listType == ReminderListType.grocery
+          ? CupertinoIcons.cart_fill
+          : CupertinoIcons.bookmark_fill;
+    }
+    return switch (list.id) {
       'smart.today' => CupertinoIcons.today,
       'smart.scheduled' => CupertinoIcons.calendar,
       'smart.all' => CupertinoIcons.tray_full,

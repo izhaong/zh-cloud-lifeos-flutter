@@ -101,4 +101,12 @@ abstract final class ReminderTokens {
             colors: [Color(0xFF8E8E93), Color(0xFF7C7C82)],
           ),
       };
+
+  /// #588：置顶的自有清单进顶部卡片区时，卡片用它自己的列表色
+  /// （Apple 的置顶卡就是列表色），而不是落到 `smartGradient` 的灰色兜底。
+  static LinearGradient gradientFromColor(Color base) => LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [base, Color.lerp(base, const Color(0xFF000000), 0.08)!],
+  );
 }

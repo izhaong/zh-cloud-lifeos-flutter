@@ -100,7 +100,7 @@ void main() {
     );
   });
 
-  testWidgets('桌面 1280 已置顶清单排在最前（service#591 之后，flutter#564 呈现取证）', (
+  testWidgets('桌面 1280 已置顶清单进顶部卡片区（flutter#588 呈现取证）', (
     tester,
   ) async {
     // sortOrder 故意与期望的视觉序相反：置顶压不过手动顺序的话，这张图就什么都不是。
@@ -112,18 +112,25 @@ void main() {
         const ReminderList(id: 'list.pin', title: '已置顶清单', sortOrder: 1, isPinned: true),
       ],
     );
-    final pinned = find.byKey(const ValueKey('my_list_list.pin'));
+    final card = find.byKey(const ValueKey('smart_card_list.pin'));
     final plain = find.byKey(const ValueKey('my_list_list.plain'));
-    expect(pinned, findsOneWidget, reason: '置顶清单必须真的渲染在侧栏上，找不到行就等于没取证');
-    expect(plain, findsOneWidget, reason: '未置顶清单同理');
+    // #588 改的是位置：Apple 的置顶清单离开「我的列表」、在智能清单那一排占一张卡。
+    // 旧断言量的是「行仍在我的列表且排最前」，那正是本卡要否证的呈现。
     expect(
-      tester.getTopLeft(pinned).dy,
+      find.byKey(const ValueKey('my_list_list.pin')),
+      findsNothing,
+      reason: '置顶的清单不得再留在「我的列表」里',
+    );
+    expect(card, findsOneWidget, reason: '卡片区必须真的渲染这张置顶清单，找不到就等于没取证');
+    expect(plain, findsOneWidget, reason: '未置顶清单同理要在册');
+    expect(
+      tester.getTopLeft(card).dy,
       lessThan(tester.getTopLeft(plain).dy),
-      reason: '#564 判据 ①：置顶行的 y 坐标必须在未置顶行之上（量坐标，不量文案存在）',
+      reason: '#588 判据 ①：置顶卡片的 y 坐标必须在「我的列表」行之上（量坐标，不量文案存在）',
     );
     await expectLater(
       find.byType(CupertinoApp),
-      matchesGoldenFile('goldens/desktop_1280_list_pinned_first.png'),
+      matchesGoldenFile('goldens/desktop_1280_list_pinned_card.png'),
     );
   });
 }
