@@ -376,6 +376,11 @@ class _LifeMenuBarBody extends StatelessWidget {
               onSelected: () => commands.value = LifeMenuAction.toggleCompleted,
             ),
             PlatformMenuItem(
+              label: '根据时间分组',
+              onSelected: () =>
+                  commands.value = LifeMenuAction.toggleGroupByTime,
+            ),
+            PlatformMenuItem(
               label: '显示所有子任务',
               onSelected: () => commands.value = LifeMenuAction.showAllSubtasks,
             ),

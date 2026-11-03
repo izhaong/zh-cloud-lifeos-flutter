@@ -8063,6 +8063,18 @@ class $TaskPreferencesTable extends TaskPreferences
         requiredDuringInsert: false,
         defaultValue: const Constant('[]'),
       );
+  static const VerificationMeta _viewOptionsJsonMeta = const VerificationMeta(
+    'viewOptionsJson',
+  );
+  @override
+  late final GeneratedColumn<String> viewOptionsJson = GeneratedColumn<String>(
+    'view_options_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
   static const VerificationMeta _revisionMeta = const VerificationMeta(
     'revision',
   );
@@ -8090,6 +8102,7 @@ class $TaskPreferencesTable extends TaskPreferences
     sortMode,
     sidebarVisible,
     collapsedKeysJson,
+    viewOptionsJson,
     revision,
   ];
   @override
@@ -8217,6 +8230,15 @@ class $TaskPreferencesTable extends TaskPreferences
         ),
       );
     }
+    if (data.containsKey('view_options_json')) {
+      context.handle(
+        _viewOptionsJsonMeta,
+        viewOptionsJson.isAcceptableOrUnknown(
+          data['view_options_json']!,
+          _viewOptionsJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('revision')) {
       context.handle(
         _revisionMeta,
@@ -8284,6 +8306,10 @@ class $TaskPreferencesTable extends TaskPreferences
         DriftSqlType.string,
         data['${effectivePrefix}collapsed_keys_json'],
       )!,
+      viewOptionsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}view_options_json'],
+      )!,
       revision: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}revision'],
@@ -8321,6 +8347,9 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
   final String sortMode;
   final bool sidebarVisible;
   final String collapsedKeysJson;
+
+  /// 通用视图开关 JSON（#574：`groupByTime`；#573：`viewMode`）。
+  final String viewOptionsJson;
   final int revision;
   const TaskPreference({
     required this.userKey,
@@ -8336,6 +8365,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     required this.sortMode,
     required this.sidebarVisible,
     required this.collapsedKeysJson,
+    required this.viewOptionsJson,
     required this.revision,
   });
   @override
@@ -8358,6 +8388,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     map['sort_mode'] = Variable<String>(sortMode);
     map['sidebar_visible'] = Variable<bool>(sidebarVisible);
     map['collapsed_keys_json'] = Variable<String>(collapsedKeysJson);
+    map['view_options_json'] = Variable<String>(viewOptionsJson);
     map['revision'] = Variable<int>(revision);
     return map;
   }
@@ -8381,6 +8412,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
       sortMode: Value(sortMode),
       sidebarVisible: Value(sidebarVisible),
       collapsedKeysJson: Value(collapsedKeysJson),
+      viewOptionsJson: Value(viewOptionsJson),
       revision: Value(revision),
     );
   }
@@ -8408,6 +8440,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
       sortMode: serializer.fromJson<String>(json['sortMode']),
       sidebarVisible: serializer.fromJson<bool>(json['sidebarVisible']),
       collapsedKeysJson: serializer.fromJson<String>(json['collapsedKeysJson']),
+      viewOptionsJson: serializer.fromJson<String>(json['viewOptionsJson']),
       revision: serializer.fromJson<int>(json['revision']),
     );
   }
@@ -8428,6 +8461,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
       'sortMode': serializer.toJson<String>(sortMode),
       'sidebarVisible': serializer.toJson<bool>(sidebarVisible),
       'collapsedKeysJson': serializer.toJson<String>(collapsedKeysJson),
+      'viewOptionsJson': serializer.toJson<String>(viewOptionsJson),
       'revision': serializer.toJson<int>(revision),
     };
   }
@@ -8446,6 +8480,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     String? sortMode,
     bool? sidebarVisible,
     String? collapsedKeysJson,
+    String? viewOptionsJson,
     int? revision,
   }) => TaskPreference(
     userKey: userKey ?? this.userKey,
@@ -8466,6 +8501,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     sortMode: sortMode ?? this.sortMode,
     sidebarVisible: sidebarVisible ?? this.sidebarVisible,
     collapsedKeysJson: collapsedKeysJson ?? this.collapsedKeysJson,
+    viewOptionsJson: viewOptionsJson ?? this.viewOptionsJson,
     revision: revision ?? this.revision,
   );
   TaskPreference copyWithCompanion(TaskPreferencesCompanion data) {
@@ -8505,6 +8541,9 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
       collapsedKeysJson: data.collapsedKeysJson.present
           ? data.collapsedKeysJson.value
           : this.collapsedKeysJson,
+      viewOptionsJson: data.viewOptionsJson.present
+          ? data.viewOptionsJson.value
+          : this.viewOptionsJson,
       revision: data.revision.present ? data.revision.value : this.revision,
     );
   }
@@ -8525,6 +8564,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
           ..write('sortMode: $sortMode, ')
           ..write('sidebarVisible: $sidebarVisible, ')
           ..write('collapsedKeysJson: $collapsedKeysJson, ')
+          ..write('viewOptionsJson: $viewOptionsJson, ')
           ..write('revision: $revision')
           ..write(')'))
         .toString();
@@ -8545,6 +8585,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
     sortMode,
     sidebarVisible,
     collapsedKeysJson,
+    viewOptionsJson,
     revision,
   );
   @override
@@ -8564,6 +8605,7 @@ class TaskPreference extends DataClass implements Insertable<TaskPreference> {
           other.sortMode == this.sortMode &&
           other.sidebarVisible == this.sidebarVisible &&
           other.collapsedKeysJson == this.collapsedKeysJson &&
+          other.viewOptionsJson == this.viewOptionsJson &&
           other.revision == this.revision);
 }
 
@@ -8581,6 +8623,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
   final Value<String> sortMode;
   final Value<bool> sidebarVisible;
   final Value<String> collapsedKeysJson;
+  final Value<String> viewOptionsJson;
   final Value<int> revision;
   final Value<int> rowid;
   const TaskPreferencesCompanion({
@@ -8597,6 +8640,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
     this.sortMode = const Value.absent(),
     this.sidebarVisible = const Value.absent(),
     this.collapsedKeysJson = const Value.absent(),
+    this.viewOptionsJson = const Value.absent(),
     this.revision = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -8614,6 +8658,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
     this.sortMode = const Value.absent(),
     this.sidebarVisible = const Value.absent(),
     this.collapsedKeysJson = const Value.absent(),
+    this.viewOptionsJson = const Value.absent(),
     this.revision = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : userKey = Value(userKey);
@@ -8631,6 +8676,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
     Expression<String>? sortMode,
     Expression<bool>? sidebarVisible,
     Expression<String>? collapsedKeysJson,
+    Expression<String>? viewOptionsJson,
     Expression<int>? revision,
     Expression<int>? rowid,
   }) {
@@ -8650,6 +8696,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
       if (sortMode != null) 'sort_mode': sortMode,
       if (sidebarVisible != null) 'sidebar_visible': sidebarVisible,
       if (collapsedKeysJson != null) 'collapsed_keys_json': collapsedKeysJson,
+      if (viewOptionsJson != null) 'view_options_json': viewOptionsJson,
       if (revision != null) 'revision': revision,
       if (rowid != null) 'rowid': rowid,
     });
@@ -8669,6 +8716,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
     Value<String>? sortMode,
     Value<bool>? sidebarVisible,
     Value<String>? collapsedKeysJson,
+    Value<String>? viewOptionsJson,
     Value<int>? revision,
     Value<int>? rowid,
   }) {
@@ -8688,6 +8736,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
       sortMode: sortMode ?? this.sortMode,
       sidebarVisible: sidebarVisible ?? this.sidebarVisible,
       collapsedKeysJson: collapsedKeysJson ?? this.collapsedKeysJson,
+      viewOptionsJson: viewOptionsJson ?? this.viewOptionsJson,
       revision: revision ?? this.revision,
       rowid: rowid ?? this.rowid,
     );
@@ -8739,6 +8788,9 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
     if (collapsedKeysJson.present) {
       map['collapsed_keys_json'] = Variable<String>(collapsedKeysJson.value);
     }
+    if (viewOptionsJson.present) {
+      map['view_options_json'] = Variable<String>(viewOptionsJson.value);
+    }
     if (revision.present) {
       map['revision'] = Variable<int>(revision.value);
     }
@@ -8764,6 +8816,7 @@ class TaskPreferencesCompanion extends UpdateCompanion<TaskPreference> {
           ..write('sortMode: $sortMode, ')
           ..write('sidebarVisible: $sidebarVisible, ')
           ..write('collapsedKeysJson: $collapsedKeysJson, ')
+          ..write('viewOptionsJson: $viewOptionsJson, ')
           ..write('revision: $revision, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -13113,6 +13166,7 @@ typedef $$TaskPreferencesTableCreateCompanionBuilder =
       Value<String> sortMode,
       Value<bool> sidebarVisible,
       Value<String> collapsedKeysJson,
+      Value<String> viewOptionsJson,
       Value<int> revision,
       Value<int> rowid,
     });
@@ -13131,6 +13185,7 @@ typedef $$TaskPreferencesTableUpdateCompanionBuilder =
       Value<String> sortMode,
       Value<bool> sidebarVisible,
       Value<String> collapsedKeysJson,
+      Value<String> viewOptionsJson,
       Value<int> revision,
       Value<int> rowid,
     });
@@ -13206,6 +13261,11 @@ class $$TaskPreferencesTableFilterComposer
 
   ColumnFilters<String> get collapsedKeysJson => $composableBuilder(
     column: $table.collapsedKeysJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get viewOptionsJson => $composableBuilder(
+    column: $table.viewOptionsJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13289,6 +13349,11 @@ class $$TaskPreferencesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get viewOptionsJson => $composableBuilder(
+    column: $table.viewOptionsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get revision => $composableBuilder(
     column: $table.revision,
     builder: (column) => ColumnOrderings(column),
@@ -13365,6 +13430,11 @@ class $$TaskPreferencesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get viewOptionsJson => $composableBuilder(
+    column: $table.viewOptionsJson,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get revision =>
       $composableBuilder(column: $table.revision, builder: (column) => column);
 }
@@ -13419,6 +13489,7 @@ class $$TaskPreferencesTableTableManager
                 Value<String> sortMode = const Value.absent(),
                 Value<bool> sidebarVisible = const Value.absent(),
                 Value<String> collapsedKeysJson = const Value.absent(),
+                Value<String> viewOptionsJson = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TaskPreferencesCompanion(
@@ -13435,6 +13506,7 @@ class $$TaskPreferencesTableTableManager
                 sortMode: sortMode,
                 sidebarVisible: sidebarVisible,
                 collapsedKeysJson: collapsedKeysJson,
+                viewOptionsJson: viewOptionsJson,
                 revision: revision,
                 rowid: rowid,
               ),
@@ -13453,6 +13525,7 @@ class $$TaskPreferencesTableTableManager
                 Value<String> sortMode = const Value.absent(),
                 Value<bool> sidebarVisible = const Value.absent(),
                 Value<String> collapsedKeysJson = const Value.absent(),
+                Value<String> viewOptionsJson = const Value.absent(),
                 Value<int> revision = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TaskPreferencesCompanion.insert(
@@ -13469,6 +13542,7 @@ class $$TaskPreferencesTableTableManager
                 sortMode: sortMode,
                 sidebarVisible: sidebarVisible,
                 collapsedKeysJson: collapsedKeysJson,
+                viewOptionsJson: viewOptionsJson,
                 revision: revision,
                 rowid: rowid,
               ),

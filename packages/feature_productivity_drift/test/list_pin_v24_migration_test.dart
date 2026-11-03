@@ -99,7 +99,7 @@ void main() {
       isFalse,
       reason: '新建列默认 false，升级不得凭空造出置顶',
     );
-    expect(db.schemaVersion, 24);
+    expect(db.schemaVersion, 25);
   });
 
   test('#563 往返：经仓库写 isPinned 后重新打开库仍是 true', () async {

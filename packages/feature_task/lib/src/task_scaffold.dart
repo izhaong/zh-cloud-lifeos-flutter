@@ -914,6 +914,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         _toggleSidebar();
       case LifeMenuAction.toggleCompleted:
         _toggleShowCompleted();
+      case LifeMenuAction.toggleGroupByTime:
+        ref.read(groupByTimeProvider.notifier).toggle();
       // #537：「显示 → 排序方式」五档，写的是工具栏同一个 listSortModeProvider，
       // 排序比较器一律复用 [_sortTopLevel]，菜单侧不实现第二套排序。
       case LifeMenuAction.sortByManual:
@@ -1380,9 +1382,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       }, const {});
     }
 
-    // #478：「全部」按提醒事项列表分组（guide/mac/zh-cn/14:25），
+    // #478：「全部」默认按提醒事项列表分组（guide/mac/zh-cn/14:25），
     // 与「计划」的按日期分组（同段 14:24）是两种模式，别混用日期桶。
-    if (widget.list.id == 'smart.all') {
+    // #574：「显示 → 根据时间分组」打开时改走下面的日期分组（与计划同一套标签/排序）。
+    if (widget.list.id == 'smart.all' && !ref.read(groupByTimeProvider)) {
       return _SectionLayout(_sectionsByReminderList(topLevel), const {});
     }
 
@@ -1395,7 +1398,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     // #475：计划/紧急视图按日期升序排分区（Apple 口径：已过期→今天→明天→日期升序）。
     // 此前组序 = 条目首现序，导致「已过期」排最后、跨月日期乱序。
     if (widget.list.id == 'smart.scheduled' ||
-        widget.list.id == 'smart.urgent') {
+        widget.list.id == 'smart.urgent' ||
+        widget.list.id == 'smart.all') {
       final sorted = _sortSectionsByDate(sections);
       // #487：计划视图补未来月份空骨架（Apple 逐月铺到年底）
       // #531：搜索态例外——Apple 搜索时只出匹配结果，不铺空骨架，
@@ -1847,15 +1851,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     // #487 面②：若来自计划视图的组末空圆圈，dueAt 直接用那一天的 00:00
     final pendingSection = _pendingQuickAddSection;
     final pendingDay = _pendingQuickAddDay;
+    // 挂钟统一走 clockProvider：生产与测试注入同一口径；直接 DateTime.now()
+    // 会让注入固定时钟的用例落错天（#487 组末快捷行的回归就栽在这里）。
+    final now = ref.read(clockProvider)();
     final dueAtOverride =
         pendingDay ??
-        (pendingSection != null
-            ? _sectionTime(pendingSection, DateTime.now())
-            : null);
+        (pendingSection != null ? _sectionTime(pendingSection, now) : null);
     // 智能视图内新建：必须落到对应视图的语义上——
     // today/scheduled/urgent 需要 dueAt 才能命中（smart.today 过滤 = !completed && 同日）；
     // 没有 dueAt 的条目只会出现在「全部」视图，在「今天」里不可见。
-    final now = DateTime.now();
     await repo.upsertItem(
       ReminderItem(
         id: newReminderId(),
