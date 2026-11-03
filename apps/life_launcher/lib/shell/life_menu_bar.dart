@@ -344,6 +344,11 @@ class _LifeMenuBarBody extends StatelessWidget {
                   onSelected: () =>
                       commands.value = LifeMenuAction.findReminder,
                 ),
+                PlatformMenuItem(
+                  label: '替换…',
+                  onSelected: () =>
+                      commands.value = LifeMenuAction.replaceText,
+                ),
               ],
             ),
             // #537：Apple「编辑 → 将截止日期标记为…」。档位与落库都在
