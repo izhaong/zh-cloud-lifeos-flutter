@@ -110,14 +110,23 @@ class TaskScaffold extends ConsumerWidget {
               onSelectItem: onSelectItem,
               onOpenCloudLogin: onOpenCloudLogin,
             ),
-            WindowSizeClass.expanded => _ThreePane(
-              lists: lists,
-              openListId: openListId,
-              selectedItemId: selectedItemId,
-              onOpenList: onOpenList,
-              onSelectItem: onSelectItem,
-              onOpenCloudLogin: onOpenCloudLogin,
-            ),
+            WindowSizeClass.expanded =>
+              ref.watch(taskViewModeProvider)
+                  ? _ThreePane(
+                      lists: lists,
+                      openListId: openListId,
+                      selectedItemId: selectedItemId,
+                      onOpenList: onOpenList,
+                      onSelectItem: onSelectItem,
+                      onOpenCloudLogin: onOpenCloudLogin,
+                    )
+                  : _TwoPane(
+                      lists: lists,
+                      openListId: openListId,
+                      onOpenList: onOpenList,
+                      onSelectItem: onSelectItem,
+                      onOpenCloudLogin: onOpenCloudLogin,
+                    ),
           },
         );
         final undo = ref.watch(completionUndoProvider);
@@ -571,6 +580,7 @@ class _TwoPane extends ConsumerWidget {
       builder: (context, constraints) {
         final sidebarWidth = ReminderTokens.sidebarWidth(constraints.maxWidth);
         return Row(
+          key: const ValueKey('two_pane'),
           children: [
             if (sidebarVisible) ...[
               SizedBox(
@@ -687,6 +697,7 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
       builder: (context, constraints) {
         final sidebarWidth = ReminderTokens.sidebarWidth(constraints.maxWidth);
         return Row(
+          key: const ValueKey('three_pane'),
           children: [
             if (sidebarVisible) ...[
               SizedBox(
@@ -916,6 +927,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         _toggleShowCompleted();
       case LifeMenuAction.toggleGroupByTime:
         ref.read(groupByTimeProvider.notifier).toggle();
+      case LifeMenuAction.viewModeList:
+        ref.read(taskViewModeProvider.notifier).set(false);
+      case LifeMenuAction.viewModeColumns:
+        ref.read(taskViewModeProvider.notifier).set(true);
       // #537：「显示 → 排序方式」五档，写的是工具栏同一个 listSortModeProvider，
       // 排序比较器一律复用 [_sortTopLevel]，菜单侧不实现第二套排序。
       case LifeMenuAction.sortByManual:

@@ -143,13 +143,17 @@ class _TaskTabEntryState extends ConsumerState<TaskTabEntry> {
     // 一个没人读的字段 —— 详情/编辑入口整档不可达（flutter#159，P0）。
     // 二栏与紧凑端走同一条模态详情：Apple 在 iPad 分栏与 Mac 窄窗下点提醒
     // 同样能进详情，编辑入口不因窗宽落在中间档而消失。
-    if (sizeClass == WindowSizeClass.expanded) {
+    // #573：分栏视图关掉后，expanded 也按列表视图走右侧锚定弹窗。
+    final columnsView = ref.read(taskViewModeProvider);
+    if (sizeClass == WindowSizeClass.expanded && columnsView) {
       setState(() => _selectedItemId = item.id);
       return;
     }
     // #481：中等档用锚定在列表右侧的浮动详情窗（列表仍可见），
     // 紧凑档按 iPhone 口径整页推入详情；两者都不再用遮挡列表的底部抽屉。
-    if (sizeClass == WindowSizeClass.medium) {
+    // #573：expanded 的「列表视图」也走这条锚定弹窗（此时没有第三栏）。
+    if (sizeClass == WindowSizeClass.medium ||
+        (sizeClass == WindowSizeClass.expanded && !columnsView)) {
       await showGeneralDialog<void>(
         context: context,
         barrierDismissible: true,

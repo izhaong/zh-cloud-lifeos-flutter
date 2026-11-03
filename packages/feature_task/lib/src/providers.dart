@@ -112,6 +112,28 @@ class GroupByTimeNotifier extends Notifier<bool>
   void toggle() => write(!state);
 }
 
+/// #573：「显示 → 列表视图 / 分栏视图」。true（默认）= 分栏：expanded 宽出第三栏；
+/// false = 列表：只用侧栏 + 列表，详情走锚定弹窗。写进 viewOptionsJson 的 `columnsView`。
+final taskViewModeProvider = NotifierProvider<TaskViewModeNotifier, bool>(
+  TaskViewModeNotifier.new,
+);
+
+class TaskViewModeNotifier extends Notifier<bool>
+    with _PreferenceBacked<bool> {
+  @override
+  bool get fallback => true;
+
+  @override
+  bool decode(TaskPreference p) =>
+      p.viewOptionBool('columnsView', fallback: true);
+
+  @override
+  TaskPreference encode(TaskPreference base, bool value) =>
+      base.withViewOptionBool('columnsView', value);
+
+  void set(bool value) => write(value);
+}
+
 /// 过滤后的条目流：在仓库语义过滤之上叠加本地文本匹配
 /// （标题 / 备注 / 标签，大小写不敏感）+ 「显示已完成」视图偏好
 /// （TC-UI-108：默认隐藏已完成；`smart.completed` 完成卡恒显示）。

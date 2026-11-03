@@ -8,6 +8,11 @@ import 'package:life_launcher/shell/pinned_tabs_service.dart';
 import 'package:life_launcher/shell_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class _ListModeNotifier extends TaskViewModeNotifier {
+  @override
+  bool build() => false;
+}
+
 /// parity#172：窗口缩放跨档时「点提醒 → 出详情」的判据。
 ///
 /// #159 把 `_openDetail` 的判据从 `isPaneLayout`（medium+expanded）收窄为
@@ -101,6 +106,36 @@ void main() {
       isFalse,
       reason: 'expanded 是就地 inspector，不应 push 路由',
     );
+  });
+
+  testWidgets('expanded 1280 列表视图：点行出锚定弹窗（#573）', (tester) async {
+    final repo = await seed();
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    view
+      ..physicalSize = const Size(1280, 900)
+      ..devicePixelRatio = 1.0;
+    SharedPreferences.setMockInitialValues(const {});
+    final prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          reminderRepositoryProvider.overrideWithValue(repo),
+          pinnedTabsServiceProvider.overrideWithValue(PinnedTabsService(prefs)),
+          shellBadgeCountsProvider.overrideWithValue(const {}),
+          taskViewModeProvider.overrideWith(_ListModeNotifier.new),
+        ],
+        child: const LifeLauncherApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('two_pane')), findsOneWidget);
+    await tester.tap(find.text('甲提醒'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('detail_popover')), findsOneWidget);
+    expect(find.byKey(const ValueKey('three_pane')), findsNothing);
   });
 
   testWidgets('compact 500：智能卡 → 列表 → 点行弹模态详情', (tester) async {
