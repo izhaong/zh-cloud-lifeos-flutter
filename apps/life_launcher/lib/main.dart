@@ -20,6 +20,7 @@ import 'notifications/local_calendar_alert_scheduler.dart';
 import 'notifications/local_reminder_alert_scheduler.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'shell/pinned_tabs_service.dart';
+import 'task_sync_wiring.dart';
 import 'package:feature_note_cloud/feature_note_cloud.dart'
     show NoteRestSyncPort, NoteSyncCoordinator;
 
@@ -115,11 +116,20 @@ Future<void> main(List<String> args) async {
   // 卡 2（flutter#124）：注入壳层的 SyncPort 是协调器——push() 从 Drift 发件箱
   // 真装载变更，回执带 serverId 时同事务回填 reminder_items.remote_id；
   // 卡 3：pull() 带上次游标拉增量，交仓库落 Drift（delete 进回收窗）后才前进游标。
+  final taskSyncOutbox = DriftSyncOutbox(db);
   final taskSyncCoordinator = TaskSyncCoordinator(
-    outbox: DriftSyncOutbox(db),
+    outbox: taskSyncOutbox,
     syncPort: syncPort,
     applier: repository,
     cursors: DriftSyncCursorStore(db),
+  );
+  // #595（口径 1）：一轮成功后盖「上次同步」时间戳，供设置弹层显示；失败不盖。
+  final taskSyncRound = TaskSyncRound(
+    onPush: taskSyncCoordinator.push,
+    onPull: taskSyncCoordinator.pull,
+    onSyncOnce: taskSyncCoordinator.syncOnce,
+    prefs: prefs,
+    clock: DateTime.now,
   );
   // F-11：真实本地通知调度（开源包只声明接口）
   // #260：两个调度器共用**同一个**插件实例，避免第二次 initialize 覆盖掉
@@ -189,7 +199,7 @@ Future<void> main(List<String> args) async {
   // TC-SYNC-106/107：任务域冷启动也补一轮（先推本地、再拉增量落库）
   Future<void>(() async {
     try {
-      await taskSyncCoordinator.syncOnce();
+      await taskSyncRound.runOnce();
     } catch (_) {
       // 离线优先：未登录/断网都不挡本地能力
     }
@@ -267,7 +277,15 @@ Future<void> main(List<String> args) async {
           (ref) => openTaskSettingsWindow,
         ),
         authPortProvider.overrideWithValue(authPort),
-        syncPortProvider.overrideWithValue(taskSyncCoordinator),
+        syncPortProvider.overrideWithValue(taskSyncRound),
+        // #595：同步状态只在设置弹层可见（待发条数 + 上次成功同步时刻）。
+        syncStatusProvider.overrideWith(
+          (ref) => readTaskSyncStatus(
+            auth: authPort,
+            outbox: taskSyncOutbox,
+            prefs: prefs,
+          ),
+        ),
       ],
       child: TaskSettingsWindowHost(
         child: LifeLauncherApp(

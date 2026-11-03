@@ -99,6 +99,9 @@ class _TaskSettingsWindowPageState extends State<TaskSettingsWindowPage> {
   TaskPreference? _preference;
   List<ReminderList> _ownLists = const [];
   bool _cloudLoginAvailable = false;
+
+  /// #595：「待推 N 条 · 上次同步 HH:mm」；null = 未登录或状态未知。
+  String? _cloudStatusLabel;
   bool _loading = true;
   String? _loadError;
   String? _syncError;
@@ -138,6 +141,7 @@ class _TaskSettingsWindowPageState extends State<TaskSettingsWindowPage> {
         _preference = preference;
         _ownLists = lists;
         _cloudLoginAvailable = state['cloudLoginAvailable'] == true;
+        _cloudStatusLabel = state['cloudStatusLabel'] as String?;
         _loading = false;
       });
     } catch (_) {
@@ -253,6 +257,7 @@ class _TaskSettingsWindowPageState extends State<TaskSettingsWindowPage> {
             onReset: _reset,
             onDone: _close,
             onOpenCloudLogin: _cloudLoginAvailable ? _openCloudLogin : null,
+            cloudStatusLabel: _cloudStatusLabel,
           ),
         ),
       ],
