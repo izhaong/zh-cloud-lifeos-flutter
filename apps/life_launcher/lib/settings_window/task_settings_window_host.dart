@@ -3,6 +3,7 @@
 // 设置辅助窗口不直接开数据库：它经通道向这里要状态、把改动交回来，
 // 由主窗口用同一份 Provider/仓储落库。这样「偏好只有一个真身」，
 // 改动照常触发 `taskPreferenceProvider` 的流更新，主窗口即时生效。
+import 'package:app_core/app_core.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:feature_task/feature_task.dart';
@@ -62,6 +63,9 @@ class _TaskSettingsWindowHostState
               if (!list.isSmart) {'id': list.id, 'title': list.title},
           ],
           'cloudLoginAvailable': taskSettingsCloudLogin.value != null,
+          // #595（口径 1）：同步状态也带进独立设置窗口，避免「应用内有、窗口里没有」。
+          'cloudStatusLabel':
+              (await ref.read(syncStatusProvider.future)).settingsLabel,
         };
       case 'apply':
         final arguments = call.arguments;
