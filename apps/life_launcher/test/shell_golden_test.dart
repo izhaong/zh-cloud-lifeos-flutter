@@ -15,7 +15,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   final fixed = DateTime(2026, 10, 26, 9, 30);
 
-  Future<void> pumpAt(WidgetTester tester, Size size) async {
+  Future<void> pumpAt(
+    WidgetTester tester,
+    Size size, {
+    List<ReminderList> seedLists = const [],
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -24,6 +28,9 @@ void main() {
     SharedPreferences.setMockInitialValues(const {});
     final prefs = await SharedPreferences.getInstance();
     final repo = InMemoryReminderRepository()..nowForTest = fixed;
+    for (final list in seedLists) {
+      await repo.upsertList(list);
+    }
     await repo.upsertItem(
       ReminderItem(
         id: 'r1',
@@ -90,6 +97,33 @@ void main() {
     await expectLater(
       find.byType(CupertinoApp),
       matchesGoldenFile('goldens/desktop_1280_shell.png'),
+    );
+  });
+
+  testWidgets('桌面 1280 已置顶清单排在最前（service#591 之后，flutter#564 呈现取证）', (
+    tester,
+  ) async {
+    // sortOrder 故意与期望的视觉序相反：置顶压不过手动顺序的话，这张图就什么都不是。
+    await pumpAt(
+      tester,
+      const Size(1280, 800),
+      seedLists: [
+        const ReminderList(id: 'list.plain', title: '未置顶清单', sortOrder: 0),
+        const ReminderList(id: 'list.pin', title: '已置顶清单', sortOrder: 1, isPinned: true),
+      ],
+    );
+    final pinned = find.byKey(const ValueKey('my_list_list.pin'));
+    final plain = find.byKey(const ValueKey('my_list_list.plain'));
+    expect(pinned, findsOneWidget, reason: '置顶清单必须真的渲染在侧栏上，找不到行就等于没取证');
+    expect(plain, findsOneWidget, reason: '未置顶清单同理');
+    expect(
+      tester.getTopLeft(pinned).dy,
+      lessThan(tester.getTopLeft(plain).dy),
+      reason: '#564 判据 ①：置顶行的 y 坐标必须在未置顶行之上（量坐标，不量文案存在）',
+    );
+    await expectLater(
+      find.byType(CupertinoApp),
+      matchesGoldenFile('goldens/desktop_1280_list_pinned_first.png'),
     );
   });
 }
