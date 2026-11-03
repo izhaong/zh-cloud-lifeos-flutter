@@ -7,6 +7,7 @@ export 'src/reminder_alert_scheduler.dart';
 export 'src/task_home_page.dart';
 export 'src/task_list_page.dart';
 export 'src/task_scaffold.dart';
+export 'src/widgets/list_share_sheet.dart';
 export 'src/widgets/new_list_dialog.dart';
 export 'src/widgets/reminder_detail_pane.dart';
 export 'src/widgets/reminder_row.dart';

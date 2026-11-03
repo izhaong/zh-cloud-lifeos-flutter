@@ -16,6 +16,16 @@ final reminderRepositoryProvider = Provider<ReminderRepository>((ref) {
   );
 }, name: 'reminderRepositoryProvider');
 
+/// 清单共享端口：feature_task 只认抽象，实现（Rest）由组合根注入。
+///
+/// 默认 null 而不是抛错，是因为**离线/未登录档**确实没有这条通道：
+/// UI 读到 null 时要给出「未接入共享服务」的说明，而不是崩（与 calendar 的
+/// `calendarCollabPortProvider` 同一个处理方式）。
+final taskCollabPortProvider = Provider<TaskCollabPort?>(
+  (ref) => null,
+  name: 'taskCollabPortProvider',
+);
+
 /// 全部列表（智能 + 我的）。
 final reminderListsProvider = StreamProvider<List<ReminderList>>((ref) {
   return ref.watch(reminderRepositoryProvider).watchLists();
@@ -515,9 +525,10 @@ final subtaskProgressProvider =
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
 /// #486：智能列表可见性（侧栏显示/隐藏 今天/计划/全部 等）。
-final smartListsVisibleProvider = NotifierProvider<SmartListsVisibleNotifier, bool>(
-  SmartListsVisibleNotifier.new,
-);
+final smartListsVisibleProvider =
+    NotifierProvider<SmartListsVisibleNotifier, bool>(
+      SmartListsVisibleNotifier.new,
+    );
 
 class SmartListsVisibleNotifier extends Notifier<bool> {
   @override

@@ -139,6 +139,8 @@ Future<void> main() async {
     dio: dio,
     store: sessionStore,
   );
+  // flutter#570：清单共享端口（写侧六端点 + 手机号解析 + 我参与的清单）。
+  final taskCollabPort = RestTaskCollabPort(dio: dio, store: sessionStore);
   final calendarSyncCoordinator = CalendarSyncCoordinator(
     repository: calendarRepository,
     port: calendarSyncPort,
@@ -189,7 +191,8 @@ Future<void> main() async {
         // #448：展示/分组用的「现在」与仓储同一个口径（手动时区生效后一起变）。
         // 两个包各有一个 `clockProvider`（日历/任务），此处按前缀只覆盖任务侧。
         clockProvider.overrideWith(
-          (ref) => () => effectiveNow(DateTime.now(), manualTimeZone),
+          (ref) =>
+              () => effectiveNow(DateTime.now(), manualTimeZone),
         ),
         // #447：生产徽标此前恒为 {}（只有测试注入过假值）→ 这里派生真实数字。
         shellBadgeCountsProvider.overrideWith(
@@ -211,6 +214,7 @@ Future<void> main() async {
           reminderAlertScheduler,
         ),
         calendarCollabPortProvider.overrideWithValue(calendarCollabPort),
+        taskCollabPortProvider.overrideWithValue(taskCollabPort),
         lifeMenuCommandsProvider.overrideWithValue(menuCommands),
         calendarSyncCoordinatorProvider.overrideWithValue(
           calendarSyncCoordinator,
@@ -373,9 +377,7 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
       routerConfig: router,
       // #195：给未被主题覆盖的文本也挂上 CJK 回退（Web 端不读系统字体）
       builder: (context, child) => DefaultTextStyle.merge(
-        style: const TextStyle(
-          fontFamilyFallback: LifeTokens.cjkFontFallback,
-        ),
+        style: const TextStyle(fontFamilyFallback: LifeTokens.cjkFontFallback),
         child: child ?? const SizedBox.shrink(),
       ),
     );
