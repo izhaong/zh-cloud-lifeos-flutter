@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
@@ -111,6 +114,16 @@ class GroupByTimeNotifier extends Notifier<bool>
 
   void toggle() => write(!state);
 }
+
+/// #572：打印出口。生产走系统打印面板；测试注入捕获实现，避免碰平台通道。
+typedef TaskPrintPort = Future<void> Function(Uint8List bytes, String name);
+
+final taskPrintPortProvider = Provider<TaskPrintPort>(
+  (ref) => (bytes, name) => Printing.layoutPdf(
+        name: name,
+        onLayout: (_) async => bytes,
+      ),
+);
 
 /// #573：「显示 → 列表视图 / 分栏视图」。true（默认）= 分栏：expanded 宽出第三栏；
 /// false = 列表：只用侧栏 + 列表，详情走锚定弹窗。写进 viewOptionsJson 的 `columnsView`。

@@ -246,6 +246,10 @@ class _LifeMenuBarBody extends StatelessWidget {
               label: '取消置顶列表',
               onSelected: () => commands.value = LifeMenuAction.unpinList,
             ),
+            PlatformMenuItem(
+              label: '打印…',
+              onSelected: () => commands.value = LifeMenuAction.printList,
+            ),
           ],
         ),
         PlatformMenu(
