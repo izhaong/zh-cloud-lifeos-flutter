@@ -10,6 +10,7 @@ import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
 import 'widgets/reminder_row.dart';
+import 'widgets/list_share_sheet.dart';
 import 'widgets/section_editor_sheet.dart';
 import 'widgets/smart_list_card.dart';
 import 'widgets/task_settings_sheet.dart';
@@ -1912,6 +1913,19 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         ref.read(reminderRepositoryProvider).upsertList(updated),
   );
 
+  /// flutter#570：清单共享入口。
+  ///
+  /// 端口未注入（未登录/离线档）时给**说明**，不做置灰占位——
+  /// 占位会让人以为功能已存在（#533 删掉的就是那种坏状态）。
+  Future<void> _shareCurrentList() async {
+    final port = ref.read(taskCollabPortProvider);
+    if (port == null) {
+      _showMenuNotice('共享清单', '当前环境未接入共享服务（未登录或离线档）。');
+      return;
+    }
+    await showListShareSheet(context, list: widget.list, port: port);
+  }
+
   Future<void> _editSections() => showSectionEditorSheet(
     context,
     list: widget.list,
@@ -2022,6 +2036,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               selecting: _selecting,
               onCreateFromSelection: _createSectionFromSelection,
               onExitSelection: _exitSelection,
+              shareEnabled: !widget.list.isSmart,
+              onShareList: _shareCurrentList,
             ),
           ],
         ),
@@ -2905,6 +2921,8 @@ class _MoreMenu extends StatelessWidget {
     required this.selecting,
     required this.onCreateFromSelection,
     required this.onExitSelection,
+    required this.shareEnabled,
+    required this.onShareList,
   });
 
   final VoidCallback onToggleCompleted;
@@ -2916,6 +2934,10 @@ class _MoreMenu extends StatelessWidget {
   final bool selecting;
   final VoidCallback onCreateFromSelection;
   final VoidCallback onExitSelection;
+
+  /// flutter#570：共享入口。智能清单是派生视图、没有成员表，故只普通列表出这一项。
+  final bool shareEnabled;
+  final VoidCallback onShareList;
 
   @override
   Widget build(BuildContext context) {
@@ -2939,6 +2961,7 @@ class _MoreMenu extends StatelessWidget {
           ),
         ],
         if (selecting) const _MenuItem(value: 'exit-selection', label: '取消选择'),
+        if (shareEnabled) const _MenuItem(value: 'share-list', label: '共享…'),
       ],
       current: 'toggle-completed',
       onSelected: (v) {
@@ -2952,6 +2975,8 @@ class _MoreMenu extends StatelessWidget {
           onCreateFromSelection();
         } else if (v == 'exit-selection') {
           onExitSelection();
+        } else if (v == 'share-list') {
+          onShareList();
         }
       },
       anchor: const Icon(CupertinoIcons.ellipsis_circle),
