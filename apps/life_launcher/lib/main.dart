@@ -1,6 +1,8 @@
 import 'package:app_core/app_core.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:dio/dio.dart';
 import 'package:feature_calendar/feature_calendar.dart' hide clockProvider;
 import 'package:feature_calendar_cloud/feature_calendar_cloud.dart';
@@ -22,9 +24,14 @@ import 'package:feature_note_cloud/feature_note_cloud.dart'
     show NoteRestSyncPort, NoteSyncCoordinator;
 
 import 'note_sync_wiring.dart';
+import 'app_locale.dart';
+import 'settings_window/task_settings_window.dart';
+import 'settings_window/task_settings_window_host.dart';
 import 'shell/life_menu_bar.dart';
 import 'shell/task_badge.dart';
 import 'shell_providers.dart';
+
+export 'app_locale.dart' show kAppLocale, kAppSupportedLocales;
 
 /// 启动预热步骤兜底（#230）：这些步骤只做「尽力补齐」，失败不得阻断启动。
 ///
@@ -43,8 +50,15 @@ Future<void> runNonFatalStartupStep(
   }
 }
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // #577：设置辅助窗口是第二个 Flutter engine，会用同一 entrypoint 再跑一次
+  // main；这里只起那一份最小 App，不初始化数据库/通知/同步（否则会多出
+  // 一整套后台能力，且两个 engine 抢同一份本地库）。
+  if (isTaskSettingsWindow(args)) {
+    await runTaskSettingsWindow(args);
+    return;
+  }
   // parity#193：kalender 的星期/日期名走 intl，必须先装载本地化数据，
   // 否则 zh_CN 下日/周视图列头仍显示 Mon…Sun。
   await ensureCalendarDateLocalization();
@@ -248,26 +262,64 @@ Future<void> main() async {
         sidebarPrefsProvider.overrideWithValue(prefs),
         // #256：任务区本地视图记忆（按列表「显示已完成」）也走同一份 prefs
         taskViewPrefsProvider.overrideWithValue(prefs),
+        // #577：macOS 用独立辅助窗口承载设置；其它平台或建窗失败回退应用内页面。
+        taskSettingsWindowOpenerProvider.overrideWith(
+          (ref) => openTaskSettingsWindow,
+        ),
         authPortProvider.overrideWithValue(authPort),
         syncPortProvider.overrideWithValue(taskSyncCoordinator),
       ],
-      child: LifeLauncherApp(
-        menuCommands: menuCommands,
-        noteSyncCoordinator: noteSyncCoordinator,
-        noteSyncPort: noteSyncPort,
-        sessionStore: sessionStore,
+      child: TaskSettingsWindowHost(
+        child: LifeLauncherApp(
+          menuCommands: menuCommands,
+          noteSyncCoordinator: noteSyncCoordinator,
+          noteSyncPort: noteSyncPort,
+          sessionStore: sessionStore,
+        ),
       ),
     ),
   );
 }
 
-/// 产品级 locale 声明（#387）。
+/// #577：打开设置界面——macOS 优先独立辅助窗口，失败回退应用内页面。
 ///
-/// 抽成常量是为了让测试能直接断言「声明 == 实际可达」，不必拉起整个应用。
-const Locale kAppLocale = Locale('zh', 'CN');
-
-/// 声明支持的语言。**必须与 [kAppLocale] 一致**——声明了却不可达的语言就是假能力。
-const List<Locale> kAppSupportedLocales = [Locale('zh', 'CN')];
+/// 已存在的设置窗口只激活不新建（用户点「完成」走原生 close，窗口会被销毁，
+/// 下次仍是新窗口；退回 hide 的平台则复用同一窗口）。
+Future<void> openTaskSettingsWindow(
+  BuildContext context, {
+  VoidCallback? onOpenCloudLogin,
+}) async {
+  taskSettingsCloudLogin.value = onOpenCloudLogin;
+  Future<void> openInApp() => showTaskSettingsSheet(
+    context,
+    onOpenCloudLogin: onOpenCloudLogin == null
+        ? null
+        : (_) => onOpenCloudLogin(),
+  );
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) {
+    return openInApp();
+  }
+  try {
+    final existing = (await WindowController.getAll()).where(
+      (c) => c.arguments == kTaskSettingsWindowArgument,
+    );
+    if (existing.isNotEmpty) {
+      await WindowController.fromWindowId(existing.first.windowId).show();
+      return;
+    }
+    final controller = await WindowController.create(
+      const WindowConfiguration(
+        arguments: kTaskSettingsWindowArgument,
+        hiddenAtLaunch: true,
+      ),
+    );
+    await controller.show();
+  } catch (error) {
+    debugPrint('设置窗口打开失败，回退应用内页面：$error');
+    if (!context.mounted) return;
+    await openInApp();
+  }
+}
 
 class LifeLauncherApp extends ConsumerStatefulWidget {
   const LifeLauncherApp({

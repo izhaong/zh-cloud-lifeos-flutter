@@ -119,6 +119,49 @@ final class TaskPreference extends Equatable {
   /// 契约默认值（无行时实现层回这个值，不写库）。
   static const TaskPreference defaults = TaskPreference();
 
+  /// 跨窗口/跨 isolate 传递用的全量快照（#577 设置辅助窗口）。
+  ///
+  /// 字段名与 Drift 列一一对应；[viewOptionsJson] 本身已是 JSON 文本，原样带走。
+  Map<String, Object?> toJson() => {
+    'defaultListId': defaultListId,
+    'allDayNotify': allDayNotify,
+    'markComplete': markComplete,
+    'suggestLists': suggestLists,
+    'badgeIncludesTodayDue': badgeIncludesTodayDue,
+    'allDayRemindersOverdue': allDayRemindersOverdue,
+    'todayNotifyTime': todayNotifyTime,
+    'manualTimeZone': manualTimeZone,
+    'showCompleted': showCompleted,
+    'sortMode': sortMode,
+    'sidebarVisible': sidebarVisible,
+    'collapsedKeys': collapsedKeys,
+    'viewOptionsJson': viewOptionsJson,
+    'revision': revision,
+  };
+
+  /// 反序列化 [toJson]。缺键按契约默认；类型不符抛 [TypeError]，
+  /// 由通道调用方转成错误回执（不静默把坏档位写成默认值）。
+  factory TaskPreference.fromJson(Map<String, Object?> json) {
+    return TaskPreference(
+      defaultListId: json['defaultListId'] as String?,
+      allDayNotify: json['allDayNotify'] as bool? ?? true,
+      markComplete: json['markComplete'] as bool? ?? false,
+      suggestLists: json['suggestLists'] as bool? ?? true,
+      badgeIncludesTodayDue: json['badgeIncludesTodayDue'] as bool? ?? true,
+      allDayRemindersOverdue: json['allDayRemindersOverdue'] as bool? ?? false,
+      todayNotifyTime: json['todayNotifyTime'] as String? ?? '09:00',
+      manualTimeZone: json['manualTimeZone'] as String?,
+      showCompleted: json['showCompleted'] as bool? ?? false,
+      sortMode: json['sortMode'] as String? ?? 'manual',
+      sidebarVisible: json['sidebarVisible'] as bool? ?? true,
+      collapsedKeys:
+          (json['collapsedKeys'] as List?)?.whereType<String>().toList() ??
+          const [],
+      viewOptionsJson: json['viewOptionsJson'] as String? ?? '{}',
+      revision: json['revision'] as int? ?? 1,
+    );
+  }
+
   TaskPreference copyWith({
     String? defaultListId,
     bool clearDefaultListId = false,

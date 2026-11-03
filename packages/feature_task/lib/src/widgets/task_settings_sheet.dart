@@ -45,14 +45,12 @@ class _TaskSettingsSheet extends ConsumerStatefulWidget {
   final void Function(BuildContext sheetContext)? onOpenCloudLogin;
 
   @override
-  ConsumerState<_TaskSettingsSheet> createState() =>
-      _TaskSettingsSheetState();
+  ConsumerState<_TaskSettingsSheet> createState() => _TaskSettingsSheetState();
 }
 
 class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
   /// 写后回声：落库与流广播之间有一帧，先用本地值渲染，避免开关「点下去又弹回去」。
   TaskPreference? _local;
-  bool _pickingDefaultList = false;
 
   TaskPreference get _pref =>
       _local ??
@@ -70,6 +68,66 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
           .where((l) => !l.isSmart)
           .toList(growable: false);
 
+  void _reset() {
+    // #256：按列表的「显示已完成」记忆也属于视图态，一并清零
+    ref.read(showCompletedByListProvider.notifier).reset();
+    _save(TaskPreference.defaults);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TaskSettingsView(
+      preference: _pref,
+      ownLists: _ownLists,
+      scrollController: widget.scrollController,
+      onChanged: _save,
+      onReset: _reset,
+      onDone: () => Navigator.of(context).pop(),
+      onOpenCloudLogin: widget.onOpenCloudLogin == null
+          ? null
+          : () => widget.onOpenCloudLogin!(context),
+    );
+  }
+}
+
+/// 设置面板本体（#577）：不依赖 Riverpod，偏好与列表由调用方注入。
+///
+/// 应用内页面与 macOS 独立辅助窗口共用这一份 UI——两处若各写一套，
+/// 键位/文案/默认列表展开逻辑会漂移。
+class TaskSettingsView extends StatefulWidget {
+  const TaskSettingsView({
+    super.key,
+    required this.preference,
+    required this.ownLists,
+    required this.onChanged,
+    required this.onReset,
+    required this.onDone,
+    this.onOpenCloudLogin,
+    this.scrollController,
+  });
+
+  final TaskPreference preference;
+
+  /// 自有列表（已滤掉智能列表）。
+  final List<ReminderList> ownLists;
+
+  final ValueChanged<TaskPreference> onChanged;
+  final VoidCallback onReset;
+  final VoidCallback onDone;
+  final VoidCallback? onOpenCloudLogin;
+  final ScrollController? scrollController;
+
+  @override
+  State<TaskSettingsView> createState() => _TaskSettingsViewState();
+}
+
+class _TaskSettingsViewState extends State<TaskSettingsView> {
+  bool _pickingDefaultList = false;
+
+  TaskPreference get _pref => widget.preference;
+
+  List<ReminderList> get _ownLists => widget.ownLists;
+
   String get _defaultListLabel {
     final id = _pref.defaultListId;
     if (id == null) return '未设置';
@@ -79,9 +137,11 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
 
   void _chooseDefaultList(String? id) {
     setState(() => _pickingDefaultList = false);
-    _save(id == null
-        ? _pref.copyWith(clearDefaultListId: true)
-        : _pref.copyWith(defaultListId: id));
+    widget.onChanged(
+      id == null
+          ? _pref.copyWith(clearDefaultListId: true)
+          : _pref.copyWith(defaultListId: id),
+    );
   }
 
   @override
@@ -94,7 +154,7 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
           key: const ValueKey('settings_done'),
           padding: EdgeInsets.zero,
           minimumSize: Size.zero,
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: widget.onDone,
           child: const Text('完成'),
         ),
         middle: const Text('设置'),
@@ -111,8 +171,9 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                   icon: CupertinoIcons.list_bullet,
                   label: '默认列表',
                   rowKey: 'settings_default_list',
-                  onTap: () =>
-                      setState(() => _pickingDefaultList = !_pickingDefaultList),
+                  onTap: () => setState(
+                    () => _pickingDefaultList = !_pickingDefaultList,
+                  ),
                   trailing: Text(
                     _defaultListLabel,
                     style: TextStyle(color: secondary),
@@ -138,21 +199,24 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                   label: '全天提醒时点',
                   rowKey: 'settings_all_day_notify',
                   value: p.allDayNotify,
-                  onChanged: (v) => _save(p.copyWith(allDayNotify: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(p.copyWith(allDayNotify: v)),
                 ),
                 _switchRow(
                   icon: CupertinoIcons.checkmark_circle,
                   label: '完成时标记为已完成',
                   rowKey: 'settings_mark_complete',
                   value: p.markComplete,
-                  onChanged: (v) => _save(p.copyWith(markComplete: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(p.copyWith(markComplete: v)),
                 ),
                 _switchRow(
                   icon: CupertinoIcons.sparkles,
                   label: '建议列表',
                   rowKey: 'settings_suggest_lists',
                   value: p.suggestLists,
-                  onChanged: (v) => _save(p.copyWith(suggestLists: v)),
+                  onChanged: (v) =>
+                      widget.onChanged(p.copyWith(suggestLists: v)),
                 ),
                 // #448：手动设定时区（消费者是 kernel 的 `effectiveNow`，
                 // 组合根把它接到仓储的 nowProvider + clockProvider）。
@@ -184,7 +248,7 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                   rowKey: 'settings_all_day_overdue',
                   value: p.allDayRemindersOverdue,
                   onChanged: (v) =>
-                      _save(p.copyWith(allDayRemindersOverdue: v)),
+                      widget.onChanged(p.copyWith(allDayRemindersOverdue: v)),
                 ),
                 // #451：徽标数量是否含今天到期（消费者在 life_launcher 的 task_badge）。
                 _switchRow(
@@ -193,7 +257,7 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                   rowKey: 'settings_badge_includes_today',
                   value: p.badgeIncludesTodayDue,
                   onChanged: (v) =>
-                      _save(p.copyWith(badgeIncludesTodayDue: v)),
+                      widget.onChanged(p.copyWith(badgeIncludesTodayDue: v)),
                 ),
               ],
             ),
@@ -207,11 +271,7 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                     color: ReminderTokens.systemBlue,
                   ),
                   title: const Text('还原默认设置'),
-                  onTap: () {
-                    // #256：按列表的「显示已完成」记忆也属于视图态，一并清零
-                    ref.read(showCompletedByListProvider.notifier).reset();
-                    _save(TaskPreference.defaults);
-                  },
+                  onTap: widget.onReset,
                 ),
                 CupertinoListTile(
                   key: const ValueKey('settings_cloud_login'),
@@ -220,13 +280,9 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
                     color: ReminderTokens.systemBlue,
                   ),
                   title: Text(
-                    widget.onOpenCloudLogin == null
-                        ? '云同步：登录后可用'
-                        : '开启云同步',
+                    widget.onOpenCloudLogin == null ? '云同步：登录后可用' : '开启云同步',
                   ),
-                  onTap: widget.onOpenCloudLogin == null
-                      ? null
-                      : () => widget.onOpenCloudLogin!(context),
+                  onTap: widget.onOpenCloudLogin,
                 ),
               ],
             ),
@@ -280,7 +336,9 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
               child: CupertinoPicker(
                 key: const Key('time_zone_picker'),
                 itemExtent: 36,
-                scrollController: FixedExtentScrollController(initialItem: index),
+                scrollController: FixedExtentScrollController(
+                  initialItem: index,
+                ),
                 onSelectedItemChanged: (i) => index = i,
                 children: [
                   for (final (_, label) in _timeZones)
@@ -294,9 +352,11 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
     );
     if (confirmed != true) return;
     final zone = _timeZones[index].$1;
-    _save(zone == null
-        ? current.copyWith(clearManualTimeZone: true)
-        : current.copyWith(manualTimeZone: zone));
+    widget.onChanged(
+      zone == null
+          ? current.copyWith(clearManualTimeZone: true)
+          : current.copyWith(manualTimeZone: zone),
+    );
   }
 
   /// 选「今天」汇总通知时点（#445）。
@@ -344,7 +404,7 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
     if (confirmed != true) return;
     final text =
         '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
-    _save(current.copyWith(todayNotifyTime: text));
+    widget.onChanged(current.copyWith(todayNotifyTime: text));
   }
 
   Widget _row({
@@ -395,8 +455,10 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
       padding: const EdgeInsets.only(left: 40),
       title: Text(title),
       trailing: selected
-          ? const Icon(CupertinoIcons.checkmark,
-              color: ReminderTokens.systemBlue)
+          ? const Icon(
+              CupertinoIcons.checkmark,
+              color: ReminderTokens.systemBlue,
+            )
           : null,
       onTap: onTap,
     );

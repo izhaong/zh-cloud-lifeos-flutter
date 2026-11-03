@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart' show BuildContext, VoidCallback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
@@ -55,6 +56,22 @@ final taskPreferenceRepositoryProvider = Provider<TaskPreferenceRepository>(
 /// 当前任务偏好（无行回契约默认；`.value` 在首帧即可读，UI 不等流）。
 final taskPreferenceProvider = StreamProvider<TaskPreference>(
   (ref) => ref.watch(taskPreferenceRepositoryProvider).watchPreference(),
+);
+
+/// 打开设置界面的出口（#577）。
+///
+/// 默认 null = 应用内页面（[showTaskSettingsSheet]）；macOS 组合根注入
+/// 「独立辅助窗口」实现。窗口化失败时实现方自己回退应用内页面，
+/// 因此调用方不需要再判平台。
+typedef TaskSettingsWindowOpener =
+    Future<void> Function(
+      BuildContext context, {
+      VoidCallback? onOpenCloudLogin,
+    });
+
+final taskSettingsWindowOpenerProvider = Provider<TaskSettingsWindowOpener?>(
+  (ref) => null,
+  name: 'taskSettingsWindowOpenerProvider',
 );
 
 /// 全局搜索词（macOS 工具栏搜索 / ⌘F 聚焦；空串 = 不过滤）。
