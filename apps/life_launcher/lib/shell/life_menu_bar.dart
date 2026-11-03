@@ -28,6 +28,8 @@ class LifeMenuBar extends StatefulWidget {
     required this.child,
     required this.commands,
     this.onAbout,
+    this.goToLists,
+    this.goToRequests,
   });
 
   final Widget child;
@@ -37,6 +39,10 @@ class LifeMenuBar extends StatefulWidget {
 
   /// 「关于生活台」；为空时用系统 about 面板。
   final VoidCallback? onAbout;
+
+  /// #575：「显示 → 前往」的清单快照与点击出口；为空时不渲染该子菜单。
+  final ValueNotifier<List<LifeMenuGoToTarget>>? goToLists;
+  final ValueNotifier<String?>? goToRequests;
 
   @override
   State<LifeMenuBar> createState() => _LifeMenuBarState();
@@ -76,6 +82,8 @@ class _LifeMenuBarState extends State<LifeMenuBar> {
     editingText: _editingText,
     commands: widget.commands,
     onAbout: widget.onAbout,
+    goToLists: widget.goToLists,
+    goToRequests: widget.goToRequests,
     child: widget.child,
   );
 }
@@ -86,6 +94,8 @@ class _LifeMenuBarBody extends StatelessWidget {
     required this.child,
     required this.commands,
     required this.onAbout,
+    this.goToLists,
+    this.goToRequests,
   });
 
   /// true ⇒ 焦点在文本编辑控件里，冲突键位让给文本编辑（#542）。
@@ -99,8 +109,27 @@ class _LifeMenuBarBody extends StatelessWidget {
   /// 「关于生活台」；为空时用系统 about 面板。
   final VoidCallback? onAbout;
 
+  final ValueNotifier<List<LifeMenuGoToTarget>>? goToLists;
+  final ValueNotifier<String?>? goToRequests;
+
   @override
   Widget build(BuildContext context) {
+    final lists = goToLists;
+    if (lists == null) {
+      return _bar(context, const <LifeMenuGoToTarget>[], goToRequests);
+    }
+    // #575：清单增删/改名后重建「前往」子菜单。
+    return ValueListenableBuilder<List<LifeMenuGoToTarget>>(
+      valueListenable: lists,
+      builder: (context, targets, _) => _bar(context, targets, goToRequests),
+    );
+  }
+
+  Widget _bar(
+    BuildContext context,
+    List<LifeMenuGoToTarget> goToTargets,
+    ValueNotifier<String?>? goToRequests,
+  ) {
     return PlatformMenuBar(
       menus: <PlatformMenuItem>[
         PlatformMenu(
@@ -431,6 +460,22 @@ class _LifeMenuBarBody extends StatelessWidget {
                   onSelected: () =>
                       commands.value = LifeMenuAction.sortByPriority,
                 ),
+              ],
+            ),
+            if (goToRequests != null)
+              PlatformMenu(
+              label: '前往',
+              menus: <PlatformMenuItem>[
+                if (goToTargets.isEmpty)
+                  PlatformMenuItem(
+                    label: '（没有清单）',
+                    onSelected: () {},
+                  ),
+                for (final t in goToTargets)
+                  PlatformMenuItem(
+                    label: t.title,
+                    onSelected: () => goToRequests.value = t.id,
+                  ),
               ],
             ),
             const PlatformProvidedMenuItem(

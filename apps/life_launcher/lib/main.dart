@@ -184,6 +184,9 @@ Future<void> main() async {
   // #368/#375：菜单命令出口。建在这里（main 作用域）是因为 ProviderScope 的
   // override 与 `LifeLauncherApp` 的菜单栏都要用它。
   final menuCommands = ValueNotifier<LifeMenuAction?>(null);
+  // #575：「显示 → 前往」——清单快照由 feature_task 发布，点击经 request 回到页面。
+  final menuGoToLists = ValueNotifier<List<LifeMenuGoToTarget>>(const []);
+  final menuGoToRequest = ValueNotifier<String?>(null);
   runApp(
     ProviderScope(
       overrides: [
@@ -216,6 +219,8 @@ Future<void> main() async {
         calendarCollabPortProvider.overrideWithValue(calendarCollabPort),
         taskCollabPortProvider.overrideWithValue(taskCollabPort),
         lifeMenuCommandsProvider.overrideWithValue(menuCommands),
+        lifeMenuGoToListsProvider.overrideWithValue(menuGoToLists),
+        lifeMenuGoToRequestProvider.overrideWithValue(menuGoToRequest),
         calendarSyncCoordinatorProvider.overrideWithValue(
           calendarSyncCoordinator,
         ),
@@ -394,7 +399,14 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
     if (commands == null) {
       return app;
     }
-    return LifeMenuBar(commands: commands, child: app);
+    return LifeMenuBar(
+      commands: commands,
+      goToLists: ProviderScope.containerOf(context, listen: false)
+          .read(lifeMenuGoToListsProvider),
+      goToRequests: ProviderScope.containerOf(context, listen: false)
+          .read(lifeMenuGoToRequestProvider),
+      child: app,
+    );
   }
 }
 
