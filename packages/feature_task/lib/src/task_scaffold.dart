@@ -6,6 +6,7 @@ import 'package:app_core/app_core.dart';
 import 'package:app_ui/app_ui.dart';
 
 import 'design/reminder_tokens.dart';
+import 'print/task_list_pdf.dart';
 import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
@@ -1010,6 +1011,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         ref.read(taskViewModeProvider.notifier).set(false);
       case LifeMenuAction.viewModeColumns:
         ref.read(taskViewModeProvider.notifier).set(true);
+      case LifeMenuAction.printList:
+        _printCurrentList();
       // #537：「显示 → 排序方式」五档，写的是工具栏同一个 listSortModeProvider，
       // 排序比较器一律复用 [_sortTopLevel]，菜单侧不实现第二套排序。
       case LifeMenuAction.sortByManual:
@@ -1066,6 +1069,31 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   void _setSortFromMenu(ListSortMode mode) {
     ref.read(listSortModeProvider.notifier).set(mode);
+  }
+
+  /// #572：「文件 → 打印…」——当前前台清单导出 PDF，交给系统打印面板。
+  Future<void> _printCurrentList() async {
+    final items = await ref.read(
+      filteredItemsForListProvider(widget.list.id).future,
+    );
+    if (!mounted) return;
+    if (items.isEmpty) {
+      await _showMenuNotice('打印', '当前列表没有可打印的提醒');
+      return;
+    }
+    try {
+      final font = loadSystemCjkFont();
+      final bytes = await buildTaskListPdf(
+        listTitle: widget.list.title,
+        items: items,
+        font: font,
+      );
+      if (!mounted) return;
+      await ref.read(taskPrintPortProvider)(bytes, widget.list.title);
+    } catch (_) {
+      if (!mounted) return;
+      await _showMenuNotice('打印', '打印失败，请稍后重试');
+    }
   }
 
   /// #576：「编辑 → 替换…」——只作用于当前选中条目（标题 + 备注），

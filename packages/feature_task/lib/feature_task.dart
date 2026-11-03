@@ -2,6 +2,7 @@
 library;
 
 export 'src/design/reminder_tokens.dart';
+export 'src/print/task_list_pdf.dart';
 export 'src/providers.dart';
 export 'src/reminder_alert_scheduler.dart';
 export 'src/task_home_page.dart';

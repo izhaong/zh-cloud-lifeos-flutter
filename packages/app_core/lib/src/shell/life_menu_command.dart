@@ -93,6 +93,9 @@ enum LifeMenuAction {
   /// 编辑 → 将截止日期标记为…（#537）。
   markDueDate,
 
+  /// 文件 → 打印…（#572）：把当前前台清单导出 PDF 并打开系统打印面板。
+  printList,
+
   /// 文件 → 置顶列表（#537）。
   pinList,
 
