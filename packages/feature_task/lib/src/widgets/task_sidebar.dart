@@ -67,11 +67,18 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
           : !hiddenSmartIds.contains(e.id),
     );
     final trash = allSmart.where((e) => e.id == 'smart.trash').firstOrNull;
-    final mine = orderListsPinnedFirst(
-      widget.lists.where((e) => !e.isSmart).toList(growable: false),
+    // #588：置顶的自有清单离开「我的列表」，与智能清单同排占一张卡（Apple 呈现）。
+    final userLists = widget.lists
+        .where((e) => !e.isSmart)
+        .toList(growable: false);
+    final split = splitPinnedUserLists(userLists);
+    final mine = split.mine;
+    final cardItems = [...smart, ...split.cards];
+    // 「建议列表：日常采购」的判据要看全部自有清单：把采购清单置顶后它仍在册，
+    // 只是换了一张卡位——不能因为它离开了 mine 就又把建议行推出来。
+    final hasGrocery = userLists.any(
+      (e) => e.listType == ReminderListType.grocery,
     );
-    final hasGrocery =
-        mine.any((e) => e.listType == ReminderListType.grocery);
 
     // 分组渲染（TC-UI-118）：先按 groupName 聚合（同名唯一组头，
     // 组内按原序；null 平铺）——交错 B,A,B 不重复出「B」头。
@@ -163,7 +170,7 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
             child: ListView(
               padding: const EdgeInsets.only(bottom: 8),
               children: [
-                if (smart.isNotEmpty)
+                if (cardItems.isNotEmpty)
                   LayoutBuilder(
                     builder: (context, constraints) {
                       // 参考图卡片随侧栏变宽而增高（360 宽约 60，1532 宽约 75）。
@@ -183,12 +190,12 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
                             crossAxisSpacing: ReminderTokens.cardGap,
                             mainAxisExtent: cardHeight,
                           ),
-                          itemCount: smart.length,
+                          itemCount: cardItems.length,
                           itemBuilder: (context, i) => SmartListCard(
-                            list: smart[i],
-                            selected: smart[i].id == widget.selectedListId,
+                            list: cardItems[i],
+                            selected: cardItems[i].id == widget.selectedListId,
                             compact: cardHeight < 72,
-                            onTap: () => widget.onSelect(smart[i]),
+                            onTap: () => widget.onSelect(cardItems[i]),
                           ),
                         ),
                       );

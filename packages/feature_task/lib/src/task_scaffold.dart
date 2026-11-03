@@ -355,11 +355,20 @@ class _CompactPane extends ConsumerWidget {
               e.id != 'smart.assigned',
         )
         .toList(growable: false);
-    final mine = orderListsPinnedFirst(
-      lists.where((e) => !e.isSmart).toList(growable: false),
-    );
+    // #588：置顶的自有清单离开「我的列表」，与智能清单同排占一张卡（与桌面侧栏同一分流）。
+    final userLists = lists
+        .where((e) => !e.isSmart)
+        .toList(growable: false);
+    final split = splitPinnedUserLists(userLists);
+    final cardItems = [...smart, ...split.cards];
+    final mine = split.mine;
+    // 编辑选择器要能选中任何自有清单（含已置顶的）——置顶只是换位置，不是隐藏；
+    // 顺序与屏幕一致：先卡片区那批，再「我的列表」那批。
+    final editable = [...split.cards, ...split.mine];
     final trash = lists.where((e) => e.id == 'smart.trash').firstOrNull;
-    final hasGrocery = mine.any((e) => e.listType == ReminderListType.grocery);
+    final hasGrocery = userLists.any(
+      (e) => e.listType == ReminderListType.grocery,
+    );
     final query = ref.watch(searchQueryProvider).trim();
     final searching = query.isNotEmpty;
 
@@ -379,7 +388,7 @@ class _CompactPane extends ConsumerWidget {
         middle: const Text('列表'),
         trailing: CupertinoButton(
           key: const ValueKey('home_edit_placeholder'),
-          onPressed: () => _editLists(context, ref, mine),
+          onPressed: () => _editLists(context, ref, editable),
           child: const Icon(CupertinoIcons.ellipsis_circle, size: 22),
         ),
       ),
@@ -420,9 +429,9 @@ class _CompactPane extends ConsumerWidget {
                 crossAxisSpacing: 12,
                 mainAxisExtent: 84,
               ),
-              itemCount: smart.length,
+              itemCount: cardItems.length,
               itemBuilder: (context, i) {
-                final list = smart[i];
+                final list = cardItems[i];
                 return SmartListCard(
                   list: list,
                   selected: false,
@@ -3085,6 +3094,9 @@ class _HomeListRow extends StatelessWidget {
         ? CupertinoIcons.cart
         : CupertinoIcons.list_bullet;
     return GestureDetector(
+      // #588：紧凑档首页的行也要有可寻址句柄，否则「置顶后这行该不该消失」
+      // 只能靠文案位置间接判，会被卡片区里同名的标题满足。
+      key: ValueKey('home_list_${list.id}'),
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Padding(

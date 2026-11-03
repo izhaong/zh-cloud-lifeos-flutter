@@ -437,23 +437,30 @@ class CollapsedKeysNotifier extends Notifier<Set<String>>
 /// 子任务显隐开关在视图态键袋里的键（`view:` 命名空间）。
 const String subtasksHiddenKey = 'view:subtasksHidden';
 
-/// #537/#563：把被置顶的自有列表排到前面，其余保持原序（仓库契约
-/// `sortOrder asc, id asc`）。智能清单永不参与置顶（`isSmart` 直接留在原位）。
+/// #537/#563/#588：置顶的自有清单**不再留在「我的列表」**，而是交出去给顶部卡片区。
 ///
-/// 判据从「视图态键袋里有没有 `pinned:<id>`」换成清单自己的 `isPinned` 字段：
-/// 后者会落库、会走同步，所以置顶能跨设备（V24 迁移负责把老袋里的键搬过来）。
-List<ReminderList> orderListsPinnedFirst(List<ReminderList> lists) {
-  final pinned = <ReminderList>[];
-  final rest = <ReminderList>[];
-  for (final l in lists) {
+/// Apple 的呈现是「Control 点按列表 → 置顶列表 ⇒ 该行从「我的列表」里消失，
+/// 同时在智能清单那一排多出一张卡」（对照物 `14-在Mac上查看提醒事项列表.md:45`
+/// 「置顶后移到边栏顶部」；实机同宽对照见 docs 仓
+/// `lifeos/platform/ui-evidence/2026-11-03-task-list-pin-presentation.png`）。
+/// 旧版只把它排到「我的列表」首行，位置仍不对，故 #588 改成分流而不是排序。
+///
+/// 返回的 `cards` 与 `mine` 都沿用仓库契约 `sortOrder asc, id asc` 的原序，
+/// **本函数不写 `sort_order`、只读 `isPinned`**，所以取消置顶就落回原位。
+/// 智能清单永不参与置顶（`isSmart` 一律留在 `mine`）。
+({List<ReminderList> cards, List<ReminderList> mine}) splitPinnedUserLists(
+  List<ReminderList> userLists,
+) {
+  final cards = <ReminderList>[];
+  final mine = <ReminderList>[];
+  for (final l in userLists) {
     if (!l.isSmart && l.isPinned) {
-      pinned.add(l);
+      cards.add(l);
     } else {
-      rest.add(l);
+      mine.add(l);
     }
   }
-  if (pinned.isEmpty) return lists;
-  return [...pinned, ...rest];
+  return (cards: cards, mine: mine);
 }
 
 /// 视图态 ↔ 本地偏好行的读写桥（flutter#124 卡 4b）。

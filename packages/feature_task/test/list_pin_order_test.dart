@@ -2,12 +2,14 @@
 // #563 把落点从视图态键袋改成清单实体的 `isPinned`：置顶从此会落库、会随同步
 // 通道走，换设备还在；`pinned:<id>` 那条本地键不再是任何人的真相源。
 //
-// 排序由 `orderListsPinnedFirst` 一处实现，桌面侧栏与紧凑档首页共用它——
+// 置顶的落点由 `splitPinnedUserLists` 一处实现，桌面侧栏与紧凑档首页共用它——
 // 否则「置顶」只在某一种屏宽生效。智能清单不参与（内置区是固定序）。
+// #588 改的是**位置**：置顶的自有清单不再留在「我的列表」里排到首行，
+// 而是离开该节、与智能清单同排占一张卡（Apple 的呈现）。
 //
-// 断言分层：① 助手函数的序（纯函数，含「取消后回原序」「智能永不挪位」）；
+// 断言分层：① 助手函数的分流（纯函数，含「取消后回原序」「智能永不挪位」）；
 // ② 置顶态经仓库往返（实体字段，不是内存对象改一下就完事）；
-// ③ 菜单命令真的改变了侧栏的**出现顺序**（量行坐标）；
+// ③ 菜单命令真的改变了侧栏的**呈现位置**（量卡片与行的坐标，不量文案）；
 // ④ 智能清单给可见提示而不是静默 no-op；⑤ 出站/入站同步载荷都带这个字段。
 import 'package:app_core/app_core.dart';
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -40,56 +42,61 @@ Future<Set<String>> _pinnedIds(InMemoryReminderRepository repo) async =>
         .toSet();
 
 void main() {
-  group('orderListsPinnedFirst', () {
-    test('置顶的排到最前，其余保持原序', () {
-      final lists = [
+  group('splitPinnedUserLists', () {
+    test('置顶的交给卡片区，其余留在「我的列表」且保持原序', () {
+      final s = splitPinnedUserLists([
         _l('a', '甲', order: 0),
         _l('b', '乙', order: 1),
         _l('c', '丙', order: 2, pinned: true),
-      ];
-      expect(orderListsPinnedFirst(lists).map((e) => e.id).toList(), [
-        'c',
-        'a',
-        'b',
+      ]);
+      expect(s.cards.map((e) => e.id).toList(), ['c']);
+      expect(
+        s.mine.map((e) => e.id).toList(),
+        ['a', 'b'],
+        reason: '#588：置顶的清单不得再留在「我的列表」里——哪怕排在最前也不对',
+      );
+
+      final two = splitPinnedUserLists([
+        _l('a', '甲', order: 0),
+        _l('b', '乙', order: 1, pinned: true),
+        _l('c', '丙', order: 2, pinned: true),
       ]);
       expect(
-        orderListsPinnedFirst([
-          _l('a', '甲', order: 0),
-          _l('b', '乙', order: 1, pinned: true),
-          _l('c', '丙', order: 2, pinned: true),
-        ]).map((e) => e.id).toList(),
-        ['b', 'c', 'a'],
+        two.cards.map((e) => e.id).toList(),
+        ['b', 'c'],
         reason: '多个置顶之间仍按原 sortOrder 序，不按点击顺序',
       );
+      expect(two.mine.map((e) => e.id).toList(), ['a']);
     });
 
-    test('取消置顶后回到原序；没有置顶时原样返回', () {
-      final lists = [
-        _l('a', '甲', order: 0),
-        _l('c', '丙', order: 2, pinned: true),
-      ];
-      expect(orderListsPinnedFirst(lists).map((e) => e.id).toList(), [
-        'c',
-        'a',
-      ]);
+    test('取消置顶后回到「我的列表」原序；没有置顶时卡片区不额外加卡', () {
       expect(
-        orderListsPinnedFirst([
+        splitPinnedUserLists([
           _l('a', '甲', order: 0),
           _l('c', '丙', order: 2),
-        ]).map((e) => e.id).toList(),
-        ['a', 'c'],
+        ]).cards,
+        isEmpty,
       );
+      final unpinned = splitPinnedUserLists([
+        _l('a', '甲', order: 0),
+        _l('b', '乙', order: 1),
+        _l('c', '丙', order: 2),
+      ]);
+      expect(unpinned.mine.map((e) => e.id).toList(), ['a', 'b', 'c'],
+          reason: '#588 判据：取消置顶要落回原序（sort_order 没被改过）');
     });
 
-    test('智能清单即使带着 isPinned 也不挪位', () {
-      final lists = [
+    test('智能清单即使带着 isPinned 也不进卡片区', () {
+      final s = splitPinnedUserLists([
         _l('smart.today', '今天', smart: true, pinned: true),
         _l('a', '甲', order: 0),
-      ];
-      expect(orderListsPinnedFirst(lists).map((e) => e.id).toList(), [
-        'smart.today',
-        'a',
-      ], reason: '脏数据（智能清单被置了顶）也不能把内置区打乱');
+      ]);
+      expect(
+        s.cards,
+        isEmpty,
+        reason: '脏数据（智能清单被置了顶）也不能把内置卡片区打乱',
+      );
+      expect(s.mine.map((e) => e.id).toList(), ['smart.today', 'a']);
     });
   });
 
@@ -147,7 +154,7 @@ void main() {
     return entries.map((e) => e.key).toList();
   }
 
-  testWidgets('#537 菜单「置顶列表」把前台列表排到侧栏最前，取消后回原序', (tester) async {
+  testWidgets('#588 菜单「置顶列表」让清单离开「我的列表」、进顶部卡片区，取消后回原序', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(_l('list.a', '甲', order: 0));
     await repo.upsertList(_l('list.b', '乙', order: 1));
@@ -158,23 +165,39 @@ void main() {
       'list.a',
       'list.b',
       'list.c',
-    ], reason: '默认按 sortOrder 升序');
+    ], reason: '默认按 sortOrder 升序，全都在「我的列表」');
 
     commands.value = LifeMenuAction.pinList;
     await tester.pumpAndSettle();
     expect(commands.value, isNull, reason: '命令消费后必须清空');
-    expect(sidebarOrder(tester), ['list.c', 'list.a', 'list.b']);
     expect(await _pinnedIds(repo), {
       'list.c',
     }, reason: '#563：置顶要落在实体上，不然同步不出去、换设备就掉');
 
+    // #588 判据（Apple 呈现）：置顶后这一行从「我的列表」消失，
+    // 顶部卡片区多一张同名卡；两半都要量，缺一半就是没改到位。
+    expect(
+      find.byKey(const ValueKey('my_list_list.c')),
+      findsNothing,
+      reason: '置顶的清单不得再留在「我的列表」里',
+    );
+    final card = find.byKey(const ValueKey('smart_card_list.c'));
+    expect(card, findsOneWidget, reason: '卡片区必须真的出现这张清单，找不到就等于没取证');
+    expect(
+      tester.getTopLeft(card).dy,
+      lessThan(tester.getTopLeft(find.byKey(const ValueKey('my_list_list.a'))).dy),
+      reason: '#588 判据 ①：卡片要在「我的列表」首行之上（量坐标，不量文案存在）',
+    );
+    expect(sidebarOrder(tester), ['list.a', 'list.b']);
+
     commands.value = LifeMenuAction.unpinList;
     await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('smart_card_list.c')), findsNothing);
     expect(sidebarOrder(tester), [
       'list.a',
       'list.b',
       'list.c',
-    ], reason: '取消置顶要回到 sortOrder 原序');
+    ], reason: '#588 判据 ③：取消置顶要落回「我的列表」原序');
     expect(await _pinnedIds(repo), isEmpty);
 
     final lists = await repo.watchLists().first;
@@ -227,7 +250,7 @@ void main() {
     );
   });
 
-  testWidgets('#537 紧凑档首页用同一条置顶序（不是只在桌面生效）', (tester) async {
+  testWidgets('#588 紧凑档首页用同一条分流（不是只在桌面生效）', (tester) async {
     final repo = InMemoryReminderRepository(seedSampleData: false);
     await repo.upsertList(_l('list.a', '甲', order: 0));
     await repo.upsertList(_l('list.b', '乙', order: 1));
@@ -261,6 +284,7 @@ void main() {
     }
 
     expect(order(['甲', '乙', '丙']), ['甲', '乙', '丙']);
+    expect(find.byKey(const ValueKey('home_list_list.c')), findsOneWidget);
 
     final c = (await repo.watchLists().first).firstWhere(
       (e) => e.id == 'list.c',
@@ -268,11 +292,23 @@ void main() {
     await repo.upsertList(c.copyWith(isPinned: true));
     await tester.pumpAndSettle();
 
+    // #588：紧凑档首页与桌面侧栏走同一条分流——行消失、卡出现。
+    // 只量文案顺序会被卡片里同名的标题满足，所以两句都按结构句柄量。
+    expect(
+      find.byKey(const ValueKey('home_list_list.c')),
+      findsNothing,
+      reason: '紧凑档里置顶的清单也该离开「我的列表」',
+    );
+    expect(
+      find.byKey(const ValueKey('smart_card_list.c')),
+      findsOneWidget,
+      reason: '侧栏改了呈现而首页没跟着改，就是「置顶只在某档宽生效」的缺陷',
+    );
     expect(order(['甲', '乙', '丙']), [
       '丙',
       '甲',
       '乙',
-    ], reason: '侧栏改了序而首页没跟着改，就是「置顶只在某档宽生效」的缺陷');
+    ], reason: '卡片在「我的列表」之上，文案序仍应反映置顶在前');
   });
 
   test('#563 同步载荷双向都带 isPinned（服务端 lifeos_list.is_pinned 的契约）', () {
