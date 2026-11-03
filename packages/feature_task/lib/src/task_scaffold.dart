@@ -119,6 +119,7 @@ class TaskScaffold extends ConsumerWidget {
                       lists: lists,
                       onOpenList: onOpenList,
                       onSelectItem: onSelectItem,
+                      onOpenCloudLogin: onOpenCloudLogin,
                     )
                   : _CompactListPane(
                       lists: lists,
@@ -286,11 +287,16 @@ class _CompactPane extends ConsumerWidget {
     required this.lists,
     required this.onOpenList,
     this.onSelectItem,
+    this.onOpenCloudLogin,
   });
 
   final List<ReminderList> lists;
   final ValueChanged<String>? onOpenList;
   final ValueChanged<ReminderItem>? onSelectItem;
+
+  /// #594：紧凑档此前没有任何设置入口 ⇒ 「开启云同步 → 登录」在手机上走不通。
+  /// 齿轮与宽屏侧栏齿轮共用同一个 `openTaskSettings`，不新增页面、不改信息架构层级。
+  final VoidCallback? onOpenCloudLogin;
 
   /// #491：Apple 的列表编辑（改名/颜色/类型）。图标需领域字段，按矩阵 M2 后置。
   Future<void> _editLists(
@@ -386,10 +392,26 @@ class _CompactPane extends ConsumerWidget {
         ),
         automaticallyImplyLeading: false,
         middle: const Text('列表'),
-        trailing: CupertinoButton(
-          key: const ValueKey('home_edit_placeholder'),
-          onPressed: () => _editLists(context, ref, editable),
-          child: const Icon(CupertinoIcons.ellipsis_circle, size: 22),
+        // #594：齿轮（设置）与原 ⋯（编辑列表）并排，两者都留在应用栏里，不加第二层导航。
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoButton(
+              key: const ValueKey('compact_settings'),
+              padding: EdgeInsets.zero,
+              onPressed: () => openTaskSettings(
+                context,
+                ref,
+                onOpenCloudLogin: onOpenCloudLogin,
+              ),
+              child: const Icon(CupertinoIcons.gear, size: 22),
+            ),
+            CupertinoButton(
+              key: const ValueKey('home_edit_placeholder'),
+              onPressed: () => _editLists(context, ref, editable),
+              child: const Icon(CupertinoIcons.ellipsis_circle, size: 22),
+            ),
+          ],
         ),
       ),
       child: ListView(
