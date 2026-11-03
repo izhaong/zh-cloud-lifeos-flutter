@@ -953,6 +953,10 @@ class ListContentPane extends ConsumerStatefulWidget {
   ConsumerState<ListContentPane> createState() => _ListContentPaneState();
 }
 
+/// #585：此刻活着的清单页。壳的分支栈会同时挂着两张（见
+/// `_answersListMenuActions`），选应答者要有这份在册名单；随 State 挂载/销毁增删。
+final Set<_ListContentPaneState> _liveListPanes = <_ListContentPaneState>{};
+
 class _ListContentPaneState extends ConsumerState<ListContentPane> {
   final _draftController = TextEditingController();
   final _searchFocus = FocusNode();
@@ -993,12 +997,66 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _paneRoute = ModalRoute.of(context);
+    _liveListPanes.add(this);
+  }
+
+  /// #585：读写「当前这张清单」或当前选中行的动作。这类票据只许前台那张页消费，
+  /// 否则身后那张还挂在分支栈上的 `/` 页会拿默认的「今天」去应答。
+  /// 其余（显示、排序、视图模式、设置、新建列表）写的是全局视图态，谁消费都一样。
+  static const Set<LifeMenuAction> _listScopedMenuActions = {
+    LifeMenuAction.newSection,
+    LifeMenuAction.editList,
+    LifeMenuAction.editSections,
+    LifeMenuAction.printList,
+    LifeMenuAction.moveToSection,
+    LifeMenuAction.deleteReminder,
+    LifeMenuAction.replaceText,
+    LifeMenuAction.markDueDate,
+    LifeMenuAction.indentReminder,
+    LifeMenuAction.outdentReminder,
+    LifeMenuAction.createSectionFromSelection,
+    LifeMenuAction.pinList,
+    LifeMenuAction.unpinList,
+  };
+
+  /// 本页所属路由（壳的分支栈里一张页一条路由）。
+  ModalRoute<Object?>? _paneRoute;
+
+  /// #585：列表级动作只由「应答者」那张清单页消费。
+  ///
+  /// 壳的 `StatefulShellRoute` 分支栈会把 `/` 与 `/list/:listId` 两张页同时挂着，
+  /// 于是同一时刻有两个 `ListContentPane` 监听同一张票据，而先注册的那张
+  /// `widget.list` 还是默认的「今天」——它把票据吃掉就会误报「智能清单不用置顶」，
+  /// 真正开着的那张清单收不到。
+  ///
+  /// 选应答者的规则（当场问路由，不缓存结论）：
+  /// 1. 有页是当前路由 → 那张页应答；
+  /// 2. 一张都不是（弹层压在头顶的那一刻，`isCurrent` 集体变 false）→ 由最后挂载
+  ///    的那张应答，也就是用户眼前这张；命令不许被吞掉。
+  bool get _answersListMenuActions {
+    if (_paneRoute?.isCurrent ?? false) return true;
+    final live = _liveListPanes;
+    if (live.any((p) => p != this && (p._paneRoute?.isCurrent ?? false))) {
+      return false;
+    }
+    return live.isEmpty || live.last == this;
+  }
+
   /// 菜单栏命令消费（#486：扩展支持新建列表/设置/显示切换）。
   void _onMenuCommand() {
     final notifier = _menuCommands;
     if (notifier == null || !mounted) return;
     final action = notifier.value;
     if (action == null) return;
+    // #585：列表级动作只由前台那张页消费。`StatefulShellRoute` 会把 `/` 与
+    // `/list/:listId` 同时挂在分支栈上，同一时刻有两个 ListContentPane 监听
+    // 同一张票据，而先注册的那个 `widget.list` 还是默认的「今天」——它吃掉票据
+    // 就会误报「智能清单不用置顶」，真正开着的那张清单反而收不到。
+    if (_listScopedMenuActions.contains(action) && !_answersListMenuActions) return;
     notifier.value = null; // 消费即清，避免重建时重复触发
     switch (action) {
       case LifeMenuAction.newReminder:
@@ -1504,6 +1562,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   @override
   void dispose() {
+    _liveListPanes.remove(this);
     _shortcuts?.removeListener(_onShortcut);
     _menuCommands?.removeListener(_onMenuCommand);
     _searchFocus.dispose();
