@@ -48,6 +48,12 @@ enum LifeMenuAction {
   /// 显示 → 根据时间分组（#574）。仅影响「全部」智能列表的分组口径。
   toggleGroupByTime,
 
+  /// 显示 → 列表视图（#573）：关掉 expanded 的第三栏，详情走锚定弹窗。
+  viewModeList,
+
+  /// 显示 → 分栏视图（#573）：恢复侧栏 + 列表 + 详情第三栏。
+  viewModeColumns,
+
   /// 显示 → 隐藏/显示已完成项目（#486）。
   toggleCompleted,
 
