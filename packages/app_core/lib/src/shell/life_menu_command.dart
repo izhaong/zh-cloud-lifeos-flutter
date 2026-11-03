@@ -81,6 +81,9 @@ enum LifeMenuAction {
   /// 编辑 → 查找…（#537）。
   findReminder,
 
+  /// 编辑 → 替换…（#576）：对当前选中条目的标题/备注做查找替换。
+  replaceText,
+
   /// 编辑 → 将截止日期标记为…（#537）。
   markDueDate,
 

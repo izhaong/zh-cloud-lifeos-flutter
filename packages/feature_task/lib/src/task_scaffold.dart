@@ -945,6 +945,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       // （`_onShortcut` 比对 focusSearchTicket 后 requestFocus），不在这里碰焦点。
       case LifeMenuAction.findReminder:
         _shortcuts?.requestFocusSearch();
+      case LifeMenuAction.replaceText:
+        _replaceSelectedText();
       // #537：「编辑 → 将截止日期标记为…」。档位时刻与落库一律复用今天视图
       // 拖档那一份（`_sectionTime` + `_onSectionDrop`），不开第二条写日期通路。
       case LifeMenuAction.markDueDate:
@@ -970,6 +972,69 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
 
   void _setSortFromMenu(ListSortMode mode) {
     ref.read(listSortModeProvider.notifier).set(mode);
+  }
+
+  /// #576：「编辑 → 替换…」——只作用于当前选中条目（标题 + 备注），
+  /// 精确子串替换；查找为空或没有命中都给可见提示，不写库。
+  Future<void> _replaceSelectedText() async {
+    final item = widget.selectedItem;
+    if (item == null) {
+      await _showMenuNotice('替换', '先选中一条提醒事项');
+      return;
+    }
+    final findController = TextEditingController();
+    final withController = TextEditingController();
+    final apply = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (ctx) => LifeAlertDialog(
+        title: const Text('替换'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoTextField(
+              key: const ValueKey('replace_find'),
+              controller: findController,
+              autofocus: true,
+              placeholder: '查找',
+            ),
+            const SizedBox(height: 8),
+            CupertinoTextField(
+              key: const ValueKey('replace_with'),
+              controller: withController,
+              placeholder: '替换为',
+            ),
+          ],
+        ),
+        actions: [
+          LifeDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          LifeDialogAction(
+            key: const ValueKey('replace_submit'),
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('替换'),
+          ),
+        ],
+      ),
+    );
+    if (apply != true || !mounted) return;
+    final find = findController.text;
+    if (find.isEmpty) {
+      await _showMenuNotice('替换', '查找内容不能为空');
+      return;
+    }
+    final replacement = withController.text;
+    final newTitle = item.title.replaceAll(find, replacement);
+    final newNotes = item.notes?.replaceAll(find, replacement);
+    if (newTitle == item.title && newNotes == item.notes) {
+      await _showMenuNotice('替换', '没有找到「$find」');
+      return;
+    }
+    await ref.read(reminderRepositoryProvider).upsertItem(
+          item.copyWith(title: newTitle, notes: newNotes),
+        );
   }
 
   /// #537：把三栏里选中的条目移进某个分区（或移出分区）。
