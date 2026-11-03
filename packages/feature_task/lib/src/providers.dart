@@ -91,6 +91,27 @@ class SidebarVisibleNotifier extends Notifier<bool>
   void toggle() => write(!state);
 }
 
+/// #574：「显示 → 根据时间分组」。仅影响「全部」智能列表：
+/// 开 = 按日期分组（复用计划视图的日期标签/排序），关 = 维持 #478 的按清单分组。
+final groupByTimeProvider = NotifierProvider<GroupByTimeNotifier, bool>(
+  GroupByTimeNotifier.new,
+);
+
+class GroupByTimeNotifier extends Notifier<bool>
+    with _PreferenceBacked<bool> {
+  @override
+  bool get fallback => false;
+
+  @override
+  bool decode(TaskPreference p) => p.viewOptionBool('groupByTime');
+
+  @override
+  TaskPreference encode(TaskPreference base, bool value) =>
+      base.withViewOptionBool('groupByTime', value);
+
+  void toggle() => write(!state);
+}
+
 /// 过滤后的条目流：在仓库语义过滤之上叠加本地文本匹配
 /// （标题 / 备注 / 标签，大小写不敏感）+ 「显示已完成」视图偏好
 /// （TC-UI-108：默认隐藏已完成；`smart.completed` 完成卡恒显示）。

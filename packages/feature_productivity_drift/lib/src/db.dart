@@ -360,6 +360,10 @@ class TaskPreferences extends Table {
   TextColumn get collapsedKeysJson =>
       text().withDefault(const Constant('[]'))();
 
+  /// 通用视图开关 JSON（#574：`groupByTime`；#573：`viewMode`）。
+  TextColumn get viewOptionsJson =>
+      text().withDefault(const Constant('{}'))();
+
   IntColumn get revision => integer().withDefault(const Constant(0))();
 
   @override
@@ -401,7 +405,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
   /// 幂等加列（#451/#446 共用）。
   ///
@@ -534,6 +538,12 @@ class LifeProductivityDb extends _$LifeProductivityDb {
               reminderLists.isPinned,
             );
             await _backfillListPins(m);
+          }
+          if (from < 25 && to >= 25) {
+            // V25（flutter#574/#573）：菜单级视图开关统一存 JSON，避免每加一档
+            // 就动一次 schema；默认 '{}' = 全部按契约默认。
+            await _addColumnIfTableExists(m, 'task_preferences',
+                taskPreferences, taskPreferences.viewOptionsJson);
           }
           if (from < 14 && to >= 14) {
             // V14（flutter#144 / TC-SYNC-106）：清单入站落库要有服务端 ID 列。

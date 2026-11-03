@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
@@ -22,6 +24,7 @@ final class TaskPreference extends Equatable {
     this.sortMode = 'manual',
     this.sidebarVisible = true,
     this.collapsedKeys = const [],
+    this.viewOptionsJson = '{}',
     this.revision = 1,
   });
 
@@ -78,6 +81,38 @@ final class TaskPreference extends Equatable {
   /// 折叠态键：`'<listId>|<分区标题>'` 与 `'group:<分组名>''`（TC-UI-309）。
   final List<String> collapsedKeys;
 
+  /// 通用视图开关（#574 起）：JSON 对象字符串，避免每个菜单级视图开关都加一列。
+  /// 目前键：`groupByTime`（#574）、`viewMode`（#573，`list`/`columns`）。
+  final String viewOptionsJson;
+
+  /// 读一个布尔视图开关；坏 JSON / 缺键按 [fallback]。
+  bool viewOptionBool(String key, {bool fallback = false}) {
+    try {
+      final decoded = jsonDecode(viewOptionsJson);
+      if (decoded is Map && decoded[key] is bool) {
+        return decoded[key] as bool;
+      }
+    } catch (_) {
+      // 坏 JSON 不影响数据可用，按默认值处理。
+    }
+    return fallback;
+  }
+
+  /// 写一个布尔视图开关，保留其它键。
+  TaskPreference withViewOptionBool(String key, bool value) {
+    final map = <String, Object?>{};
+    try {
+      final decoded = jsonDecode(viewOptionsJson);
+      if (decoded is Map) {
+        decoded.forEach((k, v) => map['$k'] = v);
+      }
+    } catch (_) {
+      // 坏 JSON 直接重建。
+    }
+    map[key] = value;
+    return copyWith(viewOptionsJson: jsonEncode(map));
+  }
+
   /// 保存次数（每次保存 +1，与日历偏好同口径）。
   final int revision;
 
@@ -99,6 +134,7 @@ final class TaskPreference extends Equatable {
     String? sortMode,
     bool? sidebarVisible,
     List<String>? collapsedKeys,
+    String? viewOptionsJson,
     int? revision,
   }) {
     return TaskPreference(
@@ -121,6 +157,7 @@ final class TaskPreference extends Equatable {
       sortMode: sortMode ?? this.sortMode,
       sidebarVisible: sidebarVisible ?? this.sidebarVisible,
       collapsedKeys: collapsedKeys ?? this.collapsedKeys,
+      viewOptionsJson: viewOptionsJson ?? this.viewOptionsJson,
       revision: revision ?? this.revision,
     );
   }
@@ -139,6 +176,7 @@ final class TaskPreference extends Equatable {
         sortMode,
         sidebarVisible,
         collapsedKeys,
+        viewOptionsJson,
         revision,
       ];
 }

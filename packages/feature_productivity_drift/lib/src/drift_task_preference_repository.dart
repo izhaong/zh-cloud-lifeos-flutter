@@ -54,6 +54,7 @@ class DriftTaskPreferenceRepository
             sidebarVisible: Value(preference.sidebarVisible),
             collapsedKeysJson:
                 Value(jsonEncode(preference.collapsedKeys)),
+            viewOptionsJson: Value(preference.viewOptionsJson),
             revision: Value((existing?.revision ?? 0) + 1),
           ),
         );
@@ -73,6 +74,7 @@ class DriftTaskPreferenceRepository
         sortMode: row.sortMode,
         sidebarVisible: row.sidebarVisible,
         collapsedKeys: _decodeKeys(row.collapsedKeysJson),
+        viewOptionsJson: row.viewOptionsJson,
         revision: row.revision,
       );
 

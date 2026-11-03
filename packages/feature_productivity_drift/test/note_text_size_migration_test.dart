@@ -9,7 +9,7 @@ void main() {
   test('#463 全新库：默认 16 磅', () async {
     final db = LifeProductivityDb(NativeDatabase.memory());
     addTearDown(db.close);
-    expect(db.schemaVersion, 24);
+    expect(db.schemaVersion, 25);
     final repo = DriftNotePreferenceRepository(db);
     await repo.savePreference(const NotePreference());
     expect((await repo.watchPreference().first).defaultTextSize, 16);
@@ -36,7 +36,7 @@ void main() {
     final db = LifeProductivityDb(NativeDatabase.opened(raw));
     addTearDown(db.close);
     await db.customSelect('SELECT 1').get();
-    expect(db.schemaVersion, 24);
+    expect(db.schemaVersion, 25);
 
     final pref = await DriftNotePreferenceRepository(db).watchPreference().first;
     expect(pref.defaultTextSize, 16, reason: '与改造前渲染等价');

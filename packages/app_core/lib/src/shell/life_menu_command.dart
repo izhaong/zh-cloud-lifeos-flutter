@@ -45,6 +45,9 @@ enum LifeMenuAction {
   /// 显示 → 显示/隐藏边栏（#486）。
   toggleSidebar,
 
+  /// 显示 → 根据时间分组（#574）。仅影响「全部」智能列表的分组口径。
+  toggleGroupByTime,
+
   /// 显示 → 隐藏/显示已完成项目（#486）。
   toggleCompleted,
 
