@@ -1,3 +1,4 @@
+import 'package:app_core/app_core.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -76,9 +77,13 @@ class _TaskSettingsSheetState extends ConsumerState<_TaskSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // #595（口径 1）：同步状态只在设置面板里可见——主界面保持 #592 量到的「静默」。
+    // TaskSettingsView 本体不碰 Riverpod（macOS 独立窗口共用它），故由这里算好传入。
+    final cloudStatusLabel = ref.watch(syncStatusProvider).value?.settingsLabel;
     return TaskSettingsView(
       preference: _pref,
       ownLists: _ownLists,
+      cloudStatusLabel: cloudStatusLabel,
       scrollController: widget.scrollController,
       onChanged: _save,
       onReset: _reset,
@@ -104,6 +109,7 @@ class TaskSettingsView extends StatefulWidget {
     required this.onDone,
     this.onOpenCloudLogin,
     this.scrollController,
+    this.cloudStatusLabel,
   });
 
   final TaskPreference preference;
@@ -116,6 +122,9 @@ class TaskSettingsView extends StatefulWidget {
   final VoidCallback onDone;
   final VoidCallback? onOpenCloudLogin;
   final ScrollController? scrollController;
+
+  /// #595：「待推 N 条 · 上次同步 HH:mm」；null = 未登录或状态未知，不摆副标题。
+  final String? cloudStatusLabel;
 
   @override
   State<TaskSettingsView> createState() => _TaskSettingsViewState();
@@ -282,6 +291,16 @@ class _TaskSettingsViewState extends State<TaskSettingsView> {
                   title: Text(
                     widget.onOpenCloudLogin == null ? '云同步：登录后可用' : '开启云同步',
                   ),
+                  subtitle: widget.cloudStatusLabel == null
+                      ? null
+                      : Text(
+                          widget.cloudStatusLabel!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: CupertinoColors.secondaryLabel
+                                .resolveFrom(context),
+                          ),
+                        ),
                   onTap: widget.onOpenCloudLogin,
                 ),
               ],
