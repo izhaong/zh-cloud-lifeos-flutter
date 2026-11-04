@@ -277,6 +277,82 @@ class _ImportExportTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // #604：服务端早有端点、客户端此前没有入口的三行（矩阵 A8/C4/C5）。
+        FutureBuilder<List<Map<String, dynamic>>>(
+          key: const Key('export_calendar_rows'),
+          future: port?.calendarList(),
+          builder: (context, snap) {
+            if (snap.hasError) {
+              return Text(_friendlyLoadError(snap.error));
+            }
+            final items = snap.data ?? const <Map<String, dynamic>>[];
+            if (items.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('暂无可导出的日历'),
+              );
+            }
+            return Column(
+              children: [
+                for (final item in items)
+                  Builder(
+                    builder: (context) {
+                      final id = (item['id'] as num).toInt();
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: Text('${item['title'] ?? '未命名日历'}'),
+                          ),
+                          CupertinoButton(
+                            key: Key('set_default_calendar_$id'),
+                            onPressed: () async {
+                              try {
+                                await port?.setDefaultCalendar(id);
+                                onMessage('已设为默认日历');
+                              } catch (error) {
+                                onMessage(_friendlyLoadError(error));
+                              }
+                            },
+                            child: const Text('设为默认'),
+                          ),
+                          CupertinoButton(
+                            key: Key('export_calendar_$id'),
+                            onPressed: () async {
+                              try {
+                                final ics = await port?.exportCalendarIcs(id);
+                                onMessage(ics == null
+                                    ? '导出失败'
+                                    : '已导出 ${ics.length} 字节 .ics');
+                              } catch (error) {
+                                onMessage(_friendlyLoadError(error));
+                              }
+                            },
+                            child: const Text('导出 .ics'),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        CupertinoButton(
+          key: const Key('export_all_button'),
+          color: CupertinoColors.systemBlue,
+          onPressed: () async {
+            try {
+              final ics = await port?.exportAllIcs();
+              onMessage(
+                  ics == null ? '导出失败' : '已导出全部日历 ${ics.length} 字节');
+            } catch (error) {
+              onMessage(_friendlyLoadError(error));
+            }
+          },
+          child: const Text('导出全部 .ics'),
+        ),
+        const SizedBox(height: 16),
         CupertinoButton(
           key: const Key('export_feed_button'),
           color: CupertinoColors.systemBlue,

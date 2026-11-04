@@ -20,6 +20,18 @@ abstract interface class CalendarCollabPort {
     required String filename,
     required List<int> bytes,
   });
+
+  /// TC-CAL-API-104：互斥置默认日历（服务端 `PUT /calendar/set-default?id=`）。
+  Future<void> setDefaultCalendar(int calendarId);
+
+  /// TC-CAL-API-140：导出单日历 .ics，返回服务端 `text/calendar` 原文。
+  Future<String> exportCalendarIcs(int calendarId);
+
+  /// TC-CAL-API-143：导出全部本地日历为一个 .ics。
+  Future<String> exportAllIcs();
+
+  /// TC-CAL-API-115：复制日程，服务端返回新日程编号。
+  Future<int> duplicateEvent(int eventId, {required DateTime newStartAt});
 }
 
 class RestCalendarCollabPort implements CalendarCollabPort {
@@ -102,6 +114,54 @@ class RestCalendarCollabPort implements CalendarCollabPort {
       data: form,
       options: await _options(),
     );
+  }
+
+  @override
+  Future<void> setDefaultCalendar(int calendarId) async {
+    await _dio.put<Map<String, dynamic>>(
+      '/app-api/lifeos/calendar/calendar/set-default',
+      queryParameters: {'id': calendarId},
+      options: await _options(),
+    );
+  }
+
+  @override
+  Future<String> exportCalendarIcs(int calendarId) =>
+      _getPlain('/app-api/lifeos/calendar/export/calendar/$calendarId.ics');
+
+  @override
+  Future<String> exportAllIcs() =>
+      _getPlain('/app-api/lifeos/calendar/export/all.ics');
+
+  @override
+  Future<int> duplicateEvent(int eventId, {required DateTime newStartAt}) async {
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/app-api/lifeos/calendar/event/duplicate',
+      queryParameters: {
+        'id': eventId,
+        'newStartAt': newStartAt.toUtc().toIso8601String(),
+      },
+      options: await _options(),
+    );
+    final body = resp.data;
+    if (body == null || body['code'] != 0) {
+      throw CalendarSyncException(body?['msg']?.toString() ?? '请求失败');
+    }
+    return (body['data'] as num).toInt();
+  }
+
+  /// .ics 端点返回 `text/calendar` 而非 CommonResult 信封，只能按纯文本取。
+  /// 非 VCALENDAR 正文（网关错误页等）一律不外传，避免把整页 HTML 甩给 UI。
+  Future<String> _getPlain(String path) async {
+    final resp = await _dio.get<String>(
+      path,
+      options: (await _options()).copyWith(responseType: ResponseType.plain),
+    );
+    final body = resp.data ?? '';
+    if (!body.contains('BEGIN:VCALENDAR')) {
+      throw CalendarSyncException('导出失败', statusCode: resp.statusCode);
+    }
+    return body;
   }
 
   Map<String, dynamic>? _unwrap(Map<String, dynamic>? body) {
