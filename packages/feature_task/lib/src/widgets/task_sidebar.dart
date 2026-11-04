@@ -22,6 +22,7 @@ class TaskSidebar extends ConsumerStatefulWidget {
     this.onAddList,
     this.onToggleSidebar,
     this.onOpenSettings,
+    this.onSelectSharedList,
   });
 
   final List<ReminderList> lists;
@@ -30,6 +31,10 @@ class TaskSidebar extends ConsumerStatefulWidget {
   final VoidCallback? onAddList;
   final VoidCallback? onToggleSidebar;
   final VoidCallback? onOpenSettings;
+
+  /// 点「与我共享」某一行（flutter#599）。不注入时整节不显示——
+  /// 画一行点不动的清单比不画更糟（#600 记的就是这个）。
+  final ValueChanged<TaskSharedList>? onSelectSharedList;
 
   @override
   ConsumerState<TaskSidebar> createState() => _TaskSidebarState();
@@ -134,6 +139,13 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
         .toList(growable: false)
       ..sort();
 
+    // #599「与我共享」：端口不可用（离线/未登录）或读失败 ⇒ 整节不出现。
+    // 用 asData 而不是 valueOrNull：加载中也按空表处理，避免闪一节再消失。
+    final shared = widget.onSelectSharedList == null
+        ? const <TaskSharedList>[]
+        : (ref.watch(mySharedListsProvider).asData?.value ??
+              const <TaskSharedList>[]);
+
     return ColoredBox(
       color: CupertinoDynamicColor.resolve(ReminderTokens.sidebarBg, context),
       child: Column(
@@ -226,6 +238,15 @@ class _TaskSidebarState extends ConsumerState<TaskSidebar> {
                       selected: list.id == widget.selectedListId,
                       onTap: () => widget.onSelect(list),
                       customSmart: true,
+                    ),
+                ],
+                if (shared.isNotEmpty) ...[
+                  const _SectionLabel('与我共享'),
+                  for (final s in shared)
+                    _SharedListRow(
+                      shared: s,
+                      selected: s.listId == widget.selectedListId,
+                      onTap: () => widget.onSelectSharedList?.call(s),
                     ),
                 ],
                 if (tags.isNotEmpty) ...[
@@ -537,6 +558,89 @@ class _SuggestedListRow extends StatelessWidget {
                   padding: EdgeInsets.all(2),
                   child: Icon(CupertinoIcons.add_circled_solid,
                       color: ReminderTokens.systemGreen, size: 20),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 「与我共享」行（#599）：别人的清单，标题右侧带角色，计数留空——
+/// 条目不在本地表里，这里没有可信的本地计数可显示，宁可不写也不编一个 0。
+class _SharedListRow extends StatelessWidget {
+  const _SharedListRow({
+    required this.shared,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TaskSharedList shared;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      child: CupertinoButton(
+        key: ValueKey('sidebar_shared_${shared.listId}'),
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        alignment: Alignment.centerLeft,
+        borderRadius: BorderRadius.circular(LifeRadius.md),
+        onPressed: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: selected
+                ? ReminderTokens.systemBlue.withValues(alpha: 0.10)
+                : null,
+            borderRadius: BorderRadius.circular(LifeRadius.md),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemPurple.resolveFrom(context),
+                  borderRadius: BorderRadius.circular(
+                    ReminderTokens.radiusListIcon,
+                  ),
+                ),
+                child: const Icon(
+                  CupertinoIcons.person_2,
+                  color: CupertinoColors.white,
+                  size: 14,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  shared.name.isEmpty ? '共享清单' : shared.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    color: CupertinoDynamicColor.resolve(
+                      ReminderTokens.labelPrimary,
+                      context,
+                    ),
+                  ),
+                ),
+              ),
+              Text(
+                taskShareRoleLabel(shared.role),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: CupertinoDynamicColor.resolve(
+                    ReminderTokens.labelSecondary,
+                    context,
+                  ),
                 ),
               ),
             ],

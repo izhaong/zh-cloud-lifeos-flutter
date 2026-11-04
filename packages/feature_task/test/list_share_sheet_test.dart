@@ -261,4 +261,13 @@ class _FakePort implements TaskCollabPort {
     calls.add('mySharedLists');
     return const [];
   }
+
+  @override
+  Future<List<TaskSharedItem>> sharedListTasks(
+    String listId, {
+    bool includeCompleted = false,
+  }) async {
+    calls.add('sharedListTasks');
+    return const [];
+  }
 }

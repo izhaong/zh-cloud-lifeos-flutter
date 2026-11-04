@@ -148,6 +148,54 @@ class RestTaskCollabPort implements TaskCollabPort {
     ];
   }
 
+  /// 共享清单条目：`/lifeos/task/task/page`（`AppLifeosTaskItemController.getTaskPage`）。
+  ///
+  /// 走的是**读侧**通道，服务端按 active 成员放行；这里不写本地表、不进 outbox。
+  /// `dueAt` 兼容两种序列化：芋道默认把 `LocalDateTime` 写成 epoch 毫秒，
+  /// 但 OpenAPI/测试桩里也见过 ISO 字符串，两种都要能落。
+  @override
+  Future<List<TaskSharedItem>> sharedListTasks(
+    String listId, {
+    bool includeCompleted = false,
+  }) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/app-api/lifeos/task/task/page',
+      queryParameters: {
+        'listId': _serverId(listId),
+        'includeCompleted': includeCompleted,
+        'pageNo': 1,
+        'pageSize': 100,
+      },
+      options: await _options(),
+    );
+    final page = _unwrapData(resp.data);
+    return [
+      for (final e in _asList(page is Map ? page['list'] : null))
+        TaskSharedItem(
+          id: '${e['id']}',
+          listId: '${e['listId']}',
+          title: '${e['title'] ?? ''}',
+          notes: e['notes']?.toString(),
+          dueAt: _date(e['dueAt']),
+          allDay: e['allDay'] == true,
+          priority: (e['priority'] as num?)?.toInt() ?? 0,
+          flagged: e['isFlagged'] == true,
+          completed: e['isCompleted'] == true,
+          tagNames: [
+            for (final t in (e['tagNames'] as List? ?? const [])) '$t',
+          ],
+        ),
+    ];
+  }
+
+  static DateTime? _date(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is num) {
+      return DateTime.fromMillisecondsSinceEpoch(raw.toInt());
+    }
+    return DateTime.tryParse('$raw');
+  }
+
   /// 业务信封：`code == 0` 才取 data；否则把服务端的中文 `msg` 原样抛出。
   dynamic _unwrapData(Map<String, dynamic>? body) {
     if (body == null) {

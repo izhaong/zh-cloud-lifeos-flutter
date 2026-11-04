@@ -30,6 +30,38 @@ final taskCollabPortProvider = Provider<TaskCollabPort?>(
   name: 'taskCollabPortProvider',
 );
 
+/// 别人共享给我的清单（flutter#599 侧栏「与我共享」的数据源）。
+///
+/// 端口为 null（离线/未登录档）时给空表而不是抛错：这一节整块不显示，
+/// 不产生「加载失败」噪声——与 `ListShareSheet` 的容错口径一致。
+final mySharedListsProvider = FutureProvider<List<TaskSharedList>>((ref) async {
+  final port = ref.watch(taskCollabPortProvider);
+  if (port == null) return const <TaskSharedList>[];
+  return port.mySharedLists();
+});
+
+/// 某清单是否在我共享册里（按服务端编号查）。
+///
+/// #600 判据 4 的反向探针挂这一层：摘掉这里的 `listId` 过滤，
+/// 自己的清单也会被当成共享清单渲染成只读视图，用例会红。
+final sharedListByIdProvider = Provider.family<TaskSharedList?, String>(
+  (ref, listId) => (ref.watch(mySharedListsProvider).asData?.value ??
+          const <TaskSharedList>[])
+      .where((e) => e.listId == listId)
+      .firstOrNull,
+  name: 'sharedListByIdProvider',
+);
+
+/// 某张共享清单的条目（flutter#600 路线 B：直连服务端，不落 Drift）。
+///
+/// 只读通道：返回的条目不属于本人，任何情况下都不得写回 `reminderRepositoryProvider`。
+final sharedListTasksProvider =
+    FutureProvider.family<List<TaskSharedItem>, String>((ref, listId) async {
+      final port = ref.watch(taskCollabPortProvider);
+      if (port == null) return const <TaskSharedItem>[];
+      return port.sharedListTasks(listId, includeCompleted: true);
+    });
+
 /// 全部列表（智能 + 我的）。
 final reminderListsProvider = StreamProvider<List<ReminderList>>((ref) {
   return ref.watch(reminderRepositoryProvider).watchLists();

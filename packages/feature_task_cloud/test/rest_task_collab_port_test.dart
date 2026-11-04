@@ -154,6 +154,56 @@ void main() {
     expect(lists.single.role, 'editor');
   });
 
+  test('sharedListTasks：走 task/page 读侧，解析条目与完成态（#600 路线 B）',
+      () async {
+    await loggedIn();
+    adapter.enqueue({
+      'code': 0,
+      'data': {
+        'list': [
+          {
+            'id': 5001,
+            'listId': 100,
+            'title': '买牛奶',
+            'dueAt': 1762022400000,
+            'allDay': true,
+            'priority': 3,
+            'isFlagged': true,
+            'isCompleted': false,
+            'tagNames': ['家'],
+          },
+          {'id': 5002, 'listId': 100, 'title': '已完成', 'isCompleted': true},
+        ],
+        'total': 2,
+      },
+    });
+
+    final items = await port.sharedListTasks('100');
+
+    expect(adapter.lastPath, '/app-api/lifeos/task/task/page');
+    expect(adapter.lastQuery['listId'], '100', reason: 'bigint，按字符串发即可');
+    expect(items.length, 2);
+    expect(items.first.id, '5001');
+    expect(items.first.title, '买牛奶');
+    expect(items.first.flagged, isTrue);
+    expect(items.first.completed, isFalse);
+    expect(items.first.tagNames, ['家']);
+    // epoch 毫秒与 ISO 字符串两种序列化都要能落
+    expect(items.first.dueAt, isNotNull);
+    expect(items.last.completed, isTrue);
+    expect(items.last.dueAt, isNull);
+  });
+
+  test('sharedListTasks：非成员被服务端拒时抛错，不折成空表', () async {
+    await loggedIn();
+    adapter.enqueue({'code': 1_005_000_001, 'msg': '没有该清单的访问权限'});
+
+    await expectLater(
+      port.sharedListTasks('100'),
+      throwsA(isA<TaskCollabException>()),
+    );
+  });
+
   test('join / exit / 改角色 / 移除：路径与方法各就各位', () async {
     await loggedIn();
     for (var i = 0; i < 4; i++) {
