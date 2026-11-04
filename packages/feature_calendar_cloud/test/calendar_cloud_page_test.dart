@@ -68,6 +68,50 @@ void main() {
     expect(message.data, contains('导出链接'));
   });
 
+  testWidgets('#604 导入导出页有「设为默认」「导出 .ics」「导出全部」入口',
+      (tester) async {
+    port.calendars = [
+      {'id': 7, 'title': '工作', 'kind': 'LOCAL'},
+    ];
+    await pumpPage(tester, tab: 2);
+    await tester.pumpAndSettle();
+
+    String message() => tester
+        .widget<Text>(find.byKey(const Key('calendar_cloud_message')))
+        .data!;
+
+    await tester.tap(find.byKey(const Key('set_default_calendar_7')));
+    await tester.pumpAndSettle();
+    expect(port.defaultSet, 7);
+    expect(message(), contains('已设为默认日历'));
+
+    await tester.tap(find.byKey(const Key('export_calendar_7')));
+    await tester.pumpAndSettle();
+    expect(message(), contains('已导出'));
+
+    await tester.tap(find.byKey(const Key('export_all_button')));
+    await tester.pumpAndSettle();
+    expect(port.exportAllCalls, 1);
+    expect(message(), contains('已导出全部日历'));
+  });
+
+  testWidgets('#604 导出失败给友好文案，不回显异常类名（沿用 #165 约束）',
+      (tester) async {
+    port.calendars = [
+      {'id': 7, 'title': '工作', 'kind': 'LOCAL'},
+    ];
+    port.exportError = CalendarSyncException('导出失败', statusCode: 502);
+    await pumpPage(tester, tab: 2);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('export_calendar_7')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('暂时不可用，请稍后重试'), findsOneWidget);
+    expect(find.textContaining('CalendarSyncException'), findsNothing);
+    expect(find.textContaining('502'), findsNothing);
+  });
+
   // parity#165：未登录（401）不得回显内部异常类名，给面向用户的未登录说明
   testWidgets('#165 未登录收件箱显示友好文案，不暴露异常类名', (tester) async {
     port.inboxError = CalendarSyncException('未登录', statusCode: 401);
@@ -84,6 +128,10 @@ class _CollabPort implements CalendarCollabPort {
   List<Map<String, dynamic>> calendars = [];
   final List<(int, bool)> responded = [];
   CalendarSyncException? inboxError;
+  int? defaultSet;
+  int exportAllCalls = 0;
+  String ics = 'BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR';
+  CalendarSyncException? exportError;
 
   @override
   Future<List<Map<String, dynamic>>> inboxList() async {
@@ -112,4 +160,32 @@ class _CollabPort implements CalendarCollabPort {
     required String filename,
     required List<int> bytes,
   }) async {}
+
+  @override
+  Future<void> setDefaultCalendar(int calendarId) async {
+    defaultSet = calendarId;
+  }
+
+  @override
+  Future<String> exportCalendarIcs(int calendarId) async {
+    final err = exportError;
+    if (err != null) {
+      throw err;
+    }
+    return ics;
+  }
+
+  @override
+  Future<String> exportAllIcs() async {
+    exportAllCalls++;
+    final err = exportError;
+    if (err != null) {
+      throw err;
+    }
+    return ics;
+  }
+
+  @override
+  Future<int> duplicateEvent(int eventId, {required DateTime newStartAt}) async =>
+      99;
 }
