@@ -1166,6 +1166,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
         ref.read(taskViewModeProvider.notifier).set(false);
       case LifeMenuAction.viewModeColumns:
         ref.read(taskViewModeProvider.notifier).set(true);
+      // #602：分区列排（矩阵行 41）。与上一条 viewModeColumns 是两回事。
+      case LifeMenuAction.toggleSectionColumns:
+        ref.read(sectionColumnsProvider.notifier).toggle();
       case LifeMenuAction.printList:
         _printCurrentList();
       // #537：「显示 → 排序方式」五档，写的是工具栏同一个 listSortModeProvider，
@@ -2094,6 +2097,54 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     }
   }
 
+  /// #602：分区列排（矩阵行 41，Apple View ▸ Columns）。
+  ///
+  /// 只吃 `_buildSections` 已经算好的 map：键=列头、值=列内条目，
+  /// 行组件一律复用 `_buildItemRow`，**不实现第二套行**（仓规：一列表一种分组模式）。
+  /// 列宽固定 280，横向滚动；`compact` 档由调用侧不启用（见 providers 注释与 PR 说明）。
+  Widget _sectionColumnsView(
+    Map<String, List<ReminderItem>> sections,
+    Map<String, List<ReminderItem>> subtasksByParent,
+  ) {
+    final keys = sections.keys.toList(growable: false);
+    return SizedBox(
+      key: const ValueKey('section_columns'),
+      height: 360,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: keys.length,
+        itemBuilder: (context, i) {
+          final key = keys[i];
+          final items = sections[key] ?? const <ReminderItem>[];
+          return SizedBox(
+            key: ValueKey('section_column_$key'),
+            width: 280,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LifeSectionHeader(
+                  key: ValueKey('section_header_$key'),
+                  title: key,
+                  count: items.length,
+                  collapsed: false,
+                  onToggle: () {},
+                ),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      for (final item in items)
+                        _buildItemRow(item, subtasksByParent: subtasksByParent),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildItemRow(
     ReminderItem item, {
     Map<String, List<ReminderItem>> subtasksByParent = const {},
@@ -2531,7 +2582,15 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                         : _GhostNewRow(
                             onTap: () => setState(() => _showDraft = true),
                           ),
-                  for (final entry in sections.entries) ...[
+                  // #602「分区列排」：手动分区清单且开关打开时，每个分区一条横向列。
+                  // 判据「有分区才分列」挂在这条 if 上——摘掉它，
+                  // `section_columns_no_sections_test` 当场红（反向探针）。
+                  if (ref.watch(sectionColumnsProvider) &&
+                      widget.list.sections.isNotEmpty &&
+                      query.trim().isEmpty)
+                    _sectionColumnsView(sections, subtasksByParent)
+                  else
+                    for (final entry in sections.entries) ...[
                     if (!skipSectionHeader || entry.key != widget.list.title)
                       // #477：今天视图分区头作为拖放目标，拖入即改时间
                       DragTarget<String>(

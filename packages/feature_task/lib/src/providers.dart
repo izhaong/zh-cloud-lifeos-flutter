@@ -164,6 +164,29 @@ class GroupByTimeNotifier extends Notifier<bool>
   void toggle() => write(!state);
 }
 
+/// #602：「显示 → 分区列排」（矩阵行 41，Apple 的 View ▸ Columns）。
+///
+/// 与 #573 的窗格「分栏视图」不是一回事：那条管 expanded 有没有第三栏，
+/// 这条管**分区怎么排**（每个分区一条横向列）。名字刻意错开，避免再撞。
+final sectionColumnsProvider = NotifierProvider<SectionColumnsNotifier, bool>(
+  SectionColumnsNotifier.new,
+);
+
+class SectionColumnsNotifier extends Notifier<bool>
+    with _PreferenceBacked<bool> {
+  @override
+  bool get fallback => false;
+
+  @override
+  bool decode(TaskPreference p) => p.viewOptionBool('sectionColumns');
+
+  @override
+  TaskPreference encode(TaskPreference base, bool value) =>
+      base.withViewOptionBool('sectionColumns', value);
+
+  void toggle() => write(!state);
+}
+
 /// #572：打印出口。生产走系统打印面板；测试注入捕获实现，避免碰平台通道。
 typedef TaskPrintPort = Future<void> Function(Uint8List bytes, String name);
 
