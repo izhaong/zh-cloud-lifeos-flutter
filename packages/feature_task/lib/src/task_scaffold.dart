@@ -11,6 +11,7 @@ import 'providers.dart';
 import 'widgets/new_list_dialog.dart';
 import 'widgets/reminder_detail_pane.dart';
 import 'widgets/reminder_row.dart';
+import 'widgets/shared_list_pane.dart';
 import 'widgets/list_share_sheet.dart';
 import 'widgets/section_editor_sheet.dart';
 import 'widgets/smart_list_card.dart';
@@ -720,6 +721,7 @@ class _TwoPane extends ConsumerWidget {
                   lists: lists,
                   selectedListId: openListId,
                   onSelect: (l) => onOpenList?.call(l.id),
+                  onSelectSharedList: (s) => onOpenList?.call(s.listId),
                   onAddList: () => showNewListDialog(
                     context,
                     onCreate: (list) =>
@@ -739,7 +741,8 @@ class _TwoPane extends ConsumerWidget {
             ],
             Expanded(
               child: current == null
-                  ? _EmptyOverview(
+                  ? _SharedOrEmptyPane(
+                      openListId: openListId,
                       showSidebarButton: !sidebarVisible,
                       onShowSidebar: () =>
                           ref.read(sidebarVisibleProvider.notifier).set(true),
@@ -854,7 +857,8 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
             ],
             Expanded(
               child: current == null
-                  ? _EmptyOverview(
+                  ? _SharedOrEmptyPane(
+                      openListId: openListId,
                       showSidebarButton: !sidebarVisible,
                       onShowSidebar: () =>
                           ref.read(sidebarVisibleProvider.notifier).set(true),
@@ -902,6 +906,50 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
           ],
         );
       },
+    );
+  }
+}
+
+/// 主区在「不是本人清单」时的落点（#599 判据：选中态得能接受 shared id，
+/// 别只画一行死字）：在我共享册里 ⇒ 只读视图；否则维持原空态。
+class _SharedOrEmptyPane extends ConsumerWidget {
+  const _SharedOrEmptyPane({
+    required this.openListId,
+    this.showSidebarButton = false,
+    this.onShowSidebar,
+  });
+
+  final String? openListId;
+  final bool showSidebarButton;
+  final VoidCallback? onShowSidebar;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shared = openListId == null
+        ? null
+        : ref.watch(sharedListByIdProvider(openListId!));
+    if (shared == null) {
+      return _EmptyOverview(
+        showSidebarButton: showSidebarButton,
+        onShowSidebar: onShowSidebar,
+      );
+    }
+    return SharedListPane(
+      key: ValueKey('shared_view_${shared.listId}'),
+      list: shared,
+      leading: showSidebarButton
+          ? Semantics(
+              label: '显示侧栏',
+              button: true,
+              child: CupertinoButton(
+                key: const ValueKey('show_sidebar'),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.all(6),
+                onPressed: onShowSidebar,
+                child: const Icon(CupertinoIcons.sidebar_left, size: 20),
+              ),
+            )
+          : null,
     );
   }
 }

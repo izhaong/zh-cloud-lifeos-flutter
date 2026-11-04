@@ -12,6 +12,7 @@ export 'src/widgets/list_share_sheet.dart';
 export 'src/widgets/new_list_dialog.dart';
 export 'src/widgets/reminder_detail_pane.dart';
 export 'src/widgets/reminder_row.dart';
+export 'src/widgets/shared_list_pane.dart';
 export 'src/widgets/section_editor_sheet.dart';
 export 'src/widgets/smart_list_card.dart';
 export 'src/widgets/task_shortcuts.dart';
