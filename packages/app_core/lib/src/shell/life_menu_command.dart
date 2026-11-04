@@ -52,6 +52,10 @@ enum LifeMenuAction {
   viewModeList,
 
   /// 显示 → 分栏视图（#573）：恢复侧栏 + 列表 + 详情第三栏。
+
+  /// 显示 → 分区列排（#602）：每个分区一条横向列（矩阵行 41）。
+  /// 与上面 `viewModeColumns`（窗格第三栏）无关，名字刻意错开。
+  toggleSectionColumns,
   viewModeColumns,
 
   /// 显示 → 隐藏/显示已完成项目（#486）。

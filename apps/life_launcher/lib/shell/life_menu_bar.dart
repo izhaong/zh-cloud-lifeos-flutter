@@ -427,6 +427,11 @@ class _LifeMenuBarBody extends StatelessWidget {
               onSelected: () => commands.value = LifeMenuAction.viewModeColumns,
             ),
             PlatformMenuItem(
+              label: '分区列排',
+              onSelected: () =>
+                  commands.value = LifeMenuAction.toggleSectionColumns,
+            ),
+            PlatformMenuItem(
               label: '显示所有子任务',
               onSelected: () => commands.value = LifeMenuAction.showAllSubtasks,
             ),
