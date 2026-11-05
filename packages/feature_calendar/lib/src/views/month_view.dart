@@ -89,24 +89,34 @@ class _CalendarMonthViewState extends ConsumerState<CalendarMonthView> {
     }
 
     // occurrence → kalender 事件装载（重叠/跨周布局由库处理）。
+    //
+    // #632：装载排到帧末，与日/周视图（`day_view.dart` 同款 `addPostFrameCallback`）同口径。
+    // build 里同步 `replaceEvents` 会当场 `notifyListeners`，而切档时旧视图的子树已
+    // deactivate、还没 dispose，它在控制器上的监听器被同步唤起后查祖先 ⇒
+    // `Looking up a deactivated widget's ancestor is unsafe`。帧末旧树已 finalize，
+    // 通知只会打到活着的树上。
     final occurrences =
         ref.watch(occurrencesProvider(_visibleMonthRange())).value ??
         const <CalendarOccurrence>[];
-    widget.eventsController.replaceEvents([
+    final loadedEvents = [
       for (final o in occurrences)
-          CalendarEventTile(
-            id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
-            start: o.start.toUtc(),
-            end: o.end.toUtc(),
-            isAllDay: o.allDay,
-            kernelEventId: o.eventId,
-            colorArgb: o.colorArgb,
-            title: o.title,
-            // #402：月视图用**空心圆**区分提醒事项（Apple 口径），
-            // 与普通日程的实心色条形成层级差。
-            isReminder: o.source == OccurrenceSource.reminder,
-          ),
-    ]);
+        CalendarEventTile(
+          id: '${o.eventId}:${o.start.microsecondsSinceEpoch}',
+          start: o.start.toUtc(),
+          end: o.end.toUtc(),
+          isAllDay: o.allDay,
+          kernelEventId: o.eventId,
+          colorArgb: o.colorArgb,
+          title: o.title,
+          // #402：月视图用**空心圆**区分提醒事项（Apple 口径），
+          // 与普通日程的实心色条形成层级差。
+          isReminder: o.source == OccurrenceSource.reminder,
+        ),
+    ];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.eventsController.replaceEvents(loadedEvents);
+    });
 
     return KeyedSubtree(
       key: const Key('calendar_month_view'),

@@ -50,23 +50,22 @@ void main() {
     return container;
   }
 
-  // 用年档做切换目标：月档那条路径会撞 https://gitea.zh04.com/izhaong/zh-cloud-lifeos-flutter/issues/632
-  // （`month_view.dart:95` 在 build 里 `replaceEvents` ⇒ 旧日视图停用时收到控制器通知，
-  // 报 `Looking up a deactivated widget's ancestor is unsafe`）。那是另一个缺陷，
-  // 不该混进本单的改名里，所以这里选一条不共用 kalender 控制器的档位。
+  // 切换目标用月档：它同时是 #632 那条路的复验——旧日视图停用后月视图才发装载通知，
+  // 若哪天有人把 `replaceEvents` 挪回 build 里，这条用例会直接红在异常上。
   testWidgets('不钉档时视图跟随 viewModeProvider（播种入口就是它）', (tester) async {
     final container = newContainer();
     await pump(tester, container: container);
     expect(find.byKey(const Key('calendar_day_view')), findsOneWidget);
 
-    container.read(viewModeProvider.notifier).set(CalendarViewMode.year);
+    container.read(viewModeProvider.notifier).set(CalendarViewMode.month);
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const Key('calendar_year_view')),
+      find.byKey(const Key('calendar_month_view')),
       findsOneWidget,
       reason: 'provider 改了视图没改 = 又回到「名字说初始、行为是钉死」',
     );
+    expect(tester.takeException(), isNull, reason: '#632：切档不许炸停用中的旧树');
   });
 
   testWidgets('钉住档时行为与名字一致：provider 变了视图不动', (tester) async {

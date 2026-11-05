@@ -86,12 +86,10 @@ void main() {
     await pumpAt(tester, const Size(375, 800));
 
     // 走生产路径切档：紧凑档菜单 → 年。
-    // 为什么用年档而不是月档验同一条规则：日→月切档本身会抛
-    // 「Looking up a deactivated widget's ancestor is unsafe」（#632：月视图在 build 里
-    // 调 `replaceEvents`），那条异常会先于本断言把用例判红，混进本 PR 就成了「月档测不了」。
-    // 工具栏溢出那半边（#627，「2026年10月」在 375 宽撑破 0.18px）已由 fix/627 修掉，
-    // 这里仍走年档只剩 #632 一个理由——那条单收口后本用例可改回月档。
-    // 挂载条件对 month/year 是同一个分支。
+    // 为什么验年档：挂载条件对 month/year 是同一个分支，年档屏上是 12 个迷你月，
+    // 条重复并白吃 52 高最直观。月档那一侧由
+    // test/view_mode_switch_month_test.dart 的紧凑档用例盯着（#627 溢出与 #632 切档
+    // 异常都修好后月档才走得通）。
     await tester.tap(find.byKey(const Key('calendar_view_mode_menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('calendar_view_mode_year')));
