@@ -30,8 +30,7 @@ class LifeShell extends ConsumerWidget {
     final badges = ref.watch(shellBadgeCountsProvider);
     return AnimatedBuilder(
       animation: service.changes,
-      builder: (context, _) =>
-          _buildShell(context, service.read(), badges),
+      builder: (context, _) => _buildShell(context, service.read(), badges),
     );
   }
 
@@ -45,8 +44,9 @@ class LifeShell extends ConsumerWidget {
     final currentBranch = navigationShell.currentIndex;
     final selectedVisible = _selectedVisibleIndex(currentBranch, pinned);
 
-    final sizeClass =
-        WindowSizeClass.fromWidth(MediaQuery.sizeOf(context).width);
+    final sizeClass = WindowSizeClass.fromWidth(
+      MediaQuery.sizeOf(context).width,
+    );
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
     final useLeftRail = isLandscape || sizeClass.isPaneLayout;
@@ -58,8 +58,9 @@ class LifeShell extends ConsumerWidget {
       navigationShell.goBranch(branch, initialLocation: false);
     }
 
-    final background =
-        CupertinoColors.systemGroupedBackground.resolveFrom(context);
+    final background = CupertinoColors.systemGroupedBackground.resolveFrom(
+      context,
+    );
 
     if (useLeftRail) {
       final pinnedIdsSet = {for (final e in pinned) e.id};
@@ -140,10 +141,7 @@ class LifeShell extends ConsumerWidget {
   }
 
   /// 当前高亮（可见序）：当前分支被取消固定 → 回退「更多」（= pinned.length）。
-  static int _selectedVisibleIndex(
-    int currentBranch,
-    List<AppEntry> pinned,
-  ) {
+  static int _selectedVisibleIndex(int currentBranch, List<AppEntry> pinned) {
     for (var i = 0; i < pinned.length; i++) {
       if (_branchIndexOf(pinned[i]) == currentBranch) return i;
     }
@@ -244,50 +242,58 @@ class _SidebarItem extends StatelessWidget {
     final blue = CupertinoColors.systemBlue.resolveFrom(context);
     final labelColor = CupertinoColors.label.resolveFrom(context);
     final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        minimumSize: Size.zero,
-        alignment: Alignment.centerLeft,
-        borderRadius: BorderRadius.circular(8),
-        onPressed: onTap,
-        child: SizedBox(
-          width: double.infinity,
-          child: Container(
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: selected ? blue.withValues(alpha: 0.14) : null,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  selected ? selectedIcon : icon,
-                  size: 18,
-                  color: selected ? blue : secondary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight:
-                          selected ? FontWeight.w600 : FontWeight.w400,
-                      color: selected ? blue : labelColor,
+    return Semantics(
+      // #607 档 C：选中态此前只用颜色/字重/图标实心表达，读屏软件读不出
+      // 「当前在哪个应用」。语义标注挂在带 key 的这一层，断言直接读它自己的 flags。
+      button: true,
+      selected: selected,
+      label: label,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 2),
+        child: CupertinoButton(
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          alignment: Alignment.centerLeft,
+          borderRadius: BorderRadius.circular(8),
+          onPressed: onTap,
+          child: SizedBox(
+            width: double.infinity,
+            child: Container(
+              height: 34,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: selected ? blue.withValues(alpha: 0.14) : null,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    selected ? selectedIcon : icon,
+                    size: 18,
+                    color: selected ? blue : secondary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        color: selected ? blue : labelColor,
+                      ),
                     ),
                   ),
-                ),
-                if (badgeCount > 0)
-                  ShellBadge(
-                    key: ValueKey('shell_badge_$id'),
-                    count: badgeCount,
-                  ),
-              ],
+                  if (badgeCount > 0)
+                    ShellBadge(
+                      key: ValueKey('shell_badge_$id'),
+                      count: badgeCount,
+                    ),
+                ],
+              ),
             ),
           ),
         ),
