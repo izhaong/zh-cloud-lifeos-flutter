@@ -54,7 +54,7 @@ void main() {
         // 不传 initialViewMode：生产侧从不传（全仓 grep 只有测试在用），
         // 而它一旦传了就把档位钉死（calendar_scaffold.dart:39 是
         // `initialViewMode ?? watch(viewModeProvider)`），入口点下去档位会变、
-        // 视图却不动——那不是本单要证的「可达路径」。钉死这件事另立单跟。
+        // 视图却不动——那不是本单要证的「可达路径」。钉死这件事是 #628。
         child: lifeTestHost(const CalendarScaffold()),
       ),
     );

@@ -177,7 +177,7 @@ String _compactTitle(DateTime anchor, CalendarViewMode mode) {
     CalendarViewMode.week => '${anchor.month}月${anchor.day}日',
     // 列表档是「从锚点往后摊开的日程窗口」，标题给起点比给年月更贴合它显示的内容。
     // 顺带避开宽度：375 档整行只剩 33.8px 余量，「2026年10月」那种 9 字串会溢出
-    // 0.18px（月档那条是 develop 上的存量问题，另单跟）。
+    // 0.18px（月档那条是 develop 上的存量问题，见 #627）。
     CalendarViewMode.list => '${anchor.month}月${anchor.day}日起',
     CalendarViewMode.month => '${anchor.year}年${anchor.month}月',
     CalendarViewMode.year => '${anchor.year}年',
