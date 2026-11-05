@@ -89,6 +89,9 @@ class CalendarToolbar extends ConsumerWidget {
                 onReminder: onQuickCreateReminder,
               ),
               _ToolbarIconButton(
+                // #607：☰ 显式挂 Key，TC-CAL-UI-107 才从入口点得下去
+                // （只有 provider 层断言拦不住组合根漏注入偏好存储那种坏法）。
+                key: const Key('calendar_sidebar_toggle'),
                 tooltip: '日历列表',
                 icon: CupertinoIcons.sidebar_left,
                 onPressed: () =>
