@@ -37,6 +37,7 @@ export 'src/widgets/event_form_fields.dart';
 export 'src/widgets/event_inspector_pane.dart';
 export 'src/widgets/calendar_toolbar.dart';
 export 'src/widgets/mini_month.dart';
+export 'src/widgets/month_strip.dart';
 export 'src/logic/color_input.dart';
 export 'src/logic/ics_parser.dart';
 export 'src/models/ics_event.dart';
