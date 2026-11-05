@@ -29,15 +29,22 @@ import 'widgets/calendar_toolbar.dart';
 /// F-03 骨架：工具栏 + 主视图槽位就位；侧栏（F-04）、Inspector（F-08）、
 /// 日/周/月/年真实视图（F-05～F-07）按卡填充。
 class CalendarScaffold extends ConsumerWidget {
-  const CalendarScaffold({super.key, this.initialViewMode});
+  const CalendarScaffold({super.key, this.pinnedViewMode});
 
-  /// 初始视图档（测试/路由用；默认 day）。
-  final CalendarViewMode? initialViewMode;
+  /// 钉死视图档（测试/特殊宿主用；不传则跟随 `viewModeProvider`）。
+  ///
+  /// #628：这参数过去叫 `initialViewMode`，实现却是
+  /// `pinnedViewMode ?? watch(viewModeProvider)`——传了值就永远等于那个值，
+  /// provider 之后的变化被整段忽略，名字说的「初始」并不成立。
+  /// 改名后名字与行为一致。要「起始档、之后仍可切换」的正路是先写
+  /// `viewModeProvider`（`ref.read(viewModeProvider.notifier).set(...)`），
+  /// 不是用它。
+  final CalendarViewMode? pinnedViewMode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final CalendarViewMode mode =
-        initialViewMode ?? ref.watch(viewModeProvider);
+        pinnedViewMode ?? ref.watch(viewModeProvider);
     final sidebarVisible = ref.watch(sidebarVisibleProvider);
     final eventsController = ref.watch(kalenderEventsControllerProvider);
     final inspectorRouteActive = ref.watch(inspectorRouteActiveProvider);

@@ -119,7 +119,7 @@ void main() {
         ],
         child: lifeTestHost(
           const Scaffold(
-            body: CalendarScaffold(initialViewMode: CalendarViewMode.day),
+            body: CalendarScaffold(pinnedViewMode: CalendarViewMode.day),
           ),
         ),
       ),
@@ -188,7 +188,7 @@ void main() {
         ],
         child: lifeTestHost(
           const Scaffold(
-            body: CalendarScaffold(initialViewMode: CalendarViewMode.day),
+            body: CalendarScaffold(pinnedViewMode: CalendarViewMode.day),
           ),
         ),
       ),

@@ -383,7 +383,7 @@ Iterable<BorderSide> _borderSides(BoxDecoration d) {
 /// 宽屏档（≥1200 → expanded：侧栏 + 日视图 + 右栏提醒 lane），
 /// 日视图的 1px 列分隔与全天带下沿才会在树里。
 Widget _daySurface() =>
-    const CalendarScaffold(initialViewMode: CalendarViewMode.day);
+    const CalendarScaffold(pinnedViewMode: CalendarViewMode.day);
 
 CalendarEvent _draftEvent() => CalendarEvent(
   id: 'e1',

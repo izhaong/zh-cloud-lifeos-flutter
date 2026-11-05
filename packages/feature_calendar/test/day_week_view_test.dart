@@ -28,7 +28,7 @@ void main() {
           kalenderEventsControllerProvider.overrideWithValue(controller),
         ],
         child: lifeTestHost(
-          Scaffold(body: CalendarScaffold(initialViewMode: mode)),
+          Scaffold(body: CalendarScaffold(pinnedViewMode: mode)),
         ),
       ),
     );
@@ -65,7 +65,7 @@ void main() {
         ],
         child: lifeTestHost(
           const Scaffold(
-            body: CalendarScaffold(initialViewMode: CalendarViewMode.day),
+            body: CalendarScaffold(pinnedViewMode: CalendarViewMode.day),
           ),
         ),
       ),
