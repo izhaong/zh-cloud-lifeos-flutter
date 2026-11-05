@@ -85,7 +85,7 @@ void main() {
             child: MediaQuery(
               data: MediaQueryData(textScaler: TextScaler.linear(scale)),
               child: const MaterialApp(
-                home: CalendarScaffold(initialViewMode: CalendarViewMode.month),
+                home: CalendarScaffold(pinnedViewMode: CalendarViewMode.month),
               ),
             ),
           ),

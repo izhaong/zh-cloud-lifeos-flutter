@@ -93,7 +93,7 @@ Future<void> _pump(WidgetTester tester, _Repo repo, _ReminderRepo reminders) asy
     UncontrolledProviderScope(
       container: container,
       child: const MaterialApp(
-        home: CalendarScaffold(initialViewMode: CalendarViewMode.month),
+        home: CalendarScaffold(pinnedViewMode: CalendarViewMode.month),
       ),
     ),
   );

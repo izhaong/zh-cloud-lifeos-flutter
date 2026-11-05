@@ -95,7 +95,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: const MaterialApp(
-          home: CalendarScaffold(initialViewMode: CalendarViewMode.list),
+          home: CalendarScaffold(pinnedViewMode: CalendarViewMode.list),
         ),
       ),
     );

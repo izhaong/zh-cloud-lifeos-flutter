@@ -25,7 +25,7 @@ void main() {
           clockProvider.overrideWithValue(() => DateTime(2026, 10, 26)),
         ],
         child: lifeTestHost(
-          const CalendarScaffold(initialViewMode: CalendarViewMode.day),
+          const CalendarScaffold(pinnedViewMode: CalendarViewMode.day),
         ),
       ),
     );

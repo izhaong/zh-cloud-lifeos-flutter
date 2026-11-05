@@ -108,7 +108,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: lifeTestHost(CalendarScaffold(initialViewMode: mode)),
+          child: lifeTestHost(CalendarScaffold(pinnedViewMode: mode)),
         ),
       );
       await tester.pumpAndSettle();

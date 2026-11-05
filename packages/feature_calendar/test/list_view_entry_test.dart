@@ -3,7 +3,7 @@
 // 列表视图本身在 #399 就被证过（test/list_view_test.dart 四条），但生产侧两个档位
 // 切换器——宽档的 _ViewSegment、紧凑档的 _CompactViewModeMenu——的 modes 里都没有
 // CalendarViewMode.list，全仓也没有一处 viewModeProvider.notifier.set(list)。
-// 唯一进得去的路径是 CalendarScaffold(initialViewMode: list)，而那只被测试用过：
+// 唯一进得去的路径是 CalendarScaffold(pinnedViewMode: list)，而那只被测试用过：
 // 一座没有门的房间。本文件只钉入口，不重证列表渲染面。
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_calendar/feature_calendar.dart';
@@ -51,9 +51,9 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        // 不传 initialViewMode：生产侧从不传（全仓 grep 只有测试在用），
+        // 不传 pinnedViewMode：生产侧从不传（全仓 grep 只有测试在用），
         // 而它一旦传了就把档位钉死（calendar_scaffold.dart:39 是
-        // `initialViewMode ?? watch(viewModeProvider)`），入口点下去档位会变、
+        // `pinnedViewMode ?? watch(viewModeProvider)`），入口点下去档位会变、
         // 视图却不动——那不是本单要证的「可达路径」。钉死这件事是 #628。
         child: lifeTestHost(const CalendarScaffold()),
       ),
