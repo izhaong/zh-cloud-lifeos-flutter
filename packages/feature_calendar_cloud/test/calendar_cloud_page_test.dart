@@ -150,6 +150,53 @@ void main() {
     expect(find.textContaining('502'), findsNothing);
   });
 
+  // parity#618：这两个按钮此前是裸 await——端口抛错时整条 handler 崩，
+  // 界面停在上一句消息上，用户看到的「点了没反应」就是这么来的。
+  testWidgets('#618 生成导出链接失败给友好文案，不回显异常类名', (tester) async {
+    port.feedError = CalendarSyncException('链接生成失败', statusCode: 500);
+    await pumpPage(tester, tab: 2);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('export_feed_button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('暂时不可用，请稍后重试'),
+      findsOneWidget,
+      reason: '抛错要落到页内消息，不能只留在日志里',
+    );
+    expect(find.textContaining('CalendarSyncException'), findsNothing);
+    expect(find.textContaining('500'), findsNothing);
+    expect(
+      find.text('导出链接不可用'),
+      findsNothing,
+      reason: '那是「已登录但服务端没给链接」的另一档，不能被失败兜底蹭用',
+    );
+  });
+
+  testWidgets('#618 导入抛错给友好文案，且不许报「已提交导入」', (tester) async {
+    port.importError = CalendarSyncException('导入被拒', statusCode: 502);
+    await pumpPage(tester, tab: 2);
+    await tester.pumpAndSettle();
+
+    const ics = 'BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR\n';
+    await tester.enterText(find.byKey(const Key('import_ics_input')), ics);
+    await tester.tap(find.byKey(const Key('import_ics_button')));
+    await tester.pumpAndSettle();
+
+    final message = tester
+        .widget<Text>(find.byKey(const Key('calendar_cloud_message')))
+        .data!;
+    expect(message, contains('暂时不可用'));
+    expect(
+      message,
+      isNot(contains('已提交导入')),
+      reason: '请求根本没被接受，报「已提交」是把失败说成成功',
+    );
+    expect(port.imports, isEmpty, reason: '抛错档不该留下一条成功记录');
+    expect(find.textContaining('CalendarSyncException'), findsNothing);
+  });
+
   // parity#165：未登录（401）不得回显内部异常类名，给面向用户的未登录说明
   testWidgets('#165 未登录收件箱显示友好文案，不暴露异常类名', (tester) async {
     port.inboxError = CalendarSyncException('未登录', statusCode: 401);
@@ -174,6 +221,8 @@ class _CollabPort implements CalendarCollabPort {
   final List<(int, String, List<int>)> imports = [];
   String ics = 'BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR';
   CalendarSyncException? exportError;
+  CalendarSyncException? feedError;
+  CalendarSyncException? importError;
 
   @override
   Future<List<Map<String, dynamic>>> inboxList() async {
@@ -193,8 +242,13 @@ class _CollabPort implements CalendarCollabPort {
   Future<List<Map<String, dynamic>>> calendarList() async => calendars;
 
   @override
-  Future<String?> exportFeedUrl(int? calendarId) async =>
-      'https://example.com/feed.ics';
+  Future<String?> exportFeedUrl(int? calendarId) async {
+    final err = feedError;
+    if (err != null) {
+      throw err;
+    }
+    return 'https://example.com/feed.ics';
+  }
 
   @override
   Future<void> importIcs({
@@ -202,6 +256,10 @@ class _CollabPort implements CalendarCollabPort {
     required String filename,
     required List<int> bytes,
   }) async {
+    final err = importError;
+    if (err != null) {
+      throw err;
+    }
     imports.add((calendarId, filename, bytes));
   }
 
