@@ -402,6 +402,10 @@ class CalendarWeekView extends ConsumerWidget {
         const [];
 
     final kalenderConfig = config.week.isWorkWeek
+        // #615：工作周档做不到改首列——kalender-0.33.0 的
+        // `MultiDayViewConfiguration.workWeek` 把 firstDayOfWeek 写死在
+        // initializer list 里（不接参数），换 `custom` 会改分页语义（按 5 天翻页
+        // 而不是按周）。这条限制记进契约 §8.5，缺口另立单，不静默换视图类型。
         ? kalender.MultiDayViewConfiguration.workWeek(
             numberOfDays: 5,
             initialDateTime: anchor,
@@ -409,6 +413,10 @@ class CalendarWeekView extends ConsumerWidget {
         : kalender.MultiDayViewConfiguration.week(
             numberOfDays: 7,
             initialDateTime: anchor,
+            // 关闭「周从今天开始」时显式传 kalender 自己的默认首列（周一），
+            // 与不传该参数逐字等价 ⇒ 三档 golden 不必重录。
+            firstDayOfWeek:
+                config.week.firstDayOfWeek ?? kalender.kDefaultFirstDayOfWeek,
           );
     final controller = kalender.KalenderController(
       viewConfiguration: kalenderConfig,

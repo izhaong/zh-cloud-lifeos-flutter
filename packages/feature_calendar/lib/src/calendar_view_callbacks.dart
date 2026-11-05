@@ -258,19 +258,33 @@ class DayViewConfig {
 }
 
 class WeekViewConfig {
-  const WeekViewConfig({required this.numberOfDays, required this.isWorkWeek});
+  const WeekViewConfig({
+    required this.numberOfDays,
+    required this.isWorkWeek,
+    this.firstDayOfWeek,
+  });
 
   /// 周显示天数（7=week、5=workWeek，TC-CAL-UI-102/105）。
   final int numberOfDays;
 
   /// workWeek 口径（不含周六日）。
   final bool isWorkWeek;
+
+  /// 首列是周几（1=周一…7=周日）；`null` = 不覆盖，沿用 kalender 默认。
+  ///
+  /// #615：`weekViewStartsToday` 此前没有任何消费方（只在 `preference_copy.dart`
+  /// 里被复制），打开开关完全没效果。现在开启 ⇒ 今天那天；关闭 ⇒ `null`，
+  /// 那条路径与本卡之前逐字一致，所以三档 golden 不必重录。
+  final int? firstDayOfWeek;
 }
 
 /// 偏好 → 视图配置（契约 §8.3/§8.5）。
 final calendarViewConfigurationsProvider = Provider<CalendarViewConfigs>((ref) {
   final preference =
       ref.watch(preferenceProvider).value ?? CalendarPreference.defaults;
+  // #615：今天走 clockProvider（#549 之后锚点类读数统一由它供给），
+  // 这样测试能钉死挂钟，真机上跟着日期翻页。
+  final today = ref.watch(clockProvider)();
   return CalendarViewConfigs(
     day: DayViewConfig(
       startHour: preference.dayStartHour,
@@ -279,6 +293,7 @@ final calendarViewConfigurationsProvider = Provider<CalendarViewConfigs>((ref) {
     week: WeekViewConfig(
       numberOfDays: preference.weekViewDays,
       isWorkWeek: preference.weekViewDays == 5,
+      firstDayOfWeek: preference.weekViewStartsToday ? today.weekday : null,
     ),
   );
 });
