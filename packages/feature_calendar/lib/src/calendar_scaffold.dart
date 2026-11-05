@@ -183,6 +183,26 @@ class CalendarScaffold extends ConsumerWidget {
             measuredContentWidth = width;
             final compact = width < 600; // 契约 §8.5 iPhone 档
             final expanded = width >= 1000;
+            // 契约 §8.5（#613）手机横屏段：高<宽 且 高 ≤ 450 且 宽 < 1000。
+            // 三条各挡一种误伤——只横过来才生效；桌面窄长窗（900×500）不被当手机
+            // （手机横屏后可用高最多是长边量级，iPhone 15 Pro Max 横屏 932×430）；
+            // iPad 横屏（1024×768）仍走 expanded 三栏。方向只从 constraints 推，
+            // 绝不按 Platform.is* 分叉。
+            final height = constraints.maxHeight;
+            final phoneLandscape =
+                height < width && height <= 450 && width < 1000;
+            if (phoneLandscape &&
+                pinnedViewMode == null &&
+                mode == CalendarViewMode.day) {
+              // 「变为周视图」要落到档位本身，段控件才不会亮着「日」而画一整周。
+              // 不在 build 里同步写 provider：帧末再写，避免这条通知插进正在
+              // 拆装的子树（#632 刚在那边证过一次同族风险）。
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (ref.read(viewModeProvider) == CalendarViewMode.day) {
+                  ref.read(viewModeProvider.notifier).set(CalendarViewMode.week);
+                }
+              });
+            }
             final viewCallbacks = viewCallbacksOf(width);
             Widget content = Column(
               children: [
@@ -212,8 +232,9 @@ class CalendarScaffold extends ConsumerWidget {
                 ),
               ],
             );
-            if (!compact && sidebarVisible) {
-              // 契约 §8.5：medium 240（600–999）、expanded 280（≥1000；#407）
+            if (!compact && !phoneLandscape && sidebarVisible) {
+              // 契约 §8.5：medium 240（600–999）、expanded 280（≥1000；#407）。
+              // 手机横屏段不挂：期望是「侧栏不挂」，横屏要给整周留出宽度（#613）。
               content = Row(
                 children: [
                   CalendarSidebar(width: expanded ? 280 : 240),
