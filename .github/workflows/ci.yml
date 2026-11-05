@@ -1,0 +1,61 @@
+name: CI
+
+# 与 zh-cloud-todo-flutter ci.yml 同构；差异仅两点：
+# 1) Melos 多包：根 dart pub get → dart run melos bootstrap，再全仓 analyze/test。
+# 2) 测试逐包跑（melos run test = 每个含 test/ 的包 flutter test）。
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - develop
+      - main
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  flutter:
+    name: Analyze & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+          channel: stable
+          cache: true
+
+      - name: Melos bootstrap
+        run: |
+          dart pub get
+          dart run melos bootstrap
+
+      - name: Analyze（melos 全仓）
+        run: dart run melos run analyze
+
+      - name: UI boundary（先 selftest 再扫；字面色零容忍）
+        run: dart run melos run ui-boundary
+
+      - name: Test（逐包）
+        run: |
+          # 失败时把红名单与关键段落打到日志再退出（沿 todo-flutter #708 CI 排障惯例）
+          set +e
+          dart run melos run test > /tmp/test-out.txt 2>&1
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::group::melos test 完整失败输出"
+            grep -E "Failing tests|Some tests failed|\[[Ee]\]" -A 200 /tmp/test-out.txt | head -300
+            echo "::endgroup::"
+            echo "--- 失败用例清单 ---"
+            grep -E "^\s+\S+\.dart:" /tmp/test-out.txt | head -60
+            tail -40 /tmp/test-out.txt
+          fi
+          exit $rc

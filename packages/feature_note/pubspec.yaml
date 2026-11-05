@@ -1,0 +1,35 @@
+name: feature_note
+description: LifeOS 记录（Apple Notes 对等；开源包，仅依赖 kernel，无 HTTP）。
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  feature_productivity_kernel:
+    path: ../feature_productivity_kernel
+
+  app_core:
+    path: ../app_core
+  app_ui:
+    path: ../app_ui
+
+  cupertino_ui: ^1.1.4
+  flutter_riverpod: ^3.4.3
+  image_picker: ^1.2.4
+
+  # 契约 §8/§5：富文本编辑器固定 11.6.0；禁止 flutter_quill_extensions
+  flutter_quill: 11.6.0
+
+dev_dependencies:
+  flutter_localizations:
+    sdk: flutter
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

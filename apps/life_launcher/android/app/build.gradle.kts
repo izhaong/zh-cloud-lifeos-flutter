@@ -6,12 +6,16 @@ plugins {
 
 android {
     namespace = "com.zhcloud.lifeos.life_launcher"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android 的 AAR 元数据要求 compileSdk ≥ 37，
+    // flutter.compileSdkVersion（36）会被 :app:checkDebugAarMetadata 判失败。
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications 依赖 java.time，minSdk 未达 API 26 需脱糖。
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -42,4 +46,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

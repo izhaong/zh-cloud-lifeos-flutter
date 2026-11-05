@@ -62,3 +62,8 @@ app.*.map.json
 
 # Platform AI local
 .ai-config/bootstrap-host.yaml
+docs/ui-evidence
+
+# Golden 失败时 Flutter 写的一次性诊断产物（masterImage/testImage/isolatedDiff/maskedDiff）。
+# 真基线在 test/goldens/，不在这里——别把 diff 产物当基线提交（#556）。
+**/test/failures/

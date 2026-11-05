@@ -18,11 +18,14 @@ dependencies:
   path_provider: ^2.1.6
   sqlite3: ">=3.4.0 <3.6.0"
 
+  timezone: ^0.11.2
   collection: any
   equatable: ^3.0.0
   json_annotation: ^4.12.0
   meta: any
+  rrule: ^0.2.18
   uuid: ^4.6.0
+  pointycastle: ^4.0.0
   intl: any
 
   flutter_riverpod: ^3.4.3

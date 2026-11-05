@@ -1,0 +1,19 @@
+name: app_ui
+description: LifeOS 组件库（Apple 平面风：色表 / 排版 / 基础组件；Epic #126）
+version: 0.1.0
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_ui: ^1.1.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

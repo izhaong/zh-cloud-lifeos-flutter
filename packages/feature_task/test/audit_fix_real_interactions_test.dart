@@ -1,0 +1,187 @@
+import 'package:flutter/material.dart';
+import 'package:cupertino_ui/cupertino_ui.dart' as cui;
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+import 'package:feature_task/feature_task.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'support/life_test_app.dart';
+
+/// Issue #1 审计修复 · 真实交互测试（替换过度宣称的锚点）
+/// 覆盖：TC-UI-304（侧栏显隐真实交互）、TC-UI-307（inspector 就地切换/关闭）、
+/// TC-UI-N3（负向门禁：无第二套 NavigationBar、无「大 Todo」IA 泄漏、宽屏负向文案）。
+Future<void> _pump(
+  WidgetTester tester, {
+  required Size size,
+  required ReminderRepository repo,
+  Widget child = const TaskScaffold(openListId: 'smart.today'),
+}) async {
+  final view =
+      TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+  view
+    ..physicalSize = size
+    ..devicePixelRatio = 1.0;
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [reminderRepositoryProvider.overrideWithValue(repo)],
+      child: lifeTestHost(child),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  tearDown(() {
+    final view =
+        TestWidgetsFlutterBinding.instance.platformDispatcher.views.first;
+    view.resetPhysicalSize();
+    view.resetDevicePixelRatio();
+  });
+
+  // TC-UI-304：侧栏显隐——隐藏按钮真实可点、主区铺满、再显示恢复
+  testWidgets('TC-UI-304 侧栏隐藏→主区铺满→再显示恢复', (tester) async {
+    final repo = InMemoryReminderRepository();
+    await _pump(tester, size: const Size(1366, 1024), repo: repo);
+
+    // 初始：侧栏可见（智能卡在）
+    expect(
+      find.byKey(const ValueKey('smart_card_smart.today')),
+      findsOneWidget,
+    );
+
+    // 点侧栏「隐藏侧栏」按钮（真实交互，非 provider 单测）
+    await tester.tap(find.byKey(const ValueKey('sidebar_toggle')));
+    await tester.pumpAndSettle();
+
+    // 隐藏后：侧栏内容消失，主区出现「显示侧栏」恢复按钮
+    expect(find.byKey(const ValueKey('smart_card_smart.today')), findsNothing);
+    expect(find.byKey(const ValueKey('show_sidebar')), findsOneWidget);
+
+    // 再点恢复 → 侧栏回来
+    await tester.tap(find.byKey(const ValueKey('show_sidebar')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('smart_card_smart.today')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('show_sidebar')), findsNothing);
+  });
+
+  // TC-UI-307：inspector 点行出现、点其他行就地切换
+  testWidgets('TC-UI-307 inspector 出现与就地切换', (tester) async {
+    final repo = InMemoryReminderRepository();
+    await _pump(
+      tester,
+      size: const Size(1366, 1024),
+      repo: repo,
+      child: const TaskScaffold(openListId: 'list.personal'),
+    );
+
+    // 初始无 inspector
+    expect(find.text('详细信息'), findsNothing);
+
+    // 点「买牛奶」行 → inspector 出现且标题同步
+    await tester.tap(find.text('买牛奶'));
+    await tester.pumpAndSettle();
+    expect(find.text('详细信息'), findsOneWidget);
+
+    // 点另一行「写 LifeOS 基建」→ 就地切换：inspector 唯一且标题区换为新条目
+    await tester.tap(find.text('写 LifeOS 基建'));
+    await tester.pumpAndSettle();
+    expect(find.text('详细信息'), findsOneWidget); // 仍是唯一 inspector
+    // inspector 标题输入框已重置为新条目标题（didUpdateWidget + Key 双保险）
+    // 定位：详情面板标题卡片内的第一个 TextField（hint=标题）
+    final titleField = tester.widget<cui.CupertinoTextField>(
+      find.byKey(const ValueKey('detail_title')),
+    );
+    expect(
+      titleField.controller?.text ?? '',
+      '写 LifeOS 基建',
+      reason: '切行后 inspector 必须显示新条目标题（防错题覆盖）',
+    );
+  });
+
+  // 审查修复回归：切行后保存不覆盖错条目
+  testWidgets('TC-UI-307b 切行后保存写的是新条目', (tester) async {
+    final repo = InMemoryReminderRepository();
+    await _pump(
+      tester,
+      size: const Size(1366, 1024),
+      repo: repo,
+      child: const TaskScaffold(openListId: 'list.personal'),
+    );
+
+    await tester.tap(find.text('买牛奶'));
+    await tester.pumpAndSettle();
+    // 切到第二条
+    await tester.tap(find.text('写 LifeOS 基建'));
+    await tester.pumpAndSettle();
+
+    // 直接保存（不改任何字段）→ upsertItem 收到的仍是「写 LifeOS 基建」本体
+    await tester.tap(find.text('完成').first);
+    await tester.pumpAndSettle();
+
+    final items = await repo.watchItems(listId: 'list.personal').first;
+    final saved = items.firstWhere(
+      (e) => e.id == '2',
+      orElse: () => throw StateError('条目 2 丢失'),
+    );
+    expect(saved.title, '写 LifeOS 基建');
+    // 「买牛奶」未被误改
+    final milk = items.firstWhere((e) => e.id == '1');
+    expect(milk.title, '买牛奶');
+  });
+
+  // TC-UI-N3：负向门禁——无第二套底部导航、宽屏无未实现文案
+  testWidgets('TC-UI-N3 宽屏负向：任务区无 NavigationBar 泄漏、无未实现文案', (tester) async {
+    final repo = InMemoryReminderRepository();
+    await _pump(tester, size: const Size(1366, 1024), repo: repo);
+
+    // 任务区内部不得出现第二套底部导航（「大 Todo」IA 泄漏红线）
+    expect(
+      find.byType(NavigationBar),
+      findsNothing,
+      reason: '任务区（TaskScaffold 内）不得含 NavigationBar——壳层独有',
+    );
+    expect(find.byType(BottomNavigationBar), findsNothing);
+    expect(find.byType(TabBar), findsNothing);
+
+    // 宽屏侧栏同样跑未实现文案门禁（原 N2 仅紧凑首页）；
+    // 分配事项按批次裁定不出现在任务 UI（TC-API-121 降级口径）——负向断言。
+    expect(find.textContaining('iCloud'), findsNothing);
+    expect(find.textContaining('Outlook'), findsNothing);
+    expect(find.text('分配事项'), findsNothing,
+        reason: '任务 UI 不出现「分配事项」（TC-API-121 客户端禁该文案）');
+    expect(
+      find.textContaining('建议列表：日常采购'),
+      findsOneWidget,
+      reason: '建议列表是真实 grocery 模板入口',
+    );
+  });
+
+  // TC-UI-207：#491 起 ⋯ 打开真实列表编辑框，占位文案必须消失
+  testWidgets('TC-UI-207 ⋯打开真实列表编辑框（#491）', (tester) async {
+    final repo = InMemoryReminderRepository();
+    await _pump(
+      tester,
+      size: const Size(375, 812),
+      repo: repo,
+      child: const TaskScaffold(),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('home_edit_placeholder')));
+    await tester.pumpAndSettle();
+
+    final pick = find.byWidgetPredicate(
+      (w) =>
+          w.key is ValueKey<String> &&
+          (w.key! as ValueKey<String>).value.startsWith('edit_pick_'),
+    );
+    if (pick.evaluate().isNotEmpty) {
+      await tester.tap(pick.first);
+      await tester.pumpAndSettle();
+    }
+    expect(find.byKey(const ValueKey('edit_list_name')), findsOneWidget);
+    expect(find.text('规划占位'), findsNothing);
+  });
+}

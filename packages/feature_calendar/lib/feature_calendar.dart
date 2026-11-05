@@ -1,0 +1,43 @@
+/// LifeOS 日历（Apple Calendar 对等；开源包，仅依赖 kernel，无 HTTP）。
+library;
+
+export 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+
+export 'src/calendar_scaffold.dart';
+export 'src/calendar_tab_entry.dart';
+export 'src/providers.dart';
+export 'src/calendar_view_callbacks.dart';
+export 'src/logic/lunar_label.dart';
+export 'src/logic/week_start.dart';
+export 'src/logic/calendar_date_localization.dart';
+export 'src/logic/default_calendar_bootstrap.dart';
+export 'src/logic/event_time.dart';
+export 'src/logic/recurrence_ui.dart';
+export 'src/logic/alert_triggers.dart';
+export 'src/alerts/calendar_alert_scheduler.dart';
+export 'src/nlp/quick_event_parser.dart';
+export 'src/logic/quick_event_draft.dart';
+export 'src/widgets/quick_event_dialog.dart';
+export 'src/widgets/quick_reminder_dialog.dart';
+export 'src/widgets/calendar_shortcuts.dart';
+export 'src/logic/search_filter.dart';
+export 'src/logic/preference_copy.dart';
+export 'src/logic/scheduled_reminder_projection.dart';
+export 'src/logic/local_holidays.dart';
+export 'src/logic/double_tap_create.dart';
+export 'src/widgets/subscription_dialog.dart';
+export 'src/widgets/calendar_settings_sheet.dart';
+export 'src/views/day_view.dart';
+export 'src/views/list_view.dart';
+export 'src/views/month_view.dart';
+export 'src/views/year_view.dart';
+export 'src/views/day_reminder_lane.dart';
+export 'src/widgets/calendar_sidebar.dart';
+export 'src/widgets/event_form_fields.dart';
+export 'src/widgets/event_inspector_pane.dart';
+export 'src/widgets/calendar_toolbar.dart';
+export 'src/widgets/mini_month.dart';
+export 'src/logic/color_input.dart';
+export 'src/logic/ics_parser.dart';
+export 'src/models/ics_event.dart';
+export 'src/logic/subscription_import.dart';

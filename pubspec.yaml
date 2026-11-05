@@ -4,19 +4,59 @@ publish_to: none
 version: 0.1.0+1
 
 environment:
-  sdk: ^3.12.2
+  sdk: ^3.13.0
 
 workspace:
   - apps/life_launcher
   - packages/app_core
+  - packages/app_ui
   - packages/life_link
   - packages/feature_productivity_kernel
+  - packages/feature_productivity_drift
   - packages/feature_task
+  - packages/feature_task_cloud
+  - packages/feature_calendar
+  - packages/feature_calendar_cloud
+  - packages/feature_note
+  - packages/feature_note_cloud
 
 dev_dependencies:
   melos: ^8.9.0
   flutter_lints: ^6.0.0
 
-# Flutter 3.44 / Dart 3.12.2 与 sqlite3→hooks 传递依赖临时对齐；升级 Flutter 后删除
-dependency_overrides:
-  hooks: 2.0.0
+# Melos 8 脚本（melos.yaml 已不被 8.9 读取，脚本必须在此处）
+melos:
+  scripts:
+    analyze:
+      run: dart run melos exec -- flutter analyze --fatal-infos
+      description: 全仓静态分析
+    test:
+      run: dart run melos exec --dir-exists=test -- flutter test
+      description: 全仓单元/Widget 测试
+    # 合前一条命令：静态分析（fatal-infos）→ UI 尺子（先自检再扫）→ 逐包测试
+    verify:
+      run: >-
+        dart run melos exec -- flutter analyze --fatal-infos &&
+        dart run scripts/check_ui_boundary.dart --selftest &&
+        dart run scripts/check_ui_boundary.dart --max-hex 0 &&
+        dart run scripts/check_skipped_tests.dart --selftest &&
+        dart run scripts/check_skipped_tests.dart &&
+        dart run scripts/check_awaited_writes.dart --selftest &&
+        dart run scripts/check_awaited_writes.dart &&
+        dart run melos exec --dir-exists=test -- flutter test
+      description: 合前门禁（analyze + UI 边界 + 跳过守卫 + 全包测试）
+    # 出包前预检（#389）：sqlite3 的原生资产直链不可达时，
+    # flutter build 会在 build_hooks 阶段跑十几分钟才红。这条几秒就能说清。
+    # **不放进 verify**：verify 必须离线可跑（AGENTS.md 铁律 6）。
+    preflight-assets:
+      run: >-
+        dart run scripts/check_native_assets.dart
+      description: 出包前预检（联网）：sqlite3 原生资产直链可达性
+    ui-boundary:
+      # 先自检再跑真实扫描：新尺首跑必须先证明「每条判据都能判红」（Epic #126 C4）
+      # --max-hex 是「只减不增」的棘轮：当前基线 76（#268 收紧 C3 为 Color(0x…) 字面色，并清 reminder_row 的 7 处）
+      run: dart run scripts/check_ui_boundary.dart --selftest && dart run scripts/check_ui_boundary.dart --max-hex 0
+      description: UI 边界检查（Material 白名单 / SDK Cupertino / fromSeed / Color() 字面色计数）
+    gen:
+      run: dart run melos exec --depends-on=build_runner -- dart run build_runner build
+      description: freezed / drift / riverpod_generator 代码生成
