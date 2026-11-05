@@ -100,10 +100,12 @@ void main() {
     }
   });
 
-  testWidgets('#552 周日起始（挂钟跨回拨日）：列序应为「日 一 二 三 四 五 六」', (tester) async {
+  testWidgets('TC-CAL-UI-111 #552 周日起始（挂钟跨回拨日）：列序应为「日 一 二 三 四 五 六」', (tester) async {
+
     await _pumpMonth(tester, 'en_US');
 
     expect(
+      // TC-CAL-UI-111：判据「startWeekOn=7 → 月视图第一列周日」由左到右标签序列量；列序只由「周起始日 + 列序号」决定，不跟库给的日期走（#552）
       _labelsLeftToRight(tester),
       ['日', '一', '二', '三', '四', '五', '六'],
       reason:

@@ -236,7 +236,7 @@ void main() {
   });
 
   // 日视图提醒栏 Key（F-15 填充；#185：宽档保留）
-  testWidgets('日视图宽档保留 day_reminder_lane', (tester) async {
+  testWidgets('TC-CAL-UI-114 日视图宽档保留 day_reminder_lane', (tester) async {
     tester.view.physicalSize = const Size(900, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
