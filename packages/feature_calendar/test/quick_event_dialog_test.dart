@@ -78,7 +78,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('quick_create_event')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('quick_event_dialog')), findsOneWidget);
+    // 390×844 是 compact：#620（TC-CAL-UI-204）之后这里不再是居中小对话框，而是全屏页路由。
+    // 原先这条断的正是「居中小框」——那是本单要修掉的坏呈现，所以改断言不是放宽断言：
+    // 下面「创建后进 Inspector、标题带解析结果」两行仍然在原位。
+    expect(find.byKey(const Key('quick_event_page')), findsOneWidget);
+    expect(find.byKey(const Key('quick_event_dialog')), findsNothing);
 
     await tester.enterText(
       find.byKey(const Key('quick_event_input')),

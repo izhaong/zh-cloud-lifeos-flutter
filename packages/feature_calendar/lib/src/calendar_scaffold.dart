@@ -136,6 +136,14 @@ class CalendarScaffold extends ConsumerWidget {
       if (quick == null || !context.mounted) {
         return;
       }
+      // #620（TC-CAL-UI-204 后半句「保存后回到日视图」）：锚点落到被创建的那一天。
+      // 档位不动（compact 打开时本来就是日档，强改档会跟 #613 的方向段互相覆盖）；
+      // 但锚点必须跟过去——在 10/29 上建一条 11/20 的日程，看完还停在 10/29 就等于没回去。
+      // 尺子与 openQuickReminder 同一把（`startAt.toLocal()`）。
+      final created = quick.startAt.toLocal();
+      ref
+          .read(anchorDateProvider.notifier)
+          .set(DateTime(created.year, created.month, created.day));
       // #219：未写日期的全天事件按设备本地当天锚定（UTC 墙钟会漂到前一天）
       final draft = quickEventDraft(quick, timeZone: zone);
       openDraft(draft, null, measuredContentWidth);

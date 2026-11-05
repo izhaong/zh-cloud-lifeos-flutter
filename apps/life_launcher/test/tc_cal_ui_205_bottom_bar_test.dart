@@ -72,10 +72,20 @@ void main() {
     await tester.tap(find.byKey(const Key('quick_create_event')));
     await tester.pumpAndSettle();
 
+    // #620（TC-CAL-UI-204）之后，compact 的新建表单不再是居中小对话框，而是**分支
+    // Navigator 上的整页路由**：整页指日历内容区（375×812 里量到 720+ 高），
+    // 底栏在壳上、不在这条路由之下——所以 204 的「全屏表单」与本条的「底栏仍在」
+    // 同时成立。守卫行随之改指 `quick_event_page`，并补一条反向断言：
+    // 居中小框不许回来（它回来就意味着 204 又坏了）。
     expect(
-      find.byKey(const Key('quick_event_dialog')),
+      find.byKey(const Key('quick_event_page')),
       findsOneWidget,
       reason: '表单没打开，后面两条断言就成了空转',
+    );
+    expect(
+      find.byKey(const Key('quick_event_dialog')),
+      findsNothing,
+      reason: 'compact 的居中小框是 #620 要修掉的坏呈现',
     );
     expect(
       find.byType(CupertinoTabBar),
