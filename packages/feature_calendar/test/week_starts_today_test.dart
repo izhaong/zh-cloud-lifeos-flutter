@@ -91,7 +91,7 @@ void main() {
     );
   });
 
-  testWidgets('已知限制：工作周（5 天档）做不到，另立单不静默换视图', (
+  testWidgets('按设计不覆盖：工作周（5 天档）不跟随开关（#625 裁定选「产品侧接受」）', (
     tester,
   ) async {
     repo = _PrefRepo(
@@ -103,7 +103,9 @@ void main() {
       kalender.kDefaultFirstDayOfWeek,
       reason:
           'kalender-0.33.0 的 MultiDayViewConfiguration.workWeek 把 firstDayOfWeek '
-          '写死在 initializer list（不接参数）。这里钉住「现在做不到」，别让它长成一条假绿。',
+          '写死在 initializer list（不接参数）。#625 裁定不为此换 `custom`——那会把翻页语义'
+          '从「按周」改成「按 5 天」，代价盖过收益；改为在设置面写明作用域。'
+          '哪天 kalender 放开该参数或我们换实现，这条会自己红。',
     );
   });
 

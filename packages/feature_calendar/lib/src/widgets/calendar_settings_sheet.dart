@@ -105,6 +105,18 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               onChanged: (v) =>
                   _save(copyCalendarPreference(pref, weekViewDays: v)),
             ),
+            LifeSwitchRow(
+              key: const Key('settings_week_view_starts_today'),
+              title: '周视图从今天开始',
+              // #625 裁定（选「产品侧接受 + 写明作用域」）：kalender 的
+              // `MultiDayViewConfiguration.workWeek` 不接 `firstDayOfWeek`，
+              // 5 天档改不了首列；换 `custom` 能改但会把翻页从「按周」变成「按 5 天」。
+              // 与其悄悄改分页语义，不如把作用域写在这行下面。
+              subtitle: '仅作用于 7 天周视图；「周一至周五」工作周不受影响',
+              value: pref.weekViewStartsToday,
+              onChanged: (v) =>
+                  _save(copyCalendarPreference(pref, weekViewStartsToday: v)),
+            ),
             _dropdown<int>(
               key: const Key('settings_day_start_hour'),
               title: '一天开始',
