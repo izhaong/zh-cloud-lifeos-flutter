@@ -30,7 +30,8 @@ class LifeShell extends ConsumerWidget {
     final badges = ref.watch(shellBadgeCountsProvider);
     return AnimatedBuilder(
       animation: service.changes,
-      builder: (context, _) => _buildShell(context, service.read(), badges),
+      builder: (context, _) =>
+          _buildShell(context, service.read(), badges),
     );
   }
 
@@ -44,9 +45,8 @@ class LifeShell extends ConsumerWidget {
     final currentBranch = navigationShell.currentIndex;
     final selectedVisible = _selectedVisibleIndex(currentBranch, pinned);
 
-    final sizeClass = WindowSizeClass.fromWidth(
-      MediaQuery.sizeOf(context).width,
-    );
+    final sizeClass =
+        WindowSizeClass.fromWidth(MediaQuery.sizeOf(context).width);
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
     final useLeftRail = isLandscape || sizeClass.isPaneLayout;
@@ -58,9 +58,8 @@ class LifeShell extends ConsumerWidget {
       navigationShell.goBranch(branch, initialLocation: false);
     }
 
-    final background = CupertinoColors.systemGroupedBackground.resolveFrom(
-      context,
-    );
+    final background =
+        CupertinoColors.systemGroupedBackground.resolveFrom(context);
 
     if (useLeftRail) {
       final pinnedIdsSet = {for (final e in pinned) e.id};
@@ -141,7 +140,10 @@ class LifeShell extends ConsumerWidget {
   }
 
   /// 当前高亮（可见序）：当前分支被取消固定 → 回退「更多」（= pinned.length）。
-  static int _selectedVisibleIndex(int currentBranch, List<AppEntry> pinned) {
+  static int _selectedVisibleIndex(
+    int currentBranch,
+    List<AppEntry> pinned,
+  ) {
     for (var i = 0; i < pinned.length; i++) {
       if (_branchIndexOf(pinned[i]) == currentBranch) return i;
     }
@@ -280,9 +282,8 @@ class _SidebarItem extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: selected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
+                        fontWeight:
+                            selected ? FontWeight.w600 : FontWeight.w400,
                         color: selected ? blue : labelColor,
                       ),
                     ),
