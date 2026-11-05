@@ -86,9 +86,12 @@ void main() {
     await pumpAt(tester, const Size(375, 800));
 
     // 走生产路径切档：紧凑档菜单 → 年。
-    // 为什么用年档而不是月档验同一条规则：月档标题「2026年10月」在 375 宽会把工具栏
-    // 撑溢出 0.18px（develop 存量，见 #627），那条渲染异常会先于本断言把用例判红，
-    // 混进本 PR 就成了「月档测不了」。挂载条件对 month/year 是同一个分支。
+    // 为什么用年档而不是月档验同一条规则：日→月切档本身会抛
+    // 「Looking up a deactivated widget's ancestor is unsafe」（#632：月视图在 build 里
+    // 调 `replaceEvents`），那条异常会先于本断言把用例判红，混进本 PR 就成了「月档测不了」。
+    // 工具栏溢出那半边（#627，「2026年10月」在 375 宽撑破 0.18px）已由 fix/627 修掉，
+    // 这里仍走年档只剩 #632 一个理由——那条单收口后本用例可改回月档。
+    // 挂载条件对 month/year 是同一个分支。
     await tester.tap(find.byKey(const Key('calendar_view_mode_menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('calendar_view_mode_year')));
