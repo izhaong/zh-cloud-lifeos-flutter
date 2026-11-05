@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../design/calendar_tokens.dart';
 import '../providers.dart';
+import 'mini_month.dart';
 
 /// iPhone 档月条（契约 §589；#612）：锚点当月逐日横滑，点某日改 `anchorDateProvider`。
 ///
 /// 与侧栏 `MiniMonth` 的分工是互斥的：条只在 compact 挂，整月月历只在
 /// medium/expanded 的侧栏挂 ⇒ 同一份月历不会渲染两遍（对照用例钉住这条）。
-/// 「下拉展开整月」属 TC-CAL-UI-202，展开态直接复用 `MiniMonth`，本组件不新造第二套月历。
+/// #630 补上「下拉展开整月」（TC-CAL-UI-202）：展开态直接复用 `MiniMonth`，
+/// 本组件不新造第二套月历，且只在 compact 出现（布局仍只认 `WindowSizeClass`）。
 class MonthStrip extends ConsumerStatefulWidget {
   const MonthStrip({super.key});
 
@@ -24,10 +26,23 @@ class MonthStrip extends ConsumerStatefulWidget {
 class _MonthStripState extends ConsumerState<MonthStrip> {
   static const _weekdayLabels = ['一', '二', '三', '四', '五', '六', '日'];
 
+  /// #630（TC-CAL-UI-202）：纵向拖过这个位移才展开。
+  ///
+  /// 比 `kTouchSlop`（18，手势被判定为「拖」的门槛）高一档 ⇒ 顺手轻碰不展开；
+  /// 又远小于整屏高 ⇒ 不必真的「拉一屏」。
+  static const double _expandThreshold = 24;
+
   final ScrollController _controller = ScrollController();
 
   /// 已对齐过的月份（year*100+month）。同月内换日不抢用户正在看的位置。
   int? _alignedMonth;
+
+  /// 展开态（契约 §589「月条（可下拉展开整月）」）。默认收起——收起态就是
+  /// `test/goldens/iphone_375_*.png` 画的那一形态，改默认值会让 golden 集体漂。
+  bool _expanded = false;
+
+  /// 本次纵向拖拽累计位移；松手/取消即清零，避免跨次拖拽相加造成误展开。
+  double _dragDy = 0;
 
   @override
   void initState() {
@@ -65,22 +80,57 @@ class _MonthStripState extends ConsumerState<MonthStrip> {
     final anchor = ref.watch(anchorDateProvider);
     ref.listen(anchorDateProvider, (previous, next) => _alignTo(next));
     final daysInMonth = DateTime(anchor.year, anchor.month + 1, 0).day;
-    return Container(
-      key: const Key('calendar_month_strip'),
-      height: MonthStrip.height,
-      color: CalendarTokens.surface.resolveFrom(context),
-      child: SingleChildScrollView(
-        controller: _controller,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: Row(
-          children: [
-            for (var day = 1; day <= daysInMonth; day++) _chip(anchor, day),
-          ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          // 只挂纵向回调：横向由 SingleChildScrollView 的识别器要走去横滑选日，
+          // 两者不在同一个主方向上抢角力（验收 3 的断言盯的就是这件事）。
+          onVerticalDragUpdate: _onVerticalDragUpdate,
+          onVerticalDragEnd: _onVerticalDragEnd,
+          onVerticalDragCancel: _resetDragDy,
+          child: Container(
+            key: const Key('calendar_month_strip'),
+            height: MonthStrip.height,
+            color: CalendarTokens.surface.resolveFrom(context),
+            child: SingleChildScrollView(
+              controller: _controller,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                children: [
+                  for (var day = 1; day <= daysInMonth; day++) _chip(anchor, day),
+                ],
+              ),
+            ),
+          ),
         ),
-      ),
+        if (_expanded)
+          // 展开的是**同一份**迷你月历（期望 2：不新造第二套）；点中某日由
+          // MiniMonth.onDayPicked 收起面板并落锚点（契约 §589 后半句）。
+          Container(
+            key: const Key('calendar_month_strip_expanded'),
+            color: CalendarTokens.surface.resolveFrom(context),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: MiniMonth(
+              compact: true,
+              onDayPicked: () => setState(() => _expanded = false),
+            ),
+          ),
+      ],
     );
   }
+
+  void _onVerticalDragUpdate(DragUpdateDetails details) {
+    _dragDy += details.delta.dy;
+    if (!_expanded && _dragDy >= _expandThreshold) {
+      setState(() => _expanded = true);
+    }
+  }
+
+  void _onVerticalDragEnd(DragEndDetails details) => _resetDragDy();
+
+  void _resetDragDy() => _dragDy = 0;
 
   Widget _chip(DateTime anchor, int day) {
     final date = DateTime(anchor.year, anchor.month, day);

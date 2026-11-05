@@ -13,11 +13,17 @@ import '../providers.dart';
 /// 周起始按偏好 startWeekOn（0=跟随系统区域；#383）。table_calendar 为第三方 Material
 /// 内核，按边界门禁以显式 Material 岛包裹（#130）。
 class MiniMonth extends ConsumerWidget {
-  const MiniMonth({super.key, this.compact = false});
+  const MiniMonth({super.key, this.compact = false, this.onDayPicked});
 
   /// 紧凑模式：侧栏专用（行高压到 28、周标题 20），6 行 + 头部仍能塞进 ~260 高。
   /// 月/年视图里的用法保持默认尺寸。
   final bool compact;
+
+  /// 点中某一天之后回调（改锚点之后）。
+  ///
+  /// #630：iPhone 月条的展开态靠它把面板收回去。只挂在 `onDaySelected` 上，
+  /// 翻页（`onPageChanged`）不触发——翻到别的月不等于「选好了那天」。
+  final VoidCallback? onDayPicked;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,6 +57,7 @@ class MiniMonth extends ConsumerWidget {
           ref
               .read(anchorDateProvider.notifier)
               .set(DateTime(selected.year, selected.month, selected.day));
+          onDayPicked?.call();
         },
         onPageChanged: (focused) {
           ref
