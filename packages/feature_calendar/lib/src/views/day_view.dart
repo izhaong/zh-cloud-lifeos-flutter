@@ -404,8 +404,10 @@ class CalendarWeekView extends ConsumerWidget {
     final kalenderConfig = config.week.isWorkWeek
         // #615：工作周档做不到改首列——kalender-0.33.0 的
         // `MultiDayViewConfiguration.workWeek` 把 firstDayOfWeek 写死在
-        // initializer list 里（不接参数），换 `custom` 会改分页语义（按 5 天翻页
-        // 而不是按周）。这条限制记进契约 §8.5，缺口另立单，不静默换视图类型。
+        // initializer list 里（不接参数）。#625 已裁定：不为此换 `custom`
+        // （那会把翻页语义从「按周」变成「按 5 天」，属对外行为变更），
+        // 而是把开关的作用域写明——见设置面 `settings_week_view_starts_today`
+        // 的副标题与契约 §8.5；这条不覆盖由 week_starts_today_test 钉住。
         ? kalender.MultiDayViewConfiguration.workWeek(
             numberOfDays: 5,
             initialDateTime: anchor,

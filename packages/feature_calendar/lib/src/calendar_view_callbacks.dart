@@ -275,6 +275,10 @@ class WeekViewConfig {
   /// #615：`weekViewStartsToday` 此前没有任何消费方（只在 `preference_copy.dart`
   /// 里被复制），打开开关完全没效果。现在开启 ⇒ 今天那天；关闭 ⇒ `null`，
   /// 那条路径与本卡之前逐字一致，所以三档 golden 不必重录。
+  ///
+  /// #625：这条只在 7 天档生效（`isWorkWeek` 时 `day_view.dart` 走
+  /// `MultiDayViewConfiguration.workWeek`，那个构造不接 `firstDayOfWeek`）；
+  /// 入口在设置面 `settings_week_view_starts_today`——此前这个偏好连开关都没有。
   final int? firstDayOfWeek;
 }
 
