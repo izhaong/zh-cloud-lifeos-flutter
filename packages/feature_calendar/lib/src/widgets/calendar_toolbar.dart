@@ -43,42 +43,59 @@ class CalendarToolbar extends ConsumerWidget {
     }
     final anchor = ref.watch(anchorDateProvider);
     final toolbar = compact
+        // #627：一行拆成「标题＋翻档」和「菜单＋搜索＋新建」两组，中间用
+        // spaceBetween 让位（原先的 Spacer 与标题抢同一段余量，标题一旦超出
+        // 余量就没人能让，375 宽下「2026年10月」溢出 0.18px）。
+        // 日档几何与拆组前逐像素相同：余量 33.8px 依旧全落在两组之间。
         ? Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const SizedBox(width: 4),
-              _compactTitleText(
-                context,
-                _compactTitle(anchor, ref.watch(viewModeProvider)),
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(width: 4),
+                    _compactTitleText(
+                      context,
+                      _compactTitle(anchor, ref.watch(viewModeProvider)),
+                    ),
+                    _ToolbarIconButton(
+                      tooltip: '上一页',
+                      icon: CupertinoIcons.chevron_left,
+                      onPressed: () => _shift(ref, -1),
+                    ),
+                    _ToolbarIconButton(
+                      tooltip: '下一页',
+                      icon: CupertinoIcons.chevron_right,
+                      onPressed: () => _shift(ref, 1),
+                    ),
+                    CupertinoButton(
+                      key: const Key('calendar_today_button'),
+                      minimumSize: Size.zero,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      onPressed: () =>
+                          ref.read(anchorDateProvider.notifier).today(),
+                      child: const Text('今天'),
+                    ),
+                  ],
+                ),
               ),
-              _ToolbarIconButton(
-                tooltip: '上一页',
-                icon: CupertinoIcons.chevron_left,
-                onPressed: () => _shift(ref, -1),
-              ),
-              _ToolbarIconButton(
-                tooltip: '下一页',
-                icon: CupertinoIcons.chevron_right,
-                onPressed: () => _shift(ref, 1),
-              ),
-              CupertinoButton(
-                key: const Key('calendar_today_button'),
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                onPressed: () => ref.read(anchorDateProvider.notifier).today(),
-                child: const Text('今天'),
-              ),
-              const Spacer(),
-              const _CompactViewModeMenu(),
-              _ToolbarIconButton(
-                key: const Key('calendar_search_button'),
-                tooltip: '搜索',
-                icon: CupertinoIcons.search,
-                onPressed: () =>
-                    ref.read(searchActiveProvider.notifier).set(true),
-              ),
-              _QuickCreateButton(
-                onEvent: onQuickCreate,
-                onReminder: onQuickCreateReminder,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const _CompactViewModeMenu(),
+                  _ToolbarIconButton(
+                    key: const Key('calendar_search_button'),
+                    tooltip: '搜索',
+                    icon: CupertinoIcons.search,
+                    onPressed: () =>
+                        ref.read(searchActiveProvider.notifier).set(true),
+                  ),
+                  _QuickCreateButton(
+                    onEvent: onQuickCreate,
+                    onReminder: onQuickCreateReminder,
+                  ),
+                ],
               ),
             ],
           )
@@ -176,8 +193,6 @@ String _compactTitle(DateTime anchor, CalendarViewMode mode) {
     CalendarViewMode.day ||
     CalendarViewMode.week => '${anchor.month}月${anchor.day}日',
     // 列表档是「从锚点往后摊开的日程窗口」，标题给起点比给年月更贴合它显示的内容。
-    // 顺带避开宽度：375 档整行只剩 33.8px 余量，「2026年10月」那种 9 字串会溢出
-    // 0.18px（月档那条是 develop 上的存量问题，见 #627）。
     CalendarViewMode.list => '${anchor.month}月${anchor.day}日起',
     CalendarViewMode.month => '${anchor.year}年${anchor.month}月',
     CalendarViewMode.year => '${anchor.year}年',
@@ -403,20 +418,33 @@ class _QuickCreateButton extends StatelessWidget {
   }
 }
 
-/// 紧凑档标题（#351）。
+/// 紧凑档标题（#351 / #627）。
 ///
-/// 大字号（辅助功能「更大的文字」）下这一行会横向溢出 102px——标题原本无界，
-/// 而旁边还有上一页/今天/下一页/菜单/搜索/新建。
-/// 这里**只在大字号时**把标题变成可收缩 + 省略号：1.0 字号下不进 Flexible，
-/// 布局与视觉像素不变（否则 1.0 的 golden 会漂 0.63%）。
+/// 两种让位方式按字号分档，各挡一种坏法：
+/// · 常规字号用 `FittedBox(scaleDown)`——标题超出可用宽度时等比缩小，整串仍可读
+/// （#627：375 宽下「2026年10月」比余量宽 0.18px，硬挤就抛 RenderFlex 溢出）。
+/// · 大字号（辅助功能「更大的文字」）用省略号——此时缩放会把 17px 打到不可读，
+///   截字比缩成蚂蚁好（#351：2.0 字号下这一行原本横向溢出 102px）。
+/// 1.0 字号下 `scaleDown` 的缩放系数为 1，标题像素与改动前相同（golden 不漂）。
 Widget _compactTitleText(BuildContext context, String text) {
   const style = TextStyle(fontSize: 17, fontWeight: FontWeight.w600);
   const threshold = 22.0; // 17 × ≈1.3：进入「需要让位」的字号区间
   final scaled = MediaQuery.textScalerOf(context).scale(style.fontSize!);
-  if (scaled <= threshold) {
-    return Text(text, style: style);
+  if (scaled > threshold) {
+    return Flexible(
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      ),
+    );
   }
   return Flexible(
-    child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Text(text, maxLines: 1, style: style),
+    ),
   );
 }
