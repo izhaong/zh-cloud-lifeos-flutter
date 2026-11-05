@@ -77,7 +77,7 @@ void main() {
     expect(find.byType(MiniMonth), findsOneWidget);
   });
 
-  testWidgets('#383 迷你月历点日期改锚点（可交互，不是死图）', (tester) async {
+  testWidgets('TC-CAL-UI-113 半边① #383 迷你月历点日期改锚点（可交互，不是死图）', (tester) async {
     await _pumpSidebar(tester);
     final container = ProviderScope.containerOf(
       tester.element(find.byType(CalendarSidebar)),
