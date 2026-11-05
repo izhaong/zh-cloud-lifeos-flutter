@@ -10,18 +10,20 @@ void main() {
 
   setUp(() {
     port = _CollabPort();
-    container = ProviderContainer(overrides: [
-      calendarCollabPortProvider.overrideWithValue(port),
-    ]);
+    container = ProviderContainer(
+      overrides: [calendarCollabPortProvider.overrideWithValue(port)],
+    );
   });
 
   tearDown(() => container.dispose());
 
   Future<void> pumpPage(WidgetTester tester, {int tab = 0}) async {
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(home: CalendarCloudPage(initialTab: tab)),
-    ));
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(home: CalendarCloudPage(initialTab: tab)),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -64,12 +66,12 @@ void main() {
     await tester.tap(find.byKey(const Key('export_feed_button')));
     await tester.pumpAndSettle();
     final message = tester.widget<Text>(
-        find.byKey(const Key('calendar_cloud_message')));
+      find.byKey(const Key('calendar_cloud_message')),
+    );
     expect(message.data, contains('导出链接'));
   });
 
-  testWidgets('#604 导入导出页有「设为默认」「导出 .ics」「导出全部」入口',
-      (tester) async {
+  testWidgets('#604 导入导出页有「设为默认」「导出 .ics」「导出全部」入口', (tester) async {
     port.calendars = [
       {'id': 7, 'title': '工作', 'kind': 'LOCAL'},
     ];
@@ -95,8 +97,44 @@ void main() {
     expect(message(), contains('已导出全部日历'));
   });
 
-  testWidgets('#604 导出失败给友好文案，不回显异常类名（沿用 #165 约束）',
-      (tester) async {
+  // TC-CAL-UI-161（#607 档 A 第六批）：导入入口真把 .ics 递给导入 API。
+  // 台账那句「调用导入 API 后月视图出现事件」里，月视图那半属于服务端落库 +
+  // 下一次 pull，fake 端口造不出来（也不该在单测里打真网络）；本包能量的是入口这一手：
+  // 粘的内容原样进 importIcs 的 bytes、空内容不发请求（发一个空 body 上去，
+  // 服务端只会回一个看不懂的错，用户体验是「点了没反应」）。
+  testWidgets('TC-CAL-UI-161 导入入口：空内容不发请求，粘贴后按原样提交 .ics', (tester) async {
+    port.calendars = [
+      {'id': 7, 'title': '工作', 'kind': 'LOCAL'},
+    ];
+    await pumpPage(tester, tab: 2);
+    await tester.pumpAndSettle();
+
+    String message() => tester
+        .widget<Text>(find.byKey(const Key('calendar_cloud_message')))
+        .data!;
+
+    // 半边①：空输入 → 零调用 + 提示先粘贴
+    await tester.tap(find.byKey(const Key('import_ics_button')));
+    await tester.pumpAndSettle();
+    expect(port.imports, isEmpty, reason: '空内容也发请求 = 把空 body 推给服务端');
+    expect(message(), contains('请先粘贴'));
+
+    // 半边②：粘进 ICS → 参数与字节都要对得上
+    const ics = 'BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR\n';
+    await tester.enterText(find.byKey(const Key('import_ics_input')), ics);
+    await tester.tap(find.byKey(const Key('import_ics_button')));
+    await tester.pumpAndSettle();
+
+    expect(port.imports, hasLength(1));
+    final (calendarId, filename, bytes) = port.imports.single;
+    expect(filename, 'import.ics');
+    expect(bytes, ics.codeUnits, reason: '提交出去必须就是粘进来的那段');
+    expect(message(), contains('已提交导入'));
+    // 当前导入走「导入到默认位置」：calendarId 传 0 由服务端落进可用日历。
+    expect(calendarId, 0);
+  });
+
+  testWidgets('#604 导出失败给友好文案，不回显异常类名（沿用 #165 约束）', (tester) async {
     port.calendars = [
       {'id': 7, 'title': '工作', 'kind': 'LOCAL'},
     ];
@@ -118,8 +156,11 @@ void main() {
     await pumpPage(tester);
 
     expect(find.text('收件箱登录后可查看（当前未登录）'), findsOneWidget);
-    expect(find.textContaining('CalendarSyncException'), findsNothing,
-        reason: '#165: 不得回显异常类型名与状态码');
+    expect(
+      find.textContaining('CalendarSyncException'),
+      findsNothing,
+      reason: '#165: 不得回显异常类型名与状态码',
+    );
   });
 }
 
@@ -130,6 +171,7 @@ class _CollabPort implements CalendarCollabPort {
   CalendarSyncException? inboxError;
   int? defaultSet;
   int exportAllCalls = 0;
+  final List<(int, String, List<int>)> imports = [];
   String ics = 'BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR';
   CalendarSyncException? exportError;
 
@@ -159,7 +201,9 @@ class _CollabPort implements CalendarCollabPort {
     required int calendarId,
     required String filename,
     required List<int> bytes,
-  }) async {}
+  }) async {
+    imports.add((calendarId, filename, bytes));
+  }
 
   @override
   Future<void> setDefaultCalendar(int calendarId) async {
@@ -186,6 +230,8 @@ class _CollabPort implements CalendarCollabPort {
   }
 
   @override
-  Future<int> duplicateEvent(int eventId, {required DateTime newStartAt}) async =>
-      99;
+  Future<int> duplicateEvent(
+    int eventId, {
+    required DateTime newStartAt,
+  }) async => 99;
 }
