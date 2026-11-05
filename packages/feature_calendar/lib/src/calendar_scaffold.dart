@@ -19,6 +19,7 @@ import 'widgets/quick_reminder_dialog.dart';
 import 'widgets/calendar_settings_sheet.dart';
 import 'widgets/shortcut_dialogs.dart';
 import 'widgets/subscription_dialog.dart';
+import 'widgets/month_strip.dart';
 import 'package:kalender/kalender.dart' as kalender;
 import 'widgets/calendar_toolbar.dart';
 
@@ -184,6 +185,16 @@ class CalendarScaffold extends ConsumerWidget {
                   onQuickCreateReminder: openQuickReminder,
                 ),
                 const _Hairline(),
+                // #612：契约 §589 的 iPhone「月条」此前没有任何挂载点（MiniMonth
+                // 只挂在侧栏，而 compact 整条侧栏都不挂）。条只在 compact 出现，
+                // medium/expanded 仍走侧栏那份月历，两处互斥不重复渲染。
+                // 月档/年档不挂：那两档屏上已经是整月（12 个迷你月），条会重复同一功能
+                // 并白吃掉 52 高；日/周/列表是逐日窗口，条才是它们的跳转面。
+                if (compact && mode != CalendarViewMode.month &&
+                    mode != CalendarViewMode.year) ...[
+                  const MonthStrip(),
+                  const _Hairline(),
+                ],
                 Expanded(
                   child: _MainView(
                     mode: mode,
