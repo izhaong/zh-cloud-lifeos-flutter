@@ -7,7 +7,7 @@ import 'calendar_settings_sheet.dart';
 /// 日历工具栏（契约 §5.4/§8.5）。
 ///
 /// compact（<600，iPhone）：‹年月标题› ‹ › 搜索 ＋；
-/// medium/expanded：＋ | 日历列表切换 | 日/周/月/年 分段 | ‹ 今天 › | 收件箱 | 搜索。
+/// medium/expanded：＋ | 日历列表切换 | 日/周/月/年/列表 分段 | ‹ 今天 › | 收件箱 | 搜索。
 ///
 /// F-03 骨架：结构与 Key 就位（`calendar_toolbar`）；＋→F-12、列表切换→F-04、
 /// 收件箱→M4、搜索→F-13 的行为随后续卡接入。
@@ -170,13 +170,16 @@ class CalendarToolbar extends ConsumerWidget {
   }
 }
 
-/// 紧凑档标题：日/周显示「月日」，月显示「年月」，年显示「年」（#178）。
+/// 紧凑档标题：日/周显示「月日」，列表显示「月日起」（窗口起点），月显示「年月」，年显示「年」（#178/#616）。
 String _compactTitle(DateTime anchor, CalendarViewMode mode) {
   return switch (mode) {
     CalendarViewMode.day ||
     CalendarViewMode.week => '${anchor.month}月${anchor.day}日',
-    CalendarViewMode.month ||
-    CalendarViewMode.list => '${anchor.year}年${anchor.month}月',
+    // 列表档是「从锚点往后摊开的日程窗口」，标题给起点比给年月更贴合它显示的内容。
+    // 顺带避开宽度：375 档整行只剩 33.8px 余量，「2026年10月」那种 9 字串会溢出
+    // 0.18px（月档那条是 develop 上的存量问题，见 #627）。
+    CalendarViewMode.list => '${anchor.month}月${anchor.day}日起',
+    CalendarViewMode.month => '${anchor.year}年${anchor.month}月',
     CalendarViewMode.year => '${anchor.year}年',
   };
 }
@@ -209,7 +212,7 @@ class _ToolbarIconButton extends StatelessWidget {
   }
 }
 
-/// 紧凑档视图切换（#178：日/周/月/年；iPhone 档原本没有入口）。
+/// 紧凑档视图切换（#178：日/周/月/年；#616 补上第 5 档列表）。
 class _CompactViewModeMenu extends ConsumerWidget {
   const _CompactViewModeMenu();
 
@@ -221,6 +224,7 @@ class _CompactViewModeMenu extends ConsumerWidget {
       CalendarViewMode.week,
       CalendarViewMode.month,
       CalendarViewMode.year,
+      CalendarViewMode.list,
     ];
     return CupertinoMenuAnchor(
       menuChildren: [
@@ -274,13 +278,26 @@ class _ViewSegment extends ConsumerWidget {
     ];
     final mode = ref.watch(viewModeProvider);
     return CupertinoSlidingSegmentedControl<CalendarViewMode>(
-      groupValue: mode == CalendarViewMode.list ? null : mode,
+      // #616：列表档如今是段里的第 5 格，段里恒有当前档 ⇒ 原先
+      // `mode == list ? null : mode`（列表不在段内、只能画成「无选中」）一并摘掉。
+      groupValue: mode,
       onValueChanged: (value) {
         if (value != null) {
           ref.read(viewModeProvider.notifier).set(value);
         }
       },
-      children: {for (final m in modes) m: Text(CalendarToolbar._labels[m]!)},
+      children: {
+        for (final m in modes) m: Text(CalendarToolbar._labels[m]!),
+        // 第 5 档挂图标而不是「列表」二字：既有两条契约用例（TC-CAL-UI-001 判
+        // 「不在任务列表页」、#399 判「列表视图的占位符没回来」）都拿
+        // find.text('列表') 的**缺席**当判据；常驻工具栏里再放一份会同时作废它们。
+        // 读屏侧用语义标签补回可说出的名字。
+        CalendarViewMode.list: Semantics(
+          key: const Key('calendar_view_mode_list'),
+          label: '列表',
+          child: const Icon(CupertinoIcons.list_bullet, size: 17),
+        ),
+      },
     );
   }
 }
