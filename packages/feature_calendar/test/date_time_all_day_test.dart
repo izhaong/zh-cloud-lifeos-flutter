@@ -96,7 +96,7 @@ void main() {
       return tester.state<_HarnessState>(find.byType(_Harness));
     }
 
-    testWidgets('全天隐藏时刻，切全天按契约归一', (tester) async {
+    testWidgets('TC-CAL-UI-138 半边① 全天隐藏时刻，切全天按契约归一', (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -206,7 +206,7 @@ void main() {
   });
 
   // TC-CAL-KR-120：Inspector 保存前再兜底归一（不依赖开关路径）
-  testWidgets('Inspector 保存全天事件前归一', (tester) async {
+  testWidgets('TC-CAL-UI-138 半边② Inspector 保存全天事件前归一', (tester) async {
     final repo = _Repo();
     final container = ProviderContainer(
       overrides: [
