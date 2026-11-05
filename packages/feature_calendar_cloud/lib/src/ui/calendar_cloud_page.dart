@@ -357,8 +357,13 @@ class _ImportExportTab extends StatelessWidget {
           key: const Key('export_feed_button'),
           color: CupertinoColors.systemBlue,
           onPressed: () async {
-            final url = await port?.exportFeedUrl(null);
-            onMessage(url == null ? '导出链接不可用' : '导出链接：$url');
+            // #618：此前是裸 await，端口抛错时整条 handler 崩，用户点了什么都没发生。
+            try {
+              final url = await port?.exportFeedUrl(null);
+              onMessage(url == null ? '导出链接不可用' : '导出链接：$url');
+            } catch (error) {
+              onMessage(_friendlyLoadError(error));
+            }
           },
           child: const Text('生成公开导出链接'),
         ),
@@ -380,12 +385,19 @@ class _ImportExportTab extends StatelessWidget {
               onMessage('请先粘贴 ICS 内容');
               return;
             }
-            await port?.importIcs(
-              calendarId: 0,
-              filename: 'import.ics',
-              bytes: text.codeUnits,
-            );
-            onMessage('已提交导入');
+            // #618：导入同样是裸 await；且服务端此刻只收到请求、还没落库，
+            // 文案不许写成像「已经导入完成」，与 #165 的「不外推完成」口径一致。
+            try {
+              await port?.importIcs(
+                calendarId: 0,
+                filename: 'import.ics',
+                bytes: text.codeUnits,
+              );
+            } catch (error) {
+              onMessage(_friendlyLoadError(error));
+              return;
+            }
+            onMessage('已提交导入，稍后出现在日历里');
           },
           child: const Text('导入到日历'),
         ),
