@@ -365,7 +365,7 @@ void main() {
   });
 
   // #179：周视图必须消费「显示周数」偏好——关闭后不渲染周序号（TC-CAL-UI-109）
-  testWidgets('#179 周视图「显示周数」关闭时不渲染周序号', (tester) async {
+  testWidgets('TC-CAL-UI-109 半边① #179 周视图「显示周数」关闭时不渲染周序号', (tester) async {
     await pumpCalendar(tester, mode: CalendarViewMode.week);
     await tester.pumpAndSettle();
 
@@ -377,7 +377,7 @@ void main() {
   });
 
   // #179：打开偏好后周视图跟随月视图渲染周序号
-  testWidgets('#179 周视图「显示周数」打开时渲染周序号', (tester) async {
+  testWidgets('TC-CAL-UI-109 半边② #179 周视图「显示周数」打开时渲染周序号', (tester) async {
     await repo.savePreference(const CalendarPreference(showWeekNumbers: true));
     await pumpCalendar(tester, mode: CalendarViewMode.week);
     await tester.pumpAndSettle();
