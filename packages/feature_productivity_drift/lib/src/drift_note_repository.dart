@@ -367,6 +367,65 @@ class DriftNoteRepository implements kernel.NoteRepository, kernel.SyncApplier {
     return rows.map(_noteModel).toList(growable: false);
   }
 
+  @override
+  Future<void> renameTag(String oldName, String newName) =>
+      _rewriteTags(oldName, newName);
+
+  @override
+  Future<void> deleteTag(String name) => _rewriteTags(name, null);
+
+  /// #661：标签管理的落盘半边。
+  ///
+  /// 与内存实现共用 kernel 的 [kernel.rewriteTagNames] /
+  /// [kernel.rewriteTagFilter]，只改 `notes.tagNames` 与
+  /// `noteFolders.filterJson` 两列——**不新增标签表、不 bump schema**（Apple
+  /// 的标签是从使用它的备忘录派生的视图）。全表扫描含「最近删除」的笔记，
+  /// 否则恢复一条旧笔记就会把已删/已改名的标签复活。
+  ///
+  /// 走事务：一批笔记 + 智能文件夹要么全改完，要么整体回滚，不留半改状态。
+  /// 末尾沿用既有 outbox 把受影响行推出去（标签随 note/folder 载荷一起同步，
+  /// 不引入任何标签实体或服务端接口——这是 #661 非目标「不涉及标签同步到
+  /// 服务端」所排除的那部分）。绕开 [upsertNote] 是为了不触发
+  /// [kernel.normalizeNoteForSave] 重算正文，一次管理动作不该改用户正文。
+  Future<void> _rewriteTags(String name, String? replacement) async {
+    if (name.isEmpty || replacement == name) return;
+    if (replacement != null && replacement.isEmpty) return;
+    await _db.transaction(() async {
+      final noteIds = <String>[];
+      final noteRows = await _db.select(_db.notes).get();
+      for (final row in noteRows) {
+        final next = kernel.rewriteTagNames(
+          _decodeTags(row.tagNames),
+          name: name,
+          replacement: replacement,
+        );
+        if (next == null) continue;
+        await (_db.update(_db.notes)..where((t) => t.id.equals(row.id)))
+            .write(db.NotesCompanion(tagNames: Value(jsonEncode(next))));
+        noteIds.add(row.id);
+      }
+
+      final folderIds = <String>[];
+      final folderRows = await _db.select(_db.noteFolders).get();
+      for (final row in folderRows) {
+        if (!row.smart) continue; // 普通文件夹没有 filterJson 条件
+        final next = kernel.rewriteTagFilter(
+          row.filterJson,
+          name: name,
+          replacement: replacement,
+        );
+        if (next == null) continue;
+        await (_db.update(_db.noteFolders)
+              ..where((t) => t.id.equals(row.id)))
+            .write(db.NoteFoldersCompanion(filterJson: Value(next)));
+        folderIds.add(row.id);
+      }
+
+      await _enqueueNoteOutbox(noteIds);
+      await _enqueueFolderOutbox(folderIds);
+    });
+  }
+
   // ---- 内部 ----
 
   kernel.NoteFolder _folderModel(db.NoteFolder row) => kernel.NoteFolder(
