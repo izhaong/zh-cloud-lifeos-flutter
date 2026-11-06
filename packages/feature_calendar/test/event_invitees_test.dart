@@ -127,6 +127,42 @@ void main() {
     expect(find.byKey(const Key('invitee_message')), findsOneWidget);
   });
 
+  testWidgets('TC-CAL-UI-228 按手机号添加受邀者（解析 ⇒ 仅添加不发送）', (tester) async {
+    port.invitees = const [];
+    await pumpInspector(tester, event());
+    await openInvitees(tester);
+
+    await tester.enterText(
+      find.byKey(const Key('invitee_mobile')),
+      '13800138000',
+    );
+    await tester.tap(find.byKey(const Key('invitee_add_submit')));
+    await tester.pumpAndSettle();
+
+    expect(port.resolved, [
+      '13800138000',
+    ], reason: 'F1：add 只要成员编号，编号必须先经 resolve 拿');
+    // 逐字段比，不比整个 record：record 的相等取字段的 ==，而 List 的 == 是同一性
+    // ⇒ 元组里塞列表会让断言永远红（打印出来一模一样却「不等于」）。
+    expect(port.added.length, 1);
+    final (addedEventId, addedMemberIds, addedRole) = port.added.single;
+    expect(addedEventId, 42);
+    expect(addedMemberIds, [
+      '7',
+    ], reason: 'F1：/event/invitee/add 的 memberUserIds 来自 resolve；本轮走「仅添加不发送」');
+    expect(addedRole, InviteeRole.required);
+    expect(
+      find.byKey(const Key('invitee_row_7')),
+      findsOneWidget,
+      reason: '添加后按 inviteeList 重读，新行要出现',
+    );
+    expect(
+      port.sent,
+      isEmpty,
+      reason: 'add 不等于 send：发送是 F4 的另一条动作，不能被「添加」顺手触发',
+    );
+  });
+
   testWidgets('对照：草稿（无服务端编号）⇒ 不给进面板，只说「保存后可邀请」', (tester) async {
     await pumpInspector(tester, event(remoteId: null));
 
@@ -169,6 +205,26 @@ class _Port implements CalendarCollabPort {
   @override
   Future<void> sendInvitations(int eventId) async {
     sent.add(eventId);
+  }
+
+  String resolveMobile = '7';
+  final List<String> resolved = [];
+  final List<(int, List<String>, InviteeRole)> added = [];
+
+  @override
+  Future<String> resolveMemberByMobile(String mobile) async {
+    resolved.add(mobile);
+    return resolveMobile;
+  }
+
+  @override
+  Future<void> addInvitees(
+    int eventId,
+    List<String> memberUserIds, {
+    InviteeRole role = InviteeRole.required,
+  }) async {
+    added.add((eventId, memberUserIds, role));
+    invitees = [...invitees, EventInvitee(memberUserId: memberUserIds.single)];
   }
 
   @override

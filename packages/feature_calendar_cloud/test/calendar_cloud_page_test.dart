@@ -298,6 +298,7 @@ class _CollabPort implements CalendarCollabPort {
   List<EventInvitee> invitees = [];
   final List<(int, String)> inviteeRemoved = [];
   final List<int> inviteeSent = [];
+  final List<(int, List<String>, InviteeRole)> inviteeAdded = [];
 
   @override
   Future<List<EventInvitee>> inviteeList(int eventId) async => invitees;
@@ -314,5 +315,17 @@ class _CollabPort implements CalendarCollabPort {
   @override
   Future<void> sendInvitations(int eventId) async {
     inviteeSent.add(eventId);
+  }
+
+  @override
+  Future<String> resolveMemberByMobile(String mobile) async => '7';
+
+  @override
+  Future<void> addInvitees(
+    int eventId,
+    List<String> memberUserIds, {
+    InviteeRole role = InviteeRole.required,
+  }) async {
+    inviteeAdded.add((eventId, memberUserIds, role));
   }
 }
