@@ -1,3 +1,5 @@
+// 端口抽象与 `calendarCollabPortProvider` 已上移到开源侧（#606：Inspector 共用同一个端口）。
+import 'package:feature_calendar/feature_calendar.dart';
 import 'package:feature_calendar_cloud/feature_calendar_cloud.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

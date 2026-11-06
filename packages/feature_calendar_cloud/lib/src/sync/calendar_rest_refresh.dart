@@ -6,7 +6,6 @@
 //
 // 这里用 REST `/calendar/list` 全量拉一次并 upsert——比让服务端把影子日历也塞进
 // 增量 change 简单，也不会因为 cursor 已推进而漏掉同一事务里的行。
-import '../collab/rest_calendar_collab_port.dart';
 import 'calendar_sync_coordinator.dart';
 import 'package:feature_calendar/feature_calendar.dart';
 

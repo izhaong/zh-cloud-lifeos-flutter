@@ -1,7 +1,9 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../collab/rest_calendar_collab_port.dart';
+// `calendarCollabPortProvider` 与端口抽象都由开源侧提供（#606：Inspector 也要读同一个端口）。
+import 'package:feature_calendar/feature_calendar.dart';
+
 import '../sync/calendar_sync_coordinator.dart';
 import '../sync/calendar_sync_models.dart';
 
@@ -12,9 +14,6 @@ String _friendlyLoadError(Object? error) {
   }
   return '暂时不可用，请稍后重试';
 }
-
-/// 组合根注入（未登录/未配置时为 null）。
-final calendarCollabPortProvider = Provider<CalendarCollabPort?>((ref) => null);
 
 final calendarSyncCoordinatorProvider = Provider<CalendarSyncCoordinator?>(
   (ref) => null,
