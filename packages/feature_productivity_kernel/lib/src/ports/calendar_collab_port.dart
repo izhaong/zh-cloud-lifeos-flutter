@@ -1,3 +1,5 @@
+import '../models/calendar_event.dart';
+
 /// 日历云端协作端口（契约 §3.3–§3.6；F-17）。
 ///
 /// 抽象放在 kernel、实现在 `feature_calendar_cloud`：与 `TaskCollabPort` 同形，
@@ -29,4 +31,13 @@ abstract interface class CalendarCollabPort {
 
   /// TC-CAL-API-115：复制日程，服务端返回新日程编号。
   Future<int> duplicateEvent(int eventId, {required DateTime newStartAt});
+
+  /// TC-CAL-API-163 的服务端真相：受邀者列表以服务端为准（客户端本地那份只是缓存）。
+  Future<List<EventInvitee>> inviteeList(int eventId);
+
+  /// TC-CAL-API-163（C-101）：移除受邀者（服务端已发送过则给该人写取消通知）。
+  Future<void> removeInvitee(int eventId, String memberUserId);
+
+  /// TC-CAL-API-162（C-100）：发送邀请（服务端置 `invited_at` 并写收件箱）。
+  Future<void> sendInvitations(int eventId);
 }
