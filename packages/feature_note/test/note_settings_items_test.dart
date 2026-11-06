@@ -16,9 +16,14 @@ void main() {
   final yearHeader = find.byWidgetPredicate(
     (w) => w is Text && RegExp(r'^\d{4} 年$').hasMatch(w.data ?? ''),
   );
+  // #658：行内日期改相对文案，判据同步覆盖全部五档；本用例只数「两条都在」，
+  // 不关心具体文案，所以无需固定时钟也不会随运行当天漂移。
   final rowDate = find.byWidgetPredicate(
     (w) =>
-        w is Text && RegExp(r'^\d{4}/\d{1,2}/\d{1,2}$').hasMatch(w.data ?? ''),
+        w is Text &&
+        RegExp(
+          r'^(今天|昨天|星期[一二三四五六日]|\d{1,2}月\d{1,2}日|\d{4}年\d{1,2}月\d{1,2}日)$',
+        ).hasMatch(w.data ?? ''),
   );
 
   tearDown(() {
