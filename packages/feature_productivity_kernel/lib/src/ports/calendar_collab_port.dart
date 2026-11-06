@@ -1,0 +1,32 @@
+/// 日历云端协作端口（契约 §3.3–§3.6；F-17）。
+///
+/// 抽象放在 kernel、实现在 `feature_calendar_cloud`：与 `TaskCollabPort` 同形，
+/// 这样开源侧的 `feature_calendar` 能在不 import 云包的前提下消费它
+/// （#606 的「复制日程」就依赖这一点——原件在服务端时改走 `/event/duplicate`）。
+abstract interface class CalendarCollabPort {
+  Future<List<Map<String, dynamic>>> inboxList();
+
+  Future<void> respondShare(int shareId, {required bool accept});
+
+  Future<List<Map<String, dynamic>>> calendarList();
+
+  Future<String?> exportFeedUrl(int? calendarId);
+
+  Future<void> importIcs({
+    required int calendarId,
+    required String filename,
+    required List<int> bytes,
+  });
+
+  /// TC-CAL-API-104：互斥置默认日历（服务端 `PUT /calendar/set-default?id=`）。
+  Future<void> setDefaultCalendar(int calendarId);
+
+  /// TC-CAL-API-140：导出单日历 .ics，返回服务端 `text/calendar` 原文。
+  Future<String> exportCalendarIcs(int calendarId);
+
+  /// TC-CAL-API-143：导出全部本地日历为一个 .ics。
+  Future<String> exportAllIcs();
+
+  /// TC-CAL-API-115：复制日程，服务端返回新日程编号。
+  Future<int> duplicateEvent(int eventId, {required DateTime newStartAt});
+}

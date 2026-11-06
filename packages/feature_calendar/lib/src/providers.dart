@@ -21,6 +21,13 @@ final calendarRepositoryProvider = Provider<CalendarRepository>((ref) {
   );
 }, name: 'calendarRepositoryProvider');
 
+/// 云端协作端口：与 `taskCollabPortProvider` 同一个处理方式（抽象在 kernel，
+/// 实现在 `feature_calendar_cloud`，组合根注入）。null = 未登录/未配置，纯本地档。
+final calendarCollabPortProvider = Provider<CalendarCollabPort?>(
+  (ref) => null,
+  name: 'calendarCollabPortProvider',
+);
+
 /// 全部日历（侧栏数据；含 isVisible/isDefault/组名）。
 final calendarsProvider = StreamProvider<List<Calendar>>((ref) {
   return ref.watch(calendarRepositoryProvider).watchCalendars();

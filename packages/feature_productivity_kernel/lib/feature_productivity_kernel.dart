@@ -22,6 +22,7 @@ export 'src/ports/reminder_repository.dart';
 export 'src/ports/sync_outbox.dart';
 export 'src/ports/task_collab_port.dart';
 export 'src/ports/task_preference_repository.dart';
+export 'src/ports/calendar_collab_port.dart';
 export 'src/ports/calendar_repository.dart';
 export 'src/ports/note_repository.dart';
 export 'src/ports/note_preference_repository.dart';

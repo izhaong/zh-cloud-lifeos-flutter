@@ -70,6 +70,7 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
       // #252：换选到另一条事件时，上一轮「复制出的独立副本」状态必须清掉，
       // 否则会对着新的重复日程跳过 THIS/FUTURE，直接整条改/删。
       _detachedFromOrigin = false;
+      _duplicateError = null;
     }
   }
 
@@ -83,6 +84,9 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
 
   bool _saving = false; // 在途互斥：连点保存不重复 upsert
   bool _duplicating = false; // #252：连点「复制」不生成多份
+
+  /// #606：服务端复制失败的一次性提示（null=无）。
+  String? _duplicateError;
 
   /// #252：面板当前编辑的是「复制出来的独立副本」。
   ///
@@ -251,6 +255,11 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
   /// 例外归属（parentEventId / originalStartAt）与排除日期（exdates）——
   /// 继承这些会把副本挂成某条重复记录的例外，行为不可预期。
   /// 时间为「当前草稿」的起止（Apple 复制不改时间），提醒与日历原样保留。
+  ///
+  /// #606：原件已在服务端（`remoteId` 是服务端编号）时改走 `POST /event/duplicate`
+  /// ——重复规则、提醒、受邀者由服务端按同一套语义复制，本地只把返回的新编号写回
+  /// 这行副本。写回是必要的：`_buildLocalMutations` 只推 `remoteId == null` 的事件，
+  /// 不带编号的本地副本会被当成「未上云的新事件」再推一次，pull 回来就成了两条。
   Future<void> _duplicate() async {
     if (_isNewDraft || _saving || _duplicating) return;
     final repo = ref.read(calendarRepositoryProvider);
@@ -258,8 +267,28 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
     if (copy.allDay) {
       copy = normalizeAllDay(copy);
     }
-    setState(() => _duplicating = true);
+    setState(() {
+      _duplicating = true;
+      _duplicateError = null;
+    });
     try {
+      final serverId = int.tryParse(_draft.remoteId ?? '');
+      final port = ref.read(calendarCollabPortProvider);
+      if (port != null && serverId != null) {
+        try {
+          final newRemoteId = await port.duplicateEvent(
+            serverId,
+            newStartAt: copy.startAt,
+          );
+          copy = withServerId(copy, '$newRemoteId');
+        } catch (_) {
+          // 服务端没建成就不能落本地副本（#618 的教训也不能重犯：提示必须可见）。
+          if (mounted) {
+            setState(() => _duplicateError = '复制失败，请稍后重试');
+          }
+          return;
+        }
+      }
       await repo.upsertEvent(copy);
       await ref.read(calendarAlertSchedulerProvider).scheduleEvent(copy);
       if (!mounted) return;
@@ -310,6 +339,18 @@ class _EventInspectorPaneState extends ConsumerState<EventInspectorPane> {
                 color: CupertinoColors.systemRed.resolveFrom(context),
                 fontSize: 12,
               ),
+              ),
+            ),
+          if (_duplicateError != null)
+            Padding(
+              key: const Key('event_inspector_duplicate_error'),
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                _duplicateError!,
+                style: TextStyle(
+                  color: CupertinoColors.systemRed.resolveFrom(context),
+                  fontSize: 12,
+                ),
               ),
             ),
         ],
@@ -438,6 +479,39 @@ CalendarEvent duplicateEventCopy(CalendarEvent source, String newId) =>
       revision: 1,
       updatedAt: DateTime.now().toUtc(),
     );
+
+/// #606：把服务端 `/event/duplicate` 返回的新编号写回本地副本行。
+///
+/// 内核模型没有 copyWith，这里逐字段复制（字段清单与 `withTimes` 一致）。
+CalendarEvent withServerId(CalendarEvent e, String remoteId) => CalendarEvent(
+  id: e.id,
+  remoteId: remoteId,
+  calendarId: e.calendarId,
+  uid: e.uid,
+  title: e.title,
+  location: e.location,
+  url: e.url,
+  notes: e.notes,
+  startAt: e.startAt,
+  endAt: e.endAt,
+  allDay: e.allDay,
+  timeZone: e.timeZone,
+  isFloating: e.isFloating,
+  rrule: e.rrule,
+  exdates: e.exdates,
+  parentEventId: e.parentEventId,
+  originalStartAt: e.originalStartAt,
+  status: e.status,
+  availability: e.availability,
+  travelMinutes: e.travelMinutes,
+  isPrivate: e.isPrivate,
+  alerts: e.alerts,
+  invitees: e.invitees,
+  sequence: e.sequence,
+  revision: e.revision,
+  deletedAt: e.deletedAt,
+  updatedAt: e.updatedAt,
+);
 
 /// 日历事件 id 工厂（kernel 只提供 reminder/list 工厂；事件侧对齐命名）。
 String newCalendarEventId() =>

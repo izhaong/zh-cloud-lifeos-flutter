@@ -1,38 +1,11 @@
 // ignore_for_file: prefer_initializing_formals
 import 'package:dio/dio.dart';
 
+import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
+
 import 'package:feature_task_cloud/feature_task_cloud.dart';
 
 import '../sync/calendar_sync_models.dart';
-
-/// 收件箱 / 共享 / 导入导出（契约 §3.3–§3.6；F-17 UI 用）。
-abstract interface class CalendarCollabPort {
-  Future<List<Map<String, dynamic>>> inboxList();
-
-  Future<void> respondShare(int shareId, {required bool accept});
-
-  Future<List<Map<String, dynamic>>> calendarList();
-
-  Future<String?> exportFeedUrl(int? calendarId);
-
-  Future<void> importIcs({
-    required int calendarId,
-    required String filename,
-    required List<int> bytes,
-  });
-
-  /// TC-CAL-API-104：互斥置默认日历（服务端 `PUT /calendar/set-default?id=`）。
-  Future<void> setDefaultCalendar(int calendarId);
-
-  /// TC-CAL-API-140：导出单日历 .ics，返回服务端 `text/calendar` 原文。
-  Future<String> exportCalendarIcs(int calendarId);
-
-  /// TC-CAL-API-143：导出全部本地日历为一个 .ics。
-  Future<String> exportAllIcs();
-
-  /// TC-CAL-API-115：复制日程，服务端返回新日程编号。
-  Future<int> duplicateEvent(int eventId, {required DateTime newStartAt});
-}
 
 class RestCalendarCollabPort implements CalendarCollabPort {
   RestCalendarCollabPort({
