@@ -297,7 +297,18 @@ final calendarViewConfigurationsProvider = Provider<CalendarViewConfigs>((ref) {
     week: WeekViewConfig(
       numberOfDays: preference.weekViewDays,
       isWorkWeek: preference.weekViewDays == 5,
-      firstDayOfWeek: preference.weekViewStartsToday ? today.weekday : null,
+      // #639：关掉「周视图从今天开始」时，7 天档此前恒落到 kalender 的默认首列，
+      // 把「每周起始」这个偏好整个跳过（月视图 `month_view.dart:54` 与迷你月历
+      // `mini_month.dart:32` 都读它）⇒ 显式选「周日」时两处自相矛盾。
+      // 这里只接**显式**的 1..7；`startWeekOn == 0`（跟随系统）继续传 `null`，
+      // 落点与本卡之前逐字相同。原因：golden 基线 `ipad_834_week.png` 是在
+      // 「区域=周日优先」的执行机上录的，一旦按区域推导就会把基线打红；
+      // 让两处口径真正统一需要重录三张 golden，另立单走授权，不混进本卡。
+      firstDayOfWeek: preference.weekViewStartsToday
+          ? today.weekday
+          : (preference.startWeekOn >= 1 && preference.startWeekOn <= 7
+                ? preference.startWeekOn
+                : null),
     ),
   );
 });

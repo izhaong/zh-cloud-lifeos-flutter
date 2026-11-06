@@ -92,6 +92,11 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
             _dropdown<int>(
               key: const Key('settings_start_week_on'),
               title: '每周起始',
+              // #639：此前只有月视图与迷你月历读它，周视图整个跳过 ⇒ 用户以为
+              // 它只管月历。显式选周一/周日现在两处都生效；「跟随系统」在周视图
+              // 仍落到固定首列（周一），这一档要按区域推导得等 golden 重录，另单跟。
+              subtitle: '选周一／周日时，周视图与月视图的首列都跟着改；'
+                  '打开「周视图从今天开始」时以当天为准',
               value: pref.startWeekOn,
               items: const {0: '跟随系统', 1: '周一', 7: '周日'},
               onChanged: (v) =>
@@ -283,10 +288,12 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
     required T value,
     required Map<T, String> items,
     required ValueChanged<T> onChanged,
+    String? subtitle,
   }) {
     return LifeSettingsRow(
       key: key,
       title: title,
+      subtitle: subtitle,
       onTap: () async {
         final v = await _pick<T>(items, value);
         if (v != null || items.containsKey(null)) {
