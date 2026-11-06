@@ -40,4 +40,18 @@ abstract interface class CalendarCollabPort {
 
   /// TC-CAL-API-162（C-100）：发送邀请（服务端置 `invited_at` 并写收件箱）。
   Future<void> sendInvitations(int eventId);
+
+  /// TC-CAL-API-160（C-096/097）：按手机号解析成员编号。
+  ///
+  /// 日历侧没有解析端点（`AppLifeosCalendarInviteeController` 的 add 只收 `memberUserIds`），
+  /// 全仓唯一入口是任务域 `GET /lifeos/task/list-member/resolve`——缝开在端口上，
+  /// 跨域 URL 由 cloud 实现层吸收，`feature_calendar` 不因此依赖任务域包。
+  Future<String> resolveMemberByMobile(String mobile);
+
+  /// TC-CAL-API-160（C-096/097）：添加受邀者（服务端「仅添加不发送」，发送另走 sendInvitations）。
+  Future<void> addInvitees(
+    int eventId,
+    List<String> memberUserIds, {
+    InviteeRole role = InviteeRole.required,
+  });
 }

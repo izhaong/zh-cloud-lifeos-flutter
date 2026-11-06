@@ -164,6 +164,38 @@ class RestCalendarCollabPort implements CalendarCollabPort {
     );
   }
 
+  @override
+  Future<String> resolveMemberByMobile(String mobile) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/app-api/lifeos/task/list-member/resolve',
+      queryParameters: {'mobile': mobile.trim()},
+      options: await _options(),
+    );
+    final data = _unwrap(resp.data);
+    final userId = data?['userId'];
+    if (userId == null) {
+      throw CalendarSyncException('该手机号没有注册用户');
+    }
+    return '$userId';
+  }
+
+  @override
+  Future<void> addInvitees(
+    int eventId,
+    List<String> memberUserIds, {
+    InviteeRole role = InviteeRole.required,
+  }) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/app-api/lifeos/calendar/event/invitee/add',
+      data: {
+        'eventId': eventId,
+        'memberUserIds': [for (final id in memberUserIds) int.parse(id)],
+        'role': role.id,
+      },
+      options: await _options(),
+    );
+  }
+
   /// 芋道把 `LocalDateTime` 序列化成 epoch 毫秒，历史夹具里也可能是 ISO 串。
   DateTime? _date(dynamic raw) {
     if (raw is int) return DateTime.fromMillisecondsSinceEpoch(raw);

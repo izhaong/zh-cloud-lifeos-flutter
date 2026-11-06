@@ -27,6 +27,7 @@ class _InviteesSheet extends ConsumerStatefulWidget {
 
 class _InviteesSheetState extends ConsumerState<_InviteesSheet> {
   List<EventInvitee> _invitees = const [];
+  final _mobile = TextEditingController();
   bool _loading = true;
   bool _busy = false;
   String? _error;
@@ -38,6 +39,12 @@ class _InviteesSheetState extends ConsumerState<_InviteesSheet> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _mobile.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -74,6 +81,15 @@ class _InviteesSheetState extends ConsumerState<_InviteesSheet> {
     await _load();
     return '已移除受邀者';
   }, failure: '移除受邀者失败');
+
+  Future<void> _add() => _run(() async {
+    // 两步都要 await：解析拿成员编号，再让服务端「仅添加不发送」。
+    final id = await _port!.resolveMemberByMobile(_mobile.text);
+    await _port!.addInvitees(widget.eventId, [id]);
+    await _load();
+    _mobile.clear();
+    return '已添加受邀者';
+  }, failure: '添加受邀者失败');
 
   Future<void> _send() => _run(() async {
     await _port!.sendInvitations(widget.eventId);
@@ -179,6 +195,26 @@ class _InviteesSheetState extends ConsumerState<_InviteesSheet> {
                   ],
                 ),
               ),
+          Row(
+            children: [
+              Expanded(
+                child: CupertinoTextField(
+                  key: const Key('invitee_mobile'),
+                  controller: _mobile,
+                  placeholder: '成员手机号',
+                  keyboardType: TextInputType.phone,
+                ),
+              ),
+              CupertinoButton(
+                key: const Key('invitee_add_submit'),
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                onPressed: _busy ? null : _add,
+                child: const Text('添加'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           CupertinoButton(
             key: const Key('invitee_send'),
             color: CupertinoColors.systemBlue.resolveFrom(context),
