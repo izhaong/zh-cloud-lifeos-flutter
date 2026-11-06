@@ -4,6 +4,7 @@ import 'package:kalender/kalender.dart' as kalender;
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+import 'logic/declined_filter.dart';
 import 'logic/event_time.dart';
 import 'logic/search_filter.dart';
 import 'logic/scheduled_reminder_projection.dart';
@@ -27,6 +28,15 @@ final calendarCollabPortProvider = Provider<CalendarCollabPort?>(
   (ref) => null,
   name: 'calendarCollabPortProvider',
 );
+
+/// 当前登录成员编号（#645）：null = 未登录/离线/身份还没读到。
+///
+/// 「显示已拒绝日程」要判的是**我自己**答没答过拒绝，所以视图侧需要这个身份。
+/// 这一层做成同步 Provider 且默认 null——判不出「我」就不隐藏（与「日历未加载
+/// 不闪没」同口径，宁可少隐藏也不静默吞数据）。身份由组合根在 `runApp` 前
+/// `await authPort.currentSession()` 拿到后 `overrideWithValue(userId)` 注入；
+/// 本包不 import 云包，`AuthPort` 抽象仍在 app_core。
+final currentMemberIdProvider = Provider<String?>((ref) => null);
 
 /// 全部日历（侧栏数据；含 isVisible/isDefault/组名）。
 final calendarsProvider = StreamProvider<List<Calendar>>((ref) {
@@ -201,6 +211,11 @@ final occurrencesProvider = StreamProvider.family<List<CalendarOccurrence>,
   final visibleIds = ref.watch(visibleCalendarIdsProvider);
   final filterByVisibility = calendars.isNotEmpty;
   final showReminders = ref.watch(scheduledRemindersVisibleProvider);
+  // #645 / 矩阵 I8：「显示已拒绝日程」此前只有字段没有消费方（视图零命中），
+  // 所以这里必须把偏好与「我」一起读进来，在 expandOccurrences **之前**过滤——
+  // CalendarOccurrence 不带 invitees/partstat，展开后再判就无从下手。
+  final pref = ref.watch(preferenceProvider).value ?? CalendarPreference.defaults;
+  final memberId = ref.watch(currentMemberIdProvider);
   final reminderItems =
       ref.watch(reminderItemsForCalendarProvider).value ?? const <ReminderItem>[];
   final reminderLists =
@@ -216,6 +231,11 @@ final occurrencesProvider = StreamProvider.family<List<CalendarOccurrence>,
           .where((e) => matchesCalendarSearch(e, query))
           .toList(growable: false);
     }
+    filtered = filterDeclined(
+      filtered,
+      showDeclinedEvents: pref.showDeclinedEvents,
+      memberId: memberId,
+    );
     final occurrences = expandOccurrences(filtered,
         from: from, to: to, colorByCalendar: colorByCalendar);
     if (!showReminders) {

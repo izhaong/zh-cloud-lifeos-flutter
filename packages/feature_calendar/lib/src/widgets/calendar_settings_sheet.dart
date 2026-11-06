@@ -171,6 +171,15 @@ class _CalendarSettingsSheetState extends ConsumerState<CalendarSettingsSheet> {
               onChanged: (v) =>
                   _save(copyCalendarPreference(pref, showHolidays: v)),
             ),
+            // #645 / 矩阵 I8：此前这个偏好只有字段，视图与设置面都没有它。
+            LifeSwitchRow(
+              key: const Key('settings_show_declined_events'),
+              title: '显示已拒绝日程',
+              subtitle: '关掉后，你答了「拒绝」的受邀日程从日历里隐藏（只按你自己的应答判断）',
+              value: pref.showDeclinedEvents,
+              onChanged: (v) =>
+                  _save(copyCalendarPreference(pref, showDeclinedEvents: v)),
+            ),
             const LifeSectionHeader(
               padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
               title: '提醒',

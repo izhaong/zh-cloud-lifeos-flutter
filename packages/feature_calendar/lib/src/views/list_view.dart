@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../design/calendar_tokens.dart';
 import '../logic/lunar_label.dart';
+import '../logic/declined_filter.dart';
 import '../providers.dart';
 
 /// 日程**列表视图**（#399；矩阵 I17）。
@@ -111,7 +112,17 @@ final _listWindowProvider =
     StreamProvider.family<List<CalendarEvent>, (DateTime, DateTime)>(
         (ref, window) {
   final repo = ref.watch(calendarRepositoryProvider);
-  return repo.watchEvents(from: window.$1, to: window.$2);
+  // #645：列表档自己查仓库（不走 occurrencesProvider），所以「显示已拒绝日程」
+  // 这条过滤在这里也要接一次，否则同一偏好在四档里只有三档生效。
+  final pref = ref.watch(preferenceProvider).value ?? CalendarPreference.defaults;
+  final memberId = ref.watch(currentMemberIdProvider);
+  return repo
+      .watchEvents(from: window.$1, to: window.$2)
+      .map((events) => filterDeclined(
+            events,
+            showDeclinedEvents: pref.showDeclinedEvents,
+            memberId: memberId,
+          ));
 });
 
 class _ListRow {

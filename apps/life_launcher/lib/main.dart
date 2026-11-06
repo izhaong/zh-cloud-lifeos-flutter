@@ -211,6 +211,18 @@ Future<void> main(List<String> args) async {
   // #575：「显示 → 前往」——清单快照由 feature_task 发布，点击经 request 回到页面。
   final menuGoToLists = ValueNotifier<List<LifeMenuGoToTarget>>(const []);
   final menuGoToRequest = ValueNotifier<String?>(null);
+  // #645：「显示已拒绝日程」的判据要看「我」是谁——在 runApp 前把 authPort 的
+  // 会话读一次，把 userId 打进日历侧的同步 Provider（默认 null ⇒ 不隐藏）。
+  // 有 timeout 兜底，避免冷启动卡在钥匙串；未登录或读不到都视为 null。
+  String? currentMemberId;
+  try {
+    final s = await authPort
+        .currentSession()
+        .timeout(const Duration(seconds: 2), onTimeout: () => null);
+    currentMemberId = s?.userId;
+  } catch (_) {
+    currentMemberId = null;
+  }
   runApp(
     ProviderScope(
       overrides: [
@@ -277,6 +289,9 @@ Future<void> main(List<String> args) async {
           (ref) => openTaskSettingsWindow,
         ),
         authPortProvider.overrideWithValue(authPort),
+        // #645：日历侧「显示已拒绝日程」需要「我是谁」才能判定；把 main 顶部读到的
+        // userId 打进这个同步 Provider（未登录 ⇒ null ⇒ 不隐藏，Apple 语义）。
+        currentMemberIdProvider.overrideWithValue(currentMemberId),
         syncPortProvider.overrideWithValue(taskSyncRound),
         // #595：同步状态只在设置弹层可见（待发条数 + 上次成功同步时刻）。
         syncStatusProvider.overrideWith(
