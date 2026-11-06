@@ -3,6 +3,15 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 
+/// #658：列表行内相对日期的时钟注入缝。
+///
+/// 生产取 `DateTime.now`；测试用 `ProviderScope.overrides` 固定到某一刻，
+/// 否则「今天 / 昨天 / 星期三」会随运行当天漂移，断言钉不死。
+final noteClockProvider = Provider<DateTime Function()>(
+  (ref) => DateTime.now,
+  name: 'noteClockProvider',
+);
+
 /// 仓库契约 Provider：feature_note 内定义与消费，组合根（life_launcher）注入实现。
 ///
 /// 默认抛错：未注入即显式失败（照 reminderRepositoryProvider 口径，契约 §5）。
