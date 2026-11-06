@@ -22,6 +22,7 @@ export 'src/widgets/quick_reminder_dialog.dart';
 export 'src/widgets/calendar_shortcuts.dart';
 export 'src/logic/search_filter.dart';
 export 'src/logic/preference_copy.dart';
+export 'src/logic/declined_filter.dart';
 export 'src/logic/scheduled_reminder_projection.dart';
 export 'src/logic/local_holidays.dart';
 export 'src/logic/double_tap_create.dart';
