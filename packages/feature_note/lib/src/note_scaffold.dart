@@ -69,6 +69,8 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
         ref.watch(noteFoldersProvider).value ?? const <NoteFolder>[];
     final gallery = ref.watch(noteGalleryModeProvider);
     final settings = ref.watch(noteSettingsProvider);
+    // #658：相对日期以同一时刻为准，整屏文案不会各算各的。
+    final now = ref.watch(noteClockProvider)();
     // 日期节头（#392）：设置里的「按日期分组备忘录」勾选是总闸，Apple 在
     // 「按标题」档下自己也不摆节头，两条都得让位。
     final groupByYear =
@@ -151,6 +153,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                         child: _NoteList(
                           gallery: gallery,
                           groupByYear: groupByYear,
+                          now: now,
                           emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                           onSearch: (value) => ref
                               .read(noteSearchQueryProvider.notifier)
@@ -179,6 +182,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                 : _NoteList(
                     gallery: gallery,
                     groupByYear: groupByYear,
+                    now: now,
                     emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                     onSearch: (value) => ref
                         .read(noteSearchQueryProvider.notifier)
@@ -615,8 +619,10 @@ class _NoteList extends StatelessWidget {
     required this.emptyLabel,
     required this.gallery,
     required this.groupByYear,
+    required this.now,
   });
 
+  final DateTime now;
   final List<Note> notes;
   final ValueChanged<Note> onTap;
   final ValueChanged<Note> onPin;
@@ -725,6 +731,7 @@ class _NoteList extends StatelessWidget {
         final note = row as Note;
         return _NoteRow(
           note: note,
+          now: now,
           onTap: onTap,
           onPin: onPin,
           onDelete: onDelete,
@@ -763,19 +770,21 @@ class _NoteList extends StatelessWidget {
 class _NoteRow extends StatelessWidget {
   const _NoteRow({
     required this.note,
+    required this.now,
     required this.onTap,
     required this.onPin,
     required this.onDelete,
   });
 
   final Note note;
+  final DateTime now;
   final ValueChanged<Note> onTap;
   final ValueChanged<Note> onPin;
   final ValueChanged<Note> onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final date = _noteDateLabel(note);
+    final date = _noteDateLabel(note, now: now);
     return GestureDetector(
       onTap: () => onTap(note),
       child: ColoredBox(
@@ -877,12 +886,31 @@ class _NoteYearHeader extends StatelessWidget {
   }
 }
 
-/// 行内编辑日期文案（`2026/3/5`）。`clientUpdatedAt <= 0` 是未落库/无编辑时间，
-/// 返回 null 而不是显示 1970/1/1 这种假日期。
-String? _noteDateLabel(Note note) {
+const _weekdayLabels = <int, String>{
+  1: '星期一',
+  2: '星期二',
+  3: '星期三',
+  4: '星期四',
+  5: '星期五',
+  6: '星期六',
+  7: '星期日',
+};
+
+/// 行内编辑日期（#658 / TC-NOTE-UI-117）：Apple 备忘录对近期笔记写相对日期
+/// 「今天 / 昨天 / 星期X」，同年的较早笔记写「M月d日」，跨年写「yyyy年M月d日」。
+/// now 由 noteClockProvider 注入，测试固定到某一刻以免文案随运行当天漂移。
+/// `clientUpdatedAt <= 0` 是未落库/无编辑时间，返回 null 而不是显示 1970/1/1 假日期。
+String? _noteDateLabel(Note note, {required DateTime now}) {
   if (note.clientUpdatedAt <= 0) return null;
   final edited = DateTime.fromMillisecondsSinceEpoch(note.clientUpdatedAt);
-  return '${edited.year}/${edited.month}/${edited.day}';
+  final startOfToday = DateTime(now.year, now.month, now.day);
+  final startOfEdited = DateTime(edited.year, edited.month, edited.day);
+  final days = startOfToday.difference(startOfEdited).inDays;
+  if (days == 0) return '今天';
+  if (days == 1) return '昨天';
+  if (days >= 2 && days <= 6) return _weekdayLabels[edited.weekday]!;
+  if (edited.year == now.year) return '${edited.month}月${edited.day}日';
+  return '${edited.year}年${edited.month}月${edited.day}日';
 }
 
 class _EmptyHint extends StatelessWidget {

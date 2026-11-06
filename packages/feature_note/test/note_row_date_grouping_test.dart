@@ -8,10 +8,15 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// 每面都带反向对照：只断「有日期的行有日期」是恒真的，必须同时量「无编辑时间的行没有」，
 /// 以及「节头关掉时行内日期仍在」。
+/// #658 起行内日期改相对文案（TC-NOTE-UI-117），本文件固定 noteClockProvider
+/// 到 2026-03-05，免得断言随运行当天漂移；分组面本身不变。
 void main() {
   final dateLike = find.byWidgetPredicate(
     (w) =>
-        w is Text && RegExp(r'^\d{4}/\d{1,2}/\d{1,2}$').hasMatch(w.data ?? ''),
+        w is Text &&
+        RegExp(
+          r'^(今天|昨天|星期[一二三四五六日]|\d{1,2}月\d{1,2}日|\d{4}年\d{1,2}月\d{1,2}日)$',
+        ).hasMatch(w.data ?? ''),
   );
   final yearHeader = find.byWidgetPredicate(
     (w) => w is Text && RegExp(r'^\d{4} 年$').hasMatch(w.data ?? ''),
@@ -40,6 +45,8 @@ void main() {
       ProviderScope(
         overrides: [
           noteRepositoryProvider.overrideWithValue(repo),
+          // #658：行内日期是相对文案，固定时钟否则断言随运行当天漂移。
+          noteClockProvider.overrideWithValue(() => DateTime(2026, 3, 5, 12)),
           if (sortMode != null)
             noteSettingsProvider.overrideWith(
               () => _FixedSortNotifier(sortMode),
@@ -72,7 +79,8 @@ void main() {
     ]);
     await pump(tester, repo);
 
-    expect(find.text('2026/3/5'), findsOneWidget);
+    // #658：固定时钟 2026-03-05 ⇒ 这行写「今天」，不再是 2026/3/5。
+    expect(find.text('今天'), findsOneWidget);
     expect(find.byKey(const ValueKey('note_row_date_n1')), findsOneWidget);
     // 反向对照：n2 的行没日期，且整屏只有一条日期文案（不是两条都在、只是文案不同）。
     expect(find.byKey(const ValueKey('note_row_date_n2')), findsNothing);
@@ -149,8 +157,8 @@ void main() {
     await pump(tester, repo, sortMode: NoteSortMode.title);
 
     expect(yearHeader, findsNothing);
-    expect(find.text('2026/3/5'), findsOneWidget);
-    expect(find.text('2023/7/30'), findsOneWidget);
+    expect(find.text('今天'), findsOneWidget);
+    expect(find.text('2023年7月30日'), findsOneWidget);
     // 标题档确实按标题排（分组关掉不该顺带改掉排序）。
     expect(
       tester.getTopLeft(find.text('Alpha')).dy,
