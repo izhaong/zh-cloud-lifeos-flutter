@@ -96,13 +96,21 @@ class NoteSidebar extends ConsumerWidget {
         ],
         // #393：标签区。无标签时整节不摆（Apple 也不给空分区挂标题）；
         // 有标签则每行 = 该标签下的笔记数，点选 = 跨文件夹按标签浏览。
+        //
+        // #661：Apple 官方指南里**没有**「新建空标签」入口——标签是在备忘录
+        // 正文键入 `#` + 单词（或从建议标签列表选取）时创建的，且「将标签从
+        // 所有使用它的备忘录移除，该标签也会从『标签』中移除」。本仓的创建
+        // 面已由编辑器标签输入承载（TC-NOTE-UI-106）；在这里摆一个「新建标签」
+        // 只会造出点完立刻消失的死控件。所以侧栏只补**重命名 / 删除**两个
+        // 管理动作，与文件夹行同款：Control-click 上下文菜单 + 显式「…」按钮。
         if (tags.isNotEmpty) ...[
           _sectionHeader(context, keyName: 'note_sidebar_section_tags', title: '标签'),
           for (final tag in tags)
             _tagTile(
               context,
+              ref,
               key: ValueKey('note_sidebar_tag_${tag.name}'),
-              name: tag.name,
+              tag: tag,
               selected: selectedTag == tag.name,
               count: counts.tagCount(tag.name),
               countKey: 'note_tag_count_${tag.name}',
@@ -317,22 +325,26 @@ class NoteSidebar extends ConsumerWidget {
     );
   }
 
-  /// 标签行（#393）：与文件夹行同款排布，但没有重命名/删除——标签本身还没有
-  /// 独立的增删端口（矩阵 N13 的对等面是「按标签浏览」，管理标签另单）。
+  /// 标签行（#393 浏览面 + #661 管理面）：与文件夹行同款排布与同款双入口。
+  ///
+  /// 徽章与「…」必须并排进同一个 trailing：`CupertinoListTile` 只有一个槽位。
+  /// 标签仍是笔记 `tagNames` 的派生视图，所以这里只发起批量改写，不建独立实体。
   Widget _tagTile(
-    BuildContext context, {
+    BuildContext context,
+    WidgetRef ref, {
     required Key key,
-    required String name,
+    required NoteTag tag,
     required bool selected,
     required int count,
     required String countKey,
     required VoidCallback onTap,
   }) {
+    final name = tag.name;
     final color = CupertinoColors.label.resolveFrom(context);
     final accent = selected
         ? CupertinoColors.systemBlue.resolveFrom(context)
         : color;
-    return CupertinoListTile(
+    final tile = CupertinoListTile(
       key: key,
       padding: const EdgeInsetsDirectional.only(start: 16, end: 16),
       leading: Icon(CupertinoIcons.tag, size: 20, color: accent),
@@ -347,8 +359,158 @@ class NoteSidebar extends ConsumerWidget {
         ),
       ),
       onTap: onTap,
-      trailing: _countBadge(context, countKey: countKey, count: count),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _countBadge(context, countKey: countKey, count: count),
+          CupertinoButton(
+            key: ValueKey('note_tag_more_$name'),
+            padding: const EdgeInsets.all(6),
+            minimumSize: Size.zero,
+            onPressed: () => _showTagActions(context, ref, tag),
+            child: const Icon(
+              CupertinoIcons.ellipsis,
+              size: 16,
+              color: CupertinoColors.secondaryLabel,
+            ),
+          ),
+        ],
+      ),
     );
+    // Apple 用 Control-click 标签 → 重新命名 / 删除；与文件夹行保持同一手感。
+    return CupertinoContextMenu(
+      key: ValueKey('note_tag_menu_$name'),
+      actions: <Widget>[
+        CupertinoContextMenuAction(
+          key: ValueKey('note_tag_rename_$name'),
+          onPressed: () {
+            Navigator.of(context).pop();
+            _renameTag(context, ref, tag);
+          },
+          child: const Text('重新命名标签'),
+        ),
+        CupertinoContextMenuAction(
+          key: ValueKey('note_tag_delete_$name'),
+          isDestructiveAction: true,
+          onPressed: () {
+            Navigator.of(context).pop();
+            _deleteTag(context, ref, tag);
+          },
+          child: const Text('删除标签'),
+        ),
+      ],
+      child: tile,
+    );
+  }
+
+  /// 标签行「…」动作表（#661）：与 `_showFolderActions` 同一形状，
+  /// 上下文菜单在桌面端不易发现、widget 测试里也难稳定驱动，故给显式入口。
+  Future<void> _showTagActions(
+      BuildContext context, WidgetRef ref, NoteTag tag) async {
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text('#${tag.name}'),
+        actions: [
+          CupertinoActionSheetAction(
+            key: ValueKey('note_tag_action_rename_${tag.name}'),
+            onPressed: () => Navigator.of(ctx).pop('rename'),
+            child: const Text('重新命名标签'),
+          ),
+          CupertinoActionSheetAction(
+            key: ValueKey('note_tag_action_delete_${tag.name}'),
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(ctx).pop('delete'),
+            child: const Text('删除标签'),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (action == 'rename' && context.mounted) {
+      await _renameTag(context, ref, tag);
+    }
+    if (action == 'delete' && context.mounted) {
+      await _deleteTag(context, ref, tag);
+    }
+  }
+
+  /// 重新命名标签（#661）：Apple「使用了该标签的所有备忘录和智能文件夹都会
+  /// 更新」由仓库的批量改写完成；这里额外把选中态迁到新名——否则侧栏高亮
+  /// 指向一个已不存在的标签，`visibleNotesProvider` 会把列表过滤成空。
+  Future<void> _renameTag(
+      BuildContext context, WidgetRef ref, NoteTag tag) async {
+    final controller = TextEditingController(text: tag.name);
+    controller.selection =
+        TextSelection(baseOffset: 0, extentOffset: tag.name.length);
+    final name = await showCupertinoDialog<String>(
+      context: context,
+      builder: (ctx) => LifeAlertDialog(
+        title: const Text('重新命名标签'),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            key: const ValueKey('note_rename_tag_name'),
+            controller: controller,
+            autofocus: true,
+            placeholder: '名称',
+            onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+          ),
+        ),
+        actions: [
+          LifeDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('取消'),
+          ),
+          LifeDialogAction(
+            key: const ValueKey('note_rename_tag_ok'),
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('好'),
+          ),
+        ],
+      ),
+    );
+    final next = (name ?? '').trim();
+    if (next.isEmpty || next == tag.name) return;
+    await ref.read(noteRepositoryProvider).renameTag(tag.name, next);
+    if (ref.read(selectedNoteTagProvider) == tag.name) {
+      ref.read(selectedNoteTagProvider.notifier).select(next);
+    }
+  }
+
+  /// 删除标签（#661）：Apple「标签会从使用了这些标签的所有备忘录和智能文件夹
+  /// 中删除」。删掉当前正选中的标签时清空选中，回到「所有备忘录」。
+  Future<void> _deleteTag(
+      BuildContext context, WidgetRef ref, NoteTag tag) async {
+    final ok = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (ctx) => LifeAlertDialog(
+        title: const Text('删除标签'),
+        content: Text(
+            '「${tag.name}」将从所有使用了它的备忘录和智能文件夹中移除。'),
+        actions: [
+          LifeDialogAction(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          LifeDialogAction(
+            key: const ValueKey('note_delete_tag_ok'),
+            isDestructiveAction: true,
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(noteRepositoryProvider).deleteTag(tag.name);
+    if (ref.read(selectedNoteTagProvider) == tag.name) {
+      ref.read(selectedNoteTagProvider.notifier).select(null);
+    }
   }
 
   /// 「…」按钮的动作表（#373）。

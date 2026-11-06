@@ -50,6 +50,19 @@ abstract interface class NoteRepository {
 
   /// 标题/纯文本搜索（跳过锁定笔记密文）。
   Future<List<Note>> search(String keyword, {int limit = 50});
+
+  /// 重新命名标签（#661）：所有使用 [oldName] 的备忘录与智能文件夹条件同步
+  /// 改为 [newName]。空 [newName] 或与原名相同 = 忽略。
+  ///
+  /// 标签是从存活笔记的 `tagNames` 派生的视图，没有独立实体；改名就是批量
+  /// 改写引用。UI 负责把当前选中的标签一起迁移，否则列表会被旧名过滤成空。
+  Future<void> renameTag(String oldName, String newName);
+
+  /// 删除标签（#661）：从所有使用了 [name] 的备忘录与智能文件夹条件移除。
+  ///
+  /// 含「最近删除」里的笔记也一并改写：Apple 说从「所有使用了这些标签的
+  /// 备忘录」中删除，只改活笔记会让恢复的笔记把已删标签复活出来。
+  Future<void> deleteTag(String name);
 }
 
 /// 内存实现：壳层与 UI 冒烟 + 仓库契约测试的参考实现。
@@ -198,6 +211,57 @@ final class InMemoryNoteRepository implements NoteRepository {
     return hits;
   }
 
+  @override
+  Future<void> renameTag(String oldName, String newName) async {
+    _rewriteTags(oldName, newName);
+  }
+
+  @override
+  Future<void> deleteTag(String name) async {
+    _rewriteTags(name, null);
+  }
+
+  /// 两端实现共用 [rewriteTagNames]/[rewriteTagFilter] 纯规则，保证「内存版绿、
+  /// 落盘版另一套行为」不会重演。整轮只在真的改动后才 [_notify]。
+  void _rewriteTags(String name, String? replacement) {
+    if (name.isEmpty || replacement == name) return;
+    if (replacement != null && replacement.isEmpty) return;
+    var changed = false;
+
+    // 含「最近删除」里的笔记：只改活笔记的话，恢复后旧标签会复活。
+    for (var i = 0; i < _notes.length; i++) {
+      final next = rewriteTagNames(
+        _notes[i].tagNames,
+        name: name,
+        replacement: replacement,
+      );
+      if (next == null) continue;
+      _notes[i] = _copyWithTags(_notes[i], next);
+      changed = true;
+    }
+
+    for (var i = 0; i < _folders.length; i++) {
+      final folder = _folders[i];
+      if (!folder.smart) continue;
+      final next = rewriteTagFilter(
+        folder.filterJson,
+        name: name,
+        replacement: replacement,
+      );
+      if (next == null) continue;
+      _folders[i] = NoteFolder(
+        id: folder.id,
+        parentId: folder.parentId,
+        name: folder.name,
+        smart: folder.smart,
+        filterJson: next,
+        sortOrder: folder.sortOrder,
+      );
+      changed = true;
+    }
+    if (changed) _notify();
+  }
+
   // ---- 内部 ----
 
   /// 保存归一（TC-NOTE-KR-102/105）：未锁定抽纯文本 + 清点清单；
@@ -252,6 +316,25 @@ final class InMemoryNoteRepository implements NoteRepository {
         tagNames: n.tagNames,
         sortOrder: n.sortOrder,
         deletedAt: at,
+        revision: n.revision,
+        clientUpdatedAt: n.clientUpdatedAt,
+      );
+
+  /// [Note] 没有 copyWith（模型是 immutable 且字段与落库表一一对应），
+  /// 标签批量改写只能全量重建；其余字段原样带过，尤其 `deletedAt`/`revision`。
+  Note _copyWithTags(Note n, List<String> tags) => Note(
+        id: n.id,
+        folderId: n.folderId,
+        title: n.title,
+        bodyDelta: n.bodyDelta,
+        bodyText: n.bodyText,
+        pinned: n.pinned,
+        locked: n.locked,
+        checklistTotal: n.checklistTotal,
+        checklistDone: n.checklistDone,
+        tagNames: tags,
+        sortOrder: n.sortOrder,
+        deletedAt: n.deletedAt,
         revision: n.revision,
         clientUpdatedAt: n.clientUpdatedAt,
       );
