@@ -11,7 +11,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// 平铺按钮、没有这个入口 ⇒ 能力存在但找不到，且窄屏放不下。
 ///
 /// 判据两半：入口必须存在且能到达**已实现**的能力（点「加粗」要真的改 delta）；
-/// 未实现的能力（表格/字号/画笔/对齐）不许摆成占位——那是 #444 判过的死控件形态。
+/// 未实现的能力不许摆成占位——那是 #444 判过的死控件形态。
+/// #664 起标题样式/删除线/对齐/有序列表已接线（见 note_format_advanced_test.dart），
+/// 仍未实现的只剩表格（矩阵 N04 后置）、字号、画笔（N08 范围外）。
 void main() {
   tearDown(() {
     final view =
@@ -68,7 +70,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('工具栏有「格式」入口，菜单列出已实现的五项能力', (tester) async {
+  testWidgets('工具栏有「格式」入口，菜单列出已实现的能力', (tester) async {
     await openEditor(tester);
     await openFormatMenu(tester);
 
@@ -79,6 +81,11 @@ void main() {
       'note_format_underline',
       'note_format_link',
       'note_format_checklist',
+      // #664：新增四项，均已在 note_format_advanced_test.dart 断言真的改 delta
+      'note_format_heading',
+      'note_format_strike',
+      'note_format_align',
+      'note_format_ordered_list',
     ]) {
       expect(find.byKey(ValueKey(key)), findsOneWidget, reason: '缺 $key');
     }
@@ -90,7 +97,7 @@ void main() {
     // 先证菜单真的在：否则「找不到占位项」会因为整张菜单没弹而恒真。
     expect(find.byKey(const Key('note_editor_format_sheet')), findsOneWidget);
 
-    for (final label in const ['表格', '字号', '画笔', '对齐', '标题']) {
+    for (final label in const ['表格', '字号', '画笔']) {
       expect(
         find.descendant(
           of: find.byKey(const Key('note_editor_format_sheet')),
