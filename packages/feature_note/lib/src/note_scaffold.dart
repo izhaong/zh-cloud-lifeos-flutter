@@ -9,6 +9,7 @@ import 'package:app_core/app_core.dart';
 
 import 'note_editor_page.dart';
 import 'note_recycle_page.dart';
+import 'note_search_highlight.dart';
 import 'note_settings_page.dart';
 import 'note_sidebar.dart';
 import 'providers.dart';
@@ -154,6 +155,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                         child: _NoteList(
                           gallery: gallery,
                           groupByDate: groupByDate,
+                          query: query,
                           now: now,
                           emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                           onSearch: (value) => ref
@@ -183,6 +185,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                 : _NoteList(
                     gallery: gallery,
                     groupByDate: groupByDate,
+                    query: query,
                     now: now,
                     emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                     onSearch: (value) => ref
@@ -617,6 +620,7 @@ class _NoteList extends StatelessWidget {
     required this.onPin,
     required this.onDelete,
     required this.onSearch,
+    required this.query,
     required this.emptyLabel,
     required this.gallery,
     required this.groupByDate,
@@ -629,6 +633,9 @@ class _NoteList extends StatelessWidget {
   final ValueChanged<Note> onPin;
   final ValueChanged<Note> onDelete;
   final ValueChanged<String> onSearch;
+
+  /// 搜索词（已 trim）：非空时列表标题与摘要里的命中词加底色（#660）。
+  final String query;
   final String emptyLabel;
   final bool gallery;
 
@@ -694,10 +701,10 @@ class _NoteList extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    NoteMatchText(
                       note.title,
+                      query: query,
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -705,10 +712,10 @@ class _NoteList extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Expanded(
-                      child: Text(
+                      child: NoteMatchText(
                         note.locked ? '已锁定' : note.bodyText,
+                        query: query,
                         maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 13,
                           color: CupertinoColors.secondaryLabel,
@@ -732,6 +739,7 @@ class _NoteList extends StatelessWidget {
         final note = row as Note;
         return _NoteRow(
           note: note,
+          query: query,
           now: now,
           onTap: onTap,
           onPin: onPin,
@@ -789,6 +797,7 @@ class _NoteList extends StatelessWidget {
 class _NoteRow extends StatelessWidget {
   const _NoteRow({
     required this.note,
+    required this.query,
     required this.now,
     required this.onTap,
     required this.onPin,
@@ -796,6 +805,9 @@ class _NoteRow extends StatelessWidget {
   });
 
   final Note note;
+
+  /// 搜索词（已 trim）：非空时标题与摘要里的命中词加底色（#660）。
+  final String query;
   final DateTime now;
   final ValueChanged<Note> onTap;
   final ValueChanged<Note> onPin;
@@ -820,10 +832,10 @@ class _NoteRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    NoteMatchText(
                       note.title,
+                      query: query,
                       maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -838,10 +850,10 @@ class _NoteRow extends StatelessWidget {
                           color: CupertinoColors.secondaryLabel,
                         ),
                       ),
-                    Text(
+                    NoteMatchText(
                       note.locked ? '已锁定' : note.bodyText,
+                      query: query,
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 13,
                         color: CupertinoColors.secondaryLabel,

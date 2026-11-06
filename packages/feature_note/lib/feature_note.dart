@@ -7,6 +7,7 @@ export 'src/providers.dart';
 export 'src/note_tab_entry.dart';
 export 'src/note_scaffold.dart';
 export 'src/note_sidebar.dart';
+export 'src/note_search_highlight.dart';
 export 'src/note_editor_page.dart';
 export 'src/note_recycle_page.dart';
 export 'src/note_settings_page.dart';

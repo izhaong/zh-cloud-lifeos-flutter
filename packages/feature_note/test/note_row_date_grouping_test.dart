@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// #391 / #659：备忘录列表行补编辑日期、列表按相对日期分节
-/// （矩阵 N12/N25，TC-NOTE-UI-104 / TC-NOTE-UI-118）。
+/// （矩阵 N12/N25，TC-NOTE-UI-104 / TC-NOTE-UI-119）。
 ///
 /// #658 起行内日期改相对文案（TC-NOTE-UI-117），#659 起节头也改
 /// 「今天 / 昨天 / 本周 / 更早」。两者会出现同名文案，所以判据一律按 Key 区分：
@@ -116,7 +116,7 @@ void main() {
     expect(find.text('无日期'), findsOneWidget);
   });
 
-  testWidgets('TC-NOTE-UI-118 列表按今天/昨天/本周/更早四个相对桶分节', (tester) async {
+  testWidgets('TC-NOTE-UI-119 列表按今天/昨天/本周/更早四个相对桶分节', (tester) async {
     final repo = await seed([
       const Note(
         id: 'n0',
