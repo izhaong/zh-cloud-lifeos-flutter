@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:feature_calendar/feature_calendar.dart';
+import 'package:feature_calendar/src/design/calendar_tokens.dart';
 import 'package:kalender/kalender.dart' as kalender;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -140,6 +141,79 @@ void main() {
     );
     final now = DateTime.now();
     expect(lunarDayLabel(DateTime(now.year, now.month, 1)).isNotEmpty, isTrue);
+  });
+
+  // #607 档 A：TC-CAL-UI-115 的「红色」那一半此前只有实现、没有量。
+  // 旧用例传的 `preference:` 只进 `CalendarViewCallbacks`，而月视图读的是
+  // `preferenceProvider`（`month_view.dart:78-81` ⇒ `providers.dart:81` 走
+  // `repo.watchPreference()`）⇒ 那条「CHINESE 偏好 → 渲染农历」其实压根没换成
+  // CHINESE，断的是纯函数返回值，属恒真。这一条改成 override 真偏好，
+  // 并把「初一红 / 初二不红 / 关掉就不渲染」三面都量上。
+  Future<void> pumpMonthWithPreference(
+    WidgetTester tester,
+    CalendarPreference preference,
+  ) async {
+    prefs = await SharedPreferences.getInstance();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          calendarRepositoryProvider.overrideWithValue(repo),
+          sidebarPrefsProvider.overrideWithValue(prefs),
+          kalenderEventsControllerProvider.overrideWithValue(controller),
+          preferenceProvider.overrideWith((ref) => Stream.value(preference)),
+          // 2026-02-17 = 正月初一 ⇒ 挂钟钉到 2 月，让那一天落进「今天所在的月」。
+          clockProvider.overrideWithValue(() => DateTime(2026, 2, 17)),
+        ],
+        child: lifeTestHost(
+          Scaffold(
+            body: CalendarMonthView(
+              viewCallbacks: CalendarViewCallbacks(
+                repo: repo,
+                preference: preference,
+                setDraft: (_) {},
+              ),
+              eventsController: controller,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('TC-CAL-UI-115 初一的农历字是红色，初二不是，关掉偏好不渲染', (
+    tester,
+  ) async {
+    await pumpMonthWithPreference(
+      tester,
+      const CalendarPreference(alternateCalendar: AlternateCalendar.chinese),
+    );
+
+    final first = tester.widget<Text>(find.text('初一').first);
+    expect(
+      first.style?.color,
+      CalendarTokens.systemRed,
+      reason: '契约 §5.4：初一红色；改实现里的 color 会让这条红',
+    );
+    // 反向对照：同月的初二必须是次要色（否则「全片变红」也判绿）。
+    final second = tester.widget<Text>(find.text('初二').first);
+    expect(
+      second.style?.color,
+      CalendarTokens.labelSecondary,
+      reason: '只有初一标红；初二跟着红说明判据没区分开',
+    );
+  });
+
+  // 恒真防线单独一条：同一份夹具只换偏好，若不开农历也画得出「初一」，
+  // 上面两条断言就都是白判。（与上一条分开挂树：同一 test 里连着 pump 两次
+  // 新作用域时，旧流的首帧值还没落到 `.value`，判据会串。）
+  testWidgets('TC-CAL-UI-115 反向对照：不开农历偏好就不渲染', (tester) async {
+    await pumpMonthWithPreference(tester, const CalendarPreference());
+    expect(
+      find.text('初一'),
+      findsNothing,
+      reason: '渲染开关必须真由偏好决定，否则颜色断言是恒真的',
+    );
   });
 
   // TC-CAL-UI-131：点/双击日 → 全天草稿
