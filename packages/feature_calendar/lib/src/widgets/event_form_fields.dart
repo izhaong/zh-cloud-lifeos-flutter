@@ -12,6 +12,7 @@ import '../logic/calendar_ids.dart';
 import '../logic/recurrence_ui.dart';
 import '../logic/alert_triggers.dart';
 import '../providers.dart';
+import 'event_invitees_sheet.dart';
 
 /// 日程表单字段（契约 §5.4 event_form_fields.dart；F-08）。
 ///
@@ -19,7 +20,8 @@ import '../providers.dart';
 /// 重复（预设 + 自定义接 F-10）、行程时间、提醒（F-11）、日历、
 /// 显示为忙碌/空闲、私密、URL、备注。Cupertino 化（#130）：
 /// 文本框 CupertinoTextField、开关 CupertinoSwitch、下拉改 ActionSheet。
-/// 受邀者字段归 F-17（本地无邀请人搜索）。
+/// 受邀者字段（F-17）：面板在 `event_invitees_sheet.dart`，读写走服务端；
+/// 「按号码/邮件搜索成员再加进来」这一半还没有（日历侧无解析端点，见 FL #657）。
 class EventFormFields extends ConsumerStatefulWidget {
   const EventFormFields({
     super.key,
@@ -260,6 +262,8 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
     final currentCalendarId = calendars.any((c) => c.id == _e.calendarId)
         ? _e.calendarId
         : defaultCalendarOf(calendars)?.id;
+    // 受邀者读写挂在服务端编号上；草稿（无 remoteId）时面板进不去。
+    final serverEventId = int.tryParse(_e.remoteId ?? '');
 
     return ListView(
       key: const Key('event_form_fields'),
@@ -460,6 +464,24 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
           placeholder: '备注',
           maxLines: 3,
           onChanged: (v) => _emit(_copyWith(_e, notes: v)),
+        ),
+        // 15. 受邀者（F-17 云侧）。面板读写都以服务端为准，所以只有拿到
+        // 服务端编号（remoteId）的日程才进得去；草稿态给显式文案而不是静默禁用。
+        _FieldRow(
+          rowKey: const Key('event_field_invitees'),
+          title: '受邀者',
+          trailing: CupertinoButton(
+            key: const Key('event_invitees_open'),
+            minimumSize: Size.zero,
+            padding: EdgeInsets.zero,
+            onPressed: serverEventId == null
+                ? null
+                : () => showInviteesSheet(context, eventId: serverEventId),
+            child: Text(
+              serverEventId == null ? '保存后可邀请' : '${_e.invitees.length} 人',
+              style: const TextStyle(fontSize: 15),
+            ),
+          ),
         ),
         if (titleEmpty && widget.showTitleRequired)
           Padding(
