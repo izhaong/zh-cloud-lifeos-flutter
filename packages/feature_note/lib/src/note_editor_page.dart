@@ -235,7 +235,9 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
 
   /// #420（矩阵 N02/N05）：Apple 备忘录把这些能力收在「格式」菜单里，本仓此前
   /// 是 5 个平铺按钮——窄屏放不下、能力也找不到。菜单只列**已实现**的能力：
-  /// 表格/字号/笔在 N02 里尚未裁定为对等范围，摆成占位就是死控件（#444 的教训）。
+  /// 表格在矩阵 N04 判「后置」、画笔在 N08 判范围外，摆成占位就是死控件
+  /// （#444 的教训）。#664：标题样式/删除线/对齐/有序列表都有 quill 属性可
+  /// 直接消费，补进菜单；标题样式与对齐有多档，收进二级面板，主菜单仍一屏可放下。
   Future<void> _showFormatMenu() async {
     final action = await showCupertinoModalPopup<String>(
       context: context,
@@ -268,6 +270,26 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             onPressed: () => Navigator.of(sheetContext).pop('checklist'),
             child: const Text('清单'),
           ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_heading'),
+            onPressed: () => Navigator.of(sheetContext).pop('heading'),
+            child: const Text('标题样式'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_strike'),
+            onPressed: () => Navigator.of(sheetContext).pop('strike'),
+            child: const Text('删除线'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_align'),
+            onPressed: () => Navigator.of(sheetContext).pop('align'),
+            child: const Text('对齐'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_ordered_list'),
+            onPressed: () => Navigator.of(sheetContext).pop('ordered_list'),
+            child: const Text('有序列表'),
+          ),
         ],
         cancelButton: LifeActionSheetAction(
           isDefaultAction: true,
@@ -287,7 +309,102 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         await _addLink();
       case 'checklist':
         _toggleChecklist();
+      case 'heading':
+        await _showHeadingMenu();
+      case 'strike':
+        _body.formatSelection(quill.Attribute.strikeThrough);
+      case 'align':
+        await _showAlignmentMenu();
+      case 'ordered_list':
+        _body.formatSelection(quill.Attribute.ol);
     }
+  }
+
+  /// #664：标题样式二级面板。`Attribute.header`（value=null）是 quill 工具栏
+  /// 同款的「回到正文」撤销档，不是占位项。
+  Future<void> _showHeadingMenu() async {
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) => LifeActionSheet(
+        key: const Key('note_editor_heading_sheet'),
+        title: const Text('标题样式'),
+        actions: [
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_heading_body'),
+            onPressed: () => Navigator.of(sheetContext).pop('body'),
+            child: const Text('正文'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_heading_1'),
+            onPressed: () => Navigator.of(sheetContext).pop('h1'),
+            child: const Text('标题 1'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_heading_2'),
+            onPressed: () => Navigator.of(sheetContext).pop('h2'),
+            child: const Text('标题 2'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_heading_3'),
+            onPressed: () => Navigator.of(sheetContext).pop('h3'),
+            child: const Text('标题 3'),
+          ),
+        ],
+        cancelButton: LifeActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    final attribute = switch (action) {
+      'h1' => quill.Attribute.h1,
+      'h2' => quill.Attribute.h2,
+      'h3' => quill.Attribute.h3,
+      'body' => quill.Attribute.header,
+      _ => null,
+    };
+    if (attribute != null) _body.formatSelection(attribute);
+  }
+
+  /// #664：对齐二级面板。三档都直接落到 quill 的 block 属性上。
+  Future<void> _showAlignmentMenu() async {
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) => LifeActionSheet(
+        key: const Key('note_editor_align_sheet'),
+        title: const Text('对齐'),
+        actions: [
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_align_left'),
+            onPressed: () => Navigator.of(sheetContext).pop('left'),
+            child: const Text('左对齐'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_align_center'),
+            onPressed: () => Navigator.of(sheetContext).pop('center'),
+            child: const Text('居中'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_align_right'),
+            onPressed: () => Navigator.of(sheetContext).pop('right'),
+            child: const Text('右对齐'),
+          ),
+        ],
+        cancelButton: LifeActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    final attribute = switch (action) {
+      'left' => quill.Attribute.leftAlignment,
+      'center' => quill.Attribute.centerAlignment,
+      'right' => quill.Attribute.rightAlignment,
+      _ => null,
+    };
+    if (attribute != null) _body.formatSelection(attribute);
   }
 
   Future<void> _exportMarkdown() async {
