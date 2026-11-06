@@ -123,6 +123,54 @@ class RestCalendarCollabPort implements CalendarCollabPort {
     return (body['data'] as num).toInt();
   }
 
+  @override
+  Future<List<EventInvitee>> inviteeList(int eventId) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/app-api/lifeos/calendar/event/invitee/list',
+      queryParameters: {'eventId': eventId},
+      options: await _options(),
+    );
+    return [
+      for (final e in _asList(_unwrap(resp.data)))
+        EventInvitee(
+          memberUserId: '${e['memberUserId']}',
+          displayName: e['displayName']?.toString(),
+          role: InviteeRole.fromId(e['role']?.toString()) ?? InviteeRole.required,
+          partstat: PartStat.fromId(e['partstat']?.toString()) ?? PartStat.needsAction,
+          comment: e['comment']?.toString(),
+          proposedStartAt: _date(e['proposedStartAt']),
+          proposedEndAt: _date(e['proposedEndAt']),
+          invitedAt: _date(e['invitedAt']),
+        ),
+    ];
+  }
+
+  @override
+  Future<void> removeInvitee(int eventId, String memberUserId) async {
+    // 服务端这两个参数都是 @RequestParam（不是 body），DELETE 只能走 queryParameters。
+    await _dio.delete<Map<String, dynamic>>(
+      '/app-api/lifeos/calendar/event/invitee/remove',
+      queryParameters: {'eventId': eventId, 'memberUserId': int.parse(memberUserId)},
+      options: await _options(),
+    );
+  }
+
+  @override
+  Future<void> sendInvitations(int eventId) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/app-api/lifeos/calendar/event/invitee/send',
+      data: {'eventId': eventId},
+      options: await _options(),
+    );
+  }
+
+  /// 芋道把 `LocalDateTime` 序列化成 epoch 毫秒，历史夹具里也可能是 ISO 串。
+  DateTime? _date(dynamic raw) {
+    if (raw is int) return DateTime.fromMillisecondsSinceEpoch(raw);
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
   /// .ics 端点返回 `text/calendar` 而非 CommonResult 信封，只能按纯文本取。
   /// 非 VCALENDAR 正文（网关错误页等）一律不外传，避免把整页 HTML 甩给 UI。
   Future<String> _getPlain(String path) async {

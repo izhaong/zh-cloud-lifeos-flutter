@@ -294,4 +294,25 @@ class _CollabPort implements CalendarCollabPort {
     int eventId, {
     required DateTime newStartAt,
   }) async => 99;
+
+  List<EventInvitee> invitees = [];
+  final List<(int, String)> inviteeRemoved = [];
+  final List<int> inviteeSent = [];
+
+  @override
+  Future<List<EventInvitee>> inviteeList(int eventId) async => invitees;
+
+  @override
+  Future<void> removeInvitee(int eventId, String memberUserId) async {
+    inviteeRemoved.add((eventId, memberUserId));
+    invitees = [
+      for (final i in invitees)
+        if (i.memberUserId != memberUserId) i,
+    ];
+  }
+
+  @override
+  Future<void> sendInvitations(int eventId) async {
+    inviteeSent.add(eventId);
+  }
 }
