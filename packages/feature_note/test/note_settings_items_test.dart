@@ -9,18 +9,31 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// TC-NOTE-UI-111 / #392：设置页要像 Apple 备忘录那样摆出「新备忘录开头格式」
 /// （弹出菜单）与「按日期分组备忘录」（勾选框），并且两把都有真实消费者——
-/// 分组闸驱动列表年份节头，开头格式驱动新建备忘录的光标与正文。
+/// 分组闸驱动列表相对日期节头，开头格式驱动新建备忘录的光标与正文。
+///
+/// #659 起节头写「今天 / 昨天 / 本周 / 更早」，与行内日期文案同名，所以两类
+/// 判据都按 Key 数：`note_group_*` 是节头、`note_row_date_*` 是行内日期。
+/// 固定时钟到 2026-04-10，让两条夹具分别落「本周 / 更早」两个桶。
 ///
 /// 每条都配反向对照：断「关掉了就没了」之前先证「开着时有」，否则判据恒真。
 void main() {
-  final yearHeader = find.byWidgetPredicate(
-    (w) => w is Text && RegExp(r'^\d{4} 年$').hasMatch(w.data ?? ''),
+  // 只认四个真实分桶；设置页勾选框的 `note_group_by_date` 不能算节头。
+  const groupKeys = <String>[
+    'note_group_today',
+    'note_group_yesterday',
+    'note_group_thisWeek',
+    'note_group_earlier',
+  ];
+  final groupHeader = find.byWidgetPredicate(
+    (w) =>
+        w.key is ValueKey<String> &&
+        groupKeys.contains((w.key as ValueKey<String>).value),
   );
-  // #658：行内日期改相对文案，判据同步覆盖全部五档；本用例只数「两条都在」，
-  // 不关心具体文案，所以无需固定时钟也不会随运行当天漂移。
   final rowDate = find.byWidgetPredicate(
     (w) =>
         w is Text &&
+        w.key is ValueKey<String> &&
+        (w.key as ValueKey<String>).value.startsWith('note_row_date_') &&
         RegExp(
           r'^(今天|昨天|星期[一二三四五六日]|\d{1,2}月\d{1,2}日|\d{4}年\d{1,2}月\d{1,2}日)$',
         ).hasMatch(w.data ?? ''),
@@ -69,7 +82,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [noteRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          noteRepositoryProvider.overrideWithValue(repo),
+          // #659：分桶相对此刻，固定时钟才能让「本周 / 更早」两桶不随运行日漂移。
+          noteClockProvider.overrideWithValue(() => DateTime(2026, 4, 10, 12)),
+        ],
         child: const MaterialApp(
           localizationsDelegates: [GlobalCupertinoLocalizations.delegate],
           home: NoteScaffold(),
@@ -181,12 +198,12 @@ void main() {
     }
   });
 
-  testWidgets('关掉「按日期分组备忘录」→ 年份节头消失、行内日期保留', (
+  testWidgets('关掉「按日期分组备忘录」→ 日期节头消失、行内日期保留', (
     tester,
   ) async {
     await pump(tester, await seededRepo());
-    // 开着时：2025 / 2026 各一个节头，两行都带编辑日期。
-    expect(yearHeader, findsNWidgets(2));
+    // 开着时：夹具分别落「本周」「更早」两个桶，两行都带编辑日期。
+    expect(groupHeader, findsNWidgets(2));
     expect(rowDate, findsNWidgets(2));
 
     await openSettings(tester);
@@ -195,7 +212,7 @@ void main() {
     expect(groupCheckbox(tester).value, isFalse);
     await backToList(tester);
 
-    expect(yearHeader, findsNothing, reason: '勾选关掉后不该再画年份节头');
+    expect(groupHeader, findsNothing, reason: '勾选关掉后不该再画日期节头');
     expect(
       rowDate,
       findsNWidgets(2),
@@ -207,7 +224,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('note_group_by_date')));
     await tester.pumpAndSettle();
     await backToList(tester);
-    expect(yearHeader, findsNWidgets(2));
+    expect(groupHeader, findsNWidgets(2));
   });
 
   testWidgets('开头格式「待办」→ 新建备忘录正文以未勾选清单项开头', (

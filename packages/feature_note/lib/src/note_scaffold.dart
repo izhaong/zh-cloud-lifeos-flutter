@@ -71,9 +71,10 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
     final settings = ref.watch(noteSettingsProvider);
     // #658：相对日期以同一时刻为准，整屏文案不会各算各的。
     final now = ref.watch(noteClockProvider)();
-    // 日期节头（#392）：设置里的「按日期分组备忘录」勾选是总闸，Apple 在
-    // 「按标题」档下自己也不摆节头，两条都得让位。
-    final groupByYear =
+    // 日期节头（#392 / #659）：设置里的「按日期分组备忘录」勾选是总闸，
+    // Apple 在「按标题」档下自己也不摆节头，两条都得让位。节头文案自 #659 起
+    // 改「今天 / 昨天 / 本周 / 更早」，不再按自然年。
+    final groupByDate =
         settings.groupByDate && settings.sortMode != NoteSortMode.title;
     // 排序（F-13）：custom 保持仓库序（置顶优先），title/updated 为本地偏好
     final sortedNotes = List<Note>.of(notes);
@@ -152,7 +153,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                         flex: 4,
                         child: _NoteList(
                           gallery: gallery,
-                          groupByYear: groupByYear,
+                          groupByDate: groupByDate,
                           now: now,
                           emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                           onSearch: (value) => ref
@@ -181,7 +182,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                   )
                 : _NoteList(
                     gallery: gallery,
-                    groupByYear: groupByYear,
+                    groupByDate: groupByDate,
                     now: now,
                     emptyLabel: searching ? '无匹配结果' : '没有备忘录',
                     onSearch: (value) => ref
@@ -618,7 +619,7 @@ class _NoteList extends StatelessWidget {
     required this.onSearch,
     required this.emptyLabel,
     required this.gallery,
-    required this.groupByYear,
+    required this.groupByDate,
     required this.now,
   });
 
@@ -631,9 +632,9 @@ class _NoteList extends StatelessWidget {
   final String emptyLabel;
   final bool gallery;
 
-  /// 按编辑日期分年分组（#391，矩阵 N12/N25）。按标题排序时关掉——
+  /// 按编辑日期分相对桶（#659，矩阵 N12/N25）。按标题排序时关掉——
   /// Apple 在同档下也不摆日期节头。
-  final bool groupByYear;
+  final bool groupByDate;
 
   @override
   Widget build(BuildContext context) {
@@ -727,7 +728,7 @@ class _NoteList extends StatelessWidget {
       itemCount: rows.length,
       itemBuilder: (_, i) {
         final row = rows[i];
-        if (row is int) return _NoteYearHeader(year: row);
+        if (row is _NoteGroup) return _NoteGroupHeader(group: row);
         final note = row as Note;
         return _NoteRow(
           note: note,
@@ -740,27 +741,45 @@ class _NoteList extends StatelessWidget {
     );
   }
 
-  /// 列表行序（#391）：有编辑时间的按年份倒序分桶，桶内保持传入顺序
-  /// （置顶优先等既有语义不丢）；无编辑时间的排在所有年桶之后、不摆节头。
-  /// 一条带日期的都没有时原样返回——golden 夹具即此形态，基线因此不变。
+  /// 列表行序（#659）：按「今天 / 昨天 / 本周 / 更早」四个相对桶分节，
+  /// 桶内保持传入顺序（置顶优先等既有语义不丢）；无编辑时间的排在所有桶之后、
+  /// 不摆节头。一条带日期的都没有时原样返回——golden 夹具即此形态，基线因此不变。
   List<Object> _groupedRows() {
-    if (!groupByYear) return notes;
-    final buckets = <int, List<Note>>{};
+    if (!groupByDate) return notes;
+    final buckets = <_NoteGroup, List<Note>>{};
     final undated = <Note>[];
     for (final note in notes) {
       if (note.clientUpdatedAt <= 0) {
         undated.add(note);
         continue;
       }
-      final year = DateTime.fromMillisecondsSinceEpoch(
-        note.clientUpdatedAt,
-      ).year;
-      (buckets[year] ??= <Note>[]).add(note);
+      final edited = DateTime.fromMillisecondsSinceEpoch(note.clientUpdatedAt);
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      final startOfEdited = DateTime(edited.year, edited.month, edited.day);
+      final days = startOfToday.difference(startOfEdited).inDays;
+      // 未来编辑时间（days < 0）不单独造桶，与旧笔记一起归「更早」。
+      final _NoteGroup group;
+      if (days == 0) {
+        group = _NoteGroup.today;
+      } else if (days == 1) {
+        group = _NoteGroup.yesterday;
+      } else if (days >= 2 && days <= 6) {
+        group = _NoteGroup.thisWeek;
+      } else {
+        group = _NoteGroup.earlier;
+      }
+      (buckets[group] ??= <Note>[]).add(note);
     }
     if (buckets.isEmpty) return notes;
-    final years = buckets.keys.toList()..sort((a, b) => b.compareTo(a));
+    const order = <_NoteGroup>[
+      _NoteGroup.today,
+      _NoteGroup.yesterday,
+      _NoteGroup.thisWeek,
+      _NoteGroup.earlier,
+    ];
     return <Object>[
-      for (final year in years) ...[year, ...buckets[year]!],
+      for (final group in order)
+        if (buckets.containsKey(group)) ...[group, ...buckets[group]!],
       ...undated,
     ];
   }
@@ -863,19 +882,29 @@ class _NoteRow extends StatelessWidget {
   }
 }
 
-/// 按编辑日期的年份分组的节头（#391）。
-class _NoteYearHeader extends StatelessWidget {
-  const _NoteYearHeader({required this.year});
+/// 日期分组桶（#659）：Apple 按相对日期分节，不再按自然年。
+enum _NoteGroup { today, yesterday, thisWeek, earlier }
 
-  final int year;
+const _groupLabels = <_NoteGroup, String>{
+  _NoteGroup.today: '今天',
+  _NoteGroup.yesterday: '昨天',
+  _NoteGroup.thisWeek: '本周',
+  _NoteGroup.earlier: '更早',
+};
+
+/// 相对日期分组的节头（#659）。key 沿用 `note_group_` 前缀，便于按桶定位。
+class _NoteGroupHeader extends StatelessWidget {
+  const _NoteGroupHeader({required this.group});
+
+  final _NoteGroup group;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      key: ValueKey('note_group_$year'),
+      key: ValueKey('note_group_${group.name}'),
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
       child: Text(
-        '$year 年',
+        _groupLabels[group]!,
         style: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
