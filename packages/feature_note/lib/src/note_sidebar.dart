@@ -6,6 +6,7 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:app_core/app_core.dart';
 
 import 'logic/default_folder_bootstrap.dart';
+import 'note_recycle_page.dart';
 import 'providers.dart';
 
 /// 文件夹侧栏（F-04；契约 §5、guide/iphone/01）。
@@ -140,6 +141,16 @@ class NoteSidebar extends ConsumerWidget {
               onTap: () => _selectTag(ref, tag.name),
             ),
         ],
+        // #691：最近删除在侧栏，与 Apple 备忘录同一入口，不再占导航栏。
+        CupertinoListTile(
+          key: const ValueKey('note_recycle'),
+          padding: const EdgeInsetsDirectional.only(start: 16, end: 16),
+          leading: const Icon(CupertinoIcons.trash, size: 20),
+          title: const Text('最近删除'),
+          onTap: () => Navigator.of(context).push(
+            CupertinoPageRoute<void>(builder: (_) => const NoteRecyclePage()),
+          ),
+        ),
       ],
     );
   }
