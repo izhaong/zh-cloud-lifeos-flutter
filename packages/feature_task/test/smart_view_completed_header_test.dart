@@ -66,6 +66,16 @@ void main() {
     });
   }
 
+  testWidgets('「完成」智能清单保留该行且清除可点（例外分支守卫）', (tester) async {
+    await pumpList(tester, await seed(), 'smart.completed');
+    expect(find.byKey(const ValueKey('done_count')), findsOneWidget,
+        reason: '这里计数与清除都成立，不能被顺手简化成 !list.isSmart 一并隐藏');
+    final clear = tester.widget<CupertinoButton>(
+      find.byKey(const ValueKey('clear_completed')),
+    );
+    expect(clear.onPressed, isNotNull);
+  });
+
   testWidgets('自有列表仍显示「1 项完成 · 清除」且可点（防恒真）', (tester) async {
     await pumpList(tester, await seed(), 'list.a');
     expect(find.text('1 项完成'), findsOneWidget);
