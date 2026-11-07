@@ -297,6 +297,26 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             onPressed: () => Navigator.of(sheetContext).pop('size'),
             child: const Text('字号'),
           ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_text_color'),
+            onPressed: () => Navigator.of(sheetContext).pop('text_color'),
+            child: const Text('文字颜色'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_highlight'),
+            onPressed: () => Navigator.of(sheetContext).pop('highlight'),
+            child: const Text('高亮颜色'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_indent_increase'),
+            onPressed: () => Navigator.of(sheetContext).pop('indent_increase'),
+            child: const Text('增加缩进'),
+          ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_indent_decrease'),
+            onPressed: () => Navigator.of(sheetContext).pop('indent_decrease'),
+            child: const Text('减少缩进'),
+          ),
         ],
         cancelButton: LifeActionSheetAction(
           isDefaultAction: true,
@@ -326,7 +346,75 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         _body.formatSelection(quill.Attribute.ol);
       case 'size':
         await _showFontSizeMenu();
+      case 'text_color':
+        await _showColorMenu(highlight: false);
+      case 'highlight':
+        await _showColorMenu(highlight: true);
+      case 'indent_increase':
+        _body.indentSelection(true);
+      case 'indent_decrease':
+        _body.indentSelection(false);
     }
+  }
+
+  /// #678：文字前景色，取 Apple 系统色（与 `CupertinoColors.system*` 同值）。
+  static const _textColors = <String, (String, String)>{
+    'red': ('红色', '#FF3B30'),
+    'orange': ('橙色', '#FF9500'),
+    'yellow': ('黄色', '#FFCC00'),
+    'green': ('绿色', '#34C759'),
+    'blue': ('蓝色', '#007AFF'),
+    'purple': ('紫色', '#AF52DE'),
+    'gray': ('灰色', '#8E8E93'),
+  };
+
+  /// #679：高亮用浅色底，深色字压在上面仍可读。
+  static const _highlightColors = <String, (String, String)>{
+    'yellow': ('黄色', '#FFE58F'),
+    'pink': ('粉色', '#FFC2D6'),
+    'purple': ('紫色', '#E2C9F5'),
+    'mint': ('薄荷绿', '#B8F0E0'),
+    'blue': ('蓝色', '#C2DCFF'),
+  };
+
+  /// #678 / #679：颜色二级面板。末项「恢复默认」把 inline 属性清掉，与 #665
+  /// 字号的撤销档同款。作用于选区；无选区时 quill 记为后续输入的样式。
+  Future<void> _showColorMenu({required bool highlight}) async {
+    final palette = highlight ? _highlightColors : _textColors;
+    final prefix = highlight ? 'note_highlight' : 'note_text_color';
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) => LifeActionSheet(
+        key: Key(
+          highlight ? 'note_editor_highlight_sheet' : 'note_editor_text_color_sheet',
+        ),
+        title: Text(highlight ? '高亮颜色' : '文字颜色'),
+        actions: [
+          for (final entry in palette.entries)
+            LifeActionSheetAction(
+              key: ValueKey('${prefix}_${entry.key}'),
+              onPressed: () => Navigator.of(sheetContext).pop(entry.value.$2),
+              child: Text(entry.value.$1),
+            ),
+          LifeActionSheetAction(
+            key: ValueKey('${prefix}_default'),
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(sheetContext).pop('default'),
+            child: const Text('恢复默认'),
+          ),
+        ],
+        cancelButton: LifeActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (action == null) return;
+    final value = action == 'default' ? null : action;
+    _body.formatSelection(
+      highlight ? quill.BackgroundAttribute(value) : quill.ColorAttribute(value),
+    );
   }
 
   /// #665：Apple 格式菜单里的四档字号（磅）。
