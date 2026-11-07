@@ -66,7 +66,7 @@
 - Test: `packages/feature_task/test/list_header_visual_test.dart`（新建）
 
 **Interfaces:**
-- `_ListHeaderToolbar` 改为：左标题（列表色 28/w700，key `list_large_title` 保留）+ 下方 `N 项完成 · 清除`；右侧大计数 `remaining_count`（仅 `!list.isSmart` 显示）+ 显示/排序；移除标题下的 `remaining_count`。
+- `_ListHeaderToolbar` 改为：左标题（列表色 28/w700，key `list_large_title` 保留）+ 下方 `N 项完成 · 清除`（仅自有列表与 `smart.completed`，#676）；右侧大计数 `remaining_count`（仅 `!list.isSmart` 显示）+ 显示/排序；移除标题下的 `remaining_count`。
 - 新增 `_GhostNewRow`（key `ghost_new_item`）在非 compact 列表顶部，点击 `_openNewItemDialog`；compact 保留 `bottom_new_item`。
 - 分区头样式：13/w600 灰 + chevron；key `section_<title>` 保留。
 
