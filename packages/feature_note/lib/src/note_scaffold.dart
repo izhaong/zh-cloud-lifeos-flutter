@@ -24,6 +24,10 @@ class NoteScaffold extends ConsumerStatefulWidget {
   static const double wideBreakpoint = 600;
   static const double sidebarWidth = 220;
 
+  /// #687：宽屏列表栏宽于编辑栏（Apple 备忘录同向）。原先 4:5 列表偏窄。
+  static const int listFlex = 5;
+  static const int editorFlex = 4;
+
   @override
   ConsumerState<NoteScaffold> createState() => _NoteScaffoldState();
 }
@@ -151,7 +155,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                       const SizedBox(width: NoteScaffold.sidebarWidth, child: NoteSidebar()),
                       const _Separator(),
                       Expanded(
-                        flex: 4,
+                        flex: NoteScaffold.listFlex,
                         child: _NoteList(
                           gallery: gallery,
                           groupByDate: groupByDate,
@@ -177,7 +181,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                       const _Separator(),
                       // 第三栏：内嵌编辑器（选中即编辑；未选给空态）。
                       Expanded(
-                        flex: 5,
+                        flex: NoteScaffold.editorFlex,
                         child: _NoteEditorPane(notes: sortedNotes),
                       ),
                     ],
