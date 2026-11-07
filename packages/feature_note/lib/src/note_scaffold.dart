@@ -157,6 +157,7 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                       Expanded(
                         flex: NoteScaffold.listFlex,
                         child: _NoteList(
+                          showSearch: false,
                           gallery: gallery,
                           groupByDate: groupByDate,
                           query: query,
@@ -625,6 +626,7 @@ class _NoteList extends StatelessWidget {
     required this.onDelete,
     required this.onSearch,
     required this.query,
+    this.showSearch = true,
     required this.emptyLabel,
     required this.gallery,
     required this.groupByDate,
@@ -640,6 +642,9 @@ class _NoteList extends StatelessWidget {
 
   /// 搜索词（已 trim）：非空时列表标题与摘要里的命中词加底色（#660）。
   final String query;
+
+  /// 窄屏为 true。宽屏搜索在侧栏（#689），列表不再重复一块。
+  final bool showSearch;
   final String emptyLabel;
   final bool gallery;
 
@@ -651,6 +656,7 @@ class _NoteList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        if (showSearch)
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
           child: CupertinoTextField(
