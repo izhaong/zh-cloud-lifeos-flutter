@@ -820,7 +820,7 @@ class _NoteRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = _noteDateLabel(note, now: now);
-    return GestureDetector(
+    final tile = GestureDetector(
       onTap: () => onTap(note),
       child: ColoredBox(
         color: CupertinoDynamicColor.resolve(
@@ -878,34 +878,47 @@ class _NoteRow extends StatelessWidget {
                     color: CupertinoColors.secondaryLabel,
                   ),
                 ),
-              CupertinoButton(
-                key: ValueKey('note_pin_${note.id}'),
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                onPressed: () => onPin(note),
-                child: Icon(
-                  note.pinned ? CupertinoIcons.pin_fill : CupertinoIcons.pin,
-                  size: 20,
-                  color: note.pinned
-                      ? CupertinoColors.systemBlue
-                      : CupertinoColors.secondaryLabel,
-                ),
-              ),
-              CupertinoButton(
-                key: ValueKey('note_delete_${note.id}'),
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                onPressed: () => onDelete(note),
-                child: const Icon(
-                  CupertinoIcons.delete,
-                  size: 20,
-                  color: CupertinoColors.secondaryLabel,
-                ),
-              ),
             ],
           ),
         ),
       ),
+    );
+    // #688：行内不再放置顶/删除。右键菜单与左滑删除保留这两件事。
+    return CupertinoMenuAnchor(
+      menuChildren: [
+        CupertinoMenuItem(
+          key: ValueKey('note_pin_${note.id}'),
+          onPressed: () => onPin(note),
+          child: Text(note.pinned ? '取消置顶' : '置顶'),
+        ),
+        CupertinoMenuItem(
+          key: ValueKey('note_delete_${note.id}'),
+          isDestructiveAction: true,
+          onPressed: () => onDelete(note),
+          child: const Text('删除'),
+        ),
+      ],
+      builder: (context, controller, child) => GestureDetector(
+        onSecondaryTapUp: (details) =>
+            controller.open(position: details.localPosition),
+        child: Dismissible(
+          key: ValueKey('note_dismiss_${note.id}'),
+          direction: DismissDirection.endToStart,
+          background: const ColoredBox(
+            color: CupertinoColors.systemRed,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: EdgeInsets.only(right: 16),
+                child: Icon(CupertinoIcons.delete, color: CupertinoColors.white),
+              ),
+            ),
+          ),
+          onDismissed: (_) => onDelete(note),
+          child: child!,
+        ),
+      ),
+      child: tile,
     );
   }
 }

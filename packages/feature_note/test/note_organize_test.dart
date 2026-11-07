@@ -1,5 +1,6 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:feature_note/feature_note.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -105,6 +106,8 @@ void main() {
       lessThan(tester.getTopLeft(find.text('第二条')).dy),
     );
 
+    await tester.tap(find.text('第二条'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('note_pin_n2')));
     await tester.pumpAndSettle();
 
@@ -127,6 +130,8 @@ void main() {
     );
     await pumpScaffold(tester, repo);
 
+    await tester.tap(find.text('待删'), buttons: kSecondaryButton);
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('note_delete_n1')));
     await tester.pumpAndSettle();
     expect(find.text('待删'), findsNothing);
