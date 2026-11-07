@@ -3053,43 +3053,46 @@ class _ListHeaderToolbar extends ConsumerWidget {
                       ),
                     ),
                   ),
-                Row(
-                  children: [
-                    Text(
-                      '$doneCount 项完成',
-                      key: const ValueKey('done_count'),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: CupertinoDynamicColor.resolve(
-                          ReminderTokens.labelSecondary,
-                          context,
+                // #676：Apple 智能视图没有这一行；其完成项由仓库层按语义滤掉，
+                // 计数恒 0。「完成」智能清单除外——那里计数与清除都成立。
+                if (!list.isSmart || list.id == 'smart.completed')
+                  Row(
+                    children: [
+                      Text(
+                        '$doneCount 项完成',
+                        key: const ValueKey('done_count'),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: CupertinoDynamicColor.resolve(
+                            ReminderTokens.labelSecondary,
+                            context,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      '·',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: CupertinoDynamicColor.resolve(
-                          ReminderTokens.labelSecondary,
-                          context,
+                      const SizedBox(width: 2),
+                      Text(
+                        '·',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: CupertinoDynamicColor.resolve(
+                            ReminderTokens.labelSecondary,
+                            context,
+                          ),
                         ),
                       ),
-                    ),
-                    CupertinoButton(
-                      key: const ValueKey('clear_completed'),
-                      onPressed: doneCount == 0 ? null : onClearCompleted,
-                      minimumSize: Size.zero,
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      disabledColor: CupertinoDynamicColor.resolve(
-                        ReminderTokens.labelTertiary,
-                        context,
+                      CupertinoButton(
+                        key: const ValueKey('clear_completed'),
+                        onPressed: doneCount == 0 ? null : onClearCompleted,
+                        minimumSize: Size.zero,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        disabledColor: CupertinoDynamicColor.resolve(
+                          ReminderTokens.labelTertiary,
+                          context,
+                        ),
+                        child: const Text('清除', style: TextStyle(fontSize: 13)),
                       ),
-                      child: const Text('清除', style: TextStyle(fontSize: 13)),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
               ],
             ),
           ),
