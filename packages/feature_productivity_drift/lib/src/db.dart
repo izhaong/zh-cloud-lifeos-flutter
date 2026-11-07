@@ -161,6 +161,9 @@ class CalendarEvents extends Table {
   TextColumn get title => text()();
   TextColumn get location => text().nullable()();
   TextColumn get url => text().nullable()();
+
+  /// 附件链接（#669）；文件上传不在此列。
+  TextColumn get attachmentUrl => text().nullable()();
   TextColumn get notes => text().nullable()();
 
   /// UTC；全天事件存该日 00:00 创建时区对应 UTC。
@@ -405,7 +408,7 @@ class LifeProductivityDb extends _$LifeProductivityDb {
   LifeProductivityDb(super.e);
 
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
   /// 幂等加列（#451/#446 共用）。
   ///
@@ -624,6 +627,18 @@ class LifeProductivityDb extends _$LifeProductivityDb {
             // V17（flutter #394 / TC-NOTE-UI-111）：记录设置此前只活在内存里，
             // 重启即回默认值——给它一张自己的偏好表（照任务/日历先例）。
             await m.createTable(notePreferences);
+          }
+
+          if (from < 26 && to >= 26) {
+            // V26（flutter #669）：日程附件链接。从 <7 升级时表由 createTable 建成，已含该列。
+            if (from >= 7) {
+              await _addColumnIfTableExists(
+                m,
+                'calendar_events',
+                calendarEvents,
+                calendarEvents.attachmentUrl,
+              );
+            }
           }
         },
       );

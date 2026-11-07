@@ -300,6 +300,8 @@ class CalendarSyncCoordinator {
       title: payload['title']?.toString() ?? existing?.title ?? '日程',
       location: payload['location']?.toString() ?? existing?.location,
       url: payload['url']?.toString() ?? existing?.url,
+      // #669：附件链接只存本地，服务端载荷没有这一列，拉取时保留已有值。
+      attachmentUrl: existing?.attachmentUrl,
       notes: payload['notes']?.toString() ?? existing?.notes,
       startAt: start.toUtc(),
       endAt: end.toUtc(),
@@ -514,6 +516,7 @@ CalendarEvent _eventWithRemote(
     title: e.title,
     location: e.location,
     url: e.url,
+    attachmentUrl: e.attachmentUrl,
     notes: e.notes,
     startAt: e.startAt,
     endAt: e.endAt,

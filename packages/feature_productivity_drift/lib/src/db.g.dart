@@ -3194,6 +3194,17 @@ class $CalendarEventsTable extends CalendarEvents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _attachmentUrlMeta = const VerificationMeta(
+    'attachmentUrl',
+  );
+  @override
+  late final GeneratedColumn<String> attachmentUrl = GeneratedColumn<String>(
+    'attachment_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -3433,6 +3444,7 @@ class $CalendarEventsTable extends CalendarEvents
     title,
     location,
     url,
+    attachmentUrl,
     notes,
     startAt,
     endAt,
@@ -3511,6 +3523,15 @@ class $CalendarEventsTable extends CalendarEvents
       context.handle(
         _urlMeta,
         url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
+    }
+    if (data.containsKey('attachment_url')) {
+      context.handle(
+        _attachmentUrlMeta,
+        attachmentUrl.isAcceptableOrUnknown(
+          data['attachment_url']!,
+          _attachmentUrlMeta,
+        ),
       );
     }
     if (data.containsKey('notes')) {
@@ -3696,6 +3717,10 @@ class $CalendarEventsTable extends CalendarEvents
         DriftSqlType.string,
         data['${effectivePrefix}url'],
       ),
+      attachmentUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attachment_url'],
+      ),
       notes: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
@@ -3793,6 +3818,9 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
   final String title;
   final String? location;
   final String? url;
+
+  /// 附件链接（#669）；文件上传不在此列。
+  final String? attachmentUrl;
   final String? notes;
 
   /// UTC；全天事件存该日 00:00 创建时区对应 UTC。
@@ -3839,6 +3867,7 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
     required this.title,
     this.location,
     this.url,
+    this.attachmentUrl,
     this.notes,
     required this.startAt,
     required this.endAt,
@@ -3875,6 +3904,9 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
     }
     if (!nullToAbsent || url != null) {
       map['url'] = Variable<String>(url);
+    }
+    if (!nullToAbsent || attachmentUrl != null) {
+      map['attachment_url'] = Variable<String>(attachmentUrl);
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
@@ -3924,6 +3956,9 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
           ? const Value.absent()
           : Value(location),
       url: url == null && nullToAbsent ? const Value.absent() : Value(url),
+      attachmentUrl: attachmentUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(attachmentUrl),
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
@@ -3972,6 +4007,7 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
       title: serializer.fromJson<String>(json['title']),
       location: serializer.fromJson<String?>(json['location']),
       url: serializer.fromJson<String?>(json['url']),
+      attachmentUrl: serializer.fromJson<String?>(json['attachmentUrl']),
       notes: serializer.fromJson<String?>(json['notes']),
       startAt: serializer.fromJson<DateTime>(json['startAt']),
       endAt: serializer.fromJson<DateTime>(json['endAt']),
@@ -4005,6 +4041,7 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
       'title': serializer.toJson<String>(title),
       'location': serializer.toJson<String?>(location),
       'url': serializer.toJson<String?>(url),
+      'attachmentUrl': serializer.toJson<String?>(attachmentUrl),
       'notes': serializer.toJson<String?>(notes),
       'startAt': serializer.toJson<DateTime>(startAt),
       'endAt': serializer.toJson<DateTime>(endAt),
@@ -4036,6 +4073,7 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
     String? title,
     Value<String?> location = const Value.absent(),
     Value<String?> url = const Value.absent(),
+    Value<String?> attachmentUrl = const Value.absent(),
     Value<String?> notes = const Value.absent(),
     DateTime? startAt,
     DateTime? endAt,
@@ -4064,6 +4102,9 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
     title: title ?? this.title,
     location: location.present ? location.value : this.location,
     url: url.present ? url.value : this.url,
+    attachmentUrl: attachmentUrl.present
+        ? attachmentUrl.value
+        : this.attachmentUrl,
     notes: notes.present ? notes.value : this.notes,
     startAt: startAt ?? this.startAt,
     endAt: endAt ?? this.endAt,
@@ -4102,6 +4143,9 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
       title: data.title.present ? data.title.value : this.title,
       location: data.location.present ? data.location.value : this.location,
       url: data.url.present ? data.url.value : this.url,
+      attachmentUrl: data.attachmentUrl.present
+          ? data.attachmentUrl.value
+          : this.attachmentUrl,
       notes: data.notes.present ? data.notes.value : this.notes,
       startAt: data.startAt.present ? data.startAt.value : this.startAt,
       endAt: data.endAt.present ? data.endAt.value : this.endAt,
@@ -4151,6 +4195,7 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
           ..write('title: $title, ')
           ..write('location: $location, ')
           ..write('url: $url, ')
+          ..write('attachmentUrl: $attachmentUrl, ')
           ..write('notes: $notes, ')
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
@@ -4184,6 +4229,7 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
     title,
     location,
     url,
+    attachmentUrl,
     notes,
     startAt,
     endAt,
@@ -4216,6 +4262,7 @@ class CalendarEvent extends DataClass implements Insertable<CalendarEvent> {
           other.title == this.title &&
           other.location == this.location &&
           other.url == this.url &&
+          other.attachmentUrl == this.attachmentUrl &&
           other.notes == this.notes &&
           other.startAt == this.startAt &&
           other.endAt == this.endAt &&
@@ -4246,6 +4293,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEvent> {
   final Value<String> title;
   final Value<String?> location;
   final Value<String?> url;
+  final Value<String?> attachmentUrl;
   final Value<String?> notes;
   final Value<DateTime> startAt;
   final Value<DateTime> endAt;
@@ -4275,6 +4323,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEvent> {
     this.title = const Value.absent(),
     this.location = const Value.absent(),
     this.url = const Value.absent(),
+    this.attachmentUrl = const Value.absent(),
     this.notes = const Value.absent(),
     this.startAt = const Value.absent(),
     this.endAt = const Value.absent(),
@@ -4305,6 +4354,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEvent> {
     required String title,
     this.location = const Value.absent(),
     this.url = const Value.absent(),
+    this.attachmentUrl = const Value.absent(),
     this.notes = const Value.absent(),
     required DateTime startAt,
     required DateTime endAt,
@@ -4342,6 +4392,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEvent> {
     Expression<String>? title,
     Expression<String>? location,
     Expression<String>? url,
+    Expression<String>? attachmentUrl,
     Expression<String>? notes,
     Expression<DateTime>? startAt,
     Expression<DateTime>? endAt,
@@ -4372,6 +4423,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEvent> {
       if (title != null) 'title': title,
       if (location != null) 'location': location,
       if (url != null) 'url': url,
+      if (attachmentUrl != null) 'attachment_url': attachmentUrl,
       if (notes != null) 'notes': notes,
       if (startAt != null) 'start_at': startAt,
       if (endAt != null) 'end_at': endAt,
@@ -4404,6 +4456,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEvent> {
     Value<String>? title,
     Value<String?>? location,
     Value<String?>? url,
+    Value<String?>? attachmentUrl,
     Value<String?>? notes,
     Value<DateTime>? startAt,
     Value<DateTime>? endAt,
@@ -4434,6 +4487,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEvent> {
       title: title ?? this.title,
       location: location ?? this.location,
       url: url ?? this.url,
+      attachmentUrl: attachmentUrl ?? this.attachmentUrl,
       notes: notes ?? this.notes,
       startAt: startAt ?? this.startAt,
       endAt: endAt ?? this.endAt,
@@ -4481,6 +4535,9 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEvent> {
     }
     if (url.present) {
       map['url'] = Variable<String>(url.value);
+    }
+    if (attachmentUrl.present) {
+      map['attachment_url'] = Variable<String>(attachmentUrl.value);
     }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
@@ -4558,6 +4615,7 @@ class CalendarEventsCompanion extends UpdateCompanion<CalendarEvent> {
           ..write('title: $title, ')
           ..write('location: $location, ')
           ..write('url: $url, ')
+          ..write('attachmentUrl: $attachmentUrl, ')
           ..write('notes: $notes, ')
           ..write('startAt: $startAt, ')
           ..write('endAt: $endAt, ')
@@ -10861,6 +10919,7 @@ typedef $$CalendarEventsTableCreateCompanionBuilder =
       required String title,
       Value<String?> location,
       Value<String?> url,
+      Value<String?> attachmentUrl,
       Value<String?> notes,
       required DateTime startAt,
       required DateTime endAt,
@@ -10892,6 +10951,7 @@ typedef $$CalendarEventsTableUpdateCompanionBuilder =
       Value<String> title,
       Value<String?> location,
       Value<String?> url,
+      Value<String?> attachmentUrl,
       Value<String?> notes,
       Value<DateTime> startAt,
       Value<DateTime> endAt,
@@ -10956,6 +11016,11 @@ class $$CalendarEventsTableFilterComposer
 
   ColumnFilters<String> get url => $composableBuilder(
     column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get attachmentUrl => $composableBuilder(
+    column: $table.attachmentUrl,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11104,6 +11169,11 @@ class $$CalendarEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get attachmentUrl => $composableBuilder(
+    column: $table.attachmentUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
     builder: (column) => ColumnOrderings(column),
@@ -11237,6 +11307,11 @@ class $$CalendarEventsTableAnnotationComposer
   GeneratedColumn<String> get url =>
       $composableBuilder(column: $table.url, builder: (column) => column);
 
+  GeneratedColumn<String> get attachmentUrl => $composableBuilder(
+    column: $table.attachmentUrl,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
 
@@ -11358,6 +11433,7 @@ class $$CalendarEventsTableTableManager
                 Value<String> title = const Value.absent(),
                 Value<String?> location = const Value.absent(),
                 Value<String?> url = const Value.absent(),
+                Value<String?> attachmentUrl = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 Value<DateTime> startAt = const Value.absent(),
                 Value<DateTime> endAt = const Value.absent(),
@@ -11387,6 +11463,7 @@ class $$CalendarEventsTableTableManager
                 title: title,
                 location: location,
                 url: url,
+                attachmentUrl: attachmentUrl,
                 notes: notes,
                 startAt: startAt,
                 endAt: endAt,
@@ -11418,6 +11495,7 @@ class $$CalendarEventsTableTableManager
                 required String title,
                 Value<String?> location = const Value.absent(),
                 Value<String?> url = const Value.absent(),
+                Value<String?> attachmentUrl = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
                 required DateTime startAt,
                 required DateTime endAt,
@@ -11447,6 +11525,7 @@ class $$CalendarEventsTableTableManager
                 title: title,
                 location: location,
                 url: url,
+                attachmentUrl: attachmentUrl,
                 notes: notes,
                 startAt: startAt,
                 endAt: endAt,

@@ -433,6 +433,7 @@ CalendarEvent _shiftEventTimes(CalendarEvent e, Duration delta) =>
       title: e.title,
       location: e.location,
       url: e.url,
+      attachmentUrl: e.attachmentUrl,
       notes: e.notes,
       startAt: e.startAt.add(delta),
       endAt: e.endAt.add(delta),

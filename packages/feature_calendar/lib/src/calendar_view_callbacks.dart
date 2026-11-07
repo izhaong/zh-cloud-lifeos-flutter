@@ -218,6 +218,7 @@ CalendarEvent withTimes(CalendarEvent e, DateTime start, DateTime end) {
     title: e.title,
     location: e.location,
     url: e.url,
+    attachmentUrl: e.attachmentUrl,
     notes: e.notes,
     startAt: start,
     endAt: end,
