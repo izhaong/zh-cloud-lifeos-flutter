@@ -114,6 +114,16 @@ void main() {
     expect(await repo.search('不存在'), isEmpty);
   });
 
+  test('搜索大小写不敏感，与内存仓库同口径（#670）', () async {
+    await repo.upsertFolder(const NoteFolder(id: 'f1', name: '默认'));
+    await repo.upsertNote(note('n1', title: 'Buy Milk', text: '两盒'));
+    await repo.upsertNote(note('n2', title: '周报', text: 'Weekly REPORT'));
+
+    expect((await repo.search('MILK')).single.id, 'n1');
+    expect((await repo.search('report')).single.id, 'n2');
+    expect(await repo.search('cheese'), isEmpty);
+  });
+
   test('排序：置顶优先 → sortOrder → id（TC-NOTE-KR-103）', () async {
     await repo.upsertFolder(const NoteFolder(id: 'f1', name: '默认'));
     await repo.upsertNote(note('a', title: 'A'));
