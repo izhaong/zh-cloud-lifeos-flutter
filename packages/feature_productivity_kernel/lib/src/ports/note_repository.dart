@@ -199,13 +199,15 @@ final class InMemoryNoteRepository implements NoteRepository {
 
   @override
   Future<List<Note>> search(String keyword, {int limit = 50}) async {
-    final kw = keyword.trim();
+    // 大小写不敏感，与 Drift 侧 SQLite LIKE、#660 的高亮切段同口径。
+    final kw = keyword.trim().toLowerCase();
     if (kw.isEmpty) return const [];
     final hits = _notes
         .where((n) =>
             n.deletedAt == null &&
             !n.locked &&
-            (n.title.contains(kw) || n.bodyText.contains(kw)))
+            (n.title.toLowerCase().contains(kw) ||
+                n.bodyText.toLowerCase().contains(kw)))
         .take(limit)
         .toList(growable: false);
     return hits;

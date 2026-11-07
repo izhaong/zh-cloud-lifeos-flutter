@@ -146,4 +146,23 @@ void main() {
           reason: '29 天的还在（可恢复）');
     });
   });
+
+  group('#670 搜索大小写不敏感（与 #660 高亮同口径）', () {
+    test('搜 MILK 命中标题 Buy Milk，搜 report 命中正文 Weekly REPORT', () async {
+      final repo = InMemoryNoteRepository();
+      await repo.upsertFolder(const NoteFolder(id: 'f1', name: '默认'));
+      await repo.upsertNote(const Note(id: 'n1', folderId: 'f1', title: 'Buy Milk'));
+      await repo.upsertNote(const Note(
+        id: 'n2',
+        folderId: 'f1',
+        title: '周报',
+        bodyDelta: '{"ops":[{"insert":"Weekly REPORT\\n"}]}',
+      ));
+
+      expect((await repo.search('MILK')).single.id, 'n1');
+      expect((await repo.search('milk')).single.id, 'n1');
+      expect((await repo.search('report')).single.id, 'n2');
+      expect(await repo.search('cheese'), isEmpty);
+    });
+  });
 }
