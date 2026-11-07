@@ -862,6 +862,18 @@ class _NoteRow extends StatelessWidget {
                   ],
                 ),
               ),
+              // #666：Apple 列表行会标出媒体类型。图片以 noteImage embed 存在
+              // 正文 Delta 里；锁定笔记的正文是密文，不探测。
+              if (!note.locked && note.bodyDelta.contains('"noteImage"'))
+                Padding(
+                  key: ValueKey('note_row_media_image_${note.id}'),
+                  padding: const EdgeInsets.only(top: 2, right: 2),
+                  child: const Icon(
+                    CupertinoIcons.photo,
+                    size: 18,
+                    color: CupertinoColors.secondaryLabel,
+                  ),
+                ),
               CupertinoButton(
                 key: ValueKey('note_pin_${note.id}'),
                 minimumSize: Size.zero,
