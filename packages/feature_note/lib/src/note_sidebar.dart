@@ -1,3 +1,4 @@
+import 'package:app_ui/app_ui.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,6 +33,28 @@ class NoteSidebar extends ConsumerWidget {
     return ListView(
       key: const ValueKey('note_sidebar'),
       children: [
+        // #689：宽屏搜索在侧栏顶部，不占笔记列表。窄屏没有侧栏，搜索仍在列表上。
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          child: CupertinoTextField(
+            key: const ValueKey('note_search_field'),
+            onChanged: (value) =>
+                ref.read(noteSearchQueryProvider.notifier).setQuery(value),
+            prefix: const Padding(
+              padding: EdgeInsets.only(left: 6),
+              child: Icon(
+                CupertinoIcons.search,
+                size: 18,
+                color: CupertinoColors.secondaryLabel,
+              ),
+            ),
+            placeholder: '搜索',
+            decoration: BoxDecoration(
+              color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+              borderRadius: BorderRadius.circular(LifeRadius.md),
+            ),
+          ),
+        ),
         // parity#155：Apple 备忘录侧栏可直接「新建文件夹」；此前全仓无入口，
         // 空库下「新建备忘录/快速记录」会被「先新建一个文件夹」挡死。
         CupertinoListTile(
