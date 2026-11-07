@@ -13,7 +13,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// 判据两半：入口必须存在且能到达**已实现**的能力（点「加粗」要真的改 delta）；
 /// 未实现的能力不许摆成占位——那是 #444 判过的死控件形态。
 /// #664 起标题样式/删除线/对齐/有序列表已接线（见 note_format_advanced_test.dart），
-/// 仍未实现的只剩表格（矩阵 N04 后置）、字号、画笔（N08 范围外）。
+/// #665 起字号也已接线（见 note_font_size_test.dart）；仍未实现的只剩
+/// 表格（矩阵 N04 后置）与画笔（N08 范围外）。
 void main() {
   tearDown(() {
     final view =
@@ -86,9 +87,19 @@ void main() {
       'note_format_strike',
       'note_format_align',
       'note_format_ordered_list',
+      // #665：字号二级面板入口
+      'note_format_size',
     ]) {
       expect(find.byKey(ValueKey(key)), findsOneWidget, reason: '缺 $key');
     }
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('note_editor_format_sheet')),
+        matching: find.text('字号'),
+      ),
+      findsOneWidget,
+      reason: 'Apple 格式菜单的字号入口必须能找到',
+    );
   });
 
   testWidgets('菜单不摆未实现能力的占位项', (tester) async {
@@ -97,7 +108,7 @@ void main() {
     // 先证菜单真的在：否则「找不到占位项」会因为整张菜单没弹而恒真。
     expect(find.byKey(const Key('note_editor_format_sheet')), findsOneWidget);
 
-    for (final label in const ['表格', '字号', '画笔']) {
+    for (final label in const ['表格', '画笔']) {
       expect(
         find.descendant(
           of: find.byKey(const Key('note_editor_format_sheet')),
