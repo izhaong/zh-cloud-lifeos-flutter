@@ -167,6 +167,7 @@ CalendarEvent calendarEventWithAlerts(
     title: e.title,
     location: e.location,
     url: e.url,
+    attachmentUrl: e.attachmentUrl,
     notes: e.notes,
     startAt: e.startAt,
     endAt: e.endAt,

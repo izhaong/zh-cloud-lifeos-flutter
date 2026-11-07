@@ -46,6 +46,7 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
   late final TextEditingController _title;
   late final TextEditingController _location;
   late final TextEditingController _url;
+  late final TextEditingController _attachment;
   late final TextEditingController _notes;
 
   @override
@@ -54,6 +55,7 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
     _title = TextEditingController(text: widget.event.title);
     _location = TextEditingController(text: widget.event.location ?? '');
     _url = TextEditingController(text: widget.event.url ?? '');
+    _attachment = TextEditingController(text: widget.event.attachmentUrl ?? '');
     _notes = TextEditingController(text: widget.event.notes ?? '');
     _applyDeviceZoneToNewDraft();
   }
@@ -81,6 +83,7 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
       _title.text = widget.event.title;
       _location.text = widget.event.location ?? '';
       _url.text = widget.event.url ?? '';
+      _attachment.text = widget.event.attachmentUrl ?? '';
       _notes.text = widget.event.notes ?? '';
     }
   }
@@ -90,6 +93,7 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
     _title.dispose();
     _location.dispose();
     _url.dispose();
+    _attachment.dispose();
     _notes.dispose();
     super.dispose();
   }
@@ -450,6 +454,13 @@ class _EventFormFieldsState extends ConsumerState<EventFormFields> {
           value: _e.isPrivate,
           onChanged: (v) => _emit(_copyWith(_e, isPrivate: v)),
         ),
+        // 13b. 附件（#669）：只收链接，不打开文件选择器。
+        _TextFieldRow(
+          fieldKey: const Key('event_field_attachment'),
+          controller: _attachment,
+          placeholder: '附件链接',
+          onChanged: (v) => _emit(_copyWith(_e, attachmentUrl: v)),
+        ),
         // 13. URL
         _TextFieldRow(
           fieldKey: const Key('event_field_url'),
@@ -608,6 +619,7 @@ CalendarEvent _copyWith(
   EventAvailability? availability,
   bool? isPrivate,
   String? url,
+  String? attachmentUrl,
   String? notes,
   int? travelMinutes,
   bool clearTravel = false,
@@ -620,6 +632,7 @@ CalendarEvent _copyWith(
     title: title ?? e.title,
     location: location ?? e.location,
     url: url ?? e.url,
+    attachmentUrl: attachmentUrl ?? e.attachmentUrl,
     notes: notes ?? e.notes,
     startAt: e.startAt,
     endAt: e.endAt,
@@ -769,6 +782,7 @@ CalendarEvent _copyWithRrule(CalendarEvent e, String? rrule) => CalendarEvent(
   title: e.title,
   location: e.location,
   url: e.url,
+  attachmentUrl: e.attachmentUrl,
   notes: e.notes,
   startAt: e.startAt,
   endAt: e.endAt,
@@ -1160,6 +1174,7 @@ CalendarEvent copyEventWithAlerts(CalendarEvent e, List<EventAlert> alerts) =>
       title: e.title,
       location: e.location,
       url: e.url,
+      attachmentUrl: e.attachmentUrl,
       notes: e.notes,
       startAt: e.startAt,
       endAt: e.endAt,

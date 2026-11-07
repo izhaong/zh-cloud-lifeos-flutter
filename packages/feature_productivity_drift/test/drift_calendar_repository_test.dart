@@ -16,6 +16,7 @@ CalendarEvent _withTitle(CalendarEvent e, String title) {
     title: title,
     location: e.location,
     url: e.url,
+    attachmentUrl: e.attachmentUrl,
     notes: e.notes,
     startAt: e.startAt,
     endAt: e.endAt,
@@ -351,5 +352,27 @@ void main() {
     final seen = (await migrated.watchCalendars().first)
         .singleWhere((c) => c.id == 'old9');
     expect(seen.lastRefreshError, '拉取超时', reason: '迁移补出的列可写读');
+  });
+
+  test('#669 附件链接随日程落库并读回', () async {
+    await repo.upsertCalendar(cal());
+    final stored = event(id: 'e-att');
+    await repo.upsertEvent(CalendarEvent(
+      id: stored.id,
+      calendarId: stored.calendarId,
+      uid: stored.uid,
+      title: stored.title,
+      attachmentUrl: 'https://example.com/brief.pdf',
+      startAt: stored.startAt,
+      endAt: stored.endAt,
+      timeZone: stored.timeZone,
+      updatedAt: stored.updatedAt,
+    ));
+    final back = (await repo.watchEvents(
+      from: DateTime.utc(2026, 11, 1),
+      to: DateTime.utc(2026, 11, 8),
+    ).first)
+        .singleWhere((e) => e.id == 'e-att');
+    expect(back.attachmentUrl, 'https://example.com/brief.pdf');
   });
 }

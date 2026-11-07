@@ -158,6 +158,7 @@ final class CalendarEvent extends Equatable {
     required this.title,
     this.location,
     this.url,
+    this.attachmentUrl,
     this.notes,
     required this.startAt,
     required this.endAt,
@@ -197,6 +198,9 @@ final class CalendarEvent extends Equatable {
 
   /// 网址（会议链接；不绑定任何视频通话服务）。
   final String? url;
+
+  /// 附件链接（#669）。检查器可填 URL；文件上传不在本字段。
+  final String? attachmentUrl;
   final String? notes;
 
   /// 开始（UTC）；全天事件存该日 00:00 创建时区对应 UTC。
@@ -262,6 +266,7 @@ final class CalendarEvent extends Equatable {
         title,
         location,
         url,
+        attachmentUrl,
         notes,
         startAt,
         endAt,
