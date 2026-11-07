@@ -8,7 +8,6 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:app_core/app_core.dart';
 
 import 'note_editor_page.dart';
-import 'note_recycle_page.dart';
 import 'note_search_highlight.dart';
 import 'note_settings_page.dart';
 import 'note_sidebar.dart';
@@ -132,12 +131,6 @@ class _NoteScaffoldState extends ConsumerState<NoteScaffold> {
                       : CupertinoIcons.square_grid_2x2,
                   onPressed: () =>
                       ref.read(noteGalleryModeProvider.notifier).toggle(),
-                ),
-                _NavBarIcon(
-                  key: const ValueKey('note_recycle'),
-                  semanticLabel: '最近删除',
-                  icon: CupertinoIcons.delete,
-                  onPressed: () => _push(context, const NoteRecyclePage()),
                 ),
                 _NavBarIcon(
                   key: const ValueKey('note_new'),
