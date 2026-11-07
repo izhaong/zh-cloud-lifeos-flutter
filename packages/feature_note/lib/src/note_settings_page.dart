@@ -99,7 +99,8 @@ class NoteSettingsPage extends ConsumerWidget {
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
               child: Text(
-                '默认文件夹',
+                '其他',
+                key: const ValueKey('note_settings_section_other'),
                 style: TextStyle(
                   fontSize: 13,
                   color: CupertinoColors.secondaryLabel,
@@ -158,6 +159,7 @@ class NoteSettingsPage extends ConsumerWidget {
               padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
               child: Text(
                 '排序',
+                key: ValueKey('note_settings_section_sort'),
                 style: TextStyle(
                   fontSize: 13,
                   color: CupertinoColors.secondaryLabel,
@@ -182,6 +184,18 @@ class NoteSettingsPage extends ConsumerWidget {
                     .read(noteSettingsProvider.notifier)
                     .setSortMode(option.$1),
               ),
+            const _SectionSeparator(),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
+              child: Text(
+                '视图',
+                key: ValueKey('note_settings_section_view'),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: CupertinoColors.secondaryLabel,
+                ),
+              ),
+            ),
             // Apple 用勾选框而不是开关控件表达这条，形态照搬（#392）。
             CupertinoListTile(
               key: const ValueKey('note_group_by_date'),
