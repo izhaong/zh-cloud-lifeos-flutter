@@ -628,6 +628,8 @@ class _HomeSearchResults extends ConsumerWidget {
                       false,
                   onToggleCompleted: () => completeReminder(ref, items[i]),
                   onToggleFlagged: () => repo.toggleFlagged(items[i].id),
+                  onSetPriority: (p) =>
+                      repo.upsertItem(items[i].copyWith(priority: p)),
                   onTap: () => onSelectItem?.call(items[i]),
                 ),
               ],
@@ -2172,6 +2174,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       subtaskTotal: progress?.total ?? 0,
       onToggleCompleted: () => completeReminder(ref, item),
       onToggleFlagged: () => repo.toggleFlagged(item.id),
+      onSetPriority: (p) => repo.upsertItem(item.copyWith(priority: p)),
       // flutter #567：选择态里点行=勾选/取消，不再改三栏的选中项。
       onTap: () => _selecting
           ? _toggleSelected(item.id)
@@ -2219,6 +2222,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               onTap: () => widget.onSelectItem?.call(sub),
               onToggleCompleted: () => completeReminder(ref, sub),
               onToggleFlagged: () => repo.toggleFlagged(sub.id),
+              onSetPriority: (p) =>
+                  repo.upsertItem(sub.copyWith(priority: p)),
               onDelete: _isTrashView ? null : () => repo.deleteItem(sub.id),
             ),
           ),

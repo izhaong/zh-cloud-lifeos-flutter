@@ -3,7 +3,6 @@ import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
 import 'package:intl/intl.dart';
 
 import '../design/reminder_tokens.dart';
-import 'package:app_core/app_core.dart';
 
 /// 提醒行（Apple 提醒事项样式）：完成圆圈 + 标题 + 列表名/日期/旗标/优先级展示。
 ///
@@ -18,6 +17,7 @@ class ReminderRow extends StatelessWidget {
     this.onToggleFlagged,
     this.onTap,
     this.onDelete,
+    this.onSetPriority,
     this.dense = false,
     this.listName,
     this.subtaskDone = 0,
@@ -40,6 +40,9 @@ class ReminderRow extends StatelessWidget {
   final VoidCallback? onToggleFlagged;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+
+  /// 右键菜单「优先级」（值同详情面板：0 无 / 1 低 / 5 中 / 9 高）；null = 不列。
+  final ValueChanged<int>? onSetPriority;
 
   /// 子任务行的紧凑变体（缩进由外层控制）。
   final bool dense;
@@ -167,44 +170,89 @@ class ReminderRow extends StatelessWidget {
         ),
       ),
     );
-    if (onDelete == null) return tile;
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onSecondaryTap: () => _showDeleteMenu(context),
-      child: Dismissible(
-        key: ValueKey('dismiss_${item.id}'),
-        direction: DismissDirection.endToStart,
-        background: Container(
-          color: ReminderTokens.systemRed,
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 24),
-          child: const Icon(CupertinoIcons.delete, color: CupertinoColors.white),
-        ),
-        onDismissed: (_) => onDelete!(),
-        child: tile,
+    final body = onDelete == null
+        ? tile
+        : Dismissible(
+            key: ValueKey('dismiss_${item.id}'),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              color: ReminderTokens.systemRed,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 24),
+              child: const Icon(
+                CupertinoIcons.delete,
+                color: CupertinoColors.white,
+              ),
+            ),
+            onDismissed: (_) => onDelete!(),
+            child: tile,
+          );
+    // #675：右键（Control 点按）弹锚定在光标处的桌面上下文菜单，
+    // 不再是贴底的移动端操作表、也不只剩「删除」一项。
+    return CupertinoMenuAnchor(
+      menuChildren: _contextMenuItems(),
+      builder: (context, controller, child) => GestureDetector(
+        key: ValueKey('row_context_${item.id}'),
+        behavior: HitTestBehavior.translucent,
+        onSecondaryTapUp: (details) =>
+            controller.open(position: details.localPosition),
+        child: child,
       ),
+      child: body,
     );
   }
 
-  Future<void> _showDeleteMenu(BuildContext context) async {
-    final selected = await showCupertinoModalPopup<String>(
-      context: context,
-      builder: (ctx) => LifeActionSheet(
-        actions: [
-          LifeActionSheetAction(
-            isDestructiveAction: true,
-            onPressed: () => Navigator.of(ctx).pop('delete'),
-            child: const Text('删除提醒'),
-          ),
-        ],
-        cancelButton: LifeActionSheetAction(
-          isDefaultAction: true,
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('取消'),
-        ),
+  static const _priorityLabels = <int, String>{
+    0: '无',
+    1: '低',
+    5: '中',
+    9: '高',
+  };
+
+  List<Widget> _contextMenuItems() {
+    final id = item.id;
+    return [
+      CupertinoMenuItem(
+        key: ValueKey('row_ctx_complete_$id'),
+        onPressed: onToggleCompleted,
+        child: Text(item.isCompleted ? '标记为未完成' : '标记为完成'),
       ),
-    );
-    if (selected == 'delete') onDelete?.call();
+      if (onToggleFlagged != null)
+        CupertinoMenuItem(
+          key: ValueKey('row_ctx_flag_$id'),
+          onPressed: onToggleFlagged,
+          child: Text(item.isFlagged ? '取消旗标' : '旗标'),
+        ),
+      if (onSetPriority != null) ...[
+        const CupertinoMenuDivider(),
+        for (final entry in _priorityLabels.entries)
+          CupertinoMenuItem(
+            key: ValueKey('row_ctx_priority_${entry.key}_$id'),
+            onPressed: () => onSetPriority!(entry.key),
+            trailing: entry.key == item.priority
+                ? const Icon(CupertinoIcons.checkmark, size: 14)
+                : null,
+            child: Text('优先级：${entry.value}'),
+          ),
+      ],
+      if (onTap != null) ...[
+        const CupertinoMenuDivider(),
+        CupertinoMenuItem(
+          key: ValueKey('row_ctx_info_$id'),
+          onPressed: onTap,
+          child: const Text('显示简介'),
+        ),
+      ],
+      if (onDelete != null) ...[
+        const CupertinoMenuDivider(),
+        CupertinoMenuItem(
+          key: ValueKey('row_ctx_delete_$id'),
+          isDestructiveAction: true,
+          onPressed: onDelete,
+          child: const Text('删除'),
+        ),
+      ],
+    ];
   }
 
   ({String text, bool overdue})? _dueText(
