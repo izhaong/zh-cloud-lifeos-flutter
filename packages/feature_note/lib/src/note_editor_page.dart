@@ -238,6 +238,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
   /// 表格在矩阵 N04 判「后置」、画笔在 N08 判范围外，摆成占位就是死控件
   /// （#444 的教训）。#664：标题样式/删除线/对齐/有序列表都有 quill 属性可
   /// 直接消费，补进菜单；标题样式与对齐有多档，收进二级面板，主菜单仍一屏可放下。
+  /// #665：Apple 的「字号」选择器（小/中/大/特大）此前只有 #463 的全局默认值，
+  /// 编辑器内没有入口；四档同样收进二级面板，不占主菜单一屏宽度。
   Future<void> _showFormatMenu() async {
     final action = await showCupertinoModalPopup<String>(
       context: context,
@@ -290,6 +292,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             onPressed: () => Navigator.of(sheetContext).pop('ordered_list'),
             child: const Text('有序列表'),
           ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_size'),
+            onPressed: () => Navigator.of(sheetContext).pop('size'),
+            child: const Text('字号'),
+          ),
         ],
         cancelButton: LifeActionSheetAction(
           isDefaultAction: true,
@@ -317,7 +324,86 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
         await _showAlignmentMenu();
       case 'ordered_list':
         _body.formatSelection(quill.Attribute.ol);
+      case 'size':
+        await _showFontSizeMenu();
     }
+  }
+
+  /// #665：Apple 格式菜单里的四档字号（磅）。
+  ///
+  /// 用**数值档**而不是 SDK 的 `small/large/huge` 字符串档：字符串档的渲染
+  /// 绑死在 `DefaultStyles.sizeSmall/sizeLarge/sizeHuge`（10/18/22），与 #463
+  /// 的全局默认磅值脱节；数值档由 quill `text_line` 直接 merge 到
+  /// `TextStyle.fontSize`，落库的 delta 与屏幕上的字号是同一份数据。
+  /// 「中」= #463 的默认 16 磅，四档都以它为锚。
+  static const _fontSizeTiers = <String, int>{
+    '小': 12,
+    '中': 16,
+    '大': 20,
+    '特大': 26,
+  };
+
+  /// #665：字号二级面板。第五项「恢复默认」是撤销档（把 inline size 清掉，
+  /// 回到 #463 的全局默认），与 #664「正文」撤销 header 同款，不是占位项。
+  Future<void> _showFontSizeMenu() async {
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) => LifeActionSheet(
+        key: const Key('note_editor_font_size_sheet'),
+        title: const Text('字号'),
+        actions: [
+          for (final entry in _fontSizeTiers.entries)
+            LifeActionSheetAction(
+              key: ValueKey('note_format_size_${entry.value}'),
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop('${entry.value}'),
+              child: Text('${entry.key}（${entry.value} 磅）'),
+            ),
+          LifeActionSheetAction(
+            key: const ValueKey('note_format_size_default'),
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(sheetContext).pop('default'),
+            child: const Text('恢复默认'),
+          ),
+        ],
+        cancelButton: LifeActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text('取消'),
+        ),
+      ),
+    );
+    if (action == null) return;
+    if (action == 'default') {
+      _applyFontSize(null);
+      return;
+    }
+    final size = int.tryParse(action);
+    if (size != null) _applyFontSize(size);
+  }
+
+  /// #665：Apple 是**逐段**改字号，不是只改选中的几个字。
+  ///
+  /// 把选区扩到所在行（跨选区则扩到首尾行），再对整段范围写 inline 属性。
+  /// quill 的 `ResolveInlineFormatRule` 会跳过换行符，所以可以一次覆盖多段，
+  /// 不必自己切行；`value=null` 即撤销该属性，回到全局默认磅值。
+  void _applyFontSize(int? size) {
+    final plain = _body.document.toPlainText();
+    final selection = _body.selection;
+    final start = selection.start.clamp(0, plain.length);
+    final end = selection.end.clamp(0, plain.length);
+    final lineStart =
+        start == 0 ? 0 : plain.lastIndexOf('\n', start - 1) + 1;
+    final nextBreak = plain.indexOf('\n', end);
+    final lineEnd = nextBreak < 0 ? plain.length : nextBreak;
+    final length = lineEnd - lineStart;
+    if (length <= 0) return;
+    _body.formatText(
+      lineStart,
+      length,
+      quill.Attribute.clone(quill.Attribute.size, size),
+    );
+    _body.updateSelection(_body.selection, quill.ChangeSource.local);
   }
 
   /// #664：标题样式二级面板。`Attribute.header`（value=null）是 quill 工具栏
@@ -784,7 +870,8 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage> {
             ),
             // #420（矩阵 N02/N05）：Apple 把加粗/斜体/下划线/链接/清单收在
             // 「格式」菜单里；本仓此前是 5 个平铺按钮——窄屏放不下、能力也找不到。
-            // 菜单只列已实现的能力（表格/字号/笔未裁定为对等范围，不摆占位）。
+            // 菜单只列已实现的能力（表格按 N04 后置、画笔按 N08 范围外）；
+            // #665 起字号已接线，不再属于「未实现」占位。
             _EditorAction(
               key: const ValueKey('note_editor_format'),
               semanticLabel: '格式',
