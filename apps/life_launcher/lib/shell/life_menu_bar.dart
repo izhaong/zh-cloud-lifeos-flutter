@@ -30,6 +30,8 @@ class LifeMenuBar extends StatefulWidget {
     this.onAbout,
     this.goToLists,
     this.goToRequests,
+    this.currentSortModeName,
+    this.groupByTime = false,
   });
 
   final Widget child;
@@ -43,6 +45,13 @@ class LifeMenuBar extends StatefulWidget {
   /// #575：「显示 → 前往」的清单快照与点击出口；为空时不渲染该子菜单。
   final ValueNotifier<List<LifeMenuGoToTarget>>? goToLists;
   final ValueNotifier<String?>? goToRequests;
+
+  /// #701：当前排序档名（`manual`/`dueDate`/`createdDate`/`title`/`priority`）。
+  /// 由壳层从 feature_task 偏好读入后传入——菜单只做 ✓ 文案，不写第二套排序。
+  final String? currentSortModeName;
+
+  /// #701/#702：是否「根据时间分组」；手动排序时该项置灰（onSelected=null）。
+  final bool groupByTime;
 
   @override
   State<LifeMenuBar> createState() => _LifeMenuBarState();
@@ -84,6 +93,8 @@ class _LifeMenuBarState extends State<LifeMenuBar> {
     onAbout: widget.onAbout,
     goToLists: widget.goToLists,
     goToRequests: widget.goToRequests,
+    currentSortModeName: widget.currentSortModeName,
+    groupByTime: widget.groupByTime,
     child: widget.child,
   );
 }
@@ -96,6 +107,8 @@ class _LifeMenuBarBody extends StatelessWidget {
     required this.onAbout,
     this.goToLists,
     this.goToRequests,
+    this.currentSortModeName,
+    this.groupByTime = false,
   });
 
   /// true ⇒ 焦点在文本编辑控件里，冲突键位让给文本编辑（#542）。
@@ -111,6 +124,12 @@ class _LifeMenuBarBody extends StatelessWidget {
 
   final ValueNotifier<List<LifeMenuGoToTarget>>? goToLists;
   final ValueNotifier<String?>? goToRequests;
+  final String? currentSortModeName;
+  final bool groupByTime;
+
+  /// PlatformMenuItem 无原生 checked API：用前缀 ✓ 反映当前档（#701）。
+  String _sortLabel(String modeName, String label) =>
+      currentSortModeName == modeName ? '✓ $label' : label;
 
   @override
   Widget build(BuildContext context) {
@@ -414,9 +433,11 @@ class _LifeMenuBarBody extends StatelessWidget {
               onSelected: () => commands.value = LifeMenuAction.toggleCompleted,
             ),
             PlatformMenuItem(
-              label: '根据时间分组',
-              onSelected: () =>
-                  commands.value = LifeMenuAction.toggleGroupByTime,
+              // #701：勾选态；#702：手动排序时 Apple 置灰（onSelected=null ⇒ disabled）。
+              label: groupByTime ? '✓ 根据时间分组' : '根据时间分组',
+              onSelected: currentSortModeName == 'manual'
+                  ? null
+                  : () => commands.value = LifeMenuAction.toggleGroupByTime,
             ),
             PlatformMenuItem(
               label: '列表视图',
@@ -446,26 +467,26 @@ class _LifeMenuBarBody extends StatelessWidget {
               label: '排序方式',
               menus: <PlatformMenuItem>[
                 PlatformMenuItem(
-                  label: '手动',
+                  label: _sortLabel('manual', '手动'),
                   onSelected: () =>
                       commands.value = LifeMenuAction.sortByManual,
                 ),
                 PlatformMenuItem(
-                  label: '按到期日',
+                  label: _sortLabel('dueDate', '按到期日'),
                   onSelected: () =>
                       commands.value = LifeMenuAction.sortByDueDate,
                 ),
                 PlatformMenuItem(
-                  label: '按创建日期',
+                  label: _sortLabel('createdDate', '按创建日期'),
                   onSelected: () =>
                       commands.value = LifeMenuAction.sortByCreatedDate,
                 ),
                 PlatformMenuItem(
-                  label: '按标题',
+                  label: _sortLabel('title', '按标题'),
                   onSelected: () => commands.value = LifeMenuAction.sortByTitle,
                 ),
                 PlatformMenuItem(
-                  label: '按优先级',
+                  label: _sortLabel('priority', '按优先级'),
                   onSelected: () =>
                       commands.value = LifeMenuAction.sortByPriority,
                 ),

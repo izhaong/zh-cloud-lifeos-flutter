@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:app_ui/app_ui.dart';
 import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -54,6 +57,19 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
   late final FocusNode _notesFocus = _blurOnUnfocus();
   late final FocusNode _tagsFocus = _blurOnUnfocus();
 
+  /// #703：子任务草稿焦点——硬件 Return 走 CallbackShortcuts；失焦兜底提交。
+  late final FocusNode _subtaskFocus = FocusNode()
+    ..addListener(_onSubtaskFocusChanged);
+
+  void _onSubtaskFocusChanged() {
+    if (_subtaskFocus.hasFocus || !mounted) return;
+    // 微任务：让 onSubmitted / CallbackShortcuts 先抢到提交锁，避免空提交关草稿。
+    scheduleMicrotask(() {
+      if (!mounted || _subtaskFocus.hasFocus) return;
+      _submitSubtask();
+    });
+  }
+
   /// 失焦兜底提交（#153）：焦点离开字段时若有未落库编辑则回写。
   FocusNode _blurOnUnfocus() {
     final node = FocusNode();
@@ -71,12 +87,35 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
 
   /// 换条目（同面板复用）时重置全部本地编辑态；
   /// 未提交的草稿编辑丢弃（对齐 Apple inspector 切行即显示新条目语义）。
+  ///
+  /// #699：同 id 时行内旗标/优先级等外部写入也要回刷——否则详情开关停在
+  /// 选中那一刻的快照，必须点走再点回才更新。本地有未提交脏编辑时不覆盖。
   @override
   void didUpdateWidget(covariant ReminderDetailPane oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.id != widget.item.id) {
       _bindControllers();
+      return;
     }
+    if (_dirty) return;
+    if (oldWidget.item.isFlagged != widget.item.isFlagged ||
+        oldWidget.item.priority != widget.item.priority ||
+        oldWidget.item.title != widget.item.title ||
+        oldWidget.item.notes != widget.item.notes ||
+        oldWidget.item.dueAt != widget.item.dueAt ||
+        oldWidget.item.recurrence != widget.item.recurrence ||
+        oldWidget.item.earlyReminderAt != widget.item.earlyReminderAt ||
+        !_sameTags(oldWidget.item.tags, widget.item.tags)) {
+      _bindControllers();
+    }
+  }
+
+  static bool _sameTags(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   void _bindControllers() {
@@ -95,7 +134,8 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
 
   @override
   void dispose() {
-    if (_dirty && !_deleted) _save();
+    if (_dirty && !_deleted && !_isReadOnly) _save();
+    _subtaskFocus.removeListener(_onSubtaskFocusChanged);
     _title.dispose();
     _notes.dispose();
     _tags.dispose();
@@ -103,6 +143,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     _titleFocus.dispose();
     _notesFocus.dispose();
     _tagsFocus.dispose();
+    _subtaskFocus.dispose();
     super.dispose();
   }
 
@@ -145,20 +186,39 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
     widget.onClose?.call();
   }
 
+  /// #703：防重入——硬件 Return / onSubmitted / 失焦 / 提交按钮可能同帧连击。
+  bool _submittingSubtask = false;
+
   Future<void> _submitSubtask() async {
+    if (_submittingSubtask || _isReadOnly) return;
     final title = _subtask.text.trim();
-    if (title.isEmpty) return; // 空标题不落库
-    await _repo.upsertItem(
-      ReminderItem(
-        id: newReminderId(),
-        listId: widget.item.listId,
-        title: title,
-        parentId: widget.item.id,
-      ),
-    );
-    _subtask.clear();
-    setState(() => _showSubtaskDraft = false);
+    if (title.isEmpty) {
+      // 空草稿失焦：收起，不落库
+      if (_showSubtaskDraft && mounted) {
+        setState(() => _showSubtaskDraft = false);
+      }
+      return;
+    }
+    _submittingSubtask = true;
+    try {
+      await _repo.upsertItem(
+        ReminderItem(
+          id: newReminderId(),
+          listId: widget.item.listId,
+          title: title,
+          parentId: widget.item.id,
+        ),
+      );
+      _subtask.clear();
+      // Apple：提交后续开下一条空子任务草稿，方便连录。
+      if (mounted) setState(() => _showSubtaskDraft = true);
+    } finally {
+      _submittingSubtask = false;
+    }
   }
+
+  /// #700：最近删除条目只读（deletedAt 非空）；勿再写旗标/造孤儿子任务。
+  bool get _isReadOnly => widget.item.deletedAt != null;
 
   Future<void> _deleteSubtask(String id) => _repo.deleteItem(id);
 
@@ -747,7 +807,7 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                       onToggleCompleted: () => completeReminder(ref, sub),
                     ),
                   ),
-                if (_showSubtaskDraft)
+                if (_showSubtaskDraft && !_isReadOnly)
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -762,38 +822,65 @@ class _ReminderDetailPaneState extends ConsumerState<ReminderDetailPane> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: CupertinoTextField(
-                            key: const ValueKey('detail_subtask'),
-                            controller: _subtask,
-                            autofocus: true,
-                            placeholder: '子任务',
-                            onSubmitted: (_) => _submitSubtask(),
-                            decoration: const BoxDecoration(),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          // #703：macOS 硬件 Return 不必然触发 CupertinoTextField.onSubmitted，
+                          // 用 CallbackShortcuts 接 Enter/小键盘回车；右侧再挂提交箭头兜底。
+                          child: CallbackShortcuts(
+                            bindings: <ShortcutActivator, VoidCallback>{
+                              const SingleActivator(LogicalKeyboardKey.enter):
+                                  _submitSubtask,
+                              const SingleActivator(
+                                LogicalKeyboardKey.numpadEnter,
+                              ): _submitSubtask,
+                            },
+                            child: CupertinoTextField(
+                              key: const ValueKey('detail_subtask'),
+                              controller: _subtask,
+                              focusNode: _subtaskFocus,
+                              autofocus: true,
+                              placeholder: '子任务',
+                              onSubmitted: (_) => _submitSubtask(),
+                              decoration: const BoxDecoration(),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                          ),
+                        ),
+                        CupertinoButton(
+                          key: const ValueKey('detail_subtask_submit'),
+                          minimumSize: Size.zero,
+                          padding: const EdgeInsets.all(6),
+                          onPressed: _submitSubtask,
+                          child: const Icon(
+                            CupertinoIcons.arrow_up,
+                            size: 18,
+                            color: ReminderTokens.systemBlue,
                           ),
                         ),
                       ],
                     ),
                   ),
-                CupertinoButton(
-                  onPressed: () => setState(() => _showSubtaskDraft = true),
-                  minimumSize: Size.zero,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+                if (!_isReadOnly)
+                  CupertinoButton(
+                    onPressed: () => setState(() => _showSubtaskDraft = true),
+                    minimumSize: Size.zero,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(
+                          CupertinoIcons.add,
+                          size: 20,
+                          color: ReminderTokens.systemBlue,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          '添加子任务',
+                          style: TextStyle(color: ReminderTokens.systemBlue),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        CupertinoIcons.add,
-                        size: 20,
-                        color: ReminderTokens.systemBlue,
-                      ),
-                      SizedBox(width: 8),
-                      Text('添加子任务', style: TextStyle(color: ReminderTokens.systemBlue)),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),

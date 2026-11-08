@@ -118,4 +118,22 @@ void main() {
     ]);
     expect(find.byKey(const ValueKey('section_分区一')), findsNothing);
   });
+
+  testWidgets('#704 编辑分区点「完成」须提交重命名', (tester) async {
+    await _pump(tester, repo);
+    await _newSection(tester, '旧名');
+    final id = (await _sectionsOf(repo, 'list.work')).first.id;
+
+    await _openEditor(tester);
+    await tester.enterText(find.byKey(ValueKey('section_rename_$id')), '新名');
+    // 不按 Return，直接点「完成」——此前会静默丢弃。
+    await tester.tap(find.byKey(const ValueKey('section_editor_done')));
+    await tester.pumpAndSettle();
+
+    expect(
+      (await _sectionsOf(repo, 'list.work')).map((e) => e.title).toList(),
+      ['新名'],
+      reason: '完成按钮必须落库重命名',
+    );
+  });
 }

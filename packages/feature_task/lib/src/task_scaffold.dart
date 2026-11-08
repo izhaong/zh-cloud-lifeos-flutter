@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:feature_productivity_kernel/feature_productivity_kernel.dart';
@@ -890,7 +893,8 @@ class _ThreePaneState extends ConsumerState<_ThreePane> {
                             ),
                     ),
             ),
-            if (selected != null) ...[
+            // #700：最近删除条目不挂可写详情面板（Apple 回收窗无编辑器）。
+            if (selected != null && selected.deletedAt == null) ...[
               const _VerticalHairline(),
               SizedBox(
                 width: 320,
@@ -1040,8 +1044,13 @@ final Set<_ListContentPaneState> _liveListPanes = <_ListContentPaneState>{};
 
 class _ListContentPaneState extends ConsumerState<ListContentPane> {
   final _draftController = TextEditingController();
+  final _draftFocus = FocusNode();
   final _searchFocus = FocusNode();
   bool _showDraft = false;
+
+  /// #697：提交续开空草稿后，TextInputAction.done 会失焦再触发空提交；
+  /// 置位期间忽略空标题收起，等焦点回到草稿再清。
+  bool _suppressEmptyDraftClose = false;
 
   /// #513 面①：分区「＋」触发的草稿落点分区（null = 普通幽灵行新建）。
   String? _pendingQuickAddSection;
@@ -1650,6 +1659,7 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     _shortcuts?.removeListener(_onShortcut);
     _menuCommands?.removeListener(_onMenuCommand);
     _searchFocus.dispose();
+    _draftFocus.dispose();
     _draftController.dispose();
     super.dispose();
   }
@@ -1667,6 +1677,18 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     List<ReminderItem> topLevel, {
     bool searching = false,
   }) {
+    // #702：排序「手动」时 Apple 不按时间分组——扁平列表（列表自带分区元数据除外）。
+    // 此前 _sortTopLevel(manual) 虽不重排，_buildSections 仍走 dueAt 日桶，
+    // 于是手动档与「按到期日」截图逐字节相同。
+    if (ref.read(listSortModeProvider) == ListSortMode.manual &&
+        widget.list.sections.isEmpty &&
+        !widget.list.id.startsWith('smart.')) {
+      return _SectionLayout(
+        {widget.list.title: topLevel},
+        const {},
+      );
+    }
+
     final manual = widget.list.sections;
     if (manual.isNotEmpty) {
       final byId = {for (final s in manual) s.id: s};
@@ -2240,6 +2262,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     final title = _draftController.text.trim();
     if (title.isEmpty) {
       // 空草稿失焦：直接收起，不落库（Apple：空行点到别处即消失）
+      // #697：刚提交续开时 TextInputAction.done 会再触发一次空提交——忽略。
+      if (_suppressEmptyDraftClose) return;
       _pendingQuickAddSection = null;
       _pendingQuickAddDay = null;
       if (_showDraft && mounted) setState(() => _showDraft = false);
@@ -2260,39 +2284,56 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
     // 智能视图内新建：必须落到对应视图的语义上——
     // today/scheduled/urgent 需要 dueAt 才能命中（smart.today 过滤 = !completed && 同日）；
     // 没有 dueAt 的条目只会出现在「全部」视图，在「今天」里不可见。
-    await repo.upsertItem(
-      ReminderItem(
-        id: newReminderId(),
-        listId: _isSmartView
-            ? resolveSmartCreateListId(
-                lists:
-                    (ref.read(reminderListsProvider).value ??
-                    const <ReminderList>[]),
-                preferredId: ref
-                    .read(taskPreferenceProvider)
-                    .value
-                    ?.defaultListId,
-              )
-            : widget.list.id,
-        title: title,
-        // 从「今天」/「计划」视图新建 → dueAt = 今天（只有日期，00:00）；
-        // Apple 快速新建不带时刻，写 now 会让它一分钟后变「已过期→紧急」（#183）。
-        // 从「全部/旗标/已完成」视图新建 → 不设 dueAt（归入个人列表，全部视图可见）
-        dueAt:
-            dueAtOverride ??
-            ((widget.list.id == 'smart.today' ||
-                    widget.list.id == 'smart.scheduled')
-                ? DateTime(now.year, now.month, now.day)
-                : null),
-      ),
-    );
-    _draftController.clear();
-    // 快捷新建的落点是一次性的：不清的话，下一次普通新建会静默继承
-    // 上一次那个分区/那一天（#487 引入组末圆圈后这条通道有两个来源，必须收口）。
-    _pendingQuickAddSection = null;
-    _pendingQuickAddDay = null;
-    if (mounted) setState(() => _showDraft = false);
-    _submittingDraft = false;
+    try {
+      await repo.upsertItem(
+        ReminderItem(
+          id: newReminderId(),
+          listId: _isSmartView
+              ? resolveSmartCreateListId(
+                  lists:
+                      (ref.read(reminderListsProvider).value ??
+                      const <ReminderList>[]),
+                  preferredId: ref
+                      .read(taskPreferenceProvider)
+                      .value
+                      ?.defaultListId,
+                )
+              : widget.list.id,
+          title: title,
+          // 从「今天」/「计划」视图新建 → dueAt = 今天（只有日期，00:00）；
+          // Apple 快速新建不带时刻，写 now 会让它一分钟后变「已过期→紧急」（#183）。
+          // 从「全部/旗标/已完成」视图新建 → 不设 dueAt（归入个人列表，全部视图可见）
+          dueAt:
+              dueAtOverride ??
+              ((widget.list.id == 'smart.today' ||
+                      widget.list.id == 'smart.scheduled')
+                  ? DateTime(now.year, now.month, now.day)
+                  : null),
+        ),
+      );
+      _draftController.clear();
+      // 快捷新建的落点是一次性的：不清的话，下一次普通新建会静默继承
+      // 上一次那个分区/那一天（#487 引入组末圆圈后这条通道有两个来源，必须收口）。
+      _pendingQuickAddSection = null;
+      _pendingQuickAddDay = null;
+      // #697：Apple 单次 Return 即落库并**续开**下一条空草稿；不要收起草稿行。
+      // TextInputAction.done 会失焦→空提交微任务；抑制直到草稿重新获得焦点。
+      _suppressEmptyDraftClose = true;
+      if (mounted) setState(() => _showDraft = true);
+      void clearSuppressOnFocus() {
+        if (!_draftFocus.hasFocus) return;
+        _suppressEmptyDraftClose = false;
+        _draftFocus.removeListener(clearSuppressOnFocus);
+      }
+
+      _draftFocus.addListener(clearSuppressOnFocus);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _draftFocus.requestFocus();
+      });
+    } finally {
+      _submittingDraft = false;
+    }
   }
 
   Future<void> _openNewItemDialog() async {
@@ -2407,7 +2448,8 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                 ),
               ),
             // 顶栏 ＋（图2 工具行；与 ⌘N 同构→草稿行）
-            if (isPane)
+            // #700：最近删除页 Apple 只有搜索，不提供新建 / ⋯。
+            if (isPane && !_isTrashView)
               Semantics(
                 label: '新提醒（⌘N）',
                 button: true,
@@ -2419,30 +2461,31 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                   child: const Icon(CupertinoIcons.add),
                 ),
               ),
-            _MoreMenu(
-              onToggleCompleted: () {
-                final Map<String, bool> perList = ref.read(
-                  showCompletedByListProvider,
-                );
-                final bool cur = perList[widget.list.id] ?? false;
-                ref
-                    .read(showCompletedByListProvider.notifier)
-                    .setFor(widget.list.id, !cur);
-              },
-              showCompleted:
-                  ref.watch(showCompletedByListProvider)[widget.list.id] ??
-                  false,
-              sectionsEnabled: !widget.list.isSmart,
-              onNewSection: _createSection,
-              onEditSections: _editSections,
-              // flutter #567：选择态非空才给这条入口可点（value=null 即置灰）。
-              selectionCount: _selectedIds.length,
-              selecting: _selecting,
-              onCreateFromSelection: _createSectionFromSelection,
-              onExitSelection: _exitSelection,
-              shareEnabled: !widget.list.isSmart,
-              onShareList: _shareCurrentList,
-            ),
+            if (!_isTrashView)
+              _MoreMenu(
+                onToggleCompleted: () {
+                  final Map<String, bool> perList = ref.read(
+                    showCompletedByListProvider,
+                  );
+                  final bool cur = perList[widget.list.id] ?? false;
+                  ref
+                      .read(showCompletedByListProvider.notifier)
+                      .setFor(widget.list.id, !cur);
+                },
+                showCompleted:
+                    ref.watch(showCompletedByListProvider)[widget.list.id] ??
+                    false,
+                sectionsEnabled: !widget.list.isSmart,
+                onNewSection: _createSection,
+                onEditSections: _editSections,
+                // flutter #567：选择态非空才给这条入口可点（value=null 即置灰）。
+                selectionCount: _selectedIds.length,
+                selecting: _selecting,
+                onCreateFromSelection: _createSectionFromSelection,
+                onExitSelection: _exitSelection,
+                shareEnabled: !widget.list.isSmart,
+                onShareList: _shareCurrentList,
+              ),
           ],
         ),
       ),
@@ -2571,11 +2614,13 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                 final draftRow = _DraftRow(
                   key: const ValueKey('draft_row'),
                   controller: _draftController,
+                  focusNode: _draftFocus,
                   onSubmit: _submitDraft,
                   onCancel: () {
                     _draftController.clear();
                     _pendingQuickAddSection = null;
                     _pendingQuickAddDay = null;
+                    _suppressEmptyDraftClose = false;
                     setState(() => _showDraft = false);
                   },
                 );
@@ -2894,11 +2939,13 @@ class _DraftRow extends StatefulWidget {
   const _DraftRow({
     super.key,
     required this.controller,
+    required this.focusNode,
     required this.onSubmit,
     required this.onCancel,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final VoidCallback onSubmit;
   final VoidCallback onCancel;
 
@@ -2907,21 +2954,39 @@ class _DraftRow extends StatefulWidget {
 }
 
 class _DraftRowState extends State<_DraftRow> {
-  late final FocusNode _focusNode = FocusNode()..addListener(_onFocusChanged);
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_onFocusChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _DraftRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      oldWidget.focusNode.removeListener(_onFocusChanged);
+      widget.focusNode.addListener(_onFocusChanged);
+    }
+  }
 
   /// #367：Apple 语义「点到别处即提交」。
   ///
   /// 此前草稿行只认 Return 与提交按钮，失焦什么都不做——于是点别处后草稿行会以
   /// 「像已存在」的形态常驻列表（右侧还挂着提交箭头），而计数又不含它。
+  ///
+  /// #697：macOS 硬件 Return 不必然触发 CupertinoTextField.onSubmitted——
+  /// 另挂 CallbackShortcuts；失焦用微任务，让 Return 提交锁先抢到，避免空提交收起。
   void _onFocusChanged() {
-    if (_focusNode.hasFocus || !mounted) return;
-    widget.onSubmit();
+    if (widget.focusNode.hasFocus || !mounted) return;
+    scheduleMicrotask(() {
+      if (!mounted || widget.focusNode.hasFocus) return;
+      widget.onSubmit();
+    });
   }
 
   @override
   void dispose() {
-    _focusNode.removeListener(_onFocusChanged);
-    _focusNode.dispose();
+    widget.focusNode.removeListener(_onFocusChanged);
     super.dispose();
   }
 
@@ -2937,15 +3002,23 @@ class _DraftRowState extends State<_DraftRow> {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: CupertinoTextField(
-              key: const ValueKey('draft_field'),
-              controller: widget.controller,
-              focusNode: _focusNode,
-              autofocus: true,
-              onSubmitted: (_) => widget.onSubmit(),
-              placeholder: '新提醒事项',
-              decoration: const BoxDecoration(),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+            child: CallbackShortcuts(
+              bindings: <ShortcutActivator, VoidCallback>{
+                const SingleActivator(LogicalKeyboardKey.enter):
+                    widget.onSubmit,
+                const SingleActivator(LogicalKeyboardKey.numpadEnter):
+                    widget.onSubmit,
+              },
+              child: CupertinoTextField(
+                key: const ValueKey('draft_field'),
+                controller: widget.controller,
+                focusNode: widget.focusNode,
+                autofocus: true,
+                onSubmitted: (_) => widget.onSubmit(),
+                placeholder: '新提醒事项',
+                decoration: const BoxDecoration(),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+              ),
             ),
           ),
           CupertinoButton(

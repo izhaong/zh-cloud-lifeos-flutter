@@ -80,6 +80,12 @@ class _TaskShortcutsState extends State<TaskShortcuts> {
           // #249：Apple ⇧⌘N = 新建列表（TC-UI-316 的快捷键入口）
           SingleActivator(LogicalKeyboardKey.keyN, meta: true, shift: true):
               _NewListIntent(),
+          // #698：选中已有提醒后按 Return → 快速续建草稿行
+          // （手册 03:36）。焦点在 EditableText 时由文本控件自己吃 Enter，
+          // 不会抢草稿行 / 详情字段的提交。
+          SingleActivator(LogicalKeyboardKey.enter): _NewReminderIntent(),
+          SingleActivator(LogicalKeyboardKey.numpadEnter):
+              _NewReminderIntent(),
         },
         child: Actions(
           actions: <Type, Action<Intent>>{

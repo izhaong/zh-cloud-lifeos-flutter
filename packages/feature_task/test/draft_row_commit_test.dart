@@ -39,7 +39,7 @@ Future<InMemoryReminderRepository> _pump(WidgetTester tester,
 }
 
 void main() {
-  testWidgets('#367 现象2/3：回车一次应提交并收起草稿行', (tester) async {
+  testWidgets('#367/#697：回车一次应落库并续开空草稿行', (tester) async {
     final repo = await _pump(tester);
 
     await _openDraft(tester);
@@ -51,8 +51,16 @@ void main() {
     final items = await repo.watchItems().first;
     expect(items.where((i) => i.title == '回车一次'), hasLength(1),
         reason: '一次回车就应落库');
-    expect(find.byKey(const ValueKey('draft_field')), findsNothing,
-        reason: '提交后草稿行应收起（回车一次即可）');
+    // #697：Apple 续开下一条空草稿，不是收起。
+    expect(find.byKey(const ValueKey('draft_field')), findsOneWidget,
+        reason: '提交后续开空草稿行');
+    final editable = tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('draft_field')),
+        matching: find.byType(EditableText),
+      ),
+    );
+    expect(editable.controller.text, isEmpty, reason: '续开的草稿应为空');
   });
 
   testWidgets('#367 现象1：失焦应提交草稿（Apple: 点到别处即提交）', (tester) async {

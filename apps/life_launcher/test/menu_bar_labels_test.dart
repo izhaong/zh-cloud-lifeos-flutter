@@ -48,8 +48,9 @@ void main() {
   test('#537 显示菜单挂「排序方式」五项，且菜单侧不实现排序', () {
     expect(source.contains("label: '排序方式'"), isTrue,
         reason: 'Apple「显示 → 排序方式」是子菜单');
+    // #701：当前档用 `_sortLabel(mode, '文案')` 前缀 ✓，文案本身仍须在源码里。
     for (final label in ['手动', '按到期日', '按创建日期', '按标题', '按优先级']) {
-      expect(source.contains("label: '$label'"), isTrue,
+      expect(source.contains("'$label'"), isTrue,
           reason: '排序方式子菜单缺少「$label」');
     }
     for (final a in [
