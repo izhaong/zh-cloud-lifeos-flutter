@@ -1405,6 +1405,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       await _showMenuNotice('将截止日期标记为', '先选中一条提醒事项');
       return;
     }
+    await _markDueDateFor(item);
+  }
+
+  Future<void> _markDueDateFor(ReminderItem item) async {
     if (!mounted) return;
     final picked = await showCupertinoModalPopup<String>(
       context: context,
@@ -1529,6 +1533,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       await _showMenuNotice('缩进', '先选中一条提醒事项');
       return;
     }
+    await _indentReminder(item);
+  }
+
+  Future<void> _indentReminder(ReminderItem item) async {
     if (_isTrashView) {
       await _showMenuNotice('缩进', '最近删除里不能改层级');
       return;
@@ -1560,6 +1568,10 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       await _showMenuNotice('减少缩进', '先选中一条提醒事项');
       return;
     }
+    await _outdentReminder(item);
+  }
+
+  Future<void> _outdentReminder(ReminderItem item) async {
     if (_isTrashView) {
       await _showMenuNotice('减少缩进', '最近删除里不能改层级');
       return;
@@ -2059,6 +2071,36 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
   /// #545：「已过期=不变」以前只是注释——非时间档在 [_sectionTime] 里落
   /// `_ => today`，实测拖一次就把今晚 20:00 改成今天 00:00。现在按
   /// [_timeSectionBuckets] 卡住：档名不对应时刻就不写库，菜单与拖放共用同一份白名单。
+  /// #706：手动排序档——把 [draggedId] 插到 [targetId] 之前，重写顶层 sortOrder。
+  Future<void> _reorderManualBefore(String draggedId, String targetId) async {
+    if (draggedId == targetId) return;
+    if (ref.read(listSortModeProvider) != ListSortMode.manual) return;
+    final items =
+        (await ref.read(itemsForListProvider(widget.list.id).future))
+            .where((e) => e.parentId == null && e.deletedAt == null)
+            .toList(growable: false);
+    // 与仓库契约一致：sortOrder asc, id asc
+    final ordered = [...items]
+      ..sort((a, b) {
+        final byOrder = a.sortOrder.compareTo(b.sortOrder);
+        return byOrder != 0 ? byOrder : a.id.compareTo(b.id);
+      });
+    final ids = [for (final e in ordered) e.id];
+    if (!ids.contains(draggedId) || !ids.contains(targetId)) return;
+    ids.remove(draggedId);
+    final at = ids.indexOf(targetId);
+    if (at < 0) return;
+    ids.insert(at, draggedId);
+    final byId = {for (final e in ordered) e.id: e};
+    final repo = ref.read(reminderRepositoryProvider);
+    for (var i = 0; i < ids.length; i++) {
+      final cur = byId[ids[i]]!;
+      if (cur.sortOrder != i) {
+        await repo.upsertItem(cur.copyWith(sortOrder: i));
+      }
+    }
+  }
+
   Future<void> _onSectionDrop(String itemId, String sectionKey) async {
     if (!_timeSectionBuckets.contains(sectionKey)) return;
     final repo = ref.read(reminderRepositoryProvider);
@@ -2197,6 +2239,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
       onToggleCompleted: () => completeReminder(ref, item),
       onToggleFlagged: () => repo.toggleFlagged(item.id),
       onSetPriority: (p) => repo.upsertItem(item.copyWith(priority: p)),
+      onMarkDueDate: _isTrashView ? null : () => _markDueDateFor(item),
+      onIndent: _isTrashView ? null : () => _indentReminder(item),
+      onOutdent: _isTrashView ? null : () => _outdentReminder(item),
       // flutter #567：选择态里点行=勾选/取消，不再改三栏的选中项。
       onTap: () => _selecting
           ? _toggleSelected(item.id)
@@ -2246,6 +2291,9 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
               onToggleFlagged: () => repo.toggleFlagged(sub.id),
               onSetPriority: (p) =>
                   repo.upsertItem(sub.copyWith(priority: p)),
+              onMarkDueDate: _isTrashView ? null : () => _markDueDateFor(sub),
+              onIndent: _isTrashView ? null : () => _indentReminder(sub),
+              onOutdent: _isTrashView ? null : () => _outdentReminder(sub),
               onDelete: _isTrashView ? null : () => repo.deleteItem(sub.id),
             ),
           ),
@@ -2684,22 +2732,52 @@ class _ListContentPaneState extends ConsumerState<ListContentPane> {
                         // LayoutBuilder 把源行的实际宽度交给反馈层，`Expanded`
                         // 重新有界，跟手卡片也与源行同宽。
                         LayoutBuilder(
-                          builder: (context, constraints) => Draggable<String>(
-                            key: ValueKey('draggable_${item.id}'),
-                            data: item.id,
-                            feedback: SizedBox(
-                              key: ValueKey('drag_feedback_${item.id}'),
-                              width: constraints.maxWidth,
+                          builder: (context, constraints) {
+                            final draggable = Draggable<String>(
+                              key: ValueKey('draggable_${item.id}'),
+                              data: item.id,
+                              feedback: SizedBox(
+                                key: ValueKey('drag_feedback_${item.id}'),
+                                width: constraints.maxWidth,
+                                child: _buildItemRow(
+                                  item,
+                                  subtasksByParent: subtasksByParent,
+                                ),
+                              ),
                               child: _buildItemRow(
                                 item,
                                 subtasksByParent: subtasksByParent,
                               ),
-                            ),
-                            child: _buildItemRow(
-                              item,
-                              subtasksByParent: subtasksByParent,
-                            ),
-                          ),
+                            );
+                            // #706：手动档行既是拖源也是落点——落到某行 = 插到它前面。
+                            if (ref.watch(listSortModeProvider) !=
+                                ListSortMode.manual) {
+                              return draggable;
+                            }
+                            return DragTarget<String>(
+                              key: ValueKey('reorder_target_${item.id}'),
+                              onWillAcceptWithDetails: (d) =>
+                                  d.data != item.id,
+                              onAcceptWithDetails: (d) =>
+                                  _reorderManualBefore(d.data, item.id),
+                              builder: (context, candidate, rejected) {
+                                final hovering = candidate.isNotEmpty;
+                                return DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    border: hovering
+                                        ? const Border(
+                                            top: BorderSide(
+                                              color: ReminderTokens.systemBlue,
+                                              width: 2,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                  child: draggable,
+                                );
+                              },
+                            );
+                          },
                         ),
                     // #487 面②：Apple「计划」视图每个日期组末尾一条空圆圈，
                     // 点它即在**那一天**新建（guide zh-cn/12：add reminders at the

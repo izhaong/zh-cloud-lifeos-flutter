@@ -18,6 +18,9 @@ class ReminderRow extends StatelessWidget {
     this.onTap,
     this.onDelete,
     this.onSetPriority,
+    this.onIndent,
+    this.onOutdent,
+    this.onMarkDueDate,
     this.dense = false,
     this.listName,
     this.subtaskDone = 0,
@@ -43,6 +46,11 @@ class ReminderRow extends StatelessWidget {
 
   /// 右键菜单「优先级」（值同详情面板：0 无 / 1 低 / 5 中 / 9 高）；null = 不列。
   final ValueChanged<int>? onSetPriority;
+
+  /// #675：右键「缩进 / 减少缩进 / 将截止日期标记为」；null = 不列。
+  final VoidCallback? onIndent;
+  final VoidCallback? onOutdent;
+  final VoidCallback? onMarkDueDate;
 
   /// 子任务行的紧凑变体（缩进由外层控制）。
   final bool dense;
@@ -233,6 +241,29 @@ class ReminderRow extends StatelessWidget {
                 ? const Icon(CupertinoIcons.checkmark, size: 14)
                 : null,
             child: Text('优先级：${entry.value}'),
+          ),
+      ],
+      if (onMarkDueDate != null) ...[
+        const CupertinoMenuDivider(),
+        CupertinoMenuItem(
+          key: ValueKey('row_ctx_due_$id'),
+          onPressed: onMarkDueDate,
+          child: const Text('将截止日期标记为…'),
+        ),
+      ],
+      if (onIndent != null || onOutdent != null) ...[
+        const CupertinoMenuDivider(),
+        if (onIndent != null)
+          CupertinoMenuItem(
+            key: ValueKey('row_ctx_indent_$id'),
+            onPressed: onIndent,
+            child: const Text('缩进'),
+          ),
+        if (onOutdent != null)
+          CupertinoMenuItem(
+            key: ValueKey('row_ctx_outdent_$id'),
+            onPressed: onOutdent,
+            child: const Text('减少缩进'),
           ),
       ],
       if (onTap != null) ...[
