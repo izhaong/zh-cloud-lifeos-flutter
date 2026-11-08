@@ -55,6 +55,9 @@ void main() {
       'row_ctx_flag_r1',
       'row_ctx_priority_0_r1',
       'row_ctx_priority_9_r1',
+      'row_ctx_due_r1',
+      'row_ctx_indent_r1',
+      'row_ctx_outdent_r1',
       'row_ctx_info_r1',
       'row_ctx_delete_r1',
     ]) {
