@@ -484,8 +484,12 @@ class _LifeLauncherAppState extends ConsumerState<LifeLauncherApp>
     if (commands == null) {
       return app;
     }
+    // #701/#702：排序勾选态与「根据时间分组」置灰——读 feature_task 偏好，
+    // 菜单层只展示，不写第二套排序（life_menu_bar 不得出现 listSortModeProvider）。
     return LifeMenuBar(
       commands: commands,
+      currentSortModeName: ref.watch(listSortModeProvider).name,
+      groupByTime: ref.watch(groupByTimeProvider),
       goToLists: ProviderScope.containerOf(context, listen: false)
           .read(lifeMenuGoToListsProvider),
       goToRequests: ProviderScope.containerOf(context, listen: false)

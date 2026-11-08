@@ -180,7 +180,14 @@ class _SectionEditorSheetState extends State<SectionEditorSheet> {
                     key: const ValueKey('section_editor_done'),
                     minimumSize: Size.zero,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    onPressed: () => Navigator.of(context).pop(),
+                    // #704：完成 = 提交全部重命名再关；此前只 pop，键入的新名被静默丢弃。
+                    onPressed: () async {
+                      for (final s in List.of(_sections)) {
+                        await _rename(s);
+                      }
+                      if (!context.mounted) return;
+                      Navigator.of(context).pop();
+                    },
                     child: const Text('完成'),
                   ),
                 ],
